@@ -27,6 +27,7 @@
 
 const fs = require("fs");
 const { launchChromium } = require("./launch");
+const { settle, visit, draw, follow, leave } = require("./settle");
 
 const WIDTHS = [
   { width: 1200, height: 900 },
@@ -224,62 +225,11 @@ async function sourceFindings(context, url, plainSelectors, amountData, amountNa
   const html = await response.text();
   const page = await context.newPage();
   try {
-    await page.setContent(html.replace(/<script(?![^>]*data-chart-payload)[\s\S]*?<\/script>/g, ""), { waitUntil: "domcontentloaded" });
+    await draw(page, html.replace(/<script(?![^>]*data-chart-payload)[\s\S]*?<\/script>/g, ""), { waitUntil: "domcontentloaded" });
     return await page.evaluate(scan, { plainSelectors, amountData, amountName });
   } finally {
-    await page.close();
+    await leave(page);
   }
-}
-
-// What marks a load still running: every placeholder a page shows while a
-// load runs carries `aria-busy` (test/invariants/busy_placeholders_test.exs),
-// and LiveView's own loading class.
-const BUSY = "[aria-busy='true'], .phx-loading, .value-slot-pending";
-
-// Waits until the page is connected and every load it started has landed:
-// no element is busy, and none is again a moment later (a load asked for
-// once the page is connected, such as Wealth's remembered period, starts
-// after the first ones land). Answers {connected, settled, pending}. A page
-// that never connects (a crash, an error page) is not waited on. One still
-// busy after `settleMs` is not settled, and `pending` names what it waits
-// for: the walk fails it (`failures`), since reading it would check figures
-// that have not landed, and leaving it would kill a load mid-query, which
-// takes the test's one shared database connection with it (the Sprint 28
-// closing act: on CI's slower runner the old wait gave up after 8 s,
-// silently, and every later page answered 500).
-async function settle(page, { connectMs = 15000, settleMs = 45000 } = {}) {
-  const connected = await page
-    .waitForFunction(() => document.querySelector("[data-phx-main].phx-connected") !== null, null, { timeout: connectMs })
-    .then(() => true)
-    .catch(() => false);
-  if (!connected) return { connected, settled: false, pending: [] };
-  const deadline = Date.now() + settleMs;
-  const idle = () => page.evaluate((busy) => document.querySelector(busy) === null, BUSY).catch(() => false);
-  for (;;) {
-    const left = deadline - Date.now();
-    const landed =
-      left > 0 &&
-      (await page
-        .waitForFunction((busy) => document.querySelector(busy) === null, BUSY, { timeout: left, polling: 100 })
-        .then(() => true)
-        .catch(() => false));
-    if (!landed) return { connected, settled: false, pending: await busyNow(page) };
-    await page.waitForTimeout(250);
-    if (await idle()) return { connected, settled: true, pending: [] };
-  }
-}
-
-// The busy elements on the page, each by its tag and its data-role, id or
-// class.
-function busyNow(page) {
-  return page
-    .$$eval(BUSY, (els) =>
-      els.slice(0, 5).map((el) => {
-        const name = el.getAttribute("data-role") || el.id || [...el.classList].join(".");
-        return el.tagName.toLowerCase() + (name ? " " + name : "");
-      })
-    )
-    .catch(() => ["(the page is gone)"]);
 }
 
 // Two waits on one view in a row (an open state's steps): it connected and
@@ -406,11 +356,11 @@ async function main() {
 
         // The switch itself: off on a first visit, on after one press, and
         // the address carries no choice afterwards.
-        await page.goto(base + "/");
+        await visit(page, base + "/");
         await settle(page);
         const before = await page.getAttribute("#privacy-mode", "aria-pressed");
         if (before !== "false") throw new Error("the switch was pressed on a first visit: " + before);
-        await Promise.all([page.waitForURL((u) => !u.search.includes("privacy=")), page.click("#privacy-mode")]);
+        await Promise.all([page.waitForURL((u) => !u.search.includes("privacy=")), follow(page, () => page.click("#privacy-mode"))]);
         await settle(page);
         const after = await page.getAttribute("#privacy-mode", "aria-pressed");
         if (after !== "true") throw new Error("the switch did not turn the mode on: " + after);
@@ -478,7 +428,7 @@ async function main() {
           const path = queue.shift();
           if (statesOnly || (only && !path.startsWith(only))) continue;
           const tag = theme + " " + viewport.width + " " + path;
-          const response = await page.goto(base + path).catch((error) => {
+          const response = await visit(page, base + path).catch((error) => {
             findings.push({ page: tag, where: "navigation", hit: String(error && error.message), context: path });
             return null;
           });
@@ -504,7 +454,7 @@ async function main() {
           // The page's other views it links in place (a patch).
           await followInPage(tag);
           if (address(page.url(), page.url()) !== path) {
-            await page.goto(base + path).catch(() => null);
+            await visit(page, base + path).catch(() => null);
             await settle(page);
           }
 
@@ -544,7 +494,7 @@ async function main() {
         for (const openState of pages.openStates || []) {
           if (only && !statesOnly && !openState.url.startsWith(only)) continue;
           const tag = theme + " " + viewport.width + " " + openState.url + " [" + openState.name + "]";
-          await page.goto(base + openState.url).catch((error) => {
+          await visit(page, base + openState.url).catch((error) => {
             findings.push({ page: tag, where: "navigation", hit: String(error && error.message), context: openState.url });
           });
           let loaded = await settle(page);
@@ -572,7 +522,7 @@ async function main() {
           }
           await check(tag, loaded, openState.allowFormValues === true);
         }
-        await context.close();
+        await leave(context);
       }
     }
 
@@ -585,16 +535,11 @@ async function main() {
   } catch (error) {
     process.stdout.write(JSON.stringify({ ok: false, error: String(error && error.message), findings: short(findings).slice(0, 2000) }) + "\n");
   } finally {
-    await browser.close();
+    await leave(browser);
   }
 }
 
-// `settle` is the walk's wait, checked on its own by privacy_leak_settle.js.
-module.exports = { settle };
-
-if (require.main === module) {
-  main().catch((error) => {
-    process.stderr.write(String(error && error.stack) + "\n");
-    process.exit(2);
-  });
-}
+main().catch((error) => {
+  process.stderr.write(String(error && error.stack) + "\n");
+  process.exit(2);
+});

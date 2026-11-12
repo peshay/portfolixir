@@ -10,6 +10,7 @@
 "use strict";
 
 const { launchChromium } = require("./launch");
+const { visit, leave } = require("./settle");
 
 const url = process.argv[2];
 const PANEL = "#detail-tab-panel-chart";
@@ -36,7 +37,7 @@ async function run(browser) {
     isMobile: true
   });
   const page = await context.newPage();
-  await page.goto(url);
+  await visit(page, url);
   await page.waitForSelector("[data-phx-main].phx-connected");
   await page.waitForSelector(PANEL + " g.note-pin");
   // The hook writes the scale on mount; until then the factor is 1.
@@ -70,7 +71,7 @@ async function run(browser) {
     if (pin.glyph) errors.push("a neutral pin carries a glyph");
   }
 
-  await context.close();
+  await leave(context);
   return { errors, pins };
 }
 
@@ -84,7 +85,7 @@ async function run(browser) {
   } catch (error) {
     process.stdout.write(JSON.stringify({ ok: false, error: String(error && error.message) }) + "\n");
   } finally {
-    await browser.close();
+    await leave(browser);
   }
 })().catch((error) => {
   process.stderr.write(String(error && error.stack) + "\n");

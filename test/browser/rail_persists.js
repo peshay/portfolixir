@@ -10,6 +10,7 @@
 "use strict";
 
 const { launchChromium } = require("./launch");
+const { visit, follow, leave } = require("./settle");
 
 const base = process.argv[2];
 // A phone held sideways: wider than the 900 px breakpoint, so the sidebar
@@ -150,7 +151,7 @@ async function rail(page) {
 
     // An empty instance: Cash flow's empty state links to Accounts & depots
     // with a live redirect (data-phx-link="redirect").
-    await page.goto(base + "/cashflow");
+    await visit(page, base + "/cashflow");
     await connected(page, "/cashflow", "/portfolio");
     await expectRail(page, false, "a first visit did not open the sidebar expanded");
 
@@ -162,7 +163,7 @@ async function rail(page) {
       window.__sameDocument = true;
     });
     await resetWidest(page);
-    await page.tap("a[data-phx-link='redirect'][href='/portfolios']");
+    await follow(page, () => page.tap("a[data-phx-link='redirect'][href='/portfolios']"));
     await connected(page, "/portfolios");
     check(await page.evaluate(() => window.__sameDocument === true), "the link was not a live redirect");
     await expectRail(page, true, "a live redirect opened the rail");
@@ -170,7 +171,7 @@ async function rail(page) {
     check(await checked(page), "after a live redirect the checkbox is not checked");
 
     // A sidebar link: a full page load.
-    await page.tap("#nav-securities");
+    await follow(page, () => page.tap("#nav-securities"));
     await connected(page, "/securities");
     check(await page.evaluate(() => window.__sameDocument === undefined), "the sidebar link was not a full load");
     let seen = await rail(page);
@@ -182,7 +183,7 @@ async function rail(page) {
 
     // Expanded again, a full load opens expanded.
     await toggle(page, false);
-    await page.tap("#nav-dashboard");
+    await follow(page, () => page.tap("#nav-dashboard"));
     await connected(page, "/");
     seen = await rail(page);
     check(seen.firstAttr === null, "an expanded rail was rendered remembered: " + JSON.stringify(seen));
@@ -193,7 +194,7 @@ async function rail(page) {
     // sidebar stays closed, on the first render and once connected.
     await toggle(page, true);
     await page.setViewportSize(PHONE_PORTRAIT);
-    await page.goto(base + "/securities");
+    await visit(page, base + "/securities");
     await connected(page, "/securities");
     seen = await rail(page);
     check(seen.firstRight <= 0, "upright, the first render opened the off-canvas sidebar: " + JSON.stringify(seen));
@@ -214,7 +215,7 @@ async function rail(page) {
     for (const wide of [PHONE_LANDSCAPE, DESKTOP]) {
       const at = wide.width + " px";
       await page.setViewportSize(wide);
-      await page.goto(base + "/securities");
+      await visit(page, base + "/securities");
       await connected(page, "/securities");
       await expectRail(page, true, "at " + at + " the remembered rail was not collapsed");
       check(await checked(page), "at " + at + " the collapsed rail's checkbox is not checked");
@@ -231,12 +232,12 @@ async function rail(page) {
       );
     }
 
-    await context.close();
+    await leave(context);
     process.stdout.write(JSON.stringify({ ok: true }) + "\n");
   } catch (error) {
     process.stdout.write(JSON.stringify({ ok: false, error: String(error && error.message) }) + "\n");
   } finally {
-    await browser.close();
+    await leave(browser);
   }
 })().catch((error) => {
   process.stderr.write(String(error && error.stack) + "\n");

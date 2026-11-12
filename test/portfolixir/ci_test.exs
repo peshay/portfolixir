@@ -2571,7 +2571,12 @@ defmodule Portfolixir.CITest do
 
     assert File.read!(".github/dependabot.yml") =~ ~s(directory: "/test/browser")
 
-    scripts = Path.wildcard("test/browser/*.js") -- ["test/browser/launch.js"]
+    # launch.js and settle.js are the walks' helpers, not walks: launch.js
+    # starts Chromium, settle.js (Sprint 29 M2) waits for a page's loads and
+    # never launches a browser of its own.
+    helpers = ["test/browser/launch.js", "test/browser/settle.js"]
+    scripts = Path.wildcard("test/browser/*.js") -- helpers
+    assert Enum.all?(helpers, &File.exists?/1)
     assert scripts != []
 
     for script <- scripts do
