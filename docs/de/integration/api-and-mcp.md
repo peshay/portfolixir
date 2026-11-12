@@ -974,7 +974,11 @@ antwortet); `source_url` der Link ihres Mitglieds der besten Stufe, der erste,
 der in 2.048 Zeichen passt; `source_quality` nach der Regel von ADR-0056 §3 (ein
 `primary`-Mitglied ergibt `primary`, zwei oder mehr verschiedene
 `secondary`-Domains `secondary_multi`, eine `unverified`, sonst
-`awareness`); `headline` ihr Titel, an einer Wortgrenze auf 80 Zeichen
+`awareness`), jedes Mitglied mit der Stufe, die ihm die Quellentabelle jetzt
+gibt, sodass eine zweite Übernahme nach einer Neubewertung die neue Stufe
+nennt, und ein Mitglied, dessen Domain jetzt gesperrt ist, bleibt außen vor
+(bei der Qualität und beim Link; ADR-0056 E1 Regel 5); `headline` ihr Titel,
+an einer Wortgrenze auf 80 Zeichen
 gekürzt; `event_type` und `tone` aus ihrem aktiven Label der neuesten
 Prompt-Version (ein `noise`-Label ergibt keinen Ereignistyp), und der Eintrag
 behält die Id dieses Labels als `news_label_id`. Die Vorbelegung ist ein
@@ -987,7 +991,8 @@ Danach ist jedes Mitglied der Story `promoted` und nennt den Eintrag in
 `note_ids` (`news.get`, `news.list` mit `fields=std`), sodass es die
 Aufbewahrungsfrist überdauert; eine zweite Übernahme hängt einen weiteren
 Eintrag an, und die Story nennt beide. Eine Story eines anderen Wertpapiers,
-die Story einer Kategorie oder eine Id ohne Story liefert `422` mit
+die Story einer Kategorie, eine Id ohne Story oder eine Story, deren
+Mitglieder alle aus jetzt gesperrten Domains stammen, liefert `422` mit
 `cluster_id`. Nichts in der News-Schicht schreibt von sich aus einen Eintrag,
 einen Termin oder eine Prognose.
 
@@ -1210,11 +1215,13 @@ Die Writes: `POST /api/v1/securities/:security_id/events` (`201`),
 (`204`). Beim Anlegen gilt: `security_id` kommt aus dem Pfad, nie aus dem
 Body; `machine_generated` ist reserviert und wird im Body ignoriert.
 `event.news_id` (ADR-0056 §8) nennt einen Nachrichten-Eintrag
-dieses Wertpapiers als Quelle des Termins: Sein Link wird `source_url`, seine
-Stufe `source_quality` (`primary`, `secondary` als `unverified`,
+dieses Wertpapiers als Quelle des Termins: Sein Link wird `source_url`, die
+Stufe, die ihm die Quellentabelle jetzt gibt, `source_quality` (`primary`,
+`secondary` als `unverified`,
 `awareness`); `source_url` oder `source_quality` daneben liefert `422` mit
 dem Feldnamen, und ein Eintrag eines anderen Wertpapiers, einer, den es nicht
-gibt, oder einer mit einem Link über 2.048 Zeichen liefert `422` mit `news_id`.
+gibt, einer aus einer jetzt gesperrten Domain oder einer mit einem Link über
+2.048 Zeichen liefert `422` mit `news_id`.
 Der Eintrag wird nicht übernommen: Was von Nachrichten bleibt, ist ein
 Research-Eintrag. Das Wertpapier, zu dem ein Termin gehört, lässt sich nicht
 ändern. Auf beiden schreibenden Wegen liefert ein `checked_at` nach morgen

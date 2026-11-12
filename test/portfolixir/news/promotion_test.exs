@@ -331,6 +331,96 @@ defmodule Portfolixir.News.PromotionTest do
     end
   end
 
+  # User story (ADR-0056 E1 rule 5, precision of the closing act, Sprint
+  # 29, #1444):
+  # As the operator who re-rated a domain after one of its stories was
+  # promoted,
+  # I want a second entry from that story, and an event from one of its
+  # items, to state the source quality my table gives now,
+  # so that no new entry claims a better source than the table allows.
+  #
+  # Acceptance criteria:
+  # - A second promotion reads each member's current tier; a member whose
+  #   domain is now blocked is left out, and a story with no member left is
+  #   refused naming cluster_id.
+  # - The first entry and the members' stored tiers are unchanged (rule 5).
+  # - events.create with a news_id reads the item's current tier, and an
+  #   item whose domain is now blocked is refused naming news_id.
+  describe "after a re-rating (E1 rule 5)" do
+    test "a second promotion after a block is refused naming cluster_id" do
+      security = NewsFixtures.security!()
+      {domain, :aggregator} = member = domain!(:secondary)
+      story = story!(security, "Northwind wins a tender", [member])
+
+      assert {:ok, %SecurityNote{source_quality: :unverified} = first} = promote(security, story)
+      assert {:ok, _} = Sources.put_source(Actor.owner_ui(), domain, :blocked)
+      assert [%Item{tier: :secondary, status: :promoted}] = members(story)
+
+      assert {:error, %{"cluster_id" => [message]}} =
+               promote(security, story, %{"kind" => "event_result"})
+
+      assert message =~ "blocked"
+      assert Repo.all(from(n in SecurityNote, select: n.id)) == [first.id]
+      assert {:error, %{"cluster_id" => _}} = News.story_proposal(story.id, security.id)
+    end
+
+    test "a second promotion after a downgrade states the lower quality" do
+      security = NewsFixtures.security!()
+      {one, _} = domain!(:primary)
+      {two, _} = domain!(:primary)
+
+      story =
+        story!(security, "Northwind wins a second tender", [
+          {one, :aggregator},
+          {two, :aggregator}
+        ])
+
+      assert {:ok, %SecurityNote{source_quality: :secondary_multi} = first} =
+               promote(security, story)
+
+      assert {:ok, _} = Sources.put_source(Actor.owner_ui(), one, :awareness)
+      assert {:ok, _} = Sources.put_source(Actor.owner_ui(), two, :awareness)
+
+      assert {:ok, %SecurityNote{source_quality: :awareness}} =
+               promote(security, story, %{"kind" => "event_result"})
+
+      assert Repo.get!(SecurityNote, first.id).source_quality == :secondary_multi
+      assert Enum.map(members(story), & &1.tier) == [:secondary, :secondary]
+    end
+
+    test "a member now blocked is left out, and the link is another member's" do
+      security = NewsFixtures.security!()
+      {one, _} = blocked_later = domain!(:secondary)
+      kept = domain!(:secondary)
+      story = story!(security, "Northwind wins a third tender", [blocked_later, kept])
+
+      assert {:ok, %SecurityNote{source_quality: :secondary_multi}} = promote(security, story)
+      assert {:ok, _} = Sources.put_source(Actor.owner_ui(), one, :blocked)
+
+      assert {:ok, %SecurityNote{source_quality: :unverified, source_url: url}} =
+               promote(security, story, %{"kind" => "event_result"})
+
+      assert URI.parse(url).host == elem(kept, 0)
+    end
+
+    test "events.create with a news_id reads the item's current tier" do
+      security = NewsFixtures.security!()
+      {domain, :aggregator} = member = domain!(:secondary)
+      story = story!(security, "Northwind dates its tender", [member])
+      [item] = members(story)
+
+      assert {:ok, _} = promote(security, story)
+      assert {:ok, _} = Sources.put_source(Actor.owner_ui(), domain, :awareness)
+      assert %Item{tier: :secondary} = Repo.get!(Item, item.id)
+
+      assert {:ok, %{"source_quality" => :awareness}} = News.event_source(security.id, item.id)
+
+      assert {:ok, _} = Sources.put_source(Actor.owner_ui(), domain, :blocked)
+      assert {:error, %{"news_id" => [message]}} = News.event_source(security.id, item.id)
+      assert message =~ "blocked"
+    end
+  end
+
   # User story (ADR-0056 §8; ADR-0048):
   # As the operating agent recording a date a news item announced,
   # I want events.create to take the item as its source,
