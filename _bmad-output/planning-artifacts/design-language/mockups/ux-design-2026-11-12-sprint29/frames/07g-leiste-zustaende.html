@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>07g-leiste-zustaende</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-sans); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 3px; border-radius: 8px; }
+.cy-card { background: var(--color-bg-elevated); padding: 14px 16px 14px; }
+.cy-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0 0 10px; }
+.cy-head h2 { margin: 0; font-size: 16px; }
+.cy-sub { font-size: 12.5px; color: var(--color-text-muted); }
+.detail-pane-toolbar { margin: 0 0 12px; }
+.chart-toggle[disabled] { opacity: .55; cursor: not-allowed; }
+.cy-bar { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; padding: 6px 8px; font-size: 12.5px; color: var(--color-text-muted); }
+.cy-bar__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.cy-bar__label { font-weight: 600; }
+.cy-bar__label + .segmented-control, .cy-bar__label + .cy-switches { margin-right: 8px; }
+.cy-switches { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.cy-health { display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.cy-health b { color: var(--color-text); }
+.cy-health.is-stale b { color: var(--color-warning); }
+.cy-health.is-error b { color: var(--color-danger); }
+.cy-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; align-self: center; margin-right: 2px; }
+.cy-field p.cy-health, .cy-bar.is-phone .cy-health { display: block; }
+.cy-field p.cy-health .cy-dot, .cy-bar.is-phone .cy-dot { margin-right: 6px; vertical-align: 0; }
+.cy-dot.is-ok { background: var(--color-positive); }
+.cy-dot.is-warn { background: var(--color-warning); }
+.cy-dot.is-err { background: var(--color-danger); }
+.cy-dot.is-none { background: transparent; border: 1.5px solid var(--color-text-muted); }
+.cy-readnow { min-height: 26px; padding: 2px 10px; font-size: 12px; margin-left: 4px; }
+.cy-bar .metric-tooltip--inline { position: relative; bottom: auto; right: auto; }
+.cy-bar .metric-tooltip p { width: 30rem; max-width: 80vw; }
+.cy-bar.is-phone .cy-bar__row { gap: 6px 8px; }
+.cy-bar.is-phone .cy-bar__label { width: 100%; }
+.cy-bar.is-phone .cy-health { display: block; line-height: 1.45; }
+.cy-chart { display: block; background: var(--color-chart-surface); border-radius: 6px; }
+.cy-grid line { stroke: var(--color-border); stroke-width: 1; }
+.cy-ylab text, .cy-xlab text { fill: var(--color-text-muted); font: 11px var(--font-sans); }
+.cy-line { stroke: var(--color-accent); stroke-width: 1.5; }
+.cy-line-invented { stroke: var(--color-chart-surface); stroke-width: 2; stroke-dasharray: 3 4; opacity: .9; }
+.cy-halving { stroke: var(--color-warning); stroke-width: 1.4; }
+.cy-halving.is-est { stroke-dasharray: 5 4; stroke-width: 1.1; }
+.cy-halving-l { fill: var(--color-warning); font: 700 10.5px var(--font-sans); paint-order: stroke; stroke: var(--color-chart-surface); stroke-width: 3px; }
+.cy-halving-l.is-sub { font-weight: 600; fill: var(--color-text-muted); }
+.cy-halving-win { fill: color-mix(in oklab, var(--color-warning) 16%, transparent); }
+.cy-halving-win.is-stale { fill: url(#none); fill: color-mix(in oklab, var(--color-text-muted) 14%, transparent); }
+.cy-today { stroke: var(--color-text-muted); stroke-width: 1; stroke-dasharray: 1 3; }
+.cy-today-l { fill: var(--color-text-muted); font: 600 10px var(--font-sans); }
+.cy-hatch { stroke: color-mix(in oklab, var(--color-text-muted) 35%, transparent); stroke-width: 2; }
+.cy-band { stroke-width: 1.2; }
+.cy-band--top { fill: color-mix(in oklab, var(--color-positive) 22%, transparent); stroke: var(--color-positive); }
+.cy-band--low { fill: color-mix(in oklab, var(--color-danger) 22%, transparent); stroke: var(--color-danger); }
+.cy-band.is-past { fill: color-mix(in oklab, var(--color-text-muted) 16%, transparent); stroke: var(--color-text-muted); stroke-dasharray: 3 2; }
+.cy-band.is-one { stroke-dasharray: 5 3; }
+.cy-band.is-hull { fill: color-mix(in oklab, var(--color-danger) 6%, transparent); stroke-dasharray: 5 3; }
+.cy-band.is-hull.is-past { fill: color-mix(in oklab, var(--color-text-muted) 6%, transparent); }
+.cy-band.is-part { fill: color-mix(in oklab, var(--color-danger) 26%, transparent); stroke-width: 1; }
+.cy-band.is-part.is-past { fill: color-mix(in oklab, var(--color-text-muted) 26%, transparent); stroke-dasharray: none; }
+.cy-agree { fill: color-mix(in oklab, var(--color-text) 30%, transparent); stroke: none; }
+.cy-band-l { fill: var(--color-text-muted); font: 600 10.5px var(--font-sans); paint-order: stroke; stroke: var(--color-chart-surface); stroke-width: 3px; }
+.cy-band-l.is-head { fill: var(--color-text); }
+.cy-mark--top { fill: var(--color-positive); }
+.cy-mark--low { fill: var(--color-danger); }
+.cy-mark.is-hollow { fill: var(--color-chart-surface); stroke: var(--color-positive); stroke-width: 1.5; }
+.cy-mark-l { fill: var(--color-text); font: 600 10.5px var(--font-sans); paint-order: stroke; stroke: var(--color-chart-surface); stroke-width: 3px; }
+.cy-mark-l.is-sub { fill: var(--color-text-muted); font-weight: 500; }
+.cy-bracket { fill: none; stroke: var(--color-text-muted); stroke-width: 1; }
+.cy-note.is-head { font-style: normal; font-weight: 700; fill: var(--color-text); }
+.cy-note { fill: var(--color-text-muted); font: italic 10.5px var(--font-sans); paint-order: stroke; stroke: var(--color-chart-surface); stroke-width: 3px; }
+.cy-basis { margin: 8px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--color-text-muted); }
+.cy-count { margin: 0; font-size: 12.5px; color: var(--color-text-muted); }
+.cy-count b { color: var(--color-text); }
+.cy-caption { caption-side: top; text-align: left; padding: 0 0 6px; }
+.cy-table { width: 100%; margin-top: 12px; font-size: 12.5px; }
+.cy-table th, .cy-table td { white-space: nowrap; }
+.cy-bands td:nth-child(2), .cy-bands td[colspan] { white-space: normal; }
+.cy-bands td:nth-child(5) { white-space: normal; }
+.cy-disclosure { margin-top: 14px; }
+.cy-disclosure > summary { font-size: 13px; font-weight: 600; }
+.cy-table td.num, .cy-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.cy-muted { color: var(--color-text-muted); font-weight: 500; }
+.cy-badge { font-size: 10px; padding: 0 6px; vertical-align: 1px; }
+.cy-bands tr.cy-row-band td { border-top: 1px solid var(--color-border-strong); }
+.cy-bands tr.cy-row-part td:first-child { padding-left: 22px; color: var(--color-text-muted); }
+.cy-bands tr.is-absent td { color: var(--color-text-muted); }
+.cy-reason.is-hl { color: var(--color-text); font-weight: 650; background: var(--color-accent-soft); padding: 1px 4px; border-radius: 4px; }
+.cy-bands code, .cy-table code { font-size: 11px; color: var(--color-text-muted); }
+.cy-h3 { margin: 12px 0 6px; font-size: 13px; }
+.cy-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cy-pair h3 { margin: 0 0 6px; font-size: 13px; }
+.cy-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 0; font-size: 11.5px; color: var(--color-text-muted); }
+.cy-strip { border-top: 1px solid var(--color-border); padding: 12px 0 4px; }
+.cy-strip:first-child { border-top: 0; padding-top: 0; }
+.cy-strip > h3 { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--color-text-muted); }
+.cy-strip > h3 small { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--color-accent); margin-left: 6px; }
+.cy-strip .detail-pane-toolbar { margin-bottom: 8px; }
+.cy-hint { margin: 0 0 4px; font-size: 12.5px; color: var(--color-text-muted); }
+/* the edit form */
+.modal.cy-modal { max-width: 600px; margin: 0; box-shadow: none; border-radius: 0; }
+.cy-modal .modal-body { padding-bottom: 4px; }
+.cy-field { display: grid; gap: 6px; padding: 12px; margin: 14px 0 0; border-radius: 8px; }
+.cy-field > label { display: grid; gap: 4px; max-width: 18rem; }
+.cy-field > label > span { font-size: 13px; font-weight: 600; }
+.cy-field select { min-height: 34px; }
+.cy-field .form-help, .cy-field .hint { margin: 0; padding: 0; font-size: 12.5px; color: var(--color-text-muted); line-height: 1.45; }
+.cy-field .cy-health { font-size: 12.5px; color: var(--color-text-muted); }
+.cy-listbox { list-style: none; margin: 0; padding: 4px 0; width: 18rem; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-bg-elevated); box-shadow: var(--shadow-panel); font-size: 13px; }
+.cy-listbox li { padding: 5px 12px; }
+.cy-listbox li.is-selected { background: var(--color-accent); color: var(--color-on-accent, #fff); }
+.cy-listbox li small { color: inherit; opacity: .75; margin-left: 6px; }
+.cy-elided { margin: 0 0 4px; font-size: 12.5px; color: var(--color-text-subtle); font-style: italic; }
+.cy-confirm { margin: 10px 0 0; }
+.cy-confirm ul { margin: 4px 0 6px; padding-left: 18px; }
+.cy-confirm > div { margin-top: 6px; }
+.cy-strip:last-child { padding-bottom: 90px; }</style>
+</head>
+<body>
+<div class="cy-card">
+<section class="cy-strip">
+<h3>Nicht gebunden <small>entschieden: kein Schalter (ADR-0060 §1)</small>
+</h3>
+<header class="cy-head">
+<h2>Weltindex ETF</h2><span class="cy-sub">Kein Halving-Wertpapier</span>
+</header>
+<div class="detail-pane-toolbar" role="toolbar" aria-label="Diagramm-Optionen">
+<div class="range-buttons" role="group" aria-label="Zeitraum">
+<button type="button" class="range-button">1M</button>
+<button type="button" class="range-button">3M</button>
+<button type="button" class="range-button">6M</button>
+<button type="button" class="range-button">YTD</button>
+<button type="button" class="range-button">1J</button>
+<button type="button" class="range-button">3J</button>
+<button type="button" class="range-button">5J</button>
+<button type="button" class="range-button is-active">Max</button>
+</div>
+<details class="period-disclosure">
+<summary class="disclosure-summary">Benutzerdefinierter Zeitraum …</summary>
+</details>
+<div class="chart-toggles">
+<button type="button" class="chart-toggle is-active">Logarithmische Skala</button>
+<button type="button" class="chart-toggle">Prozent</button>
+<button type="button" class="chart-toggle">Transaktionen anzeigen</button>
+<button type="button" class="chart-toggle">Notizen anzeigen</button>
+<button type="button" class="chart-toggle">MA200</button>
+<button type="button" class="chart-toggle">…</button>
+</div>
+</div>
+</section>
+<section class="cy-strip">
+<h3>Gebunden, weniger als zwei bestätigte Halvings · A <small>empfohlen: wie ADR-0060 §1, kein Schalter; der Grund steht im Bearbeiten-Dialog</small>
+</h3>
+<header class="cy-head">
+<h2>Litecoin</h2><span class="cy-sub">LTC-USD · Halving-Kette Litecoin · 1 Halving eingetragen</span>
+</header>
+<div class="detail-pane-toolbar" role="toolbar" aria-label="Diagramm-Optionen">
+<div class="range-buttons" role="group" aria-label="Zeitraum">
+<button type="button" class="range-button">1M</button>
+<button type="button" class="range-button">3M</button>
+<button type="button" class="range-button">6M</button>
+<button type="button" class="range-button">YTD</button>
+<button type="button" class="range-button">1J</button>
+<button type="button" class="range-button">3J</button>
+<button type="button" class="range-button">5J</button>
+<button type="button" class="range-button is-active">Max</button>
+</div>
+<details class="period-disclosure">
+<summary class="disclosure-summary">Benutzerdefinierter Zeitraum …</summary>
+</details>
+<div class="chart-toggles">
+<button type="button" class="chart-toggle is-active">Logarithmische Skala</button>
+<button type="button" class="chart-toggle">Prozent</button>
+<button type="button" class="chart-toggle">Transaktionen anzeigen</button>
+<button type="button" class="chart-toggle">Notizen anzeigen</button>
+<button type="button" class="chart-toggle">MA200</button>
+<button type="button" class="chart-toggle">…</button>
+</div>
+</div>
+</section>
+<section class="cy-strip">
+<h3>Gebunden, weniger als zwei bestätigte Halvings · B <small>Schalter ausgegraut, der Grund im Tooltip</small>
+</h3>
+<div class="detail-pane-toolbar" role="toolbar" aria-label="Diagramm-Optionen">
+<div class="range-buttons" role="group" aria-label="Zeitraum">
+<button type="button" class="range-button">1M</button>
+<button type="button" class="range-button">3M</button>
+<button type="button" class="range-button">6M</button>
+<button type="button" class="range-button">YTD</button>
+<button type="button" class="range-button">1J</button>
+<button type="button" class="range-button">3J</button>
+<button type="button" class="range-button">5J</button>
+<button type="button" class="range-button is-active">Max</button>
+</div>
+<details class="period-disclosure">
+<summary class="disclosure-summary">Benutzerdefinierter Zeitraum …</summary>
+</details>
+<div class="chart-toggles">
+<button type="button" class="chart-toggle is-active">Logarithmische Skala</button>
+<button type="button" class="chart-toggle">Prozent</button>
+<button type="button" class="chart-toggle">Transaktionen anzeigen</button>
+<button type="button" class="chart-toggle">Notizen anzeigen</button>
+<button type="button" class="chart-toggle">MA200</button>
+<button type="button" class="chart-toggle mock-new" disabled aria-disabled="true" title="Zyklen ab zwei bestätigten Halvings: bisher 1">Zyklen</button>
+<button type="button" class="chart-toggle">…</button>
+</div>
+</div>
+<p class="cy-hint">Tooltip: „Zyklen ab zwei bestätigten Halvings: bisher 1“</p>
+</section>
+<section class="cy-strip">
+<h3>Gebunden, Kette ohne Quelle <small>Litecoin, Bitcoin Cash: Halvings von Hand</small>
+</h3>
+<header class="cy-head">
+<h2>Litecoin</h2><span class="cy-sub">LTC-USD · 3 Halvings von Hand</span>
+</header>
+<div class="cy-bar mock-new">
+<div class="cy-bar__row"><span class="cy-bar__label">Zyklen</span><span class="segmented-control" role="group" aria-label="Zyklen-Modus">
+<button type="button" class="chart-toggle is-active">Zeitachse</button>
+<button type="button" class="chart-toggle">Ausgerichtet</button></span><span class="cy-bar__label">Strecken</span><span class="cy-switches">
+<button type="button" class="chart-toggle is-active">Top ↔ Tief</button>
+<button type="button" class="chart-toggle">Top – Top</button>
+<button type="button" class="chart-toggle">Tief – Tief</button></span>
+</div>
+<div class="cy-bar__row cy-bar__health"><span class="cy-health"><span class="cy-dot is-none" aria-hidden="true"></span>Halvings von Hand · keine Kettenquelle für Litecoin</span>
+</div>
+</div>
+</section>
+<section class="cy-strip">
+<h3>Quelle aktuell <small>Host und Alter (ADR-0059 §8)</small>
+</h3>
+<div class="cy-bar mock-new">
+<div class="cy-bar__row"><span class="cy-bar__label">Zyklen</span><span class="segmented-control" role="group" aria-label="Zyklen-Modus">
+<button type="button" class="chart-toggle is-active">Zeitachse</button>
+<button type="button" class="chart-toggle">Ausgerichtet</button></span><span class="cy-bar__label">Strecken</span><span class="cy-switches">
+<button type="button" class="chart-toggle is-active">Top ↔ Tief</button>
+<button type="button" class="chart-toggle">Top – Top</button>
+<button type="button" class="chart-toggle">Tief – Tief</button></span>
+</div>
+<div class="cy-bar__row cy-bar__health"><span class="cy-health"><span class="cy-dot is-ok" aria-hidden="true"></span>Kettenquelle: mempool.space · gelesen vor 2 Std.</span>
+<button type="button" class="button-ghost cy-readnow">Jetzt lesen</button>
+</div>
+</div>
+</section>
+<section class="cy-strip">
+<h3>Ersatzquelle hat geantwortet</h3>
+<div class="cy-bar mock-new">
+<div class="cy-bar__row"><span class="cy-bar__label">Zyklen</span><span class="segmented-control" role="group" aria-label="Zyklen-Modus">
+<button type="button" class="chart-toggle is-active">Zeitachse</button>
+<button type="button" class="chart-toggle">Ausgerichtet</button></span><span class="cy-bar__label">Strecken</span><span class="cy-switches">
+<button type="button" class="chart-toggle is-active">Top ↔ Tief</button>
+<button type="button" class="chart-toggle">Top – Top</button>
+<button type="button" class="chart-toggle">Tief – Tief</button></span>
+</div>
+<div class="cy-bar__row cy-bar__health"><span class="cy-health"><span class="cy-dot is-ok" aria-hidden="true"></span>Kettenquelle: blockstream.info (Ersatz) · gelesen vor 2 Std.</span>
+<button type="button" class="button-ghost cy-readnow">Jetzt lesen</button>
+</div>
+</div>
+</section>
+<section class="cy-strip">
+<h3>Quelle veraltet: 24 Std. ohne erfolgreiches Lesen <small>Satz entschieden (ADR-0059 §8)</small>
+</h3>
+<div class="cy-bar mock-new">
+<div class="cy-bar__row"><span class="cy-bar__label">Zyklen</span><span class="segmented-control" role="group" aria-label="Zyklen-Modus">
+<button type="button" class="chart-toggle is-active">Zeitachse</button>
+<button type="button" class="chart-toggle">Ausgerichtet</button></span><span class="cy-bar__label">Strecken</span><span class="cy-switches">
+<button type="button" class="chart-toggle is-active">Top ↔ Tief</button>
+<button type="button" class="chart-toggle">Top – Top</button>
+<button type="button" class="chart-toggle">Tief – Tief</button></span>
+</div>
+<div class="cy-bar__row cy-bar__health"><span class="cy-health is-stale"><span class="cy-dot is-warn" aria-hidden="true"></span><b>Kettenquelle seit 31 Std. ohne Antwort</b> · zuletzt mempool.space, 11.11.2026 01:00 · Halving-Schätzung von dann</span>
+<button type="button" class="button-ghost cy-readnow">Jetzt lesen</button>
+</div>
+</div>
+</section>
+<section class="cy-strip">
+<h3>Eigene Quelle abgelehnt · A <small>empfohlen: Grund in der Zeile</small>
+</h3>
+<div class="cy-bar mock-new">
+<div class="cy-bar__row"><span class="cy-bar__label">Zyklen</span><span class="segmented-control" role="group" aria-label="Zyklen-Modus">
+<button type="button" class="chart-toggle is-active">Zeitachse</button>
+<button type="button" class="chart-toggle">Ausgerichtet</button></span><span class="cy-bar__label">Strecken</span><span class="cy-switches">
+<button type="button" class="chart-toggle is-active">Top ↔ Tief</button>
+<button type="button" class="chart-toggle">Top – Top</button>
+<button type="button" class="chart-toggle">Tief – Tief</button></span>
+</div>
+<div class="cy-bar__row cy-bar__health"><span class="cy-health is-error"><span class="cy-dot is-err" aria-hidden="true"></span><b>Eigene Kettenquelle abgelehnt:</b> node.home.arpa löst auf eine private Adresse auf · nichts gelesen seit 08.11.2026</span>
+<details class="metric-tooltip metric-tooltip--inline" data-place="below">
+<summary aria-label="Zur Kettenquelle">ⓘ</summary>
+<p role="tooltip">Die eigene Quelle aus <code>PORTFOLIXIR_BITCOIN_ESPLORA_URL</code> ersetzt beide öffentlichen Quellen. Sie muss über https unter einer öffentlichen Adresse erreichbar sein; eine Adresse im eigenen Netz wird abgelehnt (url_not_allowed: private_address). Die App liest die Variable beim Start und schreibt sie nie.</p>
+</details>
+<button type="button" class="button-ghost cy-readnow">Jetzt lesen</button>
+</div>
+</div>
+</section>
+<section class="cy-strip">
+<h3>Eigene Quelle abgelehnt · B <small>kurz, der Grund im ⓘ</small>
+</h3>
+<div class="cy-bar mock-new">
+<div class="cy-bar__row"><span class="cy-bar__label">Zyklen</span><span class="segmented-control" role="group" aria-label="Zyklen-Modus">
+<button type="button" class="chart-toggle is-active">Zeitachse</button>
+<button type="button" class="chart-toggle">Ausgerichtet</button></span><span class="cy-bar__label">Strecken</span><span class="cy-switches">
+<button type="button" class="chart-toggle is-active">Top ↔ Tief</button>
+<button type="button" class="chart-toggle">Top – Top</button>
+<button type="button" class="chart-toggle">Tief – Tief</button></span>
+</div>
+<div class="cy-bar__row cy-bar__health"><span class="cy-health is-error"><span class="cy-dot is-err" aria-hidden="true"></span><b>Kettenquelle: Konfigurationsfehler</b></span>
+<details class="metric-tooltip metric-tooltip--inline" data-place="below" open>
+<summary aria-label="Zur Kettenquelle">ⓘ</summary>
+<p role="tooltip">Die eigene Quelle aus <code>PORTFOLIXIR_BITCOIN_ESPLORA_URL</code> ersetzt beide öffentlichen Quellen. Sie muss über https unter einer öffentlichen Adresse erreichbar sein; eine Adresse im eigenen Netz wird abgelehnt (url_not_allowed: private_address). Die App liest die Variable beim Start und schreibt sie nie.</p>
+</details>
+<button type="button" class="button-ghost cy-readnow">Jetzt lesen</button>
+</div>
+</div>
+</section>
+</div>
+</body>
+</html>

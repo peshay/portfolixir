@@ -280,7 +280,7 @@ or corrects a stored money figure.
    the same write, journaled (ADR-0059 §4).
 8. **A security merge** ([ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html)
    §9, which moves every event of the source security,
-   `lib/portfolixir/lifecycle/security_merge.ex:1720`) moves a source's
+   `lib/portfolixir/lifecycle/security_merge.ex:1721`) moves a source's
    `halving` event only when the target is bound to the same chain and
    holds no event at that `chain_height`. Otherwise the event is dropped,
    journaled and listed in the merge preview. *Why:* moving it would break

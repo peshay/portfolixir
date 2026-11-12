@@ -47,7 +47,8 @@ unchanged.
      never overwrites your hand rating). "news retier hand only" drops
      that half.
 2. **Look at board 01**, the Crashes section on the Risk tab (ADR-0058 §9
-   asks for it on this PR), and **board 02**, the benchmark picker. D-5
+   asks for it on this PR), **board 02**, the benchmark picker, and
+   **board 07**, the states I12's records add. D-5 and D-6
    lists each proposal with the phrase that flips it; silence adopts the
    recommendation. Drawing board 01 found five gaps in ADR-0058, decided
    in its amendment (F1 to F5): the most visible is F2, a manual window
@@ -269,7 +270,7 @@ failing first; no network in any test (fake Esplora answers).
 | H5 | ADR-0060 §4 to §10; AR-3's amendment | **the bands:** time from min to max, price from f₂ to f₂^(ln f₂ / ln f₁) (min to max where undefined, stated), at least two observations per part; one band per event as the hull, `agree` the overlap of parts with their own price side; the cones from the last anchor; the states (open, running, reached, missed) from stored closes, none for a band whose inputs postdate its window; `not_a_forecast: true`; **no `as_of`** (422, pinned); `:math.log/1` registered as AR-3's fourth float operation with its test; the computation basis in every payload; the payload in `metrics_carry_no_verdict_test.exs`'s key walk | — | 3 |
 | H6 | ADR-0059 §11; ADR-0060 §11 | `GET /api/v1/chains`, `POST /api/v1/chains/:chain/refresh` (once per 10 minutes, 429 `retry_after`, 422 `no_source`), `GET /api/v1/securities/:security_id/cycles` with `include=aligned`; `portfolixir.chains.list`, `portfolixir.chains.refresh`, `portfolixir.securities.cycles` and the dossier's `cycles` line (about 40 tokens, measured on the companion's text); contract entry 29 part H; the schema budget grows by the new tools' own bytes only | — | 2 |
 | H7 | ADR-0060 §11; idea boards 01 to 03; board 07 | **the chart:** the „Zyklen“ toggle where the view exists, „Zeitachse“ and „Ausgerichtet“, halvings, ▲ and ▼, the bands with „beide Wege“, the three line switches („Top ↔ Tief“ on) continuing as cones, the interval table with n and the count, the chain's health line; every state of board 07; at 1200 and 390 px, both themes, the privacy mode (prices are amounts: hidden as on the chart today, the axis in percent). `DESIGN.md` gains the anatomy | 01–03, 07 | 3 |
-| H8 | ADR-0060 §11; ADR-0059 §11 | the range „Zyklus“ reaching past today while cycles are on (the axis empty right of today but for the halving window and the bands); the dashboard card „‹Name›-Zyklus“ opening the chart with cycles on in one click; the „Halving-Kette“ choice in the security's edit form with §4's confirmation | 01, 07 | 2 |
+| H8 | ADR-0060 §11; ADR-0059 §8, §11 | the range „Zyklus“ reaching past today while cycles are on, to the later end of the two bands (the axis empty right of today but for the halving window and the bands); the dashboard card „‹Name›-Zyklus“ opening the chart with cycles on in one click; the „Halving-Kette“ choice in the security's edit form with §4's confirmation, the chain's health line and a refused own URL's reason there; the „Jetzt lesen“ button with its ten-minute wait | 01, 07 | 2 |
 | H9 | coverage rule | the API reference, `docs/integration` (English, then German), the operator guide's passage on binding a chain, the own URL and reading the band | — | 1 |
 
 **Closing act** (D-8), one per risk class when its group is done, counted
@@ -466,6 +467,25 @@ recommendation; the phrase after it flips it.
 - **M4 (#1439) has no board:** the page looks the same and now connects
   with storage blocked; the sprint workflow's exception ("identical
   picture").
+
+- **Board 07 (I12's states, Lane H):** Q1 „Halving-Kette“ below the
+  master data with the chain's health line („Halving-Kette ohne Zustand“);
+  Q2 the deletion warning inside the edit dialog, „Speichern und n
+  Ereignisse löschen“ („Eigener Bestätigungsdialog“); Q3 no toggle with
+  fewer than two confirmed halvings, the form saying why („Zyklen-Schalter
+  ausgegraut“); Q4 a refused own URL's reason in the health line, the
+  variable behind the ⓘ („Quellfehler nur im ⓘ“); Q5 a „Jetzt lesen“
+  button („Kein Lesen-Knopf“); Q6 the state words offen, läuft, erreicht,
+  verfehlt („Stand als Satz“); Q7 `parts_disjoint` as the outlined hull
+  with its parts inside („Uneinig nur als Hülle“); Q8 a disclosure „Bänder
+  und ihre Teile“ („Teile nur im Payload“); Q9 „Teil“ and „vorläufig“
+  badges in the interval table. Drawing it found five gaps in ADR-0059 and
+  ADR-0060, closed in the records on this PR before your signature: a
+  refused own URL had no place on screen (now the edit form), the refresh
+  was agent-only (now the button), the „Zyklus“ range could cut the low
+  band off (now to the later band's end), `one_price_relation` named the
+  top band only (now either event), and a borrowed price side had no rule
+  when its source part is absent (now absent too).
 
 Each flips by naming the board and the point.
 
