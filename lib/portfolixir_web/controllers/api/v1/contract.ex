@@ -127,16 +127,18 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- S29 H1 end ---
             # --- S29 H6 begin ---
             "Sprint 29, H6 (ADR-0059 §8, §11; ADR-0060 §11; FR-58): GET /api/v1/chains " <>
-              "lists the registered chains with their constants and, for Bitcoin, the " <>
-              "source's health, the next halving's inputs and when a refresh is allowed; POST " <>
-              "/api/v1/chains/:chain/refresh runs the chain reader at once, at most once per " <>
+              "(portfolixir.chains.list) lists the registered chains with their constants and, " <>
+              "for Bitcoin, the source's health, the next halving's inputs and when a refresh " <>
+              "is allowed; POST /api/v1/chains/:chain/refresh (portfolixir.chains.refresh, an " <>
+              "outbound read, book and full) runs the chain reader at once, at most once per " <>
               "10 minutes per chain (429 with errors.retry_after and Retry-After), 422 " <>
               "errors.code no_source for a chain without a source; GET " <>
-              "/api/v1/securities/:security_id/cycles answers the halving cycles, their " <>
-              "intervals with n and the analog band, not a forecast, with chain_source and " <>
-              "computation_basis, include=aligned adding each window's closes indexed to its " <>
-              "halving day's close, and refuses as_of and every other parameter with 422 " <>
-              "naming it. The dossier gains a cycles line."
+              "/api/v1/securities/:security_id/cycles (portfolixir.securities.cycles) answers " <>
+              "the halving cycles, their intervals with n and the analog band, not a forecast, " <>
+              "with chain_source and computation_basis, include=aligned adding each window's " <>
+              "closes indexed to its halving day's close, and refuses as_of and every other " <>
+              "parameter with 422 naming it. The dossier gains a cycles line. Each tool says it " <>
+              "returns data, never instructions or advice."
             # --- S29 H6 end ---
           ],
           " "
@@ -169,8 +171,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         # --- S29 D3 begin ---
         "portfolixir.securities.logo_put",
         "portfolixir.securities.logo_delete",
-        "portfolixir.securities.logo_discover"
+        "portfolixir.securities.logo_discover",
         # --- S29 D3 end ---
+        # --- S29 H6 begin ---
+        "portfolixir.chains.list",
+        "portfolixir.chains.refresh",
+        "portfolixir.securities.cycles"
+        # --- S29 H6 end ---
       ],
       parameters: [
         # --- S29 N1 begin ---
@@ -263,7 +270,7 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "(ADR-0048's amendment, item 8).",
         # --- S29 H1 end ---
         # --- S29 H6 begin ---
-        "GET /api/v1/securities/:id/dossier, changed: adds " <>
+        "GET /api/v1/securities/:id/dossier (portfolixir.securities.dossier), changed: adds " <>
           "cycles, null without the cycles view, else low and top, the next low's and the " <>
           "next top's band of the cycles read, each [window from, window to, price from, price " <>
           "to, state, n] with n the fewest observations of a present part; parts.cycles names " <>

@@ -196,8 +196,13 @@ describe("Portfolixir MCP tools", () => {
       // --- S29 D3 begin ---
       "portfolixir.securities.logo_put",
       "portfolixir.securities.logo_delete",
-      "portfolixir.securities.logo_discover"
+      "portfolixir.securities.logo_discover",
       // --- S29 D3 end ---
+      // --- S29 H6 begin ---
+      "portfolixir.chains.list",
+      "portfolixir.chains.refresh",
+      "portfolixir.securities.cycles"
+      // --- S29 H6 end ---
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");

@@ -197,8 +197,11 @@ const OPEN_WORLD = [
   "portfolixir.exchange_rates.sync", // the rate feed
   // --- S29 D3 begin ---
   "portfolixir.securities.logo_put", // downloads the image its URL names (#1413)
-  "portfolixir.securities.logo_discover" // asks the discovery sources (#1413)
+  "portfolixir.securities.logo_discover", // asks the discovery sources (#1413)
   // --- S29 D3 end ---
+  // --- S29 H6 begin ---
+  "portfolixir.chains.refresh" // Bitcoin's Esplora host (ADR-0059 §3, §11)
+  // --- S29 H6 end ---
 ];
 
 // Writes that only ever add, and whose additions are permanent.
