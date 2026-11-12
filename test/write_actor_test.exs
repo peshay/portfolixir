@@ -188,8 +188,14 @@ defmodule Portfolixir.WriteActorTest do
                   # ADR-0056 §7, §14 item 6: an outside model's labels,
                   # armed in the migration that creates them, so every label
                   # is journaled under the token that wrote it.
-                  "news_labels"
+                  "news_labels",
                   # --- S28 N1 end ---
+                  # --- S29 C3 begin ---
+                  # ADR-0058 §3: the names of detected crash windows, armed
+                  # in the migration that creates them, so every name is
+                  # journaled under the token that gave it.
+                  "crash_window_names"
+                  # --- S29 C3 end ---
                 ])
 
   # Derived-value tables (ADR-0039): materializations of ledger-derived reads,
