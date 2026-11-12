@@ -612,6 +612,15 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
 
     [action] = LazyHTML.attribute(form, "action")
 
+    # The form's hidden fields other than the empty entry, as a browser
+    # sends them (the closing act: the address's order of the chosen ones).
+    hidden =
+      for input <- form |> LazyHTML.query("input[type='hidden']"),
+          [name] = LazyHTML.attribute(input, "name"),
+          name != "benchmark[]",
+          [value] = LazyHTML.attribute(input, "value"),
+          do: {name, value}
+
     boxes =
       for label <- form |> LazyHTML.query("label.benchmark-form__option"),
           name = label |> LazyHTML.text() |> String.trim(),
@@ -625,7 +634,9 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
       |> LazyHTML.attribute("value")
       |> List.first("")
 
-    action <> "?" <> URI.encode_query([{"benchmark[]", ""} | boxes] ++ [{"benchmark_rate", rate}])
+    action <>
+      "?" <>
+      URI.encode_query([{"benchmark[]", ""} | hidden] ++ boxes ++ [{"benchmark_rate", rate}])
   end
 
   defp group_names(view, group) do
@@ -747,6 +758,50 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
 
     request = picker_request(view, ["World ETF", "Watched Fund"])
     assert request =~ "security%3A#{watched.id}"
+  end
+
+  # The closing act (#1416, B2): „Anwenden“ sent the ticked boxes in the
+  # groups' order, so a held fund chosen first and a flagged one second
+  # came back swapped, and the chips swapped colours. The address's order is
+  # kept for the boxes already chosen; a box ticked anew comes after them.
+  test "applying the picker keeps the address's order and appends a box ticked anew",
+       %{conn: conn} do
+    world = seed_world()
+    query = "benchmark[]=security:#{world.held.id}&benchmark[]=security:#{world.bench.id}"
+
+    conn = get(conn, "/portfolio?" <> query)
+    {:ok, view, _html} = live(conn, "/portfolio?" <> query)
+    render_async(view)
+
+    chips = fn view ->
+      view
+      |> element("[data-role='benchmark-active']")
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("[data-role='benchmark-chip']")
+      |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
+    end
+
+    assert chips.(view) == ["World ETF", "Bench ETF"]
+
+    request = picker_request(view, ["Bench ETF", "World ETF"])
+    conn = get(recycle(conn), request)
+    {:ok, applied, _html} = live(conn, request)
+    render_async(applied)
+    assert chips.(applied) == ["World ETF", "Bench ETF"]
+
+    # Only the held fund kept, the benchmark ticked anew: it comes after.
+    request = picker_request(applied, ["World ETF"])
+    conn = get(recycle(conn), request)
+    {:ok, one, _html} = live(conn, request)
+    render_async(one)
+    assert chips.(one) == ["World ETF"]
+
+    request = picker_request(one, ["Bench ETF", "World ETF"])
+    conn = get(recycle(conn), request)
+    {:ok, appended, _html} = live(conn, request)
+    render_async(appended)
+    assert chips.(appended) == ["World ETF", "Bench ETF"]
   end
 
   # The closing act (#1416, UAT-13's rule): two held funds of one name read
