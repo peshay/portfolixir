@@ -8,9 +8,12 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   The anatomy (DESIGN.md → Amendment 2026-11-07 → the stacked chart):
 
     * **the bar** (`bar/1`) above the chart, in both series (FR-57): the
-      breadcrumb on the left, the filter's path through its tree, then the
-      level (Total · Categories · Securities), the classification and the
-      sort (Size · Change). Every choice is a link that patches the address,
+      breadcrumb on a line of its own, the filter's path through its tree,
+      then the controls from the bar's left edge: the level (Total ·
+      Categories · Securities), the classification and the sort (Size ·
+      Change). At Total, where there is no path, there is no breadcrumb, and
+      a switch of the level leaves its control where it was (the owner's
+      report of 2026-11-11). Every choice is a link that patches the address,
       so a link handed over reopens the same stack; a level keeps the
       filter. At the level Total without a filter the bar holds the level
       alone, and the chart under it is today's value chart, unchanged. The
@@ -90,7 +93,12 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   def bar(assigns) do
     ~H"""
     <div class="stack-bar" data-role="stack-bar">
-      <nav class="stack-crumbs" data-role="stack-crumbs" aria-label={gettext("Stack")}>
+      <nav
+        :if={@crumbs != []}
+        class="stack-crumbs"
+        data-role="stack-crumbs"
+        aria-label={gettext("Stack")}
+      >
         <%= for {{label, path}, index} <- Enum.with_index(@crumbs) do %>
           <span :if={index > 0} class="stack-crumbs__sep" aria-hidden="true">›</span>
           <%= if path do %>

@@ -6409,7 +6409,7 @@ details[open] > .disclosure-summary .disclosure-chevron {
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   font-size: 12.5px;
   color: var(--color-text-muted);
 }
@@ -6480,7 +6480,13 @@ details[open] > .disclosure-summary .disclosure-chevron {
   align-items: center;
   text-decoration: none;
 }
+/* The breadcrumb takes a line of its own, so the controls start at the
+   bar's left edge at every level: with the breadcrumb beside them and the
+   bar spread between the two, the level's control stood at the right edge
+   at Total and jumped to the left one at Categories once the bar wrapped
+   (the owner's report of 2026-11-11). At Total there is no breadcrumb. */
 .stack-crumbs {
+  flex-basis: 100%;
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text);
