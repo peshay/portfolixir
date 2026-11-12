@@ -49,6 +49,37 @@ defmodule Portfolixir.Engines.Cycles do
   do; an end is a final top or low, or the open window's anchored top. One
   with an end that is not final is `provisional`, one with a partial end is
   `partial`. Nothing is averaged and nothing is fitted.
+
+  ## The analog band's parts (§4)
+
+  One part per relation for each coming event, read from that relation alone
+  and applied to its current anchor. The **next low** is the open window's
+  low: `top_to_low` from the open window's anchored top (`no_top_yet`
+  before it anchors), `low_to_low` from the last final low. The **next top**
+  is the top of the first window without an anchored top: `halving_to_top`
+  from that window's halving (the next halving's window once the open top
+  is anchored), `top_to_top` from the last anchored top, `low_to_top` from
+  the last final low with no top after it (`low_not_final` while the open
+  window's top is anchored and its low is not).
+
+  - **Time:** the anchor's date + the relation's minimum to maximum days;
+    for `halving_to_top`, the halving window's first day + the minimum to
+    its last day + the maximum.
+  - **Price:** the anchor's close × the factors from the last factor f₂ to
+    f₂^(ln f₂ / ln f₁) (`log_step/2`), in either order; `top_to_low` uses
+    1 + change. Where no step is defined, the minimum to the maximum of the
+    stored factors (`price_rule: :min_max`, `price_reason: :no_log_step`).
+    `halving_to_top` borrows `top_to_top`'s price side and is absent
+    whenever that part is.
+  - **Minimum data:** two observations for the time side and two factors
+    for the price side, or the part is absent (`too_few_observations`) with
+    its `n_time` and `n_price`. A part whose window is one day or whose price
+    range is one price is absent too (`zero_width`): it would name the single
+    date or price §8 rules out.
+
+  The log step is AR-3's fourth float operation (`:math.log/1`, with the
+  already named `:math.pow/2`), registered in
+  `test/invariants/float_island_test.exs`.
   """
 
   alias Portfolixir.Engines.Statistics
@@ -57,6 +88,9 @@ defmodule Portfolixir.Engines.Cycles do
   @anchor_threshold Decimal.new("0.20")
   @anchor_ratio Decimal.sub(Decimal.new(1), @anchor_threshold)
   @zero Decimal.new(0)
+  # A Decimal whose leading digit sits at 10^e for e in -307..307 converts to
+  # a double without overflow or underflow (as in `Statistics`).
+  @float_exponent_bound 307
 
   # ADR-0060 §3's table, in its order: {relation, from end, to end, figure}.
   # `:next` takes the end from the following window.
@@ -114,13 +148,17 @@ defmodule Portfolixir.Engines.Cycles do
       |> Enum.zip(tl_or_empty(confirmed) ++ [nil])
       |> Enum.map(fn {start, stop} -> window(start, stop, closes, series_first) end)
 
+    intervals = intervals(windows)
+    next_halving = next_halving(halvings, confirmed)
+
     %{
       windows: windows,
-      intervals: intervals(windows),
+      intervals: intervals,
       counts: counts(windows),
-      next_halving: next_halving(halvings, confirmed),
+      next_halving: next_halving,
       first_close: series_first,
-      last_close: closes |> List.last() |> date_of()
+      last_close: closes |> List.last() |> date_of(),
+      projection: projection(windows, intervals, next_halving)
     }
   end
 
@@ -396,5 +434,331 @@ defmodule Portfolixir.Engines.Cycles do
       cycles_partial: Enum.count(windows, &(&1.kind == :partial)),
       cycle_open: Enum.any?(windows, &(&1.kind == :open))
     }
+  end
+
+  # --------------------------------------------------------------- projection
+  # Sprint 29 H5: ADR-0060 §4, the analog band's parts.
+
+  @doc """
+  The log step of ADR-0060 §4: f₂^(ln f₂ / ln f₁) for the last two factors
+  of a relation, oldest first, at scale 6 — "it goes on as last time".
+
+  AR-3's float island, its fourth named operation (`:math.log/1`, amended
+  2026-11-12) with the already named `:math.pow/2`: Decimals in,
+  `Decimal.from_float/1` then `Decimal.round/2` at scale 6 out, nothing
+  float kept. Total, as `Statistics.square_root/1` is: `nil` where no step
+  is defined — ln f₁ or ln f₂ is 0 (a factor of exactly 1), the two differ
+  in sign (the factor crossed 1), a factor is zero or below or outside the
+  double range, or the step leaves the double range or rounds to 0. A step
+  that grows the factor (|ln f₂| > |ln f₁|) is taken as it comes.
+  """
+  @spec log_step(Decimal.t(), Decimal.t()) :: Decimal.t() | nil
+  def log_step(%Decimal{} = f1, %Decimal{} = f2) do
+    with {:ok, x1} <- float_of(f1),
+         {:ok, x2} <- float_of(f2),
+         {a, b} = {:math.log(x1), :math.log(x2)},
+         true <- a != 0.0 and b != 0.0 and a > 0.0 == b > 0.0,
+         {:ok, step} <- power(x2, b / a),
+         factor = step |> Decimal.from_float() |> Statistics.round_scale(),
+         :gt <- Decimal.compare(factor, @zero) do
+      factor
+    else
+      _undefined -> nil
+    end
+  end
+
+  # A positive Decimal whose leading digit sits at 10^e for e in -307..307
+  # converts to a double without overflow or underflow (Statistics' bound).
+  defp float_of(%Decimal{coef: coef}) when not is_integer(coef), do: :error
+  defp float_of(%Decimal{coef: 0}), do: :error
+  defp float_of(%Decimal{sign: -1}), do: :error
+
+  defp float_of(%Decimal{coef: coef, exp: exp} = value) do
+    leading = exp + length(Integer.digits(coef)) - 1
+
+    if leading >= -@float_exponent_bound and leading <= @float_exponent_bound,
+      do: {:ok, Decimal.to_float(value)},
+      else: :error
+  end
+
+  defp power(base, exponent) do
+    {:ok, :math.pow(base, exponent)}
+  rescue
+    ArithmeticError -> :error
+  end
+
+  # §4's table: the next low is the open window's low (never final while
+  # the window is open); the next top is the top of the first window without
+  # an anchored top — the open window's own, or, once it is anchored, the
+  # next window's, which starts at the next halving.
+  defp projection(windows, intervals, next_halving) do
+    open = Enum.find(windows, &(&1.kind == :open))
+    open_top = open && anchored_top(open)
+    last_low = windows |> Enum.reverse() |> Enum.find_value(&final_low/1)
+    last_top = windows |> Enum.reverse() |> Enum.find_value(&anchored_top/1)
+    top_is_next? = not is_nil(open_top)
+
+    top_to_top = own_part(:top_to_top, last_top, intervals)
+
+    low_to_top =
+      if top_is_next?,
+        do: own_part(:low_to_top, nil, intervals, :low_not_final),
+        else: own_part(:low_to_top, last_low, intervals)
+
+    %{
+      kind: :analog_band,
+      not_a_forecast: true,
+      next_low: %{
+        event: :next_low,
+        parts: [
+          own_part(:top_to_low, open_top, intervals, :no_top_yet),
+          own_part(:low_to_low, last_low, intervals)
+        ]
+      },
+      next_top: %{
+        event: :next_top,
+        parts: [
+          halving_part(halving_anchor(top_is_next?, open, next_halving), top_to_top, intervals),
+          top_to_top,
+          low_to_top
+        ]
+      }
+    }
+  end
+
+  defp anchored_top(%{top: %{anchor: true} = top} = w),
+    do: %{
+      event: :top,
+      window_start: w.start,
+      date: top.date,
+      close: top.close,
+      final: top.final,
+      partial: false
+    }
+
+  defp anchored_top(_window), do: nil
+
+  defp final_low(%{low: %{} = low} = w),
+    do: %{
+      event: :low,
+      window_start: w.start,
+      date: low.date,
+      close: low.close,
+      final: true,
+      partial: low.partial
+    }
+
+  defp final_low(_window), do: nil
+
+  # `halving_to_top`'s time side starts from a halving's window: the next
+  # halving's (ADR-0059 §6) once the open window's top is anchored, the open
+  # window's own halving (one day) before that.
+  defp halving_anchor(true = _top_is_next?, _open, nil), do: {:absent, :no_next_halving}
+
+  defp halving_anchor(true, _open, next),
+    do:
+      {:ok,
+       %{
+         event: :halving,
+         height: next.height,
+         date: next.date,
+         date_end: next.date_end || next.date,
+         confirmed: false
+       }}
+
+  defp halving_anchor(false, nil, _next), do: {:absent, :no_anchor}
+
+  defp halving_anchor(false, open, _next),
+    do:
+      {:ok,
+       %{
+         event: :halving,
+         height: open.start_height,
+         date: open.start,
+         date_end: open.start,
+         confirmed: true
+       }}
+
+  # A part with a price side of its own: time from the anchor's date + the
+  # relation's minimum to maximum days, price from the anchor's close × the
+  # factor range of `price_side/1`.
+  defp own_part(relation, anchor, intervals, missing \\ :no_anchor) do
+    summary = Map.fetch!(intervals, relation)
+    factors = Enum.map(summary.observations, &factor_of(relation, &1))
+
+    base =
+      relation
+      |> base_part(anchor, summary.observations, length(factors))
+      |> Map.merge(%{days: summary.days, own_price: true, price_from: nil})
+
+    cond do
+      is_nil(anchor) ->
+        absent(base, missing)
+
+      length(factors) < 2 ->
+        absent(base, :too_few_observations)
+
+      true ->
+        side = price_side(factors)
+
+        base
+        |> Map.merge(%{
+          window: %{
+            from: Date.add(anchor.date, summary.days.min),
+            to: Date.add(anchor.date, summary.days.max)
+          },
+          price: %{
+            from: anchor.close |> Decimal.mult(side.factor.from) |> Statistics.round_scale(),
+            to: anchor.close |> Decimal.mult(side.factor.to) |> Statistics.round_scale()
+          },
+          factor: side.factor,
+          factors_used: side.used,
+          price_rule: side.rule,
+          price_reason: side.reason
+        })
+        |> with_width()
+    end
+  end
+
+  # `halving_to_top` has no price relation of its own: its price side is
+  # `top_to_top`'s, and it is absent whenever that part is (board 07 ⑥).
+  defp halving_part(anchor, lender, intervals) do
+    summary = intervals.halving_to_top
+
+    {anchor, missing} =
+      case anchor do
+        {:ok, anchor} -> {anchor, nil}
+        {:absent, reason} -> {nil, reason}
+      end
+
+    base =
+      :halving_to_top
+      |> base_part(anchor, summary.observations, lender.n_price)
+      |> Map.merge(%{days: summary.days, own_price: false, price_from: :top_to_top})
+
+    cond do
+      is_nil(anchor) ->
+        absent(base, missing)
+
+      not is_nil(lender.reason) ->
+        absent(base, lender.reason)
+
+      summary.n < 2 ->
+        absent(base, :too_few_observations)
+
+      true ->
+        base
+        |> Map.merge(%{
+          window: %{
+            from: Date.add(anchor.date, summary.days.min),
+            to: Date.add(anchor.date_end, summary.days.max)
+          },
+          price: lender.price,
+          factor: lender.factor,
+          factors_used: lender.factors_used,
+          price_rule: lender.price_rule,
+          price_reason: lender.price_reason,
+          provisional: base.provisional or lender.provisional,
+          partial: base.partial or lender.partial,
+          inputs_until: latest([base.inputs_until, lender.inputs_until])
+        })
+        |> with_width()
+    end
+  end
+
+  defp base_part(relation, anchor, observations, n_price) do
+    %{
+      relation: relation,
+      anchor: anchor,
+      n_time: length(observations),
+      n_price: n_price,
+      time_rule: :min_max,
+      window: nil,
+      price: nil,
+      factor: nil,
+      factors_used: [],
+      price_rule: nil,
+      price_reason: nil,
+      provisional: Enum.any?(observations, & &1.provisional) or not_final?(anchor),
+      partial: Enum.any?(observations, & &1.partial) or match?(%{partial: true}, anchor),
+      inputs_until: inputs_until(anchor, observations),
+      reason: nil
+    }
+  end
+
+  defp not_final?(%{event: :halving, confirmed: confirmed}), do: not confirmed
+  defp not_final?(%{final: final}), do: not final
+  defp not_final?(nil), do: false
+
+  # The latest date of a close that went into the part: its anchor's and its
+  # observations' ends that carry a close (a halving date is not a close).
+  defp inputs_until(anchor, observations) do
+    anchor_date = if match?(%{close: %Decimal{}}, anchor), do: anchor.date
+
+    observations
+    |> Enum.flat_map(fn o -> [o.from, o.to] end)
+    |> Enum.filter(&match?(%{close: %Decimal{}}, &1))
+    |> Enum.map(& &1.date)
+    |> Enum.concat([anchor_date])
+    |> latest()
+  end
+
+  defp latest(dates) do
+    case Enum.reject(dates, &is_nil/1) do
+      [] -> nil
+      dates -> Enum.max(dates, Date)
+    end
+  end
+
+  defp absent(part, reason), do: %{part | reason: reason, inputs_until: nil}
+
+  # A part whose window is one day, or whose price range is one price, would
+  # name a single date or a single price, the point forecast §8 rules out:
+  # it is absent, as a part with one observation is (§4 "Minimum data").
+  defp with_width(%{window: window, price: price} = part) do
+    if Date.compare(window.from, window.to) == :eq or Decimal.equal?(price.from, price.to),
+      do: %{
+        part
+        | reason: :zero_width,
+          window: nil,
+          price: nil,
+          factor: nil,
+          factors_used: [],
+          price_rule: nil,
+          price_reason: nil,
+          inputs_until: nil
+      },
+      else: part
+  end
+
+  defp factor_of(:top_to_low, observation), do: Decimal.add(1, observation.change)
+  defp factor_of(_relation, observation), do: observation.factor
+
+  # §4's price side over a relation's factors, oldest first: from the last
+  # factor f₂ to the log step, in either order; the minimum to the maximum
+  # of every stored factor where no step is defined, with its reason.
+  defp price_side(factors) do
+    [f1, f2] = Enum.take(factors, -2)
+
+    case log_step(f1, f2) do
+      nil ->
+        low = Enum.reduce(factors, &Decimal.min/2)
+        high = Enum.reduce(factors, &Decimal.max/2)
+
+        %{
+          rule: :min_max,
+          reason: :no_log_step,
+          used: [low, high],
+          factor: %{from: low, to: high}
+        }
+
+      step ->
+        %{
+          rule: :log_step_v1,
+          reason: nil,
+          used: [f1, f2],
+          factor: %{from: Decimal.min(f2, step), to: Decimal.max(f2, step)}
+        }
+    end
   end
 end
