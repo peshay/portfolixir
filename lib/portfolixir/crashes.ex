@@ -44,6 +44,7 @@ defmodule Portfolixir.Crashes do
   alias Portfolixir.Clock
   alias Portfolixir.Crashes.ManualWindow
   alias Portfolixir.Crashes.PeakTrough
+  alias Portfolixir.Crashes.Rankings
   alias Portfolixir.Crashes.WindowName
   alias Portfolixir.Journal
   alias Portfolixir.Repo
@@ -160,6 +161,31 @@ defmodule Portfolixir.Crashes do
       |> unmatched_names(Settings.crash_benchmark_security_id())
 
     Map.merge(detection, %{detected: detected, manual: manual(), unmatched_names: unmatched})
+  end
+
+  @doc """
+  The list of the window `key` over `universe` (ADR-0058 §5, §6; the
+  amendment's F2, F3), as `Portfolixir.Crashes.Rankings` derives it: the
+  window (a detected one, `d:`, as the rule detects it now; a manual one,
+  `m:`), the list's entries, the crash benchmark's return beside them, the
+  answers counted and the computation basis. `opts` take `:list`
+  (`"losers"`, the default, or `"winners"`), `:limit` (default 8, at most
+  50), `:include_unanswered` and `:today`.
+
+  `{:error, :invalid_list | :invalid_universe | :invalid_limit}` before
+  anything is read; `{:error, :not_found}` for a key that names no window.
+  """
+  @spec rankings(String.t(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, Rankings.refusal() | :not_found}
+  def rankings(key, universe, opts \\ []) when is_binary(key) do
+    with {:ok, request} <- Rankings.request(universe, opts) do
+      listing = list_windows()
+
+      case Enum.find(listing.detected ++ listing.manual, &(&1.key == key)) do
+        nil -> {:error, :not_found}
+        window -> {:ok, Rankings.rank(window, listing.benchmark, listing.reason, request)}
+      end
+    end
   end
 
   defp manual do

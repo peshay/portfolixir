@@ -25,8 +25,11 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Crashes
+  alias Portfolixir.Crashes.Rankings
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Settings
 
   # The five words ADR-0047 §7 names, plus the two the neighbouring gates use
   # for the same thing (B3.6 rules, B3.7 push delivery). Matched as substrings
@@ -426,4 +429,60 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
                "a series that happened; they rank and recommend nothing."
     end
   end
+
+  # --- Sprint 29 C4 begin ---
+  # User story (FR-54, ADR-0058 §5 and §8; Sprint 29 C4):
+  # As the maintainer holding the scope ladder,
+  # I want the crash lists' payload checked the same way,
+  # so that a list of who fell and who rose stays a comparison of prices
+  # and never says what to buy in the next crash.
+  #
+  # Acceptance criteria:
+  # - No key of the rankings payload, for every list, with the unanswered
+  #   listed, against a crash benchmark and without one, contains a
+  #   forbidden word. The payload is walked at the context, whose answer
+  #   the API renders (C5).
+  test "the crash rankings carry no verdict key" do
+    index = create_security!(name: "Verdict Crash Index", ticker: "VCI")
+    stock = create_security!(name: "Verdict Crash Stock", ticker: "VCS")
+    young = create_security!(name: "Verdict Crash Young", ticker: "VCY")
+    Quotes.upsert_many(index.id, crash_rows([{~D[2020-02-19], "100"}, {~D[2020-03-23], "70"}]))
+    Quotes.upsert_many(stock.id, crash_rows([{~D[2020-02-19], "50"}, {~D[2020-03-23], "40"}]))
+    Quotes.upsert_many(young.id, crash_rows([{~D[2020-03-20], "50"}]))
+
+    {:ok, window} =
+      Crashes.create_manual_window(Actor.owner_ui(), %{
+        "name" => "Verdict Crash",
+        "start" => "2020-02-19",
+        "trough" => "2020-03-23"
+      })
+
+    keys_read =
+      for benchmark <- [nil, index], list <- Rankings.lists() do
+        {:ok, _setting} =
+          Settings.set_crash_benchmark(Actor.owner_ui(), benchmark && benchmark.id)
+
+        {:ok, payload} =
+          Crashes.rankings("m:#{window.id}", "catalogue",
+            list: list,
+            include_unanswered: true
+          )
+
+        assert offenders(payload) == [],
+               "the #{list} list carries verdict keys #{inspect(offenders(payload))}: " <>
+                 "ADR-0058 §8, the lists compare prices and say nothing about what to buy."
+
+        payload |> keys() |> length()
+      end
+
+    assert Enum.all?(keys_read, &(&1 > 0))
+  end
+
+  defp crash_rows(points),
+    do:
+      Enum.map(points, fn {date, close} ->
+        %{date: date, close: Decimal.new(close), source: "manual"}
+      end)
+
+  # --- Sprint 29 C4 end ---
 end
