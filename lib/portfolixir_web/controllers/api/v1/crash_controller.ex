@@ -47,6 +47,9 @@ defmodule PortfolixirWeb.Api.V1.CrashController do
   @name_fields ~w(name)
   @manual_fields ~w(name start trough)
   @from_name_fields ~w(from_name name trough)
+  # A detected window's key as the read spells it (the MCP schema's
+  # pattern): any other string is no key, and is answered with the form.
+  @detected_key ~r/\Ad:[1-9][0-9]*:[0-9]{4}-[0-9]{2}-[0-9]{2}\z/
 
   def index(conn, _params) do
     case ClosedBody.check(conn, nil, []) do
@@ -168,7 +171,18 @@ defmodule PortfolixirWeb.Api.V1.CrashController do
   defp create_window(actor, attrs, false), do: Crashes.create_manual_window(actor, attrs)
 
   defp create_window(actor, %{"from_name" => key} = attrs, true) when is_binary(key) do
-    case Crashes.manual_window_from_name(actor, key, Map.delete(attrs, "from_name")) do
+    if Regex.match?(@detected_key, key),
+      do: from_name(actor, key, Map.delete(attrs, "from_name")),
+      else: {:error, key_form()}
+  end
+
+  defp create_window(_actor, _attrs, true), do: {:error, key_form()}
+
+  defp key_form,
+    do: %{from_name: ["is invalid: a detected window's key, d:<benchmark_security_id>:<start>"]}
+
+  defp from_name(actor, key, attrs) do
+    case Crashes.manual_window_from_name(actor, key, attrs) do
       {:error, :not_found} ->
         {:error,
          %{from_name: ["names no stored name: a detected window's key under unmatched_names"]}}
@@ -185,11 +199,6 @@ defmodule PortfolixirWeb.Api.V1.CrashController do
         answer
     end
   end
-
-  defp create_window(_actor, _attrs, true),
-    do:
-      {:error,
-       %{from_name: ["is invalid: a detected window's key, d:<benchmark_security_id>:<start>"]}}
 
   # --- the refusals ---
 
@@ -209,6 +218,7 @@ defmodule PortfolixirWeb.Api.V1.CrashController do
     do: ClosedBody.refuse(conn, JSON.errors(changeset))
 
   defp refuse(conn, {:unknown_fields, errors}), do: ClosedBody.refuse(conn, errors)
+  defp refuse(conn, {:missing_fields, errors}), do: ClosedBody.refuse(conn, errors)
   defp refuse(conn, errors) when is_map(errors), do: ClosedBody.refuse(conn, errors)
 
   defp not_found(conn) do

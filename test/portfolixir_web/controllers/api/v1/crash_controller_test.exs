@@ -519,6 +519,38 @@ defmodule PortfolixirWeb.Api.V1.CrashControllerTest do
     assert Journal.list_entries(actor_type: :api_token_rw) == []
   end
 
+  # The closing act (#1421): a PUT whose window names no field changed
+  # nothing yet was journaled as an update; it is refused with 422 naming
+  # name, and nothing is written. A from_name that is not spelled as a
+  # detected key answers the key's form, not "names no stored name".
+  test "an empty PUT is refused naming name; a malformed from_name names the key's form",
+       %{conn: conn} do
+    %{key: key} = crash_world!()
+    {:ok, _name} = Crashes.name_window(Actor.owner_ui(), key, %{"name" => "Synthetic Kept Name"})
+    manual = manual!()
+    put_window = &(conn |> authed() |> put(path(&1), Jason.encode!(%{window: %{}})))
+
+    for target <- [key, "m:#{manual.id}"] do
+      assert %{"errors" => %{"name" => [missing]}} = put_window.(target) |> json_response(422)
+      assert missing =~ "is missing", target
+    end
+
+    assert Journal.list_entries(actor_type: :api_token_rw) == []
+
+    for malformed <- ["spring", "d:x:2020-02-19", "m:4", "d:1:2020-2-19"] do
+      assert %{"errors" => %{"from_name" => [form]}} =
+               conn
+               |> authed()
+               |> post(
+                 "/api/v1/crashes",
+                 Jason.encode!(%{window: %{from_name: malformed, trough: "2020-03-23"}})
+               )
+               |> json_response(422)
+
+      assert form =~ "d:<benchmark_security_id>:<start>", malformed
+    end
+  end
+
   test "every crash route requires the token", %{conn: conn} do
     for {verb, route} <- [
           {:get, "/api/v1/crashes"},

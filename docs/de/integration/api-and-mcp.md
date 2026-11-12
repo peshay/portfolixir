@@ -1529,8 +1529,10 @@ kein manuelles Fenster nennt, ergibt `404`; ein Feld, das die Art des
 Schlüssels nicht nimmt (`start` bei einem erkannten Schlüssel), ergibt `422`,
 das es nennt; ein leerer oder zu langer `name` (oder keiner, wo das Fenster
 noch keinen Namen hat) oder ein Datum, das nach den Regeln von `POST`
-abgelehnt wird, `422`, das das Feld nennt; ein `window`, das kein JSON-Objekt
-ist, `422`, das `window` nennt.
+abgelehnt wird, `422`, das das Feld nennt; ein `window`, das bei einem
+benannten oder manuellen Fenster kein Feld nennt (es änderte nichts), `422`,
+das `name` nennt („is missing“); ein `window`, das kein JSON-Objekt ist,
+`422`, das `window` nennt.
 
 **`POST /api/v1/crashes`**
 
@@ -1552,10 +1554,10 @@ Tiefpunkt wurde nie gespeichert und wird nie aus den heutigen Kursen geraten),
 sein Name der gespeicherte, wenn `name` keinen anderen gibt. Das manuelle
 Fenster wird angelegt und der gespeicherte Name gelöscht, in einer
 Transaktion, jedes journalisiert. Ablehnungen: Ein `from_name`, der kein
-String ist, ergibt `422` mit `errors.from_name`, das die Form
-`d:<benchmark_security_id>:<start>` nennt; einer, unter dem kein Name
-gespeichert ist, ein falsch geschriebener Schlüssel eingeschlossen, `422`, das
-`from_name` nennt („names no stored name“); einer, dessen Fenster die Regel
+String ist oder nicht als erkannter Schlüssel geschrieben ist, ergibt `422`
+mit `errors.from_name`, das die Form `d:<benchmark_security_id>:<start>`
+nennt; ein so geschriebener Schlüssel, unter dem kein Name gespeichert ist,
+`422`, das `from_name` nennt („names no stored name“); einer, dessen Fenster die Regel
 noch erkennt (`name_has_window`), `422`, das `from_name` und das `PUT` nennt,
 das ihn umbenennt; `start` in diesem Body `422`, das es nennt. Die Antwort ist
 das manuelle Fenster, wie `manual` es liest.
