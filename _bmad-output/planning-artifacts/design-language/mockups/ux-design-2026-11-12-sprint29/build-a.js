@@ -6,7 +6,9 @@
 //   02 the benchmark picker, flagged first and held after (#1416, ADR-0046's
 //      amendment of 2026-11-07 point 3), and where the operator chooses the
 //      crash benchmark (ADR-0058 §1); its frame ⑤ (frames/02i* to 02l*) is
-//      the third group „Weitere“ the B2 build added, drawn after the build.
+//      the third group „Weitere“ the B2 build added, drawn after the build,
+//      and ⑥ (frames/02m*, 02n*) the groups at 390 px before and after the
+//      closing act's larger gap before each label.
 //
 // The chrome (sidebar, top bar, area tabs, sections, segmented controls,
 // tables, data notes, disclosures, the ⓘ) is the app's own markup: the shell
@@ -656,6 +658,23 @@ const SALE_SHELL = { shell: true, css: BUILT_CSS, title: 'Trades', subtitle: 'Ab
 const f02k = writeFrame('02k-weitere-verkauf-1200', saleWeitere, { ...SALE_SHELL, width: 1200 });
 const f02l = writeFrame('02l-weitere-verkauf-390', saleWeitere, { ...SALE_SHELL, width: 390 });
 
+// ⑥ The closing act (#1416, B2): at a phone's width (≤ 560 px) the label
+// stands above its options with the grid's one gap of 4 px, so a group's
+// label sits as close to the options of the group before it as to its own,
+// and the three groups read as one list. After: a larger gap (--space-3)
+// before every group label after the first. The markup is the built one
+// (`portfolio_live.ex`); „vorher“ holds the gap as built, whatever app.css
+// ships later, so the frame stays a before.
+const GAP_BEFORE_CSS = BUILT_CSS + `
+@media (max-width: 560px) { .bm-groups .bm-groups__label:not(:first-child) { margin-top: 0; } }
+`;
+const GAP_AFTER_CSS = BUILT_CSS + `
+@media (max-width: 560px) { .bm-groups .bm-groups__label:not(:first-child) { margin-top: var(--space-3); outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; } }
+`;
+const phonePicker = `<div class="workspace-page">${areaTabs('Bestände')}${perfHead(builtGroups(['Weltindex ETF', OTHER]), { activeChips: ['Weltindex ETF', OTHER] })}</div>`;
+const f02m = writeFrame('02m-gruppen-390-vorher', phonePicker, { ...HOLDINGS_SHELL, css: GAP_BEFORE_CSS, width: 390 });
+const f02n = writeFrame('02n-gruppen-390-nachher', phonePicker, { ...HOLDINGS_SHELL, css: GAP_AFTER_CSS, width: 390 });
+
 board('02-benchmark-picker.html', 'Sprint 29 — Board 02: the benchmark picker and the crash benchmark (#1416, ADR-0046 amendment 2026-11-07, ADR-0058 §1)', 1260, `<div class="mock-pickbar">
 <p><b>Decided:</b> every read that takes <code>benchmark=security:&lt;id&gt;</code> accepts any security with at least one stored quote, flagged or not; <code>is_benchmark</code> keeps its meaning (reference-only: not bookable, out of the data-quality sets) and is the picker's default content; the picker offers the flagged securities first and the held ones after them, and is built only after its board (ADR-0046, amendment of 2026-11-07, point 3; #1416). The crash benchmark is one instance setting, set through the API, its MCP tool and the screen, journaled, with no default; the Crashes section's „no benchmark“ line links to it (ADR-0058 §1).</p>
 <p><b>Today the screen has two pickers</b>, both flagged-only (<code>Catalog.list_securities(is_benchmark: true)</code>): Bestände's „Benchmark…“ disclosure (<code>portfolio_live.ex</code>) and „Nach dem Verkauf“'s select, on Cashflow and on a security's Trades tab (<code>sale_hindsight_section.ex</code>). Predictions take their benchmark over the API only. Both screens also resolve a chosen id against the flag (<code>resolve_benchmark_security/1</code> in <code>portfolio_live.ex</code>, the flagged list in <code>sale_hindsight_section.ex</code>), so a held security ticked in the new picker would fall back to „not selected“ unless the story changes those resolvers with the picker. No settings page exists; the one instance setting with a screen, the default view, is set where it acts (the view switcher).</p>
@@ -666,6 +685,7 @@ board('02-benchmark-picker.html', 'Sprint 29 — Board 02: the benchmark picker 
   { title: '③ „Nach dem Verkauf“: the select today and as proposed', recommended: true, note: 'The same two groups as <code>&lt;optgroup&gt;</code>s of the native select (drawn open beside it, as a browser shows it). Its default stays the first flagged security, as today.', frames: [sized(f02d, 'heute'), sized(f02e, 'A · zwei Gruppen', true)] },
   { title: '④ Where the crash benchmark is chosen: inline (A) or a settings page (B)', recommended: true, note: '<b>A (recommended, Q2):</b> in the Crashes section. Unset, the data note\'s „Crash-Benchmark wählen“ opens the windows disclosure with the form; set, the rule line\'s „Ändern“ opens it. The select carries the same two groups; „Speichern“ writes the setting through the API\'s path, journaled under the operator. The hints say what the setting means for agents and what happens to names (§3). <b>B:</b> a new page „Einstellungen“ under Verwaltung, where later instance settings could gather (the news clustering\'s two values are API-only today). Not recommended now: one setting does not make a page, the operator meets the question where the crashes are, and the default view set in place is the precedent. Flip: „Einstellungsseite“.', frames: [sized(f02f, 'A · noch kein Crash-Benchmark', true), sized(f02g, 'A · ändern', true), sized(f02h, 'B · Einstellungen')] },
   { title: '⑤ B2 — die Gruppe „Weitere“ (added by the build)', note: '<b>Found while building Q1 A, drawn before the sprint PR lands:</b> a link may name a quoted security that is neither flagged nor held (the API accepts it since the amendment; an agent\'s link may carry one). The built pickers compare it, and show it in a third group, „Weitere“, after „Benchmarks“ and „Im Bestand“, so the picker never shows one security while comparing another, and applying the form again keeps it (<code>PortfolixirWeb.BenchmarkChoices.with_chosen/2</code>). The group is there only while such a security is chosen: untick it and apply, or pick another in the select, and it is gone; it is never a way to find one (variant B\'s search stays off). Drawn as the build renders it, with the shipped app.css: the label column at 1200 px, the label above its options on a phone (≤ 560 px). The select\'s open list is drawn beside it, as in ③. Dashed: the new group. Flip: „Ohne Gruppe Weitere“ — the picker then drops a security it does not offer, as before.', frames: [sized(f02i, 'Bestände · 1200 px'), sized(f02j, 'Bestände · 390 px'), sized(f02k, 'Nach dem Verkauf · 1200 px'), sized(f02l, 'Nach dem Verkauf · 390 px')] },
+  { title: '⑥ The groups at 390 px (the closing act)', recommended: true, note: '<b>Found by the closing act:</b> on a phone (≤ 560 px) each label stands above its options, and the grid\'s one gap of 4 px also separates a group from the next label, so „Im Bestand“ and „Weitere“ read as the last lines of the group before them. <b>After (recommended):</b> a larger gap (<code>--space-3</code>) before every group label after the first, so each label starts its group; at 1200 px the label column is unchanged. Dashed: the labels that move. The order the boxes are applied in is unchanged by this frame: „Anwenden“ keeps the address\'s order for boxes already chosen and appends the newly ticked ones, so the chips keep their colours.', frames: [sized(f02m, 'vorher · 390 px'), sized(f02n, 'nachher · 390 px', true)] },
 ]);
 
 console.log('wrote frames/01*.html, frames/02*.html, 01-crash-section.html and 02-benchmark-picker.html');
