@@ -284,6 +284,12 @@ which is a data-model change, not a report, and no accepted decision opened it.
 - **(d) Backtesting rules against stored price history — out for now**, behind
   its own decision gate. A rule test-bench without rule objects is premature;
   revisit after the policy-rules work (gate B3.6).
+- **Analog bands — in scope** (ADR-0060, 2026-11-12). A range for a coming
+  event, read from the stored past cycles' intervals and factors and applied
+  to the current anchors, with n and both ends shown; never a single date or
+  price, never fitted. It scores nothing and replays nothing, so it is not a
+  rung between (c) and (d). A caller who wants to stand behind one figure
+  records an ADR-0055 prediction.
 
 **Where (c) ends and (d) begins**, because the two are easy to confuse and one
 of them is forbidden: **(c) scores what actually happened** — a prediction that
@@ -293,9 +299,11 @@ happened** — replaying a rule or a trade against price history it never ran
 against. It manufactures a counterfactual. The test is whether the thing being
 evaluated existed, with an as-of, before the period it is judged over. If a
 proposed analytic needs to invent a history in which the rule was already
-there, it is level (d).
+there, it is level (d). Scoring an analog band's rule on past cycles (what
+the band would have said in 2020 about 2022) is level (d): it invents a
+history in which the rule was already there.
 
-**Quality bar for every metric in (a)–(c):** it ships with its computation
+**Quality bar for every metric in (a)–(c) and every analog band:** it ships with its computation
 basis stated in the API and MCP payload — input series, window, reference
 series or benchmark where one exists, and the treatment of gaps. This is a
 review gate, not a documentation chore: a metric whose basis is unstated cannot
