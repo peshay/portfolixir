@@ -22,7 +22,9 @@ defmodule PortfolixirWeb.ControlBar do
 
   `fold` and `floor` are named widths, each a class with its own container
   query in `app.css` (a container query cannot read a variable): `fold`
-  560, 760 (the default, the stacked chart's) or 960 px, or `:always` for a
+  560, 760 (the default, the stacked chart's), 840 (the sale's comparison,
+  whose line the walk measured wrapping up to 793 px) or 960 px, or
+  `:always` for a
   bar whose groups never fit one line (the chip rows); `floor` 330 (the
   default) or 560 px, or `:always` for a bar whose labels always stand
   above. A new width is one more class and one more rule there.
@@ -43,10 +45,14 @@ defmodule PortfolixirWeb.ControlBar do
   """
   use Phoenix.Component
 
-  @folds [560, 760, 960, :always]
+  @folds [560, 760, 840, 960, :always]
   @floors [330, 560, :always]
 
-  attr(:fold, :any, default: 760, doc: "560, 760, 960 or :always: where the label column starts")
+  attr(:fold, :any,
+    default: 760,
+    doc: "560, 760, 840, 960 or :always: where the label column starts"
+  )
+
   attr(:floor, :any, default: 330, doc: "330, 560 or :always: where every label moves above")
   attr(:class, :any, default: nil)
   attr(:rest, :global)
