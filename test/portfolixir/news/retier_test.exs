@@ -19,7 +19,9 @@ defmodule Portfolixir.News.RetierTest do
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.News
   alias Portfolixir.News.Cluster
+  alias Portfolixir.News.Ingest
   alias Portfolixir.News.Item
+  alias Portfolixir.News.Parser.Item, as: Parsed
   alias Portfolixir.News.Source
   alias Portfolixir.News.Sources
   alias Portfolixir.News.Stories
@@ -233,6 +235,79 @@ defmodule Portfolixir.News.RetierTest do
 
       assert counts(last_entry(child))["items_rerated"] == 2
       assert counts(last_entry(parent))["items_rerated"] == 1
+    end
+  end
+
+  # User story (ADR-0056 E1 rules 3 and 4; §12):
+  # As the operator who blocks a source after its items were stored,
+  # I want its stored items that no entry names removed, as the ingest
+  # would not have stored them, and their stories kept whole,
+  # so that a blocked source stands for no story and can never become a
+  # research entry's source.
+  #
+  # Acceptance criteria:
+  # - Every unpromoted item the blocked row decides is removed, whatever
+  #   its class: assigned ones leave their stories through
+  #   `Stories.remove/5` (a story left without a member is deleted, one that
+  #   lost a member keeps its id, is recounted and represented by the best
+  #   member left), unassigned ones are deleted.
+  # - The journal entry counts them in items_removed.
+  # - A later fetch that lists one again drops it as blocked
+  #   (`dropped_blocked`); no tombstone is needed.
+  describe "a block removes the unpromoted items it decides" do
+    test "through their stories, and a later fetch drops them at ingest" do
+      security = NewsFixtures.security!()
+      blocked = domain()
+      other = domain()
+      rate!(blocked, :secondary)
+      shared = "Northwind Harbour signs a charter"
+
+      kept = item!(:aggregator, other, security: security, title: shared, at: 0)
+      lost = item!(:aggregator, blocked, security: security, title: shared, at: 60)
+      alone = item!(:aggregator, blocked, security: security, title: "Harbour rumour mill")
+      issuer = item!(:issuer, "ir." <> blocked, security: security, title: "Northwind results")
+      cluster!(security)
+
+      shared_story = story_of(kept)
+      alone_story = story_of(alone)
+      issuer_story = story_of(issuer)
+      assert shared_story.representative_item_id == lost.id
+      assert shared_story.member_count == 2
+
+      feed = NewsFixtures.feed!(%{class: "aggregator"})
+
+      parsed = %Parsed{
+        title: "A wrap naming nobody",
+        link: "https://search.example.com/r?u=retier-block",
+        source_domain: blocked
+      }
+
+      {:ok, %{stored: 1}} = Ingest.ingest(feed, [parsed], DateTime.utc_now())
+      open = Repo.get_by!(Item, feed_id: feed.id)
+      assert {open.assignment, open.tier} == {:unassigned, :secondary}
+
+      assert {:ok, %Source{tier: :blocked}} = Sources.put_source(@agent, blocked, :blocked)
+
+      for item <- [lost, alone, issuer, open], do: assert(reload(item) == nil)
+      assert reload(kept).tier == :awareness
+
+      shared_story = Repo.get!(Cluster, shared_story.id)
+      assert members(shared_story) == [kept.id]
+
+      assert {shared_story.member_count, shared_story.representative_item_id,
+              shared_story.best_tier} == {1, kept.id, :awareness}
+
+      assert Repo.get(Cluster, alone_story.id) == nil
+      assert Repo.get(Cluster, issuer_story.id) == nil
+
+      assert counts(last_entry(blocked)) == %{
+               "items_rerated" => 0,
+               "items_removed" => 4,
+               "items_kept_promoted" => 0
+             }
+
+      assert {:ok, %{stored: 0, known: 0, dropped_blocked: 1}} =
+               Ingest.ingest(feed, [parsed], DateTime.utc_now())
     end
   end
 
