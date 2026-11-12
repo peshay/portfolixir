@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06b-journal-neu</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-pad { padding: 16px 20px; }
+.mock-crop { margin: 0; padding: 8px 12px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12px; color: var(--color-text-muted); }
+.mock-gone { padding: 10px 14px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12.5px; color: var(--color-text-muted); background: var(--color-bg-muted); }
+</style>
+<style id="proposal">
+/* The shared component (proposal): a bar of labelled controls. One row of
+   groups while they fit (.control-bar--line); A, a label column as wide as
+   the longest label, every control from one edge; B, every label above its
+   control. A chip family is one control and wraps inside its column. */
+.control-bar { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 12px; align-items: baseline; margin: 0 0 12px; font-size: 12.5px; color: var(--color-text-muted); }
+.control-bar__group { display: contents; }
+.control-bar__label { font-size: 12px; font-weight: 600; color: var(--color-text-muted); white-space: nowrap; }
+.control-bar__control { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; color: var(--color-text); }
+.control-bar__control .filter-chips__family { display: none; }
+.control-bar--b { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.control-bar--b .control-bar__control { margin-bottom: 8px; }
+.control-bar .segmented-control { width: auto; }
+.control-bar__control input[type=text] { width: calc(12ch + 20px); flex: none; }
+</style>
+</head>
+<body><div class="mock-pad" style="width: 390px; box-sizing: border-box;">
+<div class="workspace-page">
+<section class="workspace-section">
+<div class="control-bar mock-new" role="group" aria-label="Journal filtern">
+<div class="control-bar__group">
+<span class="control-bar__label">Akteur</span>
+<div class="control-bar__control">
+          <button type="button" id="journal-chip-actor-all" class="filter-chip is-active" aria-pressed="true" phx-value-actor_type="">
+            Alle
+          </button>
+          <button type="button" id="journal-chip-actor-owner_ui" class="filter-chip " aria-pressed="false" phx-value-actor_type="owner_ui">
+            Operator
+          </button>
+<button type="button" id="journal-chip-actor-api_token_rw" class="filter-chip " aria-pressed="false" phx-value-actor_type="api_token_rw">
+            Agent
+          </button>
+<button type="button" id="journal-chip-actor-import_session" class="filter-chip " aria-pressed="false" phx-value-actor_type="import_session">
+            Import
+          </button>
+<button type="button" id="journal-chip-actor-system_job" class="filter-chip " aria-pressed="false" phx-value-actor_type="system_job">
+            System
+          </button>
+        </div>
+</div>
+<div class="control-bar__group">
+<span class="control-bar__label">Vorgang</span>
+<div class="control-bar__control">
+          <button type="button" id="journal-chip-operation-create" class="filter-chip " aria-pressed="false">
+            Angelegt
+          </button>
+<button type="button" id="journal-chip-operation-update" class="filter-chip " aria-pressed="false">
+            Geändert
+          </button>
+<button type="button" id="journal-chip-operation-delete" class="filter-chip " aria-pressed="false">
+            Gelöscht
+          </button>
+<button type="button" id="journal-chip-operation-upsert" class="filter-chip " aria-pressed="false">
+            Angelegt oder ersetzt
+          </button>
+        </div>
+</div>
+<div class="control-bar__group">
+<span class="control-bar__label">
+<label for="journal-kind">Art</label></span>
+<div class="control-bar__control">
+<select id="journal-kind" name="resource_type">
+            <option value="" selected="">Alle Arten</option>
+            <option value="transaction">
+              Transaktion
+            </option><option value="security">
+              Wertpapier
+            </option><option value="security_quotes">
+              Kurse
+            </option><option value="security_event">
+              Termin
+            </option><option value="security_note">
+              Research-Notiz
+            </option><option value="prediction">
+              Prognose
+            </option><option value="security_identifier_alias">
+              Frühere ISIN
+            </option><option value="security_category_assignment">
+              Kategorie-Zuordnung
+            </option><option value="cash_account">
+              Verrechnungskonto
+            </option><option value="securities_account">
+              Depot
+            </option><option value="cash_account_bucket_assignment">
+              Buckets des Verrechnungskontos
+            </option><option value="depot_bucket_assignment">
+              Buckets des Depots
+            </option><option value="position_bucket_override">
+              Buckets der Position
+            </option><option value="portfolio">
+              Portfolio
+            </option><option value="bucket">
+              Bucket
+            </option><option value="view">
+              Ansicht
+            </option><option value="classification">
+              Klassifizierung
+            </option><option value="category">
+              Kategorie
+            </option><option value="target">
+              Soll-Gewicht
+            </option><option value="target_plan">
+              Soll-Plan
+            </option><option value="policy_rule">
+              Regel
+            </option><option value="policy_rule_version">
+              Regelversion
+            </option><option value="snapshot">
+              Snapshot
+            </option><option value="tax_statement_snapshot">
+              Erfasste Abrechnung
+            </option><option value="tax_profile">
+              Steuerprofil
+            </option><option value="tax_parameters">
+              Steuerparameter
+            </option><option value="allowance_order">
+              Freistellungsauftrag
+            </option><option value="setting">
+              Einstellung
+            </option><option value="merge_record">
+              Zusammenführung
+            </option><option value="retired_import_hash">
+              Entfernte Importzeile
+            </option>
+          </select>
+</div>
+</div>
+<div class="control-bar__group">
+<span class="control-bar__label">
+<label for="journal-since">Seit</label></span>
+<div class="control-bar__control"><input type="text" id="journal-since" name="since" value="" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" autocomplete="off">
+</div>
+</div>
+<div class="control-bar__group">
+<span class="control-bar__label"></span>
+<div class="control-bar__control">
+<label class="journal-filters__scenarios">
+          <input type="hidden" name="include_scenarios" value="false">
+          <input type="checkbox" id="journal-scenarios" name="include_scenarios" value="true">
+          Was-wäre-wenn-Szenarien einbeziehen
+        </label>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div></body>
+</html>

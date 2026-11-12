@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06g-transaktionen-heute</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-pad { padding: 16px 20px; }
+.mock-crop { margin: 0; padding: 8px 12px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12px; color: var(--color-text-muted); }
+.mock-gone { padding: 10px 14px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12.5px; color: var(--color-text-muted); background: var(--color-bg-muted); }
+</style>
+<style id="proposal"></style>
+</head>
+<body><div class="mock-pad" style="width: 964px; box-sizing: border-box;">
+<div class="workspace-page">
+<div class="transactions-columns ">
+<section class="workspace-section">
+<div id="transaction-chips" class="filter-chips" role="group" aria-label="Historie filtern">
+  <span class="">
+  <span class="filter-chips__family">Konto</span>
+
+    <button type="button" id="tx-chip-account-8" class="filter-chip " aria-pressed="false"> Verrechnungskonto 1 </button>
+
+    <button type="button" id="tx-chip-account-9" class="filter-chip " aria-pressed="false"> Verrechnungskonto 2 </button>
+
+    <button type="button" id="tx-chip-account-6" class="filter-chip " aria-pressed="false"> Verrechnungskonto 3 </button>
+
+    <button type="button" id="tx-chip-account-7" class="filter-chip " aria-pressed="false"> Verrechnungskonto 4 </button>
+
+    <button type="button" id="tx-chip-account-22" class="filter-chip " aria-pressed="false"> Verrechnungskonto 5 </button>
+
+    <button type="button" id="tx-chip-account-1" class="filter-chip " aria-pressed="false"> Verrechnungskonto 6 </button>
+
+    <button type="button" id="tx-chip-account-17" class="filter-chip " aria-pressed="false"> Verrechnungskonto 7 </button>
+
+    <button type="button" id="tx-chip-account-18" class="filter-chip " aria-pressed="false"> Verrechnungskonto 8 </button>
+
+    <button type="button" id="tx-chip-account-15" class="filter-chip " aria-pressed="false"> Verrechnungskonto 9 </button>
+
+    <button type="button" id="tx-chip-account-5" class="filter-chip " aria-pressed="false"> Verrechnungskonto 10 </button>
+
+    <button type="button" id="tx-chip-account-23" class="filter-chip " aria-pressed="false"> Verrechnungskonto 11 </button>
+
+    <button type="button" id="tx-chip-account-20" class="filter-chip " aria-pressed="false"> Verrechnungskonto 12 </button>
+
+    <button type="button" id="tx-chip-account-19" class="filter-chip " aria-pressed="false"> Verrechnungskonto 13 </button>
+
+    <button type="button" id="tx-chip-account-11" class="filter-chip " aria-pressed="false"> Verrechnungskonto 14 </button>
+
+    <button type="button" id="tx-chip-account-10" class="filter-chip " aria-pressed="false"> Verrechnungskonto 15 </button>
+
+    <button type="button" id="tx-chip-account-4" class="filter-chip " aria-pressed="false"> Verrechnungskonto 16 </button>
+
+    <button type="button" id="tx-chip-account-16" class="filter-chip " aria-pressed="false"> Verrechnungskonto 17 </button>
+
+    <button type="button" id="tx-chip-account-12" class="filter-chip " aria-pressed="false"> Verrechnungskonto 18 </button>
+
+    <button type="button" id="tx-chip-account-2" class="filter-chip " aria-pressed="false"> Verrechnungskonto 19 </button>
+
+</span>
+
+<span class="">
+  <span class="filter-chips__family">Typ</span>
+
+    <button type="button" id="tx-chip-type-balance_adjustment" class="filter-chip " aria-pressed="false">
+      Saldo gesetzt
+    </button>
+
+    <button type="button" id="tx-chip-type-buy" class="filter-chip " aria-pressed="false">
+      Kauf
+    </button>
+
+    <button type="button" id="tx-chip-type-cash_transfer" class="filter-chip " aria-pressed="false">
+      Umbuchung
+    </button>
+
+    <button type="button" id="tx-chip-type-deposit" class="filter-chip " aria-pressed="false">
+      Einlage
+    </button>
+
+    <button type="button" id="tx-chip-type-dividend" class="filter-chip " aria-pressed="false">
+      Dividende
+    </button>
+
+    <button type="button" id="tx-chip-type-inbound_delivery" class="filter-chip " aria-pressed="false">
+      Einlieferung
+    </button>
+
+    <button type="button" id="tx-chip-type-interest" class="filter-chip " aria-pressed="false">
+      Zinsen
+    </button>
+
+    <button type="button" id="tx-chip-type-sell" class="filter-chip " aria-pressed="false">
+      Verkauf
+    </button>
+
+    <button type="button" id="tx-chip-type-split" class="filter-chip " aria-pressed="false">
+      Split
+    </button>
+
+</span>
+
+
+<span id="changed-since-chips" class="filter-chips__group" role="group" aria-label="Geändert seit">
+  <span class="filter-chips__family">Geändert seit</span>
+
+    <button type="button" id="changed-since-chips-today" class="filter-chip " aria-pressed="false">
+      Heute
+    </button>
+
+    <button type="button" id="changed-since-chips-7d" class="filter-chip " aria-pressed="false">
+      7 Tage
+    </button>
+
+    <button type="button" id="changed-since-chips-30d" class="filter-chip " aria-pressed="false">
+      30 Tage
+    </button>
+
+</span>
+</div>
+</section>
+</div>
+</div>
+</div></body>
+</html>

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06d-vergleich-neu</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-pad { padding: 16px 20px; }
+.mock-crop { margin: 0; padding: 8px 12px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12px; color: var(--color-text-muted); }
+.mock-gone { padding: 10px 14px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12.5px; color: var(--color-text-muted); background: var(--color-bg-muted); }
+</style>
+<style id="proposal">
+/* The shared component (proposal): a bar of labelled controls. One row of
+   groups while they fit (.control-bar--line); A, a label column as wide as
+   the longest label, every control from one edge; B, every label above its
+   control. A chip family is one control and wraps inside its column. */
+.control-bar { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 12px; align-items: baseline; margin: 0 0 12px; font-size: 12.5px; color: var(--color-text-muted); }
+.control-bar__group { display: contents; }
+.control-bar__label { font-size: 12px; font-weight: 600; color: var(--color-text-muted); white-space: nowrap; }
+.control-bar__control { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; color: var(--color-text); }
+.control-bar__control .filter-chips__family { display: none; }
+.control-bar--b { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.control-bar--b .control-bar__control { margin-bottom: 8px; }
+.control-bar .segmented-control { width: auto; }
+.control-bar__control input[type=text] { width: calc(12ch + 20px); flex: none; }
+.hs-controls.control-bar { display: grid; }</style>
+</head>
+<body><div class="mock-pad" style="width: 390px; box-sizing: border-box;">
+<div class="workspace-page">
+<section class="hs-section workspace-section">
+<div class="hs-controls control-bar control-bar--b mock-new" data-role="hindsight-compare">
+<div class="control-bar__group">
+<span class="control-bar__label">Vergleich</span>
+<div class="control-bar__control">
+<nav class="segmented-control" aria-labelledby="sale-hindsight-compare-label">
+      <a href="/cashflow?tab=realized&amp;hindsight=none" class="segmented-control__option" data-mode="none">
+        Ohne
+      </a>
+<a href="/cashflow?tab=realized&amp;hindsight=rate" class="segmented-control__option is-active" aria-current="true" data-mode="rate">
+        Fester Zins
+      </a>
+<a href="/cashflow?tab=realized&amp;hindsight=security" class="segmented-control__option" data-mode="security">
+        Wertpapier
+      </a>
+<a href="/cashflow?tab=realized&amp;hindsight=reinvestment" class="segmented-control__option" data-mode="reinvestment">
+        Anschlusskauf
+      </a>
+    </nav>
+</div>
+</div>
+<div class="control-bar__group">
+<span class="control-bar__label">
+<label for="sale-hindsight-rate">Fester Zins % p. a.</label></span>
+<div class="control-bar__control"><input type="text" inputmode="decimal" class="num" autocomplete="off" id="sale-hindsight-rate" name="rate" value="">
+      <button type="submit">Anwenden</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div></body>
+</html>

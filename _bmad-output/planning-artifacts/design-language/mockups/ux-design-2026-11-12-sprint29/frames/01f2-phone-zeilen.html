@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01f2-phone-zeilen</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: -4px; border-radius: 8px; }
+.mock-pad { padding: 0; }
+.mock-elided { margin: 0; padding: 10px clamp(16px, 2.4vw, 28px); border-bottom: 1px solid var(--color-border); font-size: 12.5px; color: var(--color-text-subtle); font-style: italic; }
+</style>
+<style id="proposal">
+.crash-section { position: relative; }
+.crash-bar select { min-height: 30px; width: auto; max-width: min(19.5rem, 100%); font-size: 12.5px; }
+.crash-window { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 0; font-size: 13px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.crash-window b { color: var(--color-text); font-weight: 600; }
+.crash-window .badge { align-self: center; }
+.crash-window__link { margin-left: auto; color: var(--color-accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.crash-window__nolink { margin-left: auto; font-size: 12.5px; color: var(--color-text-muted); }
+.crash-table { width: 100%; }
+.crash-table thead th { white-space: nowrap; }
+.crash-table td { padding-top: 6px; padding-bottom: 6px; }
+.crash-table td.crash-rank { width: 1.5rem; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.crash-table td.crash-name { white-space: nowrap; }
+.crash-table td.crash-name .badge { margin-left: 6px; }
+.crash-table td.crash-plot, .crash-table th.crash-plot { width: 44%; padding-left: 16px; padding-right: 16px; }
+.crash-table.is-rebound td.crash-plot, .crash-table.is-rebound th.crash-plot { width: 34%; }
+.crash-table th.crash-days { white-space: normal; width: 6.5rem; }
+.crash-table td.num, .crash-table th.num { white-space: nowrap; }
+.crash-table td.crash-pp { color: var(--color-text-muted); }
+.crash-table td.crash-notyet { color: var(--color-danger); font-weight: 600; }
+.crash-table tbody tr:hover td { background: inherit; }
+.crash-track { position: relative; height: 14px; }
+.crash-track__bar { position: absolute; top: 2px; height: 10px; border-radius: 2px; background: var(--color-danger); }
+.crash-track__bar.is-up { background: var(--color-positive); }
+.crash-track__zero { position: absolute; top: -8px; bottom: -8px; width: 1px; background: var(--color-border-strong); }
+.crash-track__ref { position: absolute; top: -8px; bottom: -8px; width: 0; border-left: 1.5px dashed var(--color-text-muted); }
+.crash-axis { position: relative; height: 16px; font-size: 11px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.crash-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.crash-table tfoot td { border: 0; padding-top: 2px; background: transparent; }
+.crash-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; font-size: 12.5px; color: var(--color-text-muted); }
+.crash-legend__ref { display: inline-block; width: 0; height: 12px; margin-right: 6px; border-left: 1.5px dashed var(--color-text-muted); vertical-align: -1px; }
+.crash-unanswered { margin: 0; font-size: 12.5px; color: var(--color-text-muted); }
+.crash-unanswered button { margin-left: 4px; }
+.crash-provisional { margin: 0; }
+.crash-windows > summary { margin-bottom: 0; }
+.crash-windows__body { display: grid; gap: 12px; margin-top: 8px; }
+.crash-rule { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; font-size: 13px; color: var(--color-text-muted); }
+.crash-rule b { color: var(--color-text); }
+.crash-rule .button-secondary { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+.crash-windows-table td, .crash-windows-table th { white-space: nowrap; }
+.crash-windows-table td.crash-unnamed { font-style: italic; color: var(--color-text-muted); }
+.crash-windows-table td.crash-actions { text-align: right; }
+.crash-windows-table td.crash-actions .link-button + .link-button { margin-left: 12px; }
+.crash-windows-table tr.is-ongoing td { background: var(--color-warning-soft); }
+.crash-unmatched h3 { margin: 4px 0 4px; font-size: 13px !important; font-weight: 700 !important; }
+.crash-unmatched p.hint { margin: 0 0 6px; }
+.crash-unmatched-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); }
+.crash-unmatched-form label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
+.crash-unmatched-form input { min-height: 30px; font-size: 13px; }
+.crash-unmatched-form input[aria-invalid] { border-color: var(--color-danger); }
+.crash-unmatched-form .hint { flex-basis: 100%; margin: 0; }
+.crash-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.crash-chips .filter-chip .badge { margin-left: 6px; }
+.crash-bar .stack-bar__label { min-width: 0; }
+
+.crash-plist { list-style: none; margin: 0; padding: 0; display: grid; }
+.crash-plist li { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) auto; gap: 2px 8px; padding: 8px 0; border-bottom: 1px solid var(--color-border); font-size: 13px; align-items: baseline; }
+.crash-plist .crash-rank { color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.crash-plist .crash-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crash-plist .crash-fig { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.crash-plist .crash-track { grid-column: 2; margin: 4px 0 2px; }
+.crash-plist .crash-pp { grid-column: 3; text-align: right; font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.crash-plist .crash-track__zero, .crash-plist .crash-track__ref { top: -4px; bottom: -4px; }
+.crash-ptable td, .crash-ptable th { white-space: nowrap; }
+.crash-window__link { margin-left: 0; }
+</style>
+</head>
+<body>
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <input id="app-sidebar-toggle" class="sidebar-toggle-control" type="checkbox" aria-label="Navigation umschalten">
+
+  <aside id="app-sidebar" class="app-sidebar" aria-label="App-Navigation">
+    <a class="brand" href="/" aria-label="Portfolixir">
+      <span class="brand-logo" aria-hidden="true">
+        <img class="brand-mark brand-mark-light" src="../../../../../../priv/static/images/logo-mark-light.svg" alt="">
+        <img class="brand-mark brand-mark-dark" src="../../../../../../priv/static/images/logo-mark-dark.svg" alt="">
+      </span>
+      <span class="brand-wordmark">Portfolixir</span>
+    </a>
+
+    <nav class="primary-nav" aria-label="Hauptnavigation">
+
+        <div class="nav-group nav-group-unlabeled">
+
+
+
+            <a id="nav-dashboard" class="nav-link " href="/">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"></rect><rect x="13" y="3" width="8" height="5" rx="1.5"></rect><rect x="13" y="10" width="8" height="11" rx="1.5"></rect><rect x="3" y="13" width="8" height="8" rx="1.5"></rect></svg></span>
+              <span class="nav-label">Übersicht</span>
+            </a>
+
+            <a id="nav-portfolio" class="nav-link is-active" href="/portfolio">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"></path></svg></span>
+              <span class="nav-label">Vermögen</span>
+            </a>
+
+            <a id="nav-securities" class="nav-link " href="/securities">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 10 6-10 6L2 8Z"></path><path d="m2 16 10 6 10-6"></path><path d="m2 12 10 6 10-6"></path></svg></span>
+              <span class="nav-label">Wertpapiere</span>
+            </a>
+
+            <a id="nav-news" class="nav-link " href="/news">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h13v14a1 1 0 0 0 1 1H6a2 2 0 0 1-2-2Z"></path><path d="M17 9h3v10a1 1 0 0 1-2 0"></path><path d="M7 9h7M7 13h7M7 16h4"></path></svg></span>
+              <span class="nav-label">Nachrichten</span>
+            </a>
+
+            <a id="nav-transactions" class="nav-link " href="/transactions">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16M4 12h16M4 20h16"></path></svg></span>
+              <span class="nav-label">Transaktionen</span>
+            </a>
+
+        </div>
+
+        <div class="nav-group ">
+
+            <div class="nav-group-head"><span>Verwaltung</span></div>
+
+
+
+            <a id="nav-portfolios" class="nav-link " href="/portfolios">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></span>
+              <span class="nav-label">Konten &amp; Depots</span>
+            </a>
+
+            <a id="nav-buckets" class="nav-link " href="/buckets">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 9v6l-4-2v-4Z"></path></svg></span>
+              <span class="nav-label">Ansichten</span>
+            </a>
+
+            <a id="nav-classifications" class="nav-link " href="/classifications">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 11.4 12 2H4v8l9.4 9.4a2 2 0 0 0 2.8 0l4.4-4.4a2 2 0 0 0 0-2.8Z"></path><circle cx="7.5" cy="7.5" r="1.2"></circle></svg></span>
+              <span class="nav-label">Klassifizierungen</span>
+            </a>
+
+            <a id="nav-journal" class="nav-link " href="/journal">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span>
+              <span class="nav-label">Audit-Journal</span>
+            </a>
+
+        </div>
+
+    </nav>
+    <div id="sidebar-version" class="sidebar-version">
+      <span class="sidebar-version__label">Version</span>
+      <a class="sidebar-version__text" href="#" title="Versionshinweise auf GitHub">2026.11.09<span class="sidebar-version__ext" aria-hidden="true">↗</span></a>
+    </div>
+  </aside>
+
+  <label class="sidebar-backdrop" for="app-sidebar-toggle" aria-hidden="true"></label>
+
+  <div class="app-frame">
+    <header class="topbar">
+      <label class="sidebar-toggle" for="app-sidebar-toggle" aria-label="Navigation öffnen">
+        <span class="burger-bars" aria-hidden="true"></span>
+      </label>
+
+      <div class="topbar-primary">
+        <a class="topbar-brand" href="/" aria-label="Portfolixir">
+          <span class="brand-logo" aria-hidden="true">
+            <img class="topbar-mark brand-mark-light" src="../../../../../../priv/static/images/logo-mark-light.svg" alt="">
+            <img class="topbar-mark brand-mark-dark" src="../../../../../../priv/static/images/logo-mark-dark.svg" alt="">
+          </span>
+          <span>Portfolixir</span>
+        </a>
+
+        <div class="topbar-page" aria-live="polite">
+
+            <h1 id="app-topbar-title">Risiko</h1>
+
+
+            <p id="app-topbar-subtitle">Konzentration und Schwankung · Ansicht: Alles</p>
+
+        </div>
+      </div>
+
+      <div class="topbar-controls" aria-label="Anzeigeeinstellungen">
+        <a id="privacy-mode" class="privacy-toggle " href="/risk?privacy=on" role="button" aria-pressed="false" title="Beträge verbergen" data-privacy-mode="off">
+
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M2 12c1-2.5 5-7 10-7s9 4.5 10 7c-1 2.5-5 7-10 7S3 14.5 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <span class="visually-hidden">Beträge verbergen</span>
+        </a>
+
+        <details id="theme-mode" class="theme-menu" aria-label="Erscheinungsbild" data-theme-control="" data-current-theme="system">
+          <summary class="theme-menu-trigger" title="Erscheinungsbild">
+            <span class="theme-current-icon theme-current-icon-system" data-current-theme-icon="system" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-light" data-current-theme-icon="light" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-dark" data-current-theme-icon="dark" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+            </span>
+            <span class="visually-hidden">Erscheinungsbild</span>
+          </summary>
+
+          <div class="theme-menu-list" role="group" aria-label="Erscheinungsbild">
+
+              <button type="button" class="theme-choice is-active" data-theme-choice="system" data-theme-icon="monitor" aria-label="System" aria-pressed="true" title="System">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+                <span class="visually-hidden">System</span>
+              </button>
+
+              <button type="button" class="theme-choice " data-theme-choice="light" data-theme-icon="sun" aria-label="Hell" aria-pressed="false" title="Hell">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+                <span class="visually-hidden">Hell</span>
+              </button>
+
+              <button type="button" class="theme-choice " data-theme-choice="dark" data-theme-icon="moon" aria-label="Dunkel" aria-pressed="false" title="Dunkel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+                <span class="visually-hidden">Dunkel</span>
+              </button>
+
+          </div>
+        </details>
+
+        <details id="accent-color" class="accent-menu" aria-label="Akzentfarbe" data-accent-control="" data-current-accent="violet">
+          <summary class="accent-menu-trigger" title="Akzentfarbe">
+            <span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-teal" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-coral" aria-hidden="true"></span>
+            <span class="visually-hidden">Akzentfarbe</span>
+          </summary>
+
+          <div class="accent-menu-list" role="group" aria-label="Akzentfarbe">
+
+              <button type="button" class="accent-choice is-active" data-accent-choice="violet" aria-label="Violett" aria-pressed="true" title="Violett">
+                <span class="accent-dot accent-dot-violet" aria-hidden="true"></span>
+                <span class="visually-hidden">Violett</span>
+              </button>
+
+              <button type="button" class="accent-choice " data-accent-choice="teal" aria-label="Petrol" aria-pressed="false" title="Petrol">
+                <span class="accent-dot accent-dot-teal" aria-hidden="true"></span>
+                <span class="visually-hidden">Petrol</span>
+              </button>
+
+              <button type="button" class="accent-choice " data-accent-choice="coral" aria-label="Koralle" aria-pressed="false" title="Koralle">
+                <span class="accent-dot accent-dot-coral" aria-hidden="true"></span>
+                <span class="visually-hidden">Koralle</span>
+              </button>
+
+          </div>
+        </details>
+
+        <nav class="locale-switcher" aria-label="Sprache">
+
+            <a id="locale-en" class="locale-link " href="/risk?locale=en" hreflang="en" aria-label="Englisch">
+              EN
+            </a>
+
+            <a id="locale-de" class="locale-link is-active" href="/risk?locale=de" hreflang="de" aria-label="Deutsch" aria-current="true">
+              DE
+            </a>
+
+        </nav>
+      </div>
+    </header>
+
+    <main class="app-main app-main--workspace"><div class="workspace-page">
+<nav class="area-tabs" data-role="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs">
+<a class="area-tab" href="#">
+<span class="area-tab__icon" aria-hidden="true">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M3 17 9 11l4 4 8-8">
+</path>
+</svg></span>
+<span class="area-tab__label" data-label="Bestände">Bestände</span>
+</a>
+<a class="area-tab" href="#">
+<span class="area-tab__icon" aria-hidden="true">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M21 12A9 9 0 1 1 12 3v9Z">
+</path>
+<path d="M21 12a9 9 0 0 0-9-9v9h9Z">
+</path>
+</svg></span>
+<span class="area-tab__label" data-label="Allokation &amp; Ziele">Allokation &amp; Ziele</span>
+</a>
+<a class="area-tab" href="#">
+<span class="area-tab__icon" aria-hidden="true">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M3 20V8M9 20V4M15 20v-8M21 20v-5">
+</path>
+</svg></span>
+<span class="area-tab__label" data-label="Cashflow">Cashflow</span>
+</a>
+<a class="area-tab" href="#">
+<span class="area-tab__icon" aria-hidden="true">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z">
+</path>
+<circle cx="12" cy="13" r="4">
+</circle>
+</svg></span>
+<span class="area-tab__label" data-label="Snapshots">Snapshots</span>
+</a>
+<a class="area-tab" href="#">
+<span class="area-tab__icon" aria-hidden="true">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<rect x="5" y="3" width="14" height="18" rx="2">
+</rect>
+<path d="M9 7h6">
+</path>
+<circle cx="9" cy="11" r=".6">
+</circle>
+<circle cx="12" cy="11" r=".6">
+</circle>
+<circle cx="15" cy="11" r=".6">
+</circle>
+<circle cx="9" cy="14" r=".6">
+</circle>
+<circle cx="12" cy="14" r=".6">
+</circle>
+<circle cx="15" cy="14" r=".6">
+</circle>
+<path d="M9 17h6">
+</path>
+</svg></span>
+<span class="area-tab__label" data-label="Steuern">Steuern</span>
+</a>
+<a class="area-tab is-active" href="#" aria-current="page">
+<span class="area-tab__icon" aria-hidden="true">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z">
+</path>
+</svg></span>
+<span class="area-tab__label" data-label="Risiko">Risiko</span>
+</a>
+<a class="area-tab" href="#">
+<span class="area-tab__icon" aria-hidden="true">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<circle cx="12" cy="12" r="9">
+</circle>
+<circle cx="12" cy="12" r="4.5">
+</circle>
+<circle cx="12" cy="12" r=".6">
+</circle>
+</svg></span>
+<span class="area-tab__label" data-label="Prognosen">Prognosen</span>
+</a>
+</nav>
+<section class="workspace-section crash-section mock-new" id="risk-crashes" aria-labelledby="risk-crashes-title">
+<header class="section-head">
+<div class="section-title">
+<h2 id="risk-crashes-title">Crashes</h2>
+<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+<summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+<p role="tooltip">Ein Fenster öffnet, sobald der Crash-Benchmark 10 % oder mehr unter seinem Höchststand schließt; es beginnt am letzten Tag auf dem Hoch und endet im tiefsten Schluss vor der Erholung, bei gleichen Tiefs am frühesten.<br>Erkannt in der Währung des Benchmarks, gelistet in EUR zum Wechselkurs jedes Schlusstags; Splits bereinigt.<br>Kurs an einem Tag: der letzte Schluss am oder vor ihm, höchstens 7 Tage alt. Ohne Kurs oder Wechselkurs keine Antwort, nie eine Null.<br>Erholer: vom eigenen Tief zwischen Hoch und Tief bis drei Kalendermonate nach dem Tief; Tage bis Vorkrisenkurs in Kalendertagen.<br>Gleichstand nach Wert, dann Name, dann ISIN. Benchmarks stehen in keiner Liste.<br>Kein Urteil: die Listen vergleichen Kurse, sie sagen nicht, was zu kaufen ist.</p>
+</details>
+</div>
+</header>
+<div class="stack-bar crash-bar" data-role="crash-bar">
+<div class="stack-bar__controls">
+<form class="stack-bar__tree">
+<label for="crash-window">Fenster</label>
+<select id="crash-window" name="crash">
+<option>Ohne Namen · seit 23.10.2026 · läuft</option>
+<option>Sommer 2026 · 02.06.–21.08.2026</option>
+<option>Ohne Namen · 18.02.–08.04.2025</option>
+<option>Bärenmarkt 2022 · 03.01.–12.10.2022</option>
+<option>Kriegsbeginn 2022 · 16.02.–07.03.2022 · manuell</option>
+<option selected>Frühjahr 2020 · 19.02.–23.03.2020</option>
+<option>Ohne Namen · 03.10.–24.12.2018</option>
+</select>
+</form>
+<span class="stack-bar__group">
+<span class="stack-bar__label" id="crash-list-label">Liste</span>
+<div class="segmented-control" role="group" aria-labelledby="crash-list-label">
+<a class="segmented-control__option is-active" href="#" aria-current="true">Verlierer</a>
+<a class="segmented-control__option" href="#">Gewinner</a>
+<a class="segmented-control__option" href="#">Erholer</a>
+</div></span>
+<span class="stack-bar__group">
+<span class="stack-bar__label" id="crash-universe-label">Wertpapiere</span>
+<div class="segmented-control" role="group" aria-labelledby="crash-universe-label">
+<a class="segmented-control__option is-active" href="#" aria-current="true">Im Depot</a>
+<a class="segmented-control__option" href="#">Ganzer Katalog</a>
+</div></span>
+</div>
+</div>
+<p class="crash-window" data-role="crash-window"><b>Frühjahr 2020</b>
+<span class="badge badge--neutral">erkannt</span><span>Hoch <b>19.02.2020</b> → Tief <b>23.03.2020</b></span><span>Weltindex ETF <b class="is-negative">−33,9&nbsp;%</b> in USD</span><span>erholt am 16.11.2020</span>
+<a class="crash-window__link" href="/portfolio?from=…&amp;to=…">Im Depot ansehen →</a>
+</p>
+<div class="data-table-wrapper">
+<table class="data-table crash-ptable">
+<thead>
+<tr>
+<th>#</th>
+<th>Wertpapier</th>
+<th class="num">%</th>
+<th class="num">ggü. BM</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="crash-rank">1</td>
+<td>Reise-Einzelwert D</td>
+<td class="num is-negative">−58,4&nbsp;%</td>
+<td class="num crash-pp">−27,2&nbsp;Pp.</td>
+</tr>
+<tr>
+<td class="crash-rank">2</td>
+<td>Bitcoin</td>
+<td class="num is-negative">−44,7&nbsp;%</td>
+<td class="num crash-pp">−13,5&nbsp;Pp.</td>
+</tr>
+<tr>
+<td class="crash-rank">3</td>
+<td>Industrie-Einzelwert B</td>
+<td class="num is-negative">−40,9&nbsp;%</td>
+<td class="num crash-pp">−9,7&nbsp;Pp.</td>
+</tr>
+<tr>
+<td class="crash-rank">4</td>
+<td>Tech-Einzelwert A</td>
+<td class="num is-negative">−37,2&nbsp;%</td>
+<td class="num crash-pp">−6,0&nbsp;Pp.</td>
+</tr>
+<tr>
+<td class="crash-rank">5</td>
+<td>Schwellenländer ETF</td>
+<td class="num is-negative">−33,0&nbsp;%</td>
+<td class="num crash-pp">−1,8&nbsp;Pp.</td>
+</tr>
+<tr>
+<td class="crash-rank">6</td>
+<td>Europa-Aktien ETF</td>
+<td class="num is-negative">−32,1&nbsp;%</td>
+<td class="num crash-pp">−0,9&nbsp;Pp.</td>
+</tr>
+<tr>
+<td class="crash-rank">7</td>
+<td>USA-Aktien ETF</td>
+<td class="num is-negative">−29,8&nbsp;%</td>
+<td class="num crash-pp">+1,4&nbsp;Pp.</td>
+</tr>
+<tr>
+<td class="crash-rank">8</td>
+<td>Dividenden-Fonds K</td>
+<td class="num is-negative">−26,5&nbsp;%</td>
+<td class="num crash-pp">+4,7&nbsp;Pp.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="crash-legend"><span>
+<span class="crash-legend__ref"></span>Weltindex ETF −31,2&nbsp;% in EUR</span>
+</p>
+<p class="summary-basis crash-basis">Grundlage: Kursrendite in EUR von Hoch bis Tief des Fensters · gestrichelt Weltindex ETF über dieselben Tage (−31,2&nbsp;%) · nur Wertpapiere, die der Katalog heute führt.</p>
+<details class="perf-table-disclosure crash-windows" id="crash-windows">
+<summary class="disclosure-summary">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true">
+<path d="m9 6 6 6-6 6">
+</path>
+</svg>Crash-Fenster · 6 erkannt · 1 manuell · 2 Namen ohne Fenster</summary>
+</details>
+</section>
+</div></main>
+  </div>
+</div></div>
+</body>
+</html>
