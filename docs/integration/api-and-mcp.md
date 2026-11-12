@@ -1412,7 +1412,9 @@ window detected now, or a manual key that names no manual window answers
 `404`; a field the key's kind does not take (`start` on a detected key)
 answers `422` naming it; a blank or over-long `name` (or none where the window
 has no name yet), or a date refused under `POST`'s rules, `422` naming the
-field; a `window` that is not a JSON object `422` naming `window`.
+field; a `window` that names no field on a named or a manual window (it would
+change nothing) `422` naming `name` ("is missing"); a `window` that is not a
+JSON object `422` naming `window`.
 
 **`POST /api/v1/crashes`**
 
@@ -1431,10 +1433,10 @@ is that entry's detected key, the window's start is the name's stored start,
 its trough the one given (the trough was never stored, and is never guessed
 from today's closes), its name the stored one unless `name` gives another. The
 manual window is created and the stored name deleted in one transaction, each
-journaled. Refusals: a `from_name` that is not a string answers `422` with
-`errors.from_name` naming the form `d:<benchmark_security_id>:<start>`; one
-under which no name is stored, a misspelt key included, `422` naming
-`from_name` ("names no stored name"); one whose window the rule still detects
+journaled. Refusals: a `from_name` that is not a string, or not spelled as a
+detected key, answers `422` with `errors.from_name` naming the form
+`d:<benchmark_security_id>:<start>`; a key so spelled under which no name is
+stored `422` naming `from_name` ("names no stored name"); one whose window the rule still detects
 (`name_has_window`) `422` naming `from_name` and the `PUT` that renames it;
 `start` in this body `422` naming it. The answer is the manual window as
 `manual` reads it.

@@ -115,9 +115,15 @@ defmodule Portfolixir.Crashes do
           for_current_benchmark: boolean()
         }
 
-  @typedoc "A write's refusal."
+  @typedoc """
+  A write's refusal: `{:missing_fields, errors}` for a write to a named
+  window or a manual one that names no field (it would change nothing).
+  """
   @type refusal ::
-          :not_found | {:unknown_fields, %{String.t() => [String.t()]}} | Ecto.Changeset.t()
+          :not_found
+          | {:unknown_fields, %{String.t() => [String.t()]}}
+          | {:missing_fields, %{String.t() => [String.t()]}}
+          | Ecto.Changeset.t()
 
   @doc """
   The crash windows as every reader reads them (ADR-0058 §3, §9):
@@ -256,6 +262,8 @@ defmodule Portfolixir.Crashes do
             )
           )
 
+        if prior && attrs == %{}, do: Repo.rollback(missing_name())
+
         case Repo.transaction(name_multi(actor, attrs, benchmark_id, start, prior)) do
           {:ok, %{window_name: written}} -> written
           {:error, _step, refusal, _changes} -> Repo.rollback(refusal)
@@ -318,7 +326,8 @@ defmodule Portfolixir.Crashes do
           {:ok, ManualWindow.t()} | {:error, refusal()}
   def update_manual_window(%Actor{} = actor, key, attrs) when is_binary(key) and is_map(attrs) do
     with :ok <- closed(attrs, @manual_fields, "a manual window"),
-         {:ok, prior} <- fetch_manual(key) do
+         {:ok, prior} <- fetch_manual(key),
+         :ok <- some_field(attrs) do
       today = Clock.today()
 
       Multi.new()
@@ -517,6 +526,15 @@ defmodule Portfolixir.Crashes do
   end
 
   defp parse_detected_key(_key), do: {:error, :not_found}
+
+  # A write that names no field would change nothing and still be
+  # journaled: it is refused, naming the field every window has.
+  defp some_field(attrs) when attrs == %{}, do: {:error, missing_name()}
+  defp some_field(_attrs), do: :ok
+
+  defp missing_name,
+    do:
+      {:missing_fields, %{"name" => ["is missing: a write that names no field changes nothing"]}}
 
   # ADR-0058 §9: a field the write does not take is refused, naming it,
   # never dropped in silence.
