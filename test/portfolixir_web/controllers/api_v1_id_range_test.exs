@@ -154,21 +154,29 @@ defmodule PortfolixirWeb.ApiV1IdRangeTest do
   #   range in its query string, its body, or its body's attribute wrapper,
   #   as a string or as a number.
   # - The sites that raised before answer 422 naming the field.
-  test "no route fails for an id past the bigint range in its query or body", %{conn: conn} do
-    world = sweep_world()
+  #
+  # One test per id key (the closing act of Sprint 29): the whole sweep is
+  # every route, key and form, some 5,800 dispatches, and as one test it ran
+  # into ExUnit's 60 s bound on a loaded machine with no request slower than
+  # 1.5 s. Each key's sweep is the same requests and assertion, a test's
+  # bound apiece.
+  for key <- @id_keys do
+    test "no route fails for #{key} past the bigint range in its query or body",
+         %{conn: conn} do
+      world = sweep_world()
 
-    failures =
-      for route <- api_routes(),
-          route.verb != :delete,
-          key <- @id_keys,
-          form <- [:query, :body],
-          {path, body} = sweep_request(route, world, key, form),
-          result = request(conn, route.verb, path, body),
-          not match?({status, _body} when status < 500, result) do
-        {route.verb, route.path, key, form, result}
-      end
+      failures =
+        for route <- api_routes(),
+            route.verb != :delete,
+            form <- [:query, :body],
+            {path, body} = sweep_request(route, world, unquote(key), form),
+            result = request(conn, route.verb, path, body),
+            not match?({status, _body} when status < 500, result) do
+          {route.verb, route.path, unquote(key), form, result}
+        end
 
-    assert failures == []
+      assert failures == []
+    end
   end
 
   @query_sites [
