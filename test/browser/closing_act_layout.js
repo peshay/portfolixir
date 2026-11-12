@@ -332,7 +332,7 @@ async function stackBarSwitch(browser) {
           return {
             label: left("#stack-level-label") - bar,
             control: left("[data-role='stack-level']") - bar,
-            column: getComputedStyle(document.querySelector(".stack-bar__controls")).display === "grid",
+            column: getComputedStyle(document.querySelector("[data-role='stack-bar'] .control-bar__controls")).display === "grid",
             crumbs: document.querySelectorAll("[data-role='stack-crumbs']").length
           };
         });

@@ -9619,6 +9619,12 @@ and the MCP tools answer, for the section's period and the page's view.
    stands above its control, B. Measured at 1200 px the German bar is one
    line (controls 698 px in a 924 px bar); at 390 px A holds, every control
    from one edge (`test/browser/closing_act_layout_test.exs`). *Amended
+   2026-11-12 (issue 1435, Sprint 29 L1):* the bar is the shared control
+   bar (`PortfolixirWeb.ControlBar.bar/1`, its anatomy under the amendment
+   of 2026-11-08), fold 760 and floor 330, the container `control-bar`; it
+   renders the same elements and lands every label and control on the same
+   pixel as before (`stacked_chart_bar_test.exs`,
+   `test/browser/control_bar_test.exs`). *Amended
    2026-11-12 (the owner's report of 2026-11-11):* the breadcrumb stands on
    a line of its own above the controls, and the controls start at the
    bar's left edge at every level, no longer on the right. With the
@@ -9870,6 +9876,50 @@ amended by I1 (#1351; method sentences behind the section ⓘ, the short
 basis visible), five sentences open under the chart. Issue 1435 gives
 that rule its backstop too: no visible free paragraph past one sentence
 outside an ⓘ, a data note or a registered basis line.
+
+### The control bar *(2026-11-12, issue 1435, Sprint 29 L1; board `mockups/ux-design-2026-11-12-sprint29/06-control-bar` and its inventory §2; plan D-6)*
+
+The component is `PortfolixirWeb.ControlBar.bar/1`, CSS `.control-bar*`
+between the markers `control-bar begin` and `control-bar end` in
+`app.css`. Its anatomy:
+
+- **The bar** (`div.control-bar`) is the container `control-bar`: an
+  optional **head** on a line of its own (the stacked chart's breadcrumb),
+  then **the controls** (`.control-bar__controls`), one **group** per
+  labelled control.
+- **A group** (`.control-bar__group`) is its **label**
+  (`.control-bar__label`) and **one control element**: a segmented control,
+  a select, a chip family or a field (a field with its button, or a chip
+  family, is one element around them). A select's or a field's label is a
+  `<label for>`; a segmented control's or a chip family's is a `span` whose
+  id the control names in `aria-labelledby`. A group may be a form (its id
+  and `phx-change`), with the label inside it. A group without a label (a
+  checkbox that carries its own) keeps its control in the control column.
+- **One line** while every group fits: each label 600, 2 px, then 6 px to
+  its control; 8 px between groups.
+- **A, the label column**, once the bar is at most its **fold** wide: a
+  two-column grid, the labels in a column as wide as the longest label,
+  every control from the second column's edge at its own width, 10 px from
+  the column, 8 px between rows. A chip family's chips wrap inside the
+  control column, never under the label.
+- **B, labels above, the floor**, once the bar is at most its **floor**
+  wide: one column, every label above its control, both at the bar's left
+  edge, 4 px from label to control and 6 px under the control. **B applies
+  where the label column and the widest control together do not fit the
+  bar's own width**: the stacked chart's bar below 330 px; a bar whose
+  control is full width on the phone (the sale comparison's segmented
+  control, board 06 ②) at a wider floor. Where the fold and the floor both
+  apply, B wins.
+- **The fold and the floor are named widths**, each a class on the bar with
+  one container query (a container query cannot read a variable): the fold
+  560, 760 (the default) or 960 px, or always (a chip row whose families
+  never fit one line, board 06 ③ and ④); the floor 330 (the default) or
+  560 px, or always. A bar picks the width at which its groups measured no
+  longer fit; a new width is one more rule, which sets the layout's
+  variables on the controls.
+
+The stacked chart's bar is its first user (fold 760, floor 330); the other
+bars of the inventory move to it in L2.
 
 ## Amendment 2026-11-09 — The version at the menu's foot *(Sprint 28 V2, idea I27, FR-55; board `mockups/ux-design-2026-11-08-sprint28/04-version`; plan D-6, D-7; issue 1429)*
 
