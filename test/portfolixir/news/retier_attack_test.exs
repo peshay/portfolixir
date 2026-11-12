@@ -636,8 +636,22 @@ defmodule Portfolixir.LockRace.NewsRetierAttackTest do
   defp rating_lock?(%{query: query}) when is_binary(query), do: query =~ "news tier: rating"
   defp rating_lock?(_metadata), do: false
 
-  defp ingest_lock?(%{query: query}) when is_binary(query), do: query =~ "news tier: ingest"
-  defp ingest_lock?(_metadata), do: false
+  # The fetch's shared tier lock of `domain` itself. A fetch of a
+  # subdomain's item takes one key per suffix, one query each, in ascending
+  # key order (`Sources.lock_ingest/1`), so its first lock query may be the
+  # subdomain's key: paused there, it does not yet hold the key a rating of
+  # `domain` asks for. Paused after this one, it does.
+  defp ingest_lock_of?(domain) do
+    key = :erlang.phash2(domain)
+
+    fn
+      %{query: query, params: [_tier_lock, ^key]} when is_binary(query) ->
+        query =~ "news tier: ingest"
+
+      _metadata ->
+        false
+    end
+  end
 
   defp item_lock?(%{query: query}) when is_binary(query),
     do: query =~ ~s(FROM "news_items") and query =~ "FOR UPDATE"
@@ -679,7 +693,7 @@ defmodule Portfolixir.LockRace.NewsRetierAttackTest do
         LockRace.race!(
           db,
           {fn -> Ingest.ingest(feed, [parsed("markets." <> rated)], DateTime.utc_now()) end,
-           &ingest_lock?/1},
+           ingest_lock_of?(rated)},
           fn -> Sources.put_source(agent(), rated, :blocked) end
         )
 
@@ -711,6 +725,32 @@ defmodule Portfolixir.LockRace.NewsRetierAttackTest do
       assert {:ok, %Source{tier: :awareness}} = second
       assert %Item{tier: :awareness} = Repo.get!(Item, by_child.id)
       assert %Item{tier: :secondary} = Repo.get!(Item, by_parent.id)
+    end
+
+    # E1's precision of 2026-11-12 (found by this attack): a block's removal
+    # is the block's own. A child row written after it re-rates what is
+    # stored, and the removed item is no longer stored; the next fetch that
+    # lists it stores it again at the child's tier.
+    test "the parent's block first: its removal stands, and the next fetch stores the child's item at the child's tier",
+         %{db: db} do
+      parent = domain()
+      child = "markets." <> parent
+      by_child = fetch!(child)
+      by_parent = fetch!(parent)
+
+      {first, second} =
+        LockRace.race!(
+          db,
+          {fn -> Sources.put_source(agent(), parent, :blocked) end, &rating_lock?/1},
+          fn -> Sources.put_source(agent(), child, :secondary) end
+        )
+
+      assert {:ok, %Source{tier: :blocked}} = first
+      assert {:ok, %Source{tier: :secondary}} = second
+      assert Repo.get(Item, by_parent.id) == nil
+      assert Repo.get(Item, by_child.id) == nil
+
+      assert %Item{tier: :secondary, domain: ^child} = fetch!(child)
     end
 
     # clash-3422.example and clash-26552.example share :erlang.phash2/1,
