@@ -4771,9 +4771,10 @@ anhand von `securities_account_id` und `security_id` jeder Zeile anwenden kann.
 ## Einstellungen
 
 Ein minimaler Schlüssel-Wert-Speicher trägt die nutzerseitigen Voreinstellungen
-(ADR-0024). Heute gibt es eine: die **Standard-Ansicht**, mit der Vermögensseite
-und Übersicht öffnen, wenn in der UI keine Ansicht ausdrücklich gewählt wurde.
-Finanzielle Decimals kommen hier nicht vor.
+(ADR-0024): die **Standard-Ansicht**, mit der Vermögensseite und Übersicht
+öffnen, wenn in der UI keine Ansicht ausdrücklich gewählt wurde, und den
+**Crash-Benchmark**, den die Crash-Regel liest (ADR-0058 §1). Finanzielle
+Decimals kommen hier nicht vor.
 
 - `GET /api/v1/settings/default_view` liefert die aktuelle Voreinstellung:
   `{"data": {"view_id": null, "view": null}}` wenn keine gesetzt ist (die
@@ -4785,6 +4786,21 @@ Finanzielle Decimals kommen hier nicht vor.
   Eine Änderung wird unter dem Prinzipal des Tokens journalisiert
   (`resource_type` `setting`, ein `upsert`, beim Zurücksetzen ein `delete`),
   sodass die vorige Voreinstellung in ihrem Vorher-Abbild steht.
+- `PUT /api/v1/settings/crash_benchmark` benennt den **Crash-Benchmark**
+  (ADR-0058 §1), das Wertpapier, dessen Schlusskurse die Crash-Regel liest.
+  Body: `{"security_id": <id>}` mit einem beliebigen Wertpapier, das
+  mindestens einen gespeicherten Kurs hat, mit `is_benchmark` markiert oder
+  nicht, oder `{"security_id": null}` zum Zurücksetzen; eine Voreinstellung
+  gibt es nicht. Die Antwort ist `{"data": {"security_id", "security": {id,
+  name, is_benchmark, benchmark_security}}}` (`benchmark_security` ist
+  `flagged`, `held` oder `unheld`), beim Zurücksetzen beide `null`. Ein
+  Wertpapier ohne gespeicherten Kurs liefert `422` mit `errors.security_id`
+  `["has no stored quote"]`; eine unbekannte id `["is not a benchmark
+  security"]`, eine wegfusionierte dasselbe mit `merged_into: {kind, id}`, das
+  den Überlebenden nennt; eine fehlerhafte oder fehlende `security_id` und
+  jedes andere Feld liefern `422`, das es nennt. Bei einer Ablehnung wird
+  nichts geschrieben. Die Änderung wird unter dem Prinzipal des Tokens
+  journalisiert (`resource_type` `setting`).
 
 ## Importe
 

@@ -488,6 +488,11 @@ defmodule PortfolixirWeb.Router do
 
     get("/settings/default_view", SettingsController, :show_default_view)
     put("/settings/default_view", SettingsController, :set_default_view)
+    # --- S29 C1 begin ---
+    # ADR-0058 §1, §9 (Sprint 29, C1): the crash benchmark, the security
+    # whose closes the crash rule reads; set or cleared, journaled.
+    put("/settings/crash_benchmark", SettingsController, :set_crash_benchmark)
+    # --- S29 C1 end ---
 
     put("/securities_accounts/:id/buckets", BucketAssignmentController, :set_depot_buckets)
     put("/cash_accounts/:id/buckets", BucketAssignmentController, :set_cash_account_buckets)

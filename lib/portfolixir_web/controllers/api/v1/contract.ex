@@ -68,12 +68,23 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             "Sprint 29, B1 (#1416; ADR-0046's amendment of 2026-11-07): benchmark=security:<id> " <>
               "takes any security with a stored quote, flagged is_benchmark or not, on the " <>
               "comparisons, sale hindsight and a prediction's write; the basis names the kind " <>
-              "it read; no endpoint or tool is added."
+              "it read; no endpoint or tool is added.",
             # --- S29 B1 end ---
+            # --- S29 C1 begin ---
+            "Sprint 29, C1 (FR-54, #1421; ADR-0058 §1): PUT /api/v1/settings/crash_benchmark " <>
+              "names the crash benchmark, the security whose closes the crash rule reads: body " <>
+              "{security_id} with any security that has a stored quote, flagged is_benchmark or " <>
+              "not, or null to clear it; journaled under the token as resource_type setting. " <>
+              "Its tool and the crash reads follow in C5."
+            # --- S29 C1 end ---
           ],
           " "
         ),
-      endpoints: [],
+      endpoints: [
+        # --- S29 C1 begin ---
+        "PUT /api/v1/settings/crash_benchmark"
+        # --- S29 C1 end ---
+      ],
       tools: [],
       parameters: [
         # --- S29 N1 begin ---
