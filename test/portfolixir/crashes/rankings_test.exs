@@ -29,6 +29,7 @@ defmodule Portfolixir.Crashes.RankingsTest do
   alias Portfolixir.Fx
   alias Portfolixir.Ledger.Splits
   alias Portfolixir.Portfolios.Performance.SaleHindsight
+  alias Portfolixir.Repo
   alias Portfolixir.Settings
 
   defp d(value), do: Decimal.new(value)
@@ -737,5 +738,103 @@ defmodule Portfolixir.Crashes.RankingsTest do
 
     assert Enum.map(entries, &{&1.rank, &1.security.name, Decimal.to_string(&1.return)}) ==
              [{1, "Aaa Plain", "-0.1"}, {2, "Bbb Split", "-0.1"}]
+  end
+
+  # The closing act (#1421; ADR-0058 §5 as amended on 2026-11-12, part 2):
+  # equal figures with equal names and no ISIN were ordered by the heap's
+  # read order, so an unrelated edit could swap them. The full tie order:
+  # the figure, the case-folded name, the ISIN, the ticker, the WKN, the
+  # currency (each missing one after those with one); entries equal on all
+  # of these share a rank and are ordered among themselves by the
+  # security's creation time. The unanswered list is ordered by the same
+  # keys.
+  test "a full tie: ticker, WKN, currency, then a shared rank in creation order" do
+    rate!(~D[2024-03-01], "0.95", "CHF")
+
+    twin = fn ticker, opts ->
+      security =
+        create_security!(
+          name: Keyword.get(opts, :name, "Twin"),
+          ticker: ticker,
+          currency: Keyword.get(opts, :currency, "EUR")
+        )
+
+      security =
+        case Keyword.get(opts, :wkn) do
+          nil ->
+            security
+
+          wkn ->
+            {:ok, updated} = Catalog.update_security(Actor.owner_ui(), security, %{wkn: wkn})
+            updated
+        end
+
+      if Keyword.get(opts, :quotes, true),
+        do: put_quotes!(security, [{~D[2024-03-01], "10"}, {~D[2024-03-20], "8"}])
+
+      security
+    end
+
+    twb = twin.("TWB", [])
+    twa = twin.("TWA", [])
+    wkn2 = twin.("TWC", wkn: "A0CRS2")
+    wkn1 = twin.("TWC", wkn: "A0CRS1")
+    eur = twin.("TWD", [])
+    chf = twin.("TWD", currency: "CHF")
+    later = twin.("TWE", [])
+    earlier = twin.("TWE", [])
+    zb = twin.("ZB", name: "Zed", quotes: false)
+    za = twin.("ZA", name: "Zed", quotes: false)
+
+    # Created in this order, but `earlier`'s row says it was created first:
+    # the creation time decides within a shared rank, not the id.
+    created = fn security, at ->
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'synthetic-test', true)")
+
+        from(s in Catalog.Security, where: s.id == ^security.id)
+        |> Repo.update_all(set: [inserted_at: at])
+      end)
+    end
+
+    created.(earlier, ~N[2020-01-01 00:00:00])
+    created.(later, ~N[2020-01-02 00:00:00])
+
+    {:ok, window} =
+      Crashes.create_manual_window(agent(), %{
+        "name" => "Synthetic Window",
+        "start" => "2024-03-01",
+        "trough" => "2024-03-20"
+      })
+
+    key = "m:#{window.id}"
+
+    order = fn ->
+      {:ok, losers} =
+        Crashes.rankings(key, "catalogue", list: "losers", include_unanswered: true)
+
+      {Enum.map(losers.entries, &{&1.rank, &1.security.id}),
+       Enum.map(losers.unanswered_entries, & &1.security.id)}
+    end
+
+    {entries, unanswered} = order.()
+
+    assert entries == [
+             {1, twa.id},
+             {2, twb.id},
+             {3, wkn1.id},
+             {4, wkn2.id},
+             {5, chf.id},
+             {6, eur.id},
+             {7, earlier.id},
+             {7, later.id}
+           ]
+
+    assert unanswered == [za.id, zb.id]
+
+    # An unrelated edit moves nothing.
+    {:ok, _edited} = Catalog.update_security(Actor.owner_ui(), later, %{note: "an edit"})
+    {:ok, _edited} = Catalog.update_security(Actor.owner_ui(), twb, %{note: "an edit"})
+    assert order.() == {entries, unanswered}
   end
 end

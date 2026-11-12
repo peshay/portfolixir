@@ -1313,8 +1313,10 @@ when the low is not below that close, or `null` with `not_yet` `true` when no
 close up to today reaches it.
 
 **Ties** within a list: by the figure, then the security's name
-case-folded, then its ISIN (a security without one after those with one),
-never by an id.
+case-folded, its ISIN, its ticker, its WKN and its currency (a security
+without one after those with one). Entries equal on all of these share a
+`rank` and are ordered among themselves by the security's creation time; an
+id decides no rank (ADR-0058 §5, amendment of 2026-11-12, part 2).
 
 `data` carries:
 
@@ -1339,7 +1341,8 @@ never by an id.
   rebounders; or `null`, with `reference_reason` saying why:
   `no_crash_benchmark`, `crash_benchmark_unavailable`, `no_benchmark_close`
   or `no_fx_rate`;
-- `entries` — at most `limit`, each with `rank` (from 1), `security` (`{id,
+- `entries` — at most `limit`, each with `rank` (from 1; entries tied on
+  every key share one, and the next takes its position), `security` (`{id,
   name, isin, currency_code}`), `held` (`true` when any depot holds it today,
   so a catalogue list can mark it), `return`, `start` and `end` (each close:
   `stands_for`, `date`, `close`, `stored_close`, `source`, `fx_rate`,
@@ -1356,7 +1359,7 @@ never by an id.
   without a stored rate path to EUR). A security without an answer is in no
   list and never ranked as a zero;
 - `unanswered_entries` — with `include_unanswered=true` only: each
-  `{security, held, reason}`, by name;
+  `{security, held, reason}`, in the tie order above;
 - `computation_basis` — `benchmark`, `reason`, `reference`, `window`,
   `rule` and `threshold` (`null` for a manual window), `dates` (the rule's,
   or chosen by a person), `universe`, `list`, `figure`, `input_series`,

@@ -1423,8 +1423,11 @@ wenn das Tief nicht darunter liegt, oder `null` mit `not_yet` `true`, wenn
 kein Kurs bis heute ihn erreicht.
 
 **Gleichstände** in einer Liste: nach der Zahl, dann nach dem Namen des
-Wertpapiers ohne Groß- und Kleinschreibung, dann nach seiner ISIN (eines ohne
-ISIN nach denen mit), nie nach einer id.
+Wertpapiers ohne Groß- und Kleinschreibung, seiner ISIN, seinem Ticker, seiner
+WKN und seiner Währung (eines ohne nach denen mit). Einträge, die in allen
+diesen gleich sind, teilen sich einen `rank` und stehen untereinander in der
+Reihenfolge, in der die Wertpapiere angelegt wurden; eine id entscheidet
+keinen Rang (ADR-0058 §5, Ergänzung vom 2026-11-12, Teil 2).
 
 `data` trägt:
 
@@ -1450,7 +1453,8 @@ ISIN nach denen mit), nie nach einer id.
   start, end}`, bei Erholern mit `low`; oder `null`, und `reference_reason`
   sagt warum: `no_crash_benchmark`, `crash_benchmark_unavailable`,
   `no_benchmark_close` oder `no_fx_rate`;
-- `entries` — höchstens `limit`, je mit `rank` (ab 1), `security` (`{id,
+- `entries` — höchstens `limit`, je mit `rank` (ab 1; in jedem Schlüssel
+  gleiche Einträge teilen ihn, der nächste nimmt seine Position), `security` (`{id,
   name, isin, currency_code}`), `held` (`true`, wenn ein Depot es heute hält,
   sodass eine Katalogliste es markieren kann), `return`, `start` und `end`
   (je Kurs: `stands_for`, `date`, `close`, `stored_close`, `source`,
@@ -1468,7 +1472,7 @@ ISIN nach denen mit), nie nach einer id.
   Kursweg nach EUR). Ein Wertpapier ohne Antwort steht in keiner Liste und
   wird nie als Null geordnet;
 - `unanswered_entries` — nur mit `include_unanswered=true`: je `{security,
-  held, reason}`, nach Namen;
+  held, reason}`, in der obigen Gleichstandsordnung;
 - `computation_basis` — `benchmark`, `reason`, `reference`, `window`,
   `rule` und `threshold` (`null` bei einem manuellen Fenster), `dates` (die
   der Regel, oder von einer Person gewählt), `universe`, `list`, `figure`,

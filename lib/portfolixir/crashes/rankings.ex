@@ -40,8 +40,11 @@ defmodule Portfolixir.Crashes.Rankings do
   ranking is unchanged.
 
   **Ties** within a list: by the figure, then the security's name
-  case-folded, then its ISIN (a security without one after those with one),
-  never by an id.
+  case-folded, its ISIN, its ticker, its WKN and its currency (a security
+  without one after those with one); entries equal on all of these share a
+  rank and are ordered among themselves by the security's creation time
+  (the amendment of 2026-11-12, part 2). An id decides no rank. The
+  unanswered are listed in the same order.
 
   **No answer** is never a zero: a security whose return cannot be measured
   is in no list and is counted under its reason (`no_close_at_start`,
@@ -186,8 +189,8 @@ defmodule Portfolixir.Crashes.Rankings do
       answered
       |> Enum.map(fn {:ok, entry} -> entry end)
       |> order(direction(request.list))
+      |> ranks()
       |> Enum.take(request.limit)
-      |> Enum.with_index(1)
       |> Enum.map(fn {entry, rank} -> entry(entry, rank, held, reference) end)
 
     unanswered = Enum.map(unanswered, fn {:error, security, reason} -> {security, reason} end)
@@ -417,21 +420,67 @@ defmodule Portfolixir.Crashes.Rankings do
   defp direction("winners"), do: :desc
   defp direction("rebounders"), do: :desc
 
-  # Ties by the figure, then the case-folded name, then the ISIN (none
-  # after any), never by an id.
+  # Ties by the figure, then the case-folded name, the ISIN, the ticker,
+  # the WKN and the currency (a missing one after those with one); entries
+  # equal on all of these share a rank and are ordered among themselves by
+  # the security's creation time (ADR-0058 §5, amendment of 2026-11-12,
+  # part 2). The id only keeps two rows created in the same second in one
+  # order; it decides no rank.
   defp order(entries, direction), do: Enum.sort(entries, &before?(&1, &2, direction))
 
   defp before?(a, b, direction) do
     case {Decimal.compare(a.return, b.return), direction} do
-      {:eq, _direction} -> tie_key(a.security) <= tie_key(b.security)
+      {:eq, _direction} -> same_figure_before?(a.security, b.security)
       {:lt, :asc} -> true
       {:gt, :desc} -> true
       _other -> false
     end
   end
 
-  defp tie_key(%Security{name: name, isin: isin}),
-    do: {String.downcase(name || ""), is_nil(isin), isin || ""}
+  defp same_figure_before?(a, b) do
+    case {tie_key(a), tie_key(b)} do
+      {same, same} -> created_before?(a, b)
+      {key_a, key_b} -> key_a < key_b
+    end
+  end
+
+  defp created_before?(%Security{} = a, %Security{} = b) do
+    case NaiveDateTime.compare(a.inserted_at, b.inserted_at) do
+      :lt -> true
+      :gt -> false
+      :eq -> a.id <= b.id
+    end
+  end
+
+  # The competition rank over the ordered list: an entry equal to the one
+  # before it on the figure and every tie key shares its rank; the next
+  # distinct entry takes its own position.
+  defp ranks(ordered) do
+    ordered
+    |> Enum.with_index(1)
+    |> Enum.map_reduce(nil, fn {entry, position}, previous ->
+      rank =
+        case previous do
+          {prior, prior_rank} -> if shares_rank?(prior, entry), do: prior_rank, else: position
+          nil -> position
+        end
+
+      {{entry, rank}, {entry, rank}}
+    end)
+    |> elem(0)
+  end
+
+  defp shares_rank?(a, b),
+    do: Decimal.equal?(a.return, b.return) and tie_key(a.security) == tie_key(b.security)
+
+  defp tie_key(%Security{} = security) do
+    {String.downcase(security.name || ""), missing_last(security.isin),
+     missing_last(security.ticker_symbol), missing_last(security.wkn),
+     security.currency_code || ""}
+  end
+
+  defp missing_last(nil), do: {true, ""}
+  defp missing_last(value), do: {false, value}
 
   # -- the unanswered ----------------------------------------------------------
 
@@ -448,7 +497,7 @@ defmodule Portfolixir.Crashes.Rankings do
   defp with_unanswered(payload, unanswered, held, true) do
     listed =
       unanswered
-      |> Enum.sort_by(fn {security, _reason} -> tie_key(security) end)
+      |> Enum.sort(fn {a, _reason_a}, {b, _reason_b} -> same_figure_before?(a, b) end)
       |> Enum.map(fn {security, reason} ->
         %{
           security: security_read(security),
@@ -544,8 +593,10 @@ defmodule Portfolixir.Crashes.Rankings do
           "window), a close without a stored rate path to EUR no_fx_rate; each is counted " <>
           "under its reason and never ranked as a zero",
       ties:
-        "equal figures are ordered by the security's name, case-folded, then by its ISIN " <>
-          "(a security without one after those with one), never by an id",
+        "equal figures are ordered by the security's name, case-folded, then by its ISIN, " <>
+          "its ticker, its WKN and its currency (a security without one after those with " <>
+          "one); entries equal on all of these share a rank and are ordered among themselves " <>
+          "by the security's creation time; an id decides no rank",
       provisional:
         "a window not yet recovered is provisional, its trough the lowest close so far; its " <>
           "lists move with it and carry the flag",
