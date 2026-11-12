@@ -22,6 +22,7 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.DeltaCursor
   alias Portfolixir.Journal
+  alias Portfolixir.Knowledge.Events
   alias Portfolixir.Ledger.HeldSecurities
   alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.News
@@ -399,8 +400,15 @@ defmodule Portfolixir.Catalog do
   @doc """
   Updates a security on behalf of `actor` (FR-28). The update and its audit
   journal entry (with the pre-image as `before`) commit in one transaction.
+
+  A write that changes `halving_chain`, unbinding or rebinding the security,
+  deletes its `halving` events in the same transaction, one journaled delete
+  each (ADR-0059 §4; ADR-0048's amendment, item 7). With `report: true` the
+  answer is `{:ok, security, %{halving_events_deleted: n}}`, the count the
+  API returns.
   """
-  def update_security(%Actor{} = actor, %Security{} = security, attrs) when is_map(attrs) do
+  def update_security(%Actor{} = actor, %Security{} = security, attrs, opts \\ [])
+      when is_map(attrs) do
     # Built on the row as stored, re-read under its lock by the journal step
     # (E25 S6, F49): the guard and the write see the same changes.
     changeset = &Security.changeset(Journal.locked_row(&1), attrs)
@@ -425,14 +433,21 @@ defmodule Portfolixir.Catalog do
         source: :security,
         before: security
       )
+      |> Multi.run(:halving_events, fn _repo, %{security: updated} = changes ->
+        if Journal.locked_row(changes).halving_chain != updated.halving_chain,
+          do: Events.delete_halvings(actor, updated.id),
+          else: {:ok, 0}
+      end)
       |> Multi.prepend(isin_write_lock(security, attrs))
 
     case Repo.transaction(multi) do
-      {:ok, %{security: updated} = changes} ->
+      {:ok, %{security: updated, halving_events: deleted} = changes} ->
         if news_identity(Journal.locked_row(changes)) != news_identity(updated),
           do: rematch_news()
 
-        {:ok, updated}
+        if Keyword.get(opts, :report, false),
+          do: {:ok, updated, %{halving_events_deleted: deleted}},
+          else: {:ok, updated}
 
       {:error, _step, %Ecto.Changeset{} = changeset, _changes} ->
         {:error, changeset}

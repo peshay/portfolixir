@@ -33,14 +33,30 @@ defmodule Portfolixir.Knowledge.Events do
     4. `stale/1` — events nobody has re-read in N days, which is a different
        risk from a date that has passed.
 
-  Nothing here fetches a calendar: entry is manual or through the agent's own
-  write, and automatic population is gate B3.3, untouched (§8).
+  Nothing here fetches a calendar, except ADR-0059's chain reader, for
+  `halving` events only (§8 as ADR-0048's amendment of 2026-11-12 narrows
+  it): entry of every other kind is manual or through the agent's own
+  write, and automatic population of those stays behind gate B3.3.
+
+  ## Halvings (ADR-0048's amendment of 2026-11-12, ADR-0059)
+
+  A `halving` event needs a security bound to a registered chain
+  (`halving_chain`), else `{:error, :no_halving_chain}`, and a
+  `chain_height` that is *k* × that chain's interval. On a chain with a
+  source (Bitcoin) only the chain reader writes them, through
+  `put_chain_halving/6`; a create, update or delete through this module's
+  ordinary writers answers `{:error, {:halving_from_chain, chain}}`. Every
+  event write reads the binding under a share lock on the security, so a
+  rebinding, which deletes the security's halvings in its own write
+  (`delete_halvings/2`), and an event write never interleave.
   """
 
   import Ecto.Query
 
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog.Security
+  alias Portfolixir.Chains.Registry
   alias Portfolixir.Clock
   alias Portfolixir.DeltaCursor
   alias Portfolixir.Journal
@@ -75,13 +91,22 @@ defmodule Portfolixir.Knowledge.Events do
   `checked_at` later than the day after it is refused (E25 S6, G09).
   """
   @spec create_event(Actor.t(), map(), keyword()) ::
-          {:ok, SecurityEvent.t()} | {:error, Ecto.Changeset.t() | :stale | {atom(), term()}}
+          {:ok, SecurityEvent.t()}
+          | {:error,
+             Ecto.Changeset.t() | :stale | :no_halving_chain | :binding_changed | {atom(), term()}}
   def create_event(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
     today = Keyword.get(opts, :today, Clock.today())
+    insert_event(actor, SecurityEvent.changeset(%SecurityEvent{}, attrs, today), :caller)
+  end
 
+  defp insert_event(actor, changeset, mode) do
     Multi.new()
-    |> Multi.insert(:event, SecurityEvent.changeset(%SecurityEvent{}, attrs, today))
+    |> Multi.run(:halving, fn _repo, %{binding: binding} ->
+      halving_guard(binding, changeset, nil, mode)
+    end)
+    |> Multi.insert(:event, & &1.halving)
     |> Journal.record(actor, resource_type: "security_event", operation: :create, source: :event)
+    |> Multi.prepend(binding_lock(Ecto.Changeset.get_field(changeset, :security_id)))
     |> commit()
   end
 
@@ -96,19 +121,29 @@ defmodule Portfolixir.Knowledge.Events do
   current?" is exactly the question the object exists to answer.
   """
   @spec update_event(Actor.t(), SecurityEvent.t(), map(), keyword()) ::
-          {:ok, SecurityEvent.t()} | {:error, Ecto.Changeset.t() | :stale | {atom(), term()}}
+          {:ok, SecurityEvent.t()}
+          | {:error,
+             Ecto.Changeset.t() | :stale | :no_halving_chain | :binding_changed | {atom(), term()}}
   def update_event(%Actor{} = actor, %SecurityEvent{} = event, attrs, opts \\ [])
       when is_map(attrs) do
     today = Keyword.get(opts, :today, Clock.today())
+    change_event(actor, event, attrs, today, :caller)
+  end
 
+  defp change_event(actor, event, attrs, today, mode) do
     Multi.new()
-    |> Multi.update(:event, &SecurityEvent.changeset(Journal.locked_row(&1), attrs, today))
+    |> Multi.run(:halving, fn _repo, %{binding: binding} = changes ->
+      locked = Journal.locked_row(changes)
+      halving_guard(binding, SecurityEvent.changeset(locked, attrs, today), locked, mode)
+    end)
+    |> Multi.update(:event, & &1.halving)
     |> Journal.record(actor,
       resource_type: "security_event",
       operation: :update,
       source: :event,
       before: event
     )
+    |> Multi.prepend(binding_lock(event.security_id))
     |> commit()
   end
 
@@ -121,7 +156,9 @@ defmodule Portfolixir.Knowledge.Events do
   re-validated.
   """
   @spec reassign_event(Actor.t(), SecurityEvent.t(), integer()) ::
-          {:ok, SecurityEvent.t()} | {:error, Ecto.Changeset.t() | :stale | {atom(), term()}}
+          {:ok, SecurityEvent.t()}
+          | {:error,
+             Ecto.Changeset.t() | :stale | :no_halving_chain | :binding_changed | {atom(), term()}}
   def reassign_event(%Actor{} = actor, %SecurityEvent{} = event, security_id)
       when is_integer(security_id) do
     Multi.new()
@@ -143,8 +180,37 @@ defmodule Portfolixir.Knowledge.Events do
   `before` snapshot — so removing a duplicate loses nothing (§4).
   """
   @spec delete_event(Actor.t(), SecurityEvent.t()) ::
-          {:ok, SecurityEvent.t()} | {:error, Ecto.Changeset.t() | :stale | {atom(), term()}}
+          {:ok, SecurityEvent.t()}
+          | {:error,
+             Ecto.Changeset.t() | :stale | :no_halving_chain | :binding_changed | {atom(), term()}}
   def delete_event(%Actor{} = actor, %SecurityEvent{} = event) do
+    Multi.new()
+    |> Multi.run(:halving, fn _repo, %{binding: binding} = changes ->
+      changes |> Journal.locked_row() |> delete_guard(binding)
+    end)
+    |> Multi.delete(:event, event)
+    |> Journal.record(actor,
+      resource_type: "security_event",
+      operation: :delete,
+      source: :event,
+      before: event
+    )
+    |> Multi.prepend(binding_lock(event.security_id))
+    |> commit()
+  end
+
+  @doc """
+  Deletes one event without the halving guard, journaled under `actor` with
+  the row as the `before` snapshot: the writer of the two system decisions
+  that remove a halving whoever its writer was, a security merge dropping a
+  halving the target holds or whose chain differs (ADR-0048's amendment,
+  item 8) and `delete_halvings/2`. Never a caller's request.
+  """
+  @spec discard_event(Actor.t(), SecurityEvent.t()) ::
+          {:ok, SecurityEvent.t()}
+          | {:error,
+             Ecto.Changeset.t() | :stale | :no_halving_chain | :binding_changed | {atom(), term()}}
+  def discard_event(%Actor{} = actor, %SecurityEvent{} = event) do
     Multi.new()
     |> Multi.delete(:event, event)
     |> Journal.record(actor,
@@ -156,6 +222,201 @@ defmodule Portfolixir.Knowledge.Events do
     |> commit()
   end
 
+  @doc """
+  Deletes every `halving` event of `security_id`, one journaled delete per
+  row under `actor` (ADR-0059 §4; ADR-0048's amendment, item 7): what
+  unbinding or rebinding a security does in the same write, because a
+  halving is a fact about the security *as bound to that chain*. The rows
+  are re-read under their lock first. Answers `{:ok, count}`.
+  """
+  @spec delete_halvings(Actor.t(), integer()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def delete_halvings(%Actor{} = actor, security_id) when is_integer(security_id) do
+    Repo.transaction(fn ->
+      halvings =
+        Repo.all(
+          from(e in SecurityEvent,
+            where: e.security_id == ^security_id and e.kind == ^:halving,
+            order_by: e.id,
+            lock: "FOR UPDATE"
+          )
+        )
+
+      Enum.each(halvings, fn event ->
+        case discard_event(actor, event) do
+          {:ok, _deleted} -> :ok
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end)
+
+      length(halvings)
+    end)
+  end
+
+  @doc """
+  The number of `halving` events of `security_id`: what a rebinding would
+  delete, for a screen that asks first (ADR-0059 §4).
+  """
+  @spec count_halvings(integer()) :: non_neg_integer()
+  def count_halvings(security_id) when is_integer(security_id) do
+    SecurityEvent
+    |> where([e], e.security_id == ^security_id and e.kind == ^:halving)
+    |> Repo.aggregate(:count, :id)
+  end
+
+  @doc """
+  The chain reader's write of one halving (ADR-0059 §5, §6; ADR-0048's
+  amendment, item 4): the event of `security_id` at `height` is created, or
+  the one row stored at that height is updated, idempotent by security and
+  height. A call that changes nothing writes no row and no journal entry.
+
+  `attrs` carries the event's other fields (`date`, `date_end`, `timing`,
+  `confirmed`, `source_url`, `source_quality`, `checked_at`, `note`); `kind`,
+  `security_id` and `chain_height` are this function's. The security must
+  still be bound to `chain` under its share lock, else
+  `{:error, :binding_changed}` and nothing is written (a rebinding during a
+  run), and `height` must be a halving of it, else a changeset error on
+  `chain_height`. `opts[:today]` injects the clock as in `create_event/3`.
+  """
+  @spec put_chain_halving(Actor.t(), integer(), Registry.chain(), integer(), map(), keyword()) ::
+          {:ok, SecurityEvent.t()}
+          | {:error, Ecto.Changeset.t() | :binding_changed | :stale | {atom(), term()}}
+  def put_chain_halving(%Actor{} = actor, security_id, chain, height, attrs, opts \\ [])
+      when is_integer(security_id) and is_map(attrs) do
+    today = Keyword.get(opts, :today, Clock.today())
+
+    attrs =
+      attrs
+      |> Map.new(fn {key, value} -> {to_string(key), value} end)
+      |> Map.merge(%{
+        "security_id" => security_id,
+        "kind" => "halving",
+        "chain_height" => height
+      })
+
+    put_halving(actor, attrs, {:chain_reader, chain}, today, 2)
+  end
+
+  # Insert when no row holds the height, update the one that does. A
+  # concurrent writer that inserted first (a unique violation) or deleted the
+  # row first (`:stale`) is met by one more attempt the other way.
+  defp put_halving(actor, attrs, mode, today, attempts) do
+    stored =
+      Repo.one(
+        from(e in SecurityEvent,
+          where:
+            e.security_id == ^attrs["security_id"] and e.chain_height == ^attrs["chain_height"]
+        )
+      )
+
+    result =
+      case stored do
+        nil -> insert_event(actor, SecurityEvent.changeset(%SecurityEvent{}, attrs, today), mode)
+        %SecurityEvent{} -> change_event(actor, stored, attrs, today, mode)
+      end
+
+    if attempts > 1 and retry?(result),
+      do: put_halving(actor, attrs, mode, today, attempts - 1),
+      else: result
+  end
+
+  defp retry?({:error, :stale}), do: true
+
+  defp retry?({:error, %Ecto.Changeset{errors: errors}}) do
+    case errors[:chain_height] do
+      {_message, opts} -> opts[:constraint] == :unique
+      nil -> false
+    end
+  end
+
+  defp retry?(_result), do: false
+
+  # The security's binding, read under a share lock ahead of any event row
+  # lock (the order a rebinding takes too: the security, then its events).
+  defp binding_lock(security_id) do
+    Multi.run(Multi.new(), :binding, fn repo, _changes ->
+      if is_integer(security_id) do
+        case repo.one(
+               from(s in Security,
+                 where: s.id == ^security_id,
+                 select: s.halving_chain,
+                 lock: "FOR SHARE"
+               )
+             ) do
+          nil -> {:ok, binding_or_missing(repo, security_id)}
+          chain -> {:ok, {:bound, chain}}
+        end
+      else
+        {:ok, :missing}
+      end
+    end)
+  end
+
+  # `select: s.halving_chain` reads nil both for an unbound security and for
+  # none at all; the second is the foreign key's error, not this guard's.
+  defp binding_or_missing(repo, security_id) do
+    if repo.exists?(from(s in Security, where: s.id == ^security_id)),
+      do: {:bound, nil},
+      else: :missing
+  end
+
+  # ADR-0048's amendment, items 2 to 4: decides a write that involves a
+  # halving (the row before it, or the row it makes). `mode` is `:caller`
+  # (the API, the screen, an agent) or `{:chain_reader, chain}`.
+  defp halving_guard(binding, changeset, before, mode) do
+    kind = Ecto.Changeset.get_field(changeset, :kind)
+    involved? = kind == :halving or match?(%SecurityEvent{kind: :halving}, before)
+
+    case {involved?, binding, mode} do
+      {false, _binding, _mode} ->
+        {:ok, changeset}
+
+      {true, :missing, _mode} ->
+        {:ok, changeset}
+
+      {true, {:bound, chain}, {:chain_reader, expected}} when chain != expected ->
+        {:error, :binding_changed}
+
+      {true, {:bound, chain}, :caller} when not is_nil(chain) ->
+        if Registry.has_source?(chain),
+          do: {:error, {:halving_from_chain, chain}},
+          else: {:ok, halving_height(changeset, kind, chain)}
+
+      {true, {:bound, nil}, _mode} when kind == :halving ->
+        {:error, :no_halving_chain}
+
+      {true, {:bound, chain}, _mode} ->
+        {:ok, halving_height(changeset, kind, chain)}
+    end
+  end
+
+  # ADR-0048's amendment, item 2: k × the chain's interval, k ≥ 1.
+  defp halving_height(changeset, :halving, chain) when not is_nil(chain) do
+    Ecto.Changeset.validate_change(changeset, :chain_height, fn :chain_height, height ->
+      if Registry.halving_height?(chain, height),
+        do: [],
+        else: [
+          chain_height:
+            {"is not a halving of %{chain} (a multiple of %{interval} blocks)",
+             chain: Atom.to_string(chain),
+             interval: Registry.halving_interval(chain),
+             validation: :halving_height}
+        ]
+    end)
+  end
+
+  defp halving_height(changeset, _kind, _chain), do: changeset
+
+  # ADR-0048's amendment, item 4: on a chain with a source the reader alone
+  # removes a halving; any other row, and a halving of a chain without one
+  # (or of none), is deleted as before.
+  defp delete_guard(%SecurityEvent{kind: :halving}, {:bound, chain}) when not is_nil(chain) do
+    if Registry.has_source?(chain),
+      do: {:error, {:halving_from_chain, chain}},
+      else: {:ok, :allowed}
+  end
+
+  defp delete_guard(_event, _binding), do: {:ok, :allowed}
+
   # `Multi.update`/`Multi.delete` RAISE on a row that vanished rather than
   # returning a changeset, and §4 makes these rows mutable precisely so two
   # writers can both touch them — so the race is part of the design and
@@ -165,6 +426,8 @@ defmodule Portfolixir.Knowledge.Events do
     case Repo.transaction(multi) do
       {:ok, %{event: event}} -> {:ok, event}
       {:error, _step, %Ecto.Changeset{} = invalid, _changes} -> {:error, invalid}
+      # ADR-0048's amendment, items 3 and 4, and a rebinding during a run.
+      {:error, :halving, reason, _changes} -> {:error, reason}
       # The row was deleted before the write took its lock (E25 S6, F49).
       {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :stale}
       {:error, step, reason, _changes} -> {:error, {step, reason}}
@@ -289,6 +552,9 @@ defmodule Portfolixir.Knowledge.Events do
 
     SecurityEvent
     |> where([e], is_nil(e.checked_at) or e.checked_at < ^cutoff or e.checked_at > ^latest)
+    # ADR-0048's amendment, item 6: a confirmed halving's block is buried and
+    # there is nothing to re-read; the unconfirmed next one stays in.
+    |> where([e], not (e.kind == ^:halving and e.confirmed == true))
     |> maybe_security(Keyword.get(opts, :security_id))
     |> maybe_kind(Keyword.get(opts, :kind))
     |> maybe_held_only(Keyword.get(opts, :held_only, false))

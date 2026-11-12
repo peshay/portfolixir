@@ -1077,6 +1077,45 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     refute entry =~ "2025-09-15"
   end
 
+  # --- S29 H1 begin ---
+  # User story (ADR-0048's amendment of 2026-11-12, item 8):
+  # As the operator merging two listings of one coin, both bound to Litecoin,
+  # I want the preview's counts to say how many of the duplicate's halvings
+  # are dropped and why,
+  # so that no calendar row goes without my having seen it.
+  #
+  # Acceptance criteria:
+  # - Both carry the halving at 840,000: the counts read "1 halving of the
+  #   source is dropped — the target holds it or is bound to another chain".
+  test "the preview counts the halvings the merge drops", ctx do
+    for security <- [ctx.source, ctx.target] do
+      {:ok, bound} =
+        Catalog.update_security(Actor.owner_ui(), security, %{halving_chain: :litecoin})
+
+      {:ok, _event} =
+        Knowledge.Events.create_event(Actor.owner_ui(), %{
+          security_id: bound.id,
+          kind: "halving",
+          chain_height: 840_000,
+          date: ~D[2019-08-05],
+          timing: "exact",
+          confirmed: true,
+          source_quality: "primary"
+        })
+    end
+
+    {:ok, view, _html} = live(ctx.conn, "/securities")
+    to_preview(view, ctx.source, ctx.target)
+
+    counts = view |> element("[data-role='merge-counts']") |> render() |> Floki.parse_fragment!()
+    text = counts |> Floki.text() |> String.replace(~r/\s+/, " ")
+
+    assert text =~
+             "1 halving of the source is dropped — the target holds it or is bound to another chain"
+  end
+
+  # --- S29 H1 end ---
+
   # -- helpers ----------------------------------------------------------------
 
   defp open_menu(view, security) do

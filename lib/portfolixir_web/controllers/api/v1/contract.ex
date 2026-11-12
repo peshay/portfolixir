@@ -121,7 +121,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- S29 H1 begin ---
             "Sprint 29, H1 (ADR-0059 §2, §4; FR-58): a security is bound to a registered " <>
               "block chain through halving_chain on its update, journaled, and every " <>
-              "security read returns it; no endpoint or tool is added."
+              "security read returns it; an event of the new kind halving carries its " <>
+              "chain_height (ADR-0048's amendment of 2026-11-12); a rebinding deletes the " <>
+              "security's halvings and counts them; no endpoint or tool is added."
             # --- S29 H1 end ---
           ],
           " "
@@ -216,7 +218,31 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "projection, fields=halving_chain (portfolixir.securities.list's fields enum " <>
           "offers it) and the dossier's security return it, null when unbound. A PATCH " <>
           "of a security a merge took away answers 404 with errors.merged_into {kind, id}, " <>
-          "as its reads do (ADR-0050 §12), where it answered the plain 404."
+          "as its reads do (ADR-0050 §12), where it answered the plain 404. A PATCH that " <>
+          "sends halving_chain answers halving_events_deleted beside data: the security's " <>
+          "halving events an unbinding or rebinding deleted in the same write, one " <>
+          "journaled delete each, 0 when the chain stays; a PATCH without it carries no " <>
+          "such key.",
+        "PATCH /api/v1/security_events/:id (portfolixir.events.update), POST " <>
+          "/api/v1/securities/:security_id/events (portfolixir.events.create) and DELETE " <>
+          "/api/v1/security_events/:id (portfolixir.events.delete), changed: kind takes " <>
+          "halving, which needs chain_height, an integer that is k times the bound chain's " <>
+          "halving interval (k >= 1), else 422 naming chain_height; chain_height on any other " <>
+          "kind is 422 naming it, and one security holds one event per height (422 " <>
+          "chain_height taken). A halving on a security without halving_chain answers 422 " <>
+          ~s[errors.code "no_halving_chain"; a create, update or delete of a halving on a ] <>
+          ~s[security bound to bitcoin answers 422 errors.code "halving_from_chain" with ] <>
+          "errors.chain, the chain reader alone writing it. Every event read (list, " <>
+          "upcoming, unconfirmed, stale, the dossier) carries chain_height, null on every " <>
+          "other kind; the kind filters take halving; GET /api/v1/events/stale " <>
+          "(portfolixir.events.stale) leaves out confirmed halvings.",
+        "GET /api/v1/securities/:id/merge_preview (portfolixir.securities.merge_preview), " <>
+          "changed: events adds dropped, the source's halvings the merge deletes, each with " <>
+          "id, kind, date, chain_height and reason height_held (the target holds that " <>
+          "height) or chain_differs (the target is bound to another chain or none); a " <>
+          "halving moves only otherwise, and none is listed in possible_duplicates. The " <>
+          "merge's manifest lists them under security_events.dropped, each delete journaled " <>
+          "(ADR-0048's amendment, item 8)."
         # --- S29 H1 end ---
       ],
       removed_endpoints: [],

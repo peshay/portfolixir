@@ -983,7 +983,8 @@
                           "bitcoin_cash",
                           "litecoin",
                           null
-                        ]
+                        ],
+                        "description": "ADR-0059. A change deletes its halving events: halving_events_deleted."
                       }
                     }
                   }
@@ -1091,7 +1092,7 @@
             {
               "name": "portfolixir.securities.merge_preview",
               "title": "Preview a security merge",
-              "description": "Preview merging a security (id, the source — a duplicate) into another of the same currency (target_id, the one to keep) — a read that writes nothing (ADR-0050 §9, §10). Answers the plan_digest portfolixir.securities.merge takes; both securities (identifiers, split events, booking count); the guards; key_equal_pairs (a source booking equal to a target one in day, kind, depot, cash account and amounts); splits that collapse or move, and split events after; position_buckets per depot; quotes (source_count; moved_count, the source's on dates the target lacks; collision_count, dates both have, the target's wins; manual_collisions, typed by hand, with both closes); configuration (category_assignments and position_targets, each to move, or drop with reason collides or stale); events (moved; possible_duplicates, same kind and day); identifiers (identity_choice_required; after_by_identity_choice with keep_target_isin and adopt_source_isin when both carry an ISIN, else after: the target's ISIN, WKN, ticker, feed, name, asset class and former ISINs; adopted, what the target takes from the source; differences, every source value that follows the target instead (a WKN or ticker the catalog refuses, and provider_currency if it differs, carried to a target with none)); reverse, whether the other way would pass; and outcome_by_collapse_key_equal with \"false\" and \"true\": per depot the source holds, quantity, cost_basis, avg_cost and realized_result (moving-average) of both before and of the target after (positions_basis); fifo_realized, the FIFO realized gains the app reads, which pooling both queues restates: per close year source, target, after and change, open_lots' cost alike, unavailable_trades, unchanged (no realized amount and no open cost moves; which lot a sale closes may), fifo_basis; rounding_differences; the cash accounts a collapsed booking changes; flow_changes as in the depot preview (removed, boundary_removed, absorbed; flow_basis). Show both outcomes; the operator chooses. Decimals: strings. A pair that may not merge answers 409 with errors.code (same_security, not_live, currency_mismatch, benchmark_mismatch, retired_target, quote_basis_mismatch, research_notes, predictions, policy_rules with errors.policy_rules, position_buckets_mismatch, split_ratio_mismatch, split_event_mismatch, split_linearity, legacy_hashed_split (a split to move still carries an import hash; errors.splits names it: change its kind back or delete it), invalid_source_isin (errors.source_isin fails its check digit: fix or clear it), or identity_unresolvable with errors.unresolvable: an identity of either security, as stored, imported or with a former ISIN, or of one merged into either before, that would no longer find the target) and errors.guards; a source already merged answers 409 already_merged with errors.merged_into.",
+              "description": "Preview merging a security (id, the source — a duplicate) into another of the same currency (target_id, the one to keep) — a read that writes nothing (ADR-0050 §9, §10). Answers the plan_digest portfolixir.securities.merge takes; both securities (identifiers, split events, booking count); the guards; key_equal_pairs (a source booking equal to a target one in day, kind, depot, cash account and amounts); splits that collapse or move, and split events after; position_buckets per depot; quotes (source_count; moved_count, the source's on dates the target lacks; collision_count, dates both have, the target's wins; manual_collisions, typed by hand, with both closes); configuration (category_assignments and position_targets, each to move, or drop with reason collides or stale); events (moved; possible_duplicates, same kind and day; dropped, a halving the target holds or of another chain); identifiers (identity_choice_required; after_by_identity_choice with keep_target_isin and adopt_source_isin when both carry an ISIN, else after: the target's ISIN, WKN, ticker, feed, name, asset class and former ISINs; adopted, what the target takes from the source; differences, every source value that follows the target instead (a WKN or ticker the catalog refuses, and provider_currency if it differs, carried to a target with none)); reverse, whether the other way would pass; and outcome_by_collapse_key_equal with \"false\" and \"true\": per depot the source holds, quantity, cost_basis, avg_cost and realized_result (moving-average) of both before and of the target after (positions_basis); fifo_realized, the FIFO realized gains the app reads, which pooling both queues restates: per close year source, target, after and change, open_lots' cost alike, unavailable_trades, unchanged (no realized amount and no open cost moves; which lot a sale closes may), fifo_basis; rounding_differences; the cash accounts a collapsed booking changes; flow_changes as in the depot preview (removed, boundary_removed, absorbed; flow_basis). Show both outcomes; the operator chooses. Decimals: strings. A pair that may not merge answers 409 with errors.code (same_security, not_live, currency_mismatch, benchmark_mismatch, retired_target, quote_basis_mismatch, research_notes, predictions, policy_rules with errors.policy_rules, position_buckets_mismatch, split_ratio_mismatch, split_event_mismatch, split_linearity, legacy_hashed_split (a split to move still carries an import hash; errors.splits names it: change its kind back or delete it), invalid_source_isin (errors.source_isin fails its check digit: fix or clear it), or identity_unresolvable with errors.unresolvable: an identity of either security, as stored, imported or with a former ISIN, or of one merged into either before, that would no longer find the target) and errors.guards; a source already merged answers 409 already_merged with errors.merged_into.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1258,7 +1259,7 @@
             {
               "name": "portfolixir.events.list",
               "title": "Calendar of one security",
-              "description": "One security's events (ADR-0048), soonest first. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is paid, book it through the ledger and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (primary | secondary_multi | awareness | unverified, the same scale as the research log), checked_at (the day the fact was last re-read against its source) and note. limit and truncated are echoed. Optional since (ISO8601 UTC) is a delta read: events changed strictly after it, oldest change first (a rescheduled date returns as its changed row), with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT represented; a full read shows them. The due, stale and unconfirmed queues take no since: time, not a row, changes them. A Portfolio Performance re-import does not destroy the research log or the security events: every entry and event keeps its id, renamed or re-ISINed securities too; no backup or re-creating.",
+              "description": "One security's events (ADR-0048), soonest first. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is paid, book it through the ledger and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (the research log's scale), chain_height (a halving's block), checked_at (the day the fact was last re-read against its source) and note. limit and truncated are echoed. Optional since (ISO8601 UTC) is a delta read: events changed strictly after it, oldest change first (a rescheduled date returns as its changed row), with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT represented; a full read shows them. The due, stale and unconfirmed queues take no since: time, not a row, changes them. A Portfolio Performance re-import does not destroy the research log or the security events: every entry and event keeps its id, renamed or re-ISINed securities too; no backup or re-creating.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1290,7 +1291,7 @@
             {
               "name": "portfolixir.events.create",
               "title": "Record a calendar date for a security",
-              "description": "Record one dated calendar fact against a security (ADR-0048). timing SAYS HOW WELL YOU KNOW THE DATE and is not decoration: exact = a source that sets it, estimated = expected rather than announced, window = it falls between date and date_end inclusive (date_end is required, and allowed ONLY here), month = the month of date is known and the day is not. Storing a guess as exact is the one mistake this field exists to prevent. source_quality is SET, not guessed. checked_at: the day you last re-read its source (portfolixir.events.stale lists the unread). ANY catalog security, held or not: a candidate's date is worth recording. The write is journaled under the API token. A timeout or lost connection answers outcome unknown (ApiOutcomeUnknownError): the write may have committed, so re-read before retrying; a blind retry can store a duplicate.",
+              "description": "Record one dated calendar fact against a security (ADR-0048). timing SAYS HOW WELL YOU KNOW THE DATE: exact = a source sets it, estimated = expected, not announced, window = between date and date_end inclusive (date_end required, and allowed ONLY here), month = the month is known, the day not. source_quality is SET, not guessed. checked_at: the day you last re-read its source (portfolixir.events.stale lists the unread). ANY catalog security, held or not. halving: bind halving_chain first (else 422 no_halving_chain), chain_height k × its interval; on bitcoin the chain alone writes it (422 halving_from_chain). The write is journaled under the API token. A timeout or lost connection answers outcome unknown (ApiOutcomeUnknownError): the write may have committed, so re-read before retrying; a blind retry can store a duplicate.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1317,7 +1318,8 @@
                           "index_review",
                           "shareholder_meeting",
                           "regulatory_decision",
-                          "guidance_update"
+                          "guidance_update",
+                          "halving"
                         ]
                       },
                       "date": {
@@ -1361,6 +1363,10 @@
                         "maxLength": 10000,
                         "description": "At most 10000 characters (Unicode code points), else 422."
                       },
+                      "chain_height": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
                       "news_id": {
                         "type": "integer",
                         "minimum": 1,
@@ -1385,7 +1391,7 @@
             {
               "name": "portfolixir.events.update",
               "title": "Correct or confirm a calendar date",
-              "description": "Update one event in place (ADR-0048 §4). An event is MUTABLE, unlike a research-log entry: a rescheduled date makes the old one wrong, not a second fact, and two rows for one date is a calendar nobody can read. So correct the row rather than adding another, set confirmed=true once it actually happened, and bump checked_at when you re-read the source. The journal keeps the history. The security an event belongs to cannot be changed.",
+              "description": "Update one event in place (ADR-0048 §4): a rescheduled date makes the old one wrong, not a second fact, so correct the row rather than adding another, set confirmed=true once it happened, and bump checked_at when you re-read the source. The journal keeps the history. Its security cannot be changed.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1412,7 +1418,8 @@
                           "index_review",
                           "shareholder_meeting",
                           "regulatory_decision",
-                          "guidance_update"
+                          "guidance_update",
+                          "halving"
                         ]
                       },
                       "date": {
@@ -1455,6 +1462,10 @@
                         "type": "string",
                         "maxLength": 10000,
                         "description": "At most 10000 characters (Unicode code points), else 422."
+                      },
+                      "chain_height": {
+                        "type": "integer",
+                        "minimum": 1
                       }
                     }
                   }
@@ -1470,7 +1481,7 @@
             {
               "name": "portfolixir.events.delete",
               "title": "Remove a calendar date",
-              "description": "Delete one event (ADR-0048 §4) — for a duplicate or a date that turned out never to have existed. Journaled with the row recorded, so the deletion is auditable. To record that a date passed, mark it confirmed instead.",
+              "description": "Delete one event (ADR-0048 §4), a duplicate or a date that never existed; journaled with the row. To record that a date passed, mark it confirmed instead.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1514,7 +1525,8 @@
                       "index_review",
                       "shareholder_meeting",
                       "regulatory_decision",
-                      "guidance_update"
+                      "guidance_update",
+                      "halving"
                     ]
                   },
                   "held_only": {
@@ -1556,7 +1568,8 @@
                       "index_review",
                       "shareholder_meeting",
                       "regulatory_decision",
-                      "guidance_update"
+                      "guidance_update",
+                      "halving"
                     ]
                   },
                   "held_only": {
@@ -1578,7 +1591,7 @@
             {
               "name": "portfolixir.events.stale",
               "title": "Dates nobody has re-read in N days",
-              "description": "Events whose checked_at is older than days (default 90) — or never checked, listed with days_since_checked null. This is the staleness of the CALENDAR, deliberately a different read from portfolixir.events.unconfirmed: a confirmed FUTURE date nobody has re-read in three months is a different risk from a PAST date nobody resolved. Re-read the source, then call portfolixir.events.update with a fresh checked_at (and a corrected date if it moved). Optional security_id, kind, held_only and limit, echoed with truncated. A Portfolio Performance re-import does not destroy the research log or the security events: every entry and event keeps its id, renamed or re-ISINed securities too; no backup or re-creating.",
+              "description": "Events whose checked_at is older than days (default 90) — or never checked, listed with days_since_checked null. This is the staleness of the CALENDAR, deliberately a different read from portfolixir.events.unconfirmed: a confirmed FUTURE date nobody has re-read in three months is a different risk from a PAST date nobody resolved. Re-read the source, then call portfolixir.events.update with a fresh checked_at (and a corrected date if it moved). A confirmed halving is never listed. Optional security_id, kind, held_only and limit, echoed with truncated. A Portfolio Performance re-import does not destroy the research log or the security events: every entry and event keeps its id, renamed or re-ISINed securities too; no backup or re-creating.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1601,7 +1614,8 @@
                       "index_review",
                       "shareholder_meeting",
                       "regulatory_decision",
-                      "guidance_update"
+                      "guidance_update",
+                      "halving"
                     ]
                   },
                   "held_only": {

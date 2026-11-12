@@ -165,6 +165,33 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- S29 D3 end ---
 
+    # --- S29 H1 begin ---
+    # H1 (ADR-0059 §2, §4; ADR-0048's amendment of 2026-11-12): the binding
+    # on the security's update, the event kind halving with its height and
+    # its refusals, the rebinding's count and the merge's dropped halvings;
+    # no endpoint or tool is added.
+    assert newest["summary"] =~ "Sprint 29, H1 (ADR-0059 §2, §4; FR-58): "
+
+    h1 = fn prefix ->
+      assert [entry] = Enum.filter(newest["parameters"], &String.starts_with?(&1, prefix))
+      entry
+    end
+
+    binding = h1.("PATCH /api/v1/securities/:id (portfolixir.securities.update), changed")
+    halving = h1.("PATCH /api/v1/security_events/:id (portfolixir.events.update), POST")
+    merge = h1.("GET /api/v1/securities/:id/merge_preview (portfolixir.securities.merge_preview)")
+
+    for part <- ~w(halving_chain bitcoin_cash litecoin merged_into halving_events_deleted),
+        do: assert(binding =~ part, part)
+
+    for part <- ~w(chain_height no_halving_chain halving_from_chain errors.chain confirmed),
+        do: assert(halving =~ part, part)
+
+    for part <- ~w(dropped height_held chain_differs security_events.dropped),
+        do: assert(merge =~ part, part)
+
+    # --- S29 H1 end ---
+
     # Sprint 28's sprint PR (version 28), found by version from Sprint 29 on.
     # Dated strictly after entry 27, so since=2026-11-08 still returns it.
     # Each story appends its own items between its own markers.

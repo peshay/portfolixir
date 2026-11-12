@@ -680,8 +680,12 @@ confirms with the same `plan_digest`, so both see the same plan.
     its plan, `plan_status`, category and `target_weight`, and `move`, or
     `drop` with the `reason` `collides` — the target has a row in that plan —
     or `stale` — the row would no longer sit under the target's category);
-  - `events`: the events that move, and `possible_duplicates`, a source and a
-    target event of the same kind on the same day (both kept);
+  - `events`: the events that move, `possible_duplicates`, a source and a
+    target event of the same kind on the same day (both kept), and
+    `dropped`, the source's halvings the merge deletes, each with its
+    `chain_height` and `reason` `height_held` (the target holds that height)
+    or `chain_differs` (the target is bound to another chain or to none);
+    a halving moves only otherwise (ADR-0048's amendment of 2026-11-12);
   - `identifiers`: `choice_required` (both carry an ISIN), then
     `after_by_identity_choice` with `keep_target_isin` and
     `adopt_source_isin` — or `after` when there is no choice — each the
@@ -1140,7 +1144,23 @@ The writes:
 know this" across both knowledge families. An event carries **no money**: there
 is no financial decimal on the object at all.
 
-**What this surface is not.** Nothing fetches a calendar — entry is manual or
+**Halvings** (ADR-0048's amendment of 2026-11-12, ADR-0059). The kind
+`halving` is the block at which a chain's subsidy halves. It needs the
+security bound to a chain (`halving_chain` on `PATCH
+/api/v1/securities/:id`), else `422` with `errors.code` `no_halving_chain`,
+and a `chain_height` that is *k* × that chain's halving interval, else `422`
+naming `chain_height`; `chain_height` on any other kind is refused, and a
+security holds one event per height. On a security bound to `bitcoin` the
+chain reader alone writes halvings: a create, update or delete through the
+API answers `422` with `errors.code` `halving_from_chain` and `errors.chain`.
+Every event carries `chain_height`, `null` on other kinds. The stale read
+leaves out confirmed halvings. Unbinding or rebinding a security deletes its
+halving events in the same write, one journaled delete each, and the
+`PATCH` answers `halving_events_deleted` beside `data` whenever it sent
+`halving_chain`.
+
+**What this surface is not.** Nothing fetches a calendar except the chain
+reader, for halvings only (ADR-0059) — entry of every other kind is manual or
 through the agent's own write. The due-date read is a **pull**: there is no
 alerting and no push delivery. No rule reads these rows, and whether events
 predicted anything is not evaluated here.

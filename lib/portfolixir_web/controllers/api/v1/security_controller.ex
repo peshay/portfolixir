@@ -201,11 +201,21 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   # as one block, `news_identity` {cik, aliases}, and `news_watch`; the block
   # is closed and its refusals name what the request sent
   # (`PortfolixirWeb.Api.V1.NewsIdentityParam`).
+  #
+  # ADR-0059 §4 (Sprint 29 H1): a PATCH that sends halving_chain answers
+  # halving_events_deleted beside data, the halving events an unbinding or
+  # rebinding deleted in the same write (0 when the chain stays).
   def update(conn, %{"id" => id} = params) do
     with {:ok, attrs} <- NewsIdentityParam.parse(Map.get(params, "security", %{})),
          security when not is_nil(security) <- Catalog.get_security(id),
-         {:ok, updated} <- Catalog.update_security(conn.assigns.actor, security, attrs) do
-      json(conn, %{data: JSON.security(updated)})
+         {:ok, updated, report} <-
+           Catalog.update_security(conn.assigns.actor, security, attrs, report: true) do
+      body = %{data: JSON.security(updated)}
+
+      json(
+        conn,
+        if(Map.has_key?(attrs, "halving_chain"), do: Map.merge(body, report), else: body)
+      )
     else
       # ADR-0050 §12, and ADR-0059 §4 for a binding: a merged-away security
       # names the one it lives on.

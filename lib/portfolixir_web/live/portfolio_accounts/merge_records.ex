@@ -61,6 +61,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
     ["position_targets", "deleted"] => :position_targets,
     ["security_events", "moved"] => :events,
     ["security_events", "possible_duplicates"] => :events,
+    ["security_events", "dropped"] => :events,
     ["split_events", "source"] => :splits,
     ["split_events", "target"] => :splits,
     ["position_bucket_overrides", "carried"] => :position_buckets,
@@ -554,6 +555,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
   defp line_value(:events, _kind, summary) do
     parts([
       nonzero(count(summary, ["security_events", "moved"]), &moved/1),
+      nonzero(count(summary, ["security_events", "dropped"]), &dropped/1),
       nonzero(count(summary, ["security_events", "possible_duplicates"]), fn n ->
         pngettext(
           "merge record",

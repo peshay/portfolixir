@@ -24,6 +24,9 @@ defmodule PortfolixirWeb.SecurityEventLabel do
   def kind("shareholder_meeting"), do: gettext("Shareholder meeting")
   def kind("regulatory_decision"), do: gettext("Regulatory decision")
   def kind("guidance_update"), do: gettext("Guidance update")
+  # ADR-0048's amendment of 2026-11-12: the block at which a chain's subsidy
+  # halves (ADR-0059).
+  def kind("halving"), do: gettext("Halving")
 
   @doc """
   How well the date is known (§3). The wording is the point: an estimate must

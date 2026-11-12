@@ -1718,16 +1718,40 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   end
 
   # Every event of the source moves; a same-kind, same-day pair is listed.
+  # A halving moves only onto a target bound to the source's chain that holds
+  # no event at its height, and is dropped otherwise (ADR-0048's amendment of
+  # 2026-11-12, item 8): moving it would break the unique height or put a
+  # fact about one chain on a security of another.
   defp event_plan(%{source: source, target: target, data: data}) do
     s_events = Map.get(data.events, source.id, [])
     t_events = Map.get(data.events, target.id, [])
 
+    held_heights =
+      for %{kind: :halving, chain_height: height} <- t_events, into: MapSet.new(), do: height
+
+    same_chain? =
+      not is_nil(source.halving_chain) and source.halving_chain == target.halving_chain
+
+    {moved, dropped} =
+      Enum.reduce(s_events, {[], []}, fn event, {moved, dropped} ->
+        case halving_drop(event, same_chain?, held_heights) do
+          nil -> {[event | moved], dropped}
+          reason -> {moved, [%{event: event, reason: reason} | dropped]}
+        end
+      end)
+
+    moved = Enum.reverse(moved)
+
     %{
-      moved: s_events,
+      moved: moved,
+      dropped: Enum.reverse(dropped),
       possible_duplicates:
         for(
-          event <- s_events,
+          event <- moved,
           twin <- t_events,
+          # A halving's identity is its height, never its day: a moved one
+          # holds a height the target lacks, so it has no twin.
+          event.kind != :halving,
           event.kind == twin.kind and event.date == twin.date,
           do: %{
             source_event_id: event.id,
@@ -1738,6 +1762,14 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
         )
     }
   end
+
+  defp halving_drop(%{kind: :halving}, false, _held), do: :chain_differs
+
+  defp halving_drop(%{kind: :halving, chain_height: height}, true, held) do
+    if MapSet.member?(held, height), do: :height_held
+  end
+
+  defp halving_drop(_event, _same_chain?, _held), do: nil
 
   defp membership_guard(base) do
     refused = Enum.filter(base.memberships, &(&1.action in [:refuse, :refuse_carry]))
@@ -2055,7 +2087,8 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       },
       events: %{
         moved: Enum.map(plan.carry.events.moved, &%{id: &1.id, kind: &1.kind, date: &1.date}),
-        possible_duplicates: plan.carry.events.possible_duplicates
+        possible_duplicates: plan.carry.events.possible_duplicates,
+        dropped: Enum.map(plan.carry.events.dropped, &dropped_event_view/1)
       },
       identifiers: identifiers_view(plan.identifiers),
       reverse: reverse,
@@ -2147,6 +2180,18 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   end
 
   defp event_view({date, ratio}), do: %{date: date, ratio: ratio_view(ratio)}
+
+  # A halving the merge drops (ADR-0048's amendment, item 8), with why.
+  defp dropped_event_view(%{event: event, reason: reason}) do
+    %{
+      id: event.id,
+      kind: event.kind,
+      date: event.date,
+      chain_height: event.chain_height,
+      reason: reason
+    }
+  end
+
   defp ratio_view({p, q}), do: %{numerator: p, denominator: q}
 
   defp pair_view({source_row, target_row}) do
@@ -2465,7 +2510,11 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
     target_id = plan.target.id
 
     with :ok <- each(carry.assignments, &assignment_write(actor, &1, plan)),
-         :ok <- each(carry.position_targets, &position_target_write(actor, &1, target_id)) do
+         :ok <- each(carry.position_targets, &position_target_write(actor, &1, target_id)),
+         :ok <-
+           each(carry.events.dropped, fn %{event: event} ->
+             actor |> Events.discard_event(event) |> written("security_event", event.id)
+           end) do
       each(carry.events.moved, fn event ->
         actor |> Events.reassign_event(event, target_id) |> written("security_event", event.id)
       end)
@@ -2753,7 +2802,8 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       },
       security_events: %{
         moved: Enum.map(carry.events.moved, &%{id: &1.id, kind: &1.kind, date: &1.date}),
-        possible_duplicates: carry.events.possible_duplicates
+        possible_duplicates: carry.events.possible_duplicates,
+        dropped: Enum.map(carry.events.dropped, &dropped_event_view/1)
       },
       identifier_aliases: %{
         reassigned:

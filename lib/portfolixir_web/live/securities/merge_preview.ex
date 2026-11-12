@@ -525,7 +525,8 @@ defmodule PortfolixirWeb.Securities.MergePreview do
         moving_settings: Enum.count(assigns.settings, &(&1.outcome == :moves)),
         dropped_settings: Enum.count(assigns.settings, &(&1.outcome != :moves)),
         events: length(assigns.preview.events.moved),
-        event_twins: length(assigns.preview.events.possible_duplicates)
+        event_twins: length(assigns.preview.events.possible_duplicates),
+        halvings_dropped: length(assigns.preview.events.dropped)
       )
 
     ~H"""
@@ -597,6 +598,16 @@ defmodule PortfolixirWeb.Securities.MergePreview do
               @event_twins
             ) %>
           </small>
+        </dd>
+      <% end %>
+      <%= if @halvings_dropped > 0 do %>
+        <dt><%= @halvings_dropped %></dt>
+        <dd>
+          <%= ngettext(
+            "halving of the source is dropped — the target holds it or is bound to another chain",
+            "halvings of the source are dropped — the target holds them or is bound to another chain",
+            @halvings_dropped
+          ) %>
         </dd>
       <% end %>
     </dl>
