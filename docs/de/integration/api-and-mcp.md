@@ -1576,7 +1576,8 @@ einem neuen Schlüssel.
 **Die MCP-Tools.**
 
 Der MCP-Begleitdienst ruft diese Routen über fünf Tools auf, die je in ihrer
-Beschreibung sagen, dass sie Daten liefern, nie einen Rat oder Anweisungen:
+Beschreibung sagen, dass sie Daten liefern, nie Anweisungen; die beiden
+Lesezugriffe sagen nie Anweisungen oder einen Rat:
 
 - `portfolixir.crashes.list` — `GET /api/v1/crashes`, kein Parameter; ein
   Lesezugriff, in `read`, `book` und `full`.
@@ -1589,7 +1590,9 @@ Beschreibung sagen, dass sie Daten liefern, nie einen Rat oder Anweisungen:
   `POST` und zieht ein manuelles Fenster oder macht `window.from_name` zu
   einem. In `book` und `full`; destruktiv (es überschreibt einen Namen oder
   die Felder eines manuellen Fensters, und die vorigen erneut gesetzt stellen
-  sie wieder her) und nicht idempotent (eine Wiederholung ohne Schlüssel
+  sie wieder her, nur kann ein Name, den `from_name` zu einem manuellen
+  Fenster gemacht hat, nicht zurückgesetzt werden, solange sein Fenster
+  nicht erkannt wird) und nicht idempotent (eine Wiederholung ohne Schlüssel
   zieht ein weiteres Fenster).
 - `portfolixir.crashes.delete` — `DELETE /api/v1/crashes/:key`; Admin, nur
   in `full`, weil ein entferntes manuelles Fenster, neu gezogen, ein neues

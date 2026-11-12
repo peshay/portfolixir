@@ -179,6 +179,13 @@ describe("the companion's tool profiles", () => {
       BOOK_KEPT_DESTRUCTIVE.get("portfolixir.quotes.upsert") ?? "",
       /stays manual until portfolixir\.quotes\.release \(admin\)/
     );
+
+    // The closing act of Sprint 29 (#1421): crashes.put with from_name
+    // deletes the stored name as it draws the manual window, and a put
+    // cannot give that name back while its window is not detected.
+    const crashesPut = BOOK_KEPT_DESTRUCTIVE.get("portfolixir.crashes.put") ?? "";
+    assert.match(crashesPut, /from_name/);
+    assert.match(crashesPut, /cannot be put back while its window is not detected/);
   });
 
   // User story (A1, #992):

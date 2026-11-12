@@ -5,7 +5,7 @@
  * - `read` lists and calls only the tools that change nothing (readOnlyHint).
  * - `book` lists and calls every tool except the admin set below: the reads,
  *   every create, and the replace-shaped writes, which the same write sent
- *   the former value undoes (three leave a residue, named below).
+ *   the former value undoes (four leave a residue, named below).
  * - `full` (the default) lists and calls every tool but the news labeller's
  *   two.
  *
@@ -134,12 +134,15 @@ export function profileSwitch(
 // explicit-empty override), stay in `book`, while
 // securities_accounts.clear_position_buckets, which removes the override, is
 // admin. A plan activation stays: activating the previous plan undoes it.
-// Three kept writes leave a residue their inverse does not clear, named in
+// Four kept writes leave a residue their inverse does not clear, named in
 // their reasons: a rename back keeps the in-between name as a former name,
-// an upsert over a provider date leaves that date manual, and a source
+// an upsert over a provider date leaves that date manual, a source
 // rated back from blocked does not bring back the stored news items the
 // block removed (ADR-0056 E1; they are a staging area that a feed listing
-// them again refills, so the rating stays a replace).
+// them again refills, so the rating stays a replace), and a crash name that
+// crashes.put with from_name turned into a manual window cannot be put back
+// while its window is not detected (ADR-0058 F1; the name is the manual
+// window's now, and the window keeps it).
 //
 // A test (test/profiles.test.ts) fails any tool that carries destructiveHint
 // and sits in neither list, any entry that names no tool, and any tool that
@@ -254,7 +257,7 @@ export const ADMIN_TOOLS: ReadonlyMap<string, string> = new Map([
 
 // THE OVERWRITES `book` KEEPS — the replace-shaped tools that carry
 // destructiveHint (they overwrite what is stored): the same tool sent the
-// value it replaced undoes each, with the three residues its reason names. The audit
+// value it replaced undoes each, with the four residues its reason names. The audit
 // journal keeps every before-image (portfolixir.journal.list), so the value
 // to send back can be read even when the agent did not read it first.
 export const BOOK_KEPT_DESTRUCTIVE: ReadonlyMap<string, string> = new Map([
@@ -350,7 +353,7 @@ export const BOOK_KEPT_DESTRUCTIVE: ReadonlyMap<string, string> = new Map([
   // --- S29 C5 begin ---
   [
     "portfolixir.crashes.put",
-    "A window's name or a manual window's fields; putting the previous ones restores them (a window it drew is removed by crashes.delete, admin)."
+    "A window's name or a manual window's fields; putting the previous ones restores them (a window it drew is removed by crashes.delete, admin), but a name from_name made a manual window cannot be put back while its window is not detected."
   ],
   [
     "portfolixir.crashes.benchmark_put",
