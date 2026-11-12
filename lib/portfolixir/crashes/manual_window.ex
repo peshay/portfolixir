@@ -8,7 +8,8 @@ defmodule Portfolixir.Crashes.ManualWindow do
   the outcome. It may overlap a detected window or another manual one.
 
   The caller states `name`, `start` and `trough`, each under §4's rules:
-  the name as a detected window's (`Portfolixir.Crashes.WindowName.validate_name/1`),
+  the name as a detected window's (trimmed, at most
+  `Portfolixir.Crashes.WindowName.name_max/0` characters, `Portfolixir.Input.Text`),
   the dates ISO calendar dates (`Portfolixir.Input.BoundedDate`), the
   trough after the start, neither after `today`, the day of the write. The
   creating token is the system's to state and stays the creator's on an
@@ -55,7 +56,9 @@ defmodule Portfolixir.Crashes.ManualWindow do
   def changeset(%__MODULE__{} = window, attrs, %Date{} = today) when is_map(attrs) do
     window
     |> cast(attrs, [:name, :start, :trough])
-    |> WindowName.validate_name()
+    |> WindowName.trim_name()
+    |> validate_required([:name])
+    |> Text.validate(:name, max: WindowName.name_max())
     |> validate_required([:start, :trough, :author])
     |> BoundedDate.validate([:start, :trough])
     |> validate_not_future([:start, :trough], today)

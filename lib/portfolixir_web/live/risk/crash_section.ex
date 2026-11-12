@@ -808,10 +808,23 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   end
 
   defp no_start_text(count),
-    do: gettext("%{count} without a close at the window's start", count: count)
+    do:
+      ngettext(
+        "%{count} without a close at the window's start",
+        "%{count} without a close at the window's start",
+        count
+      )
 
-  defp no_end_text(count), do: gettext("%{count} without a close at its end", count: count)
-  defp no_rate_text(count), do: gettext("%{count} without an exchange rate", count: count)
+  defp no_end_text(count),
+    do:
+      ngettext(
+        "%{count} without a close at its end",
+        "%{count} without a close at its end",
+        count
+      )
+
+  defp no_rate_text(count),
+    do: ngettext("%{count} without an exchange rate", "%{count} without an exchange rate", count)
 
   defp reason_label("no_close_at_start"), do: gettext("no close at the window's start")
   defp reason_label("no_close_at_end"), do: gettext("no close at its end")
@@ -979,7 +992,11 @@ defmodule PortfolixirWeb.Risk.CrashSection do
         </div>
 
         <div :if={@unmatched != []} class="crash-unmatched" id="crash-unmatched">
-          <h3><%= gettext("Names without a window (%{count})", count: length(@unmatched)) %></h3>
+          <h3><%= ngettext(
+            "Name without a window (%{count})",
+            "Names without a window (%{count})",
+            length(@unmatched)
+          ) %></h3>
           <p class="hint">
             <%= gettext("The closes have changed: no detected window starts on these days any more. A name is never attached to another window by a guess.") %>
           </p>
@@ -1046,8 +1063,8 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   defp summary_text(detected, manual, unmatched) do
     parts =
       [
-        detected > 0 && gettext("%{count} detected", count: detected),
-        manual > 0 && gettext("%{count} manual", count: manual),
+        detected > 0 && ngettext("%{count} detected", "%{count} detected", detected),
+        manual > 0 && ngettext("%{count} manual", "%{count} manual", manual),
         unmatched > 0 &&
           ngettext("%{count} name without a window", "%{count} names without a window", unmatched)
       ]

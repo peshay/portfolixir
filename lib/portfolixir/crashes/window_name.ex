@@ -13,6 +13,7 @@ defmodule Portfolixir.Crashes.WindowName do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Input.Text
 
   @name_max 80
@@ -39,15 +40,30 @@ defmodule Portfolixir.Crashes.WindowName do
   def name_max, do: @name_max
 
   @doc """
-  A new name for the window keyed `benchmark_security_id` and `start`, or a
-  rename of a stored one; only `name` is cast from `attrs`.
+  A new name for the window keyed `benchmark_security_id` and `start`: the
+  key is the context's, put as a change and bounded like every stored date
+  (`Portfolixir.Input.BoundedDate`); only `name` is cast from `attrs`.
   """
-  @spec changeset(t(), map()) :: Ecto.Changeset.t()
-  def changeset(%__MODULE__{} = window_name, attrs) when is_map(attrs) do
+  @spec create_changeset(pos_integer(), Date.t(), map()) :: Ecto.Changeset.t()
+  def create_changeset(benchmark_security_id, %Date{} = start, attrs) when is_map(attrs) do
+    %__MODULE__{}
+    |> change(benchmark_security_id: benchmark_security_id, start: start)
+    |> changeset(attrs)
+  end
+
+  @doc """
+  A rename of a stored name, or a new one from `create_changeset/3`; only
+  `name` is cast from `attrs`.
+  """
+  @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
+  def changeset(window_name, attrs) when is_map(attrs) do
     window_name
     |> cast(attrs, [:name])
-    |> validate_name()
+    |> trim_name()
+    |> validate_required([:name])
+    |> Text.validate(:name, max: @name_max)
     |> validate_required([:benchmark_security_id, :start])
+    |> BoundedDate.validate([:start])
     |> unique_constraint([:benchmark_security_id, :start],
       name: :crash_window_names_key_index,
       message: "already names this window"
@@ -56,17 +72,12 @@ defmodule Portfolixir.Crashes.WindowName do
   end
 
   @doc """
-  The one rule for a crash window's name, a detected window's or a manual
-  one's (ADR-0058 §4): trimmed, required, at most 80 characters, one line,
-  ADR-0054 §4's text rules.
+  Trims a crash window's name, a detected window's or a manual one's
+  (ADR-0058 §4), before each changeset requires it and bounds it with
+  `Portfolixir.Input.Text.validate/3` at `name_max/0` characters.
   """
-  @spec validate_name(Ecto.Changeset.t()) :: Ecto.Changeset.t()
-  def validate_name(changeset) do
-    changeset
-    |> update_change(:name, &trim/1)
-    |> validate_required([:name])
-    |> Text.validate(:name, max: @name_max)
-  end
+  @spec trim_name(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  def trim_name(changeset), do: update_change(changeset, :name, &trim/1)
 
   defp trim(name) when is_binary(name), do: String.trim(name)
   defp trim(other), do: other
