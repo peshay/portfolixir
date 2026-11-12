@@ -204,7 +204,8 @@ defmodule PortfolixirWeb.Risk.CrashSection do
     {:noreply, socket |> assign(:show_unanswered, not socket.assigns.show_unanswered) |> rank()}
   end
 
-  def handle_event("crash_save_benchmark", %{"crash_benchmark" => raw}, socket) do
+  def handle_event("crash_save_benchmark", %{"crash_benchmark" => raw}, socket)
+      when raw != "" do
     with {:ok, id} <- LiveParam.fetch_id(raw),
          {:ok, _security} <- Settings.set_crash_benchmark(Actor.owner_ui(), id) do
       {:noreply, socket |> assign(form: nil, errors: []) |> load()}
@@ -214,6 +215,12 @@ defmodule PortfolixirWeb.Risk.CrashSection do
          assign(socket, :errors, [gettext("This security cannot be the crash benchmark.")])}
     end
   end
+
+  # Board 02 ④ A: with none chosen the select opens on a disabled
+  # „— choose —“, which a browser does not send; saving it unchanged is
+  # refused in the form and writes nothing.
+  def handle_event("crash_save_benchmark", _params, socket),
+    do: {:noreply, assign(socket, :errors, [gettext("Choose a security first.")])}
 
   def handle_event("crash_window_save", %{"window" => attrs}, socket) when is_map(attrs) do
     save(socket.assigns.form, texts(attrs), socket)
@@ -1093,6 +1100,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
     <form id="crash-benchmark-form" class="crash-benchmark-form" phx-submit="crash_save_benchmark" phx-target={@myself}>
       <label for="crash-benchmark"><%= gettext("Crash benchmark") %></label>
       <select id="crash-benchmark" name="crash_benchmark">
+        <option :if={is_nil(@benchmark)} value="" disabled selected><%= gettext("— choose —") %></option>
         <optgroup :for={group <- @groups} label={group.label} data-group={group.key}>
           <option
             :for={security <- group.securities}
