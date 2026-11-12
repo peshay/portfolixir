@@ -3571,7 +3571,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         </div>
         <%= if @form_errors != [] do %>
           <ul class="research-entry-form__errors" role="alert">
-            <%= for error <- @form_errors do %>
+            <%= for {_field, error} <- @form_errors do %>
               <li><%= error %></li>
             <% end %>
           </ul>
@@ -5688,10 +5688,25 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
-  # The thesis-only fields show up when the kind is a thesis (phx-change).
-  def handle_event("research_entry_changed", %{"note" => %{"kind" => kind}}, socket) do
+  # The thesis-only fields show up when the kind is a thesis, the marker
+  # fields on evidence and event_result (phx-change). Closing act, D1 and
+  # D2 (board 03 ⑨ „Die Eingaben bleiben stehen“): what was typed is kept,
+  # a field the kind does not render included, so it reads again when the
+  # kind comes back; the refusal of a field the new kind does not render
+  # goes, so the form names no error the operator cannot see.
+  def handle_event("research_entry_changed", %{"note" => %{"kind" => kind} = params}, socket) do
     kind = if kind in SecurityNote.kinds(), do: kind, else: "evidence"
-    {:noreply, assign(socket, :research_form_kind, kind)}
+    typed = params |> LiveParam.map() |> Map.take(@research_form_keys) |> text_values()
+    hidden = research_hidden_fields(kind)
+
+    {:noreply,
+     socket
+     |> assign(:research_form_kind, kind)
+     |> assign(:research_form_values, Map.merge(socket.assigns.research_form_values, typed))
+     |> update(:research_form_errors, fn errors ->
+       Enum.reject(errors, fn {field, _text} -> field in hidden end)
+     end)
+     |> update(:research_form_invalid, &(&1 -- hidden))}
   end
 
   def handle_event("research_entry_changed", _params, socket), do: {:noreply, socket}
@@ -7157,12 +7172,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # "Field: message", the message through the "errors" Gettext domain like the
   # booking form's (E25 S6, board 11), so a German page reads "darf nicht in
   # der Zukunft liegen" rather than the changeset's English.
+  # Each message keeps its field's form name, so a kind change can drop the
+  # refusal of a field it no longer renders (closing act, D2).
   defp research_form_errors(changeset) do
     changeset
     |> Ecto.Changeset.traverse_errors(&translate_research_error/1)
     |> Enum.flat_map(fn {field, messages} ->
-      Enum.map(messages, &"#{research_field_label(field)}: #{&1}")
+      Enum.map(messages, &{Atom.to_string(field), "#{research_field_label(field)}: #{&1}"})
     end)
+  end
+
+  # The fields the form does not render for `kind`: the marker fields
+  # outside evidence and event_result, the thesis fields outside thesis.
+  defp research_hidden_fields(kind) do
+    markers = if kind in SecurityNote.marker_kinds(), do: [], else: ~w(headline event_type tone)
+    thesis = if kind == "thesis", do: [], else: ~w(conviction invalidation_condition time_stop)
+    markers ++ thesis
   end
 
   # S29 N4: the fields a refused submit named, as the form's names, so each
