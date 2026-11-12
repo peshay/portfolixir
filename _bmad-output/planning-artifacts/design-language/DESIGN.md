@@ -10376,9 +10376,9 @@ screen and the API answer alike for the same window, list and universe.
   page's own pairs. Without them the section opens on the **newest
   window**, **Verlierer** and **„Im Depot“** (P3; the API's default stays
   the catalogue). A value the section does not know opens the default.
-- **With no view chosen** (Everything) there is no `view:<id>` to ask: the
-  section lists the catalogue, „Im Depot“ is a disabled option
-  (`aria-disabled`), and one hint line says why.
+- **With no view chosen** (Everything) „Im Depot“ lists the securities held
+  today in any depot, the API's universe `held` (the closing act; ADR-0058,
+  amendment of 2026-11-12, part 2, G2); with a view, `view:<id>`.
 
 ### Anatomy, top to bottom *(inside `section#risk-crashes.crash-section`)*
 
@@ -10422,7 +10422,9 @@ screen and the API answer alike for the same window, list and universe.
    reference, F2), and for the rebounders „Tage bis Vorkrisenkurs“ (calendar
    days, F3) or „noch nicht“ in the loss colour. The axis below the bars in
    whole percent, rounded outward to a step of at most four intervals,
-   zero always inside. Eight entries.
+   zero always inside. Eight entries. A long name and the „ggü.“ head wrap,
+   so every column stays in the section; same-named securities carry the
+   identifier that tells them apart (`SecurityNames.put_twin_ids/2`).
 7. **The basis line** (`p.summary-basis.crash-basis`): the figure and its
    dates, the reference („gestrichelt ‹benchmark› über dieselben Tage (…)“,
    or „kein Vergleich: kein Crash-Benchmark gewählt“), survivorship („nur
@@ -10437,11 +10439,14 @@ screen and the API answer alike for the same window, list and universe.
    form** (board 02 ④, Q2 A; flip „Einstellungsseite“): one select with the
    pickers' optgroups „Benchmarks“, „Im Bestand“ (and „Weitere“ for a
    chosen one neither offers, `PortfolixirWeb.BenchmarkChoices`),
-   „Speichern“ and „Abbrechen“, and the hints that every agent reads the
+   „Speichern“ and „Abbrechen“ — with none chosen the select opens on a
+   disabled „— wählen —“, and a save without a security is refused in the
+   form (board 02 ④ A) —, and the hints that every agent reads the
    same windows and that names stay with their benchmark; the **windows
    table** (Name, Hoch, Tief, Rückgang, Erholt, Lücke in days, Art, and
    Benennen / Umbenennen / Name löschen for a detected window, Bearbeiten /
-   Löschen for a manual one; the ongoing row on the warning tint); the
+   Löschen for a manual one; the ongoing row on the warning tint; the table
+   fits the section and a long name wraps, so the actions stay in it); the
    **name / manual form** (`form.crash-edit-form`: Name, and Hoch and Tief
    as ISO text inputs for a manual window); **„Namen ohne Fenster (n)“**
    with the hint that a name is never re-attached by a guess, each name
@@ -10459,7 +10464,10 @@ column (the `stack-bar` rule A); each entry becomes **two lines** — rank,
 name (ellipsis) and figure; then the bar under the name and the points
 under the figure — and the rebounders' days a third line with their label;
 the column heads leave the layout (kept for screen readers); the axis
-stays under the bars. „Im Depot ansehen“ joins the line's flow.
+stays under the bars, and the zero and dashed lines stay on the bar's
+line, never across the name above it. The window's select may take the
+section's width here; at full width it is capped at 19.5rem, so the bar
+stays one line. „Im Depot ansehen“ joins the line's flow.
 
 ### The privacy mode
 
@@ -10474,7 +10482,7 @@ Depot ansehen“ opens Holdings, which hides its amounts there.
 columns, `.crash-track` with `__bar`, `__zero`, `__ref`, `.crash-axis`,
 `.crash-unanswered`, `.crash-windows__body`, `.crash-rule`,
 `.crash-windows-table`, `.crash-unmatched`, `.crash-edit-form`,
-`.crash-form__errors`, `.crash-benchmark-form`,
-`.segmented-control__option.is-disabled`, and the 560 px container rule.
+`.crash-form__errors`, `.crash-benchmark-form`, and the 560 px container
+rule.
 Every colour is a token.
 <!-- S29 C6 end -->
