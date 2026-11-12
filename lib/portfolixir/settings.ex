@@ -30,6 +30,11 @@ defmodule Portfolixir.Settings do
       unreadable, each reads its default; set, each is journaled under its
       setter's actor like the default view. The similarity is stored as a
       decimal string and read as a `Decimal`, never a float.
+    * `crash_benchmark_security_id/0` / `set_crash_benchmark/2` — the
+      security whose closes the crash rule reads (ADR-0058 §1): any security
+      with a stored quote (`Portfolixir.Catalog.BenchmarkSecurity.resolve/1`,
+      Lane B's rule), named and cleared under its setter's actor, journaled.
+      No default: unset, the rule detects nothing.
   """
 
   import Ecto.Query
@@ -37,6 +42,8 @@ defmodule Portfolixir.Settings do
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Catalog.BenchmarkSecurity
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Journal
   alias Portfolixir.Repo
   alias Portfolixir.Settings.Setting
@@ -49,6 +56,7 @@ defmodule Portfolixir.Settings do
   @news_window_default 72
   @news_window_max 720
   @news_similarity_default "0.8"
+  @crash_benchmark_key "crash_benchmark_security_id"
 
   @doc "Reads the preference under `key`; `nil` when unset."
   @spec get(String.t()) :: String.t() | nil
@@ -196,6 +204,85 @@ defmodule Portfolixir.Settings do
     if valid_similarity?(similarity),
       do: put_journaled(actor, @news_similarity_key, Decimal.to_string(similarity, :normal)),
       else: {:error, :invalid}
+  end
+
+  # --- the crash benchmark (ADR-0058 §1; Sprint 29 C1) ---
+
+  @doc """
+  The id of the crash benchmark, the security whose closes the crash rule
+  reads (ADR-0058 §1), or `nil` when none is chosen. The id is read as
+  stored: whether it still names a benchmark is the read's to say.
+  """
+  @spec crash_benchmark_security_id() :: pos_integer() | nil
+  def crash_benchmark_security_id do
+    with raw when is_binary(raw) <- get(@crash_benchmark_key),
+         {id, ""} when id > 0 <- Integer.parse(raw) do
+      id
+    else
+      _unset_or_unreadable -> nil
+    end
+  end
+
+  @doc """
+  Names `security_id` the crash benchmark on behalf of `actor`, journaled as
+  a `"setting"` upsert; `nil` clears it, journaled as a delete (clearing an
+  unset one journals nothing). The security must be a benchmark by
+  `Portfolixir.Catalog.BenchmarkSecurity.resolve/1` — any security with a
+  stored quote, flagged or not — read inside the writing transaction; a
+  refusal (`:no_quote`, `:not_found`, `{:merged_into, survivor}`) writes
+  nothing.
+  """
+  @spec set_crash_benchmark(Actor.t(), pos_integer() | nil) ::
+          {:ok, Security.t() | nil} | {:error, BenchmarkSecurity.refusal()}
+  def set_crash_benchmark(%Actor{} = actor, nil) do
+    Multi.new()
+    |> Multi.run(:prior, fn repo, _changes ->
+      {:ok, locked_setting(repo, @crash_benchmark_key)}
+    end)
+    |> Multi.run(:setting, fn
+      _repo, %{prior: nil} -> {:ok, nil}
+      repo, %{prior: prior} -> repo.delete(prior)
+    end)
+    |> Journal.record(actor,
+      resource_type: "setting",
+      operation: :delete,
+      source: :setting,
+      before_step: :prior
+    )
+    |> commit_setting()
+
+    {:ok, nil}
+  end
+
+  def set_crash_benchmark(%Actor{} = actor, security_id)
+      when is_integer(security_id) and security_id > 0 do
+    changeset =
+      Setting.changeset(%Setting{}, %{
+        key: @crash_benchmark_key,
+        value: Integer.to_string(security_id)
+      })
+
+    Multi.new()
+    |> Multi.run(:prior, fn repo, _changes ->
+      {:ok, locked_setting(repo, @crash_benchmark_key)}
+    end)
+    |> Multi.run(:benchmark, fn _repo, _changes -> BenchmarkSecurity.resolve(security_id) end)
+    |> Multi.insert(:setting, changeset,
+      on_conflict: {:replace, [:value, :updated_at]},
+      conflict_target: :key,
+      returning: true
+    )
+    |> Journal.record(actor,
+      resource_type: "setting",
+      operation: :upsert,
+      source: :setting,
+      before_step: :prior
+    )
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{benchmark: security}} -> {:ok, security}
+      {:error, :benchmark, refusal, _changes} -> {:error, refusal}
+    end
   end
 
   defp valid_window?(hours), do: hours >= 1 and hours <= @news_window_max

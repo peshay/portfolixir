@@ -248,7 +248,10 @@ defmodule PortfolixirWeb.ApiV1IdRangeTest do
        &%{"bucket_ids" => [&1]}},
       {:post, "/api/v1/splits/preview", "security_id",
        &%{"security_id" => &1, "date" => "2026-01-02"}},
-      {:put, "/api/v1/settings/default_view", "view_id", &%{"view_id" => &1}}
+      {:put, "/api/v1/settings/default_view", "view_id", &%{"view_id" => &1}},
+      # --- S29 C1 begin ---
+      {:put, "/api/v1/settings/crash_benchmark", "security_id", &%{"security_id" => &1}}
+      # --- S29 C1 end ---
     ]
 
     for {verb, path, field, body} <- sites, value <- [@far_number, @far] do

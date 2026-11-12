@@ -4385,9 +4385,9 @@ client can apply the buckets/views model itself using each row's
 ## Settings
 
 A minimal keyed preference store backs the user-facing defaults (ADR-0024).
-Today it carries one preference: the **default view** the Wealth page and
-dashboard open on when no explicit view was chosen in the UI. No financial
-decimals are involved.
+It carries the **default view** the Wealth page and dashboard open on when no
+explicit view was chosen in the UI, and the **crash benchmark** the crash
+rule reads (ADR-0058 §1). No financial decimals are involved.
 
 - `GET /api/v1/settings/default_view` returns the current default:
   `{"data": {"view_id": null, "view": null}}` when unset (the built-in
@@ -4398,6 +4398,19 @@ decimals are involved.
   `422`. The response mirrors the `GET` shape. A change is journaled under
   the token's principal (`resource_type` `setting`, an `upsert`, or a
   `delete` when cleared), so the previous default is in its before-image.
+- `PUT /api/v1/settings/crash_benchmark` names the **crash benchmark**
+  (ADR-0058 §1), the security whose closes the crash rule reads. Body:
+  `{"security_id": <id>}` with any security that has at least one stored
+  quote, flagged `is_benchmark` or not, or `{"security_id": null}` to clear
+  it; there is no default. The answer is `{"data": {"security_id", "security":
+  {id, name, is_benchmark, benchmark_security}}}` (`benchmark_security` is
+  `flagged`, `held` or `unheld`), both `null` when cleared. A security without
+  a stored quote answers `422` with `errors.security_id` `["has no stored
+  quote"]`; an unknown id `["is not a benchmark security"]`, and a merged-away
+  one the same with `merged_into: {kind, id}` naming the survivor; a malformed
+  or missing `security_id` and any other field answer `422` naming it.
+  Nothing is written on a refusal. The change is journaled under the token's
+  principal (`resource_type` `setting`).
 
 ## Imports
 
