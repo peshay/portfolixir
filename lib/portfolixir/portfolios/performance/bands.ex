@@ -105,14 +105,23 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   interest and trade costs are no flow: they move cash, which has no line.
 
   Nothing is stored: each read runs its own walk from the window's baseline
-  day (ADR-0051, note of 2026-10-28).
+  day (ADR-0051, note of 2026-10-28). The answer is a derived value of its
+  own (ADR-0039, I34 step 1): the `:performance_bands` analytic under the
+  portfolio's basis, and `:performance_view_bands` under the global basis
+  for a view across portfolios, computation version 1, lifetime `:request`
+  by default, keyed as the contribution table is (scope, walk end date,
+  period, and the base currency across portfolios) plus the request's level,
+  sort, scale, category filter and classification. Only the fixed periods
+  are memoised; a custom range is computed on every read.
   """
 
   alias Portfolixir.Buckets
   alias Portfolixir.Classifications
   alias Portfolixir.Clock
+  alias Portfolixir.Derived
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
+  alias Portfolixir.Portfolios.Performance.Contribution
   alias Portfolixir.Portfolios.Targets
 
   @zero Decimal.new("0")
@@ -163,15 +172,29 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
          {:ok, scope} <- loaded(Buckets.load_scope(portfolio_id, view)),
          {:ok, grouping} <-
            grouping(request, fn -> Targets.list_targets(portfolio_id, view: view) end) do
-      portfolio_id
-      |> Performance.contribution_analysis(scope, period,
-        today: today,
-        from_baseline: true,
-        bands: true
-      )
-      |> build(period, request, grouping)
-      |> Map.merge(%{portfolio_id: portfolio_id, view_id: view})
-      |> then(&{:ok, &1})
+      compute = fn ->
+        portfolio_id
+        |> Performance.contribution_analysis(scope, period,
+          today: today,
+          from_baseline: true,
+          bands: true
+        )
+        |> build(period, request, grouping)
+        |> Map.merge(%{portfolio_id: portfolio_id, view_id: view})
+      end
+
+      key =
+        "view=#{view || "unscoped"}|today=#{today}|period=#{Contribution.period_key(period)}|" <>
+          request_key(request)
+
+      {:ok,
+       served(
+         :performance_bands,
+         Derived.portfolio_basis(portfolio_id),
+         key,
+         {period, today},
+         compute
+       )}
     end
   end
 
@@ -197,21 +220,65 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
          :ok <- Performance.validate_period(period),
          {:ok, scope} <- loaded(Buckets.load_global_scope(view_id)),
          {:ok, grouping} <- grouping(request, targets) do
-      view_id
-      |> Performance.view_contribution_analysis(scope, period,
-        base_currency: base,
-        today: today,
-        from_baseline: true,
-        bands: true
-      )
-      |> build(period, request, grouping)
-      |> Map.merge(%{portfolio_id: nil, view_id: view_id})
-      |> then(&{:ok, &1})
+      compute = fn ->
+        view_id
+        |> Performance.view_contribution_analysis(scope, period,
+          base_currency: base,
+          today: today,
+          from_baseline: true,
+          bands: true
+        )
+        |> build(period, request, grouping)
+        |> Map.merge(%{portfolio_id: nil, view_id: view_id})
+      end
+
+      key =
+        "view=#{view_id || "unscoped"}|base=#{base}|today=#{today}" <>
+          "|period=#{Contribution.period_key(period)}|" <> request_key(request)
+
+      {:ok,
+       served(:performance_view_bands, Derived.global_basis(), key, {period, today}, compute)}
     end
   end
 
   defp loaded({:error, :view_not_found} = error), do: error
   defp loaded(scope), do: {:ok, scope}
+
+  # -- the analytic (I34 step 1, ADR-0039) -------------------------------------------
+
+  # Its own analytic per scope, period and request, keyed as the contribution
+  # table is -- the scope, the walk's end date and the period within the
+  # basis, the base currency across portfolios -- plus the request's level,
+  # sort, scale, category filter and classification. The classification is
+  # the one requested, `default` when none is: which tree the default
+  # resolves to is data (the targets, the custom trees), and every write to
+  # it bumps the basis the entry is kept under. Only the fixed periods are
+  # memoised, by the contribution table's own rule: a custom range, or a
+  # calendar year past today, is computed on every read (E25 S4, G03). The
+  # payload carries `stale: false` from `build/4`: a memo hit counts only
+  # while its basis's data version is current (ADR-0039 C4).
+  defp served(analytic, basis, key, {period, today}, compute) do
+    if Contribution.fixed_period?(period, today) do
+      {:fresh, value} = Derived.fetch(analytic, basis, key, compute)
+      value
+    else
+      compute.()
+    end
+  end
+
+  defp request_key(request) do
+    "level=#{request.level}|sort=#{request.sort}|scale=#{request.scale}" <>
+      "|category=#{category_key(request.category_id)}" <>
+      "|classification=#{classification_key(Keyword.get(request.opts, :classification_id))}"
+  end
+
+  defp category_key(nil), do: "none"
+  defp category_key(:unclassified), do: "unclassified"
+  defp category_key(id) when is_integer(id), do: Integer.to_string(id)
+
+  defp classification_key(nil), do: "default"
+  defp classification_key(id) when is_integer(id), do: Integer.to_string(id)
+  defp classification_key(id), do: inspect(id)
 
   # -- the request -----------------------------------------------------------------
 

@@ -37,6 +37,11 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
     # under the portfolio basis (or the global basis for a view across
     # portfolios) at lifetime `:request`. It has no write path.
     "lib/portfolixir/portfolios/performance/contribution.ex" => [[:Portfolixir, :Derived]],
+    # The stacked value chart's bands (FR-53, I34 step 1): a registered read
+    # model over the contribution walk keeping each day's terms apart, keyed
+    # like the contribution table plus the request, at lifetime `:request`.
+    # It has no write path.
+    "lib/portfolixir/portfolios/performance/bands.ex" => [[:Portfolixir, :Derived]],
     # The per-security derived metrics (ADR-0047 §8, FR-39): a registered read
     # model over one security's stored close series, served through the same
     # facade at lifetime `:none` — it has no write path, and the reason its
