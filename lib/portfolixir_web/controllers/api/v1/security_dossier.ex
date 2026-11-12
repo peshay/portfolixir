@@ -29,7 +29,14 @@ defmodule PortfolixirWeb.Api.V1.SecurityDossier do
     * `news` (S28 N6, ADR-0056 §9) — `Portfolixir.News.dossier_block/2`:
       the stories of the last 7 days as `news.list` with `since` reads them,
       how many are primary, their highest label materiality, and the newest
-      primary story, in about 50 tokens.
+      primary story, in about 50 tokens;
+    * `cycles` (S29 H6, ADR-0060 §11) — for a security with the cycles view,
+      the next low's and the next top's band of
+      `Portfolixir.Catalog.SecurityCycles.for_security/1` as `low` and `top`,
+      each one array
+      `[window from, window to, price from, price to, state, n]`, n the
+      fewest observations a present part's time side read; about 40 tokens;
+      `nil` without the view.
 
   Drift is left out on purpose (D-2): it needs a classification and a
   valuation per portfolio, and the `targets` part names the read that states
@@ -38,6 +45,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityDossier do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Catalog.SecurityCycles
   alias Portfolixir.Catalog.SecurityMetrics
   alias Portfolixir.Classifications
   alias Portfolixir.Clock
@@ -84,8 +92,15 @@ defmodule PortfolixirWeb.Api.V1.SecurityDossier do
     # --- S28 N6 begin ---
     news:
       "GET /api/v1/news/stories?security_id=:id&since=<7 days back> (portfolixir.news.list); " <>
-        "newest_primary at any age"
+        "newest_primary at any age",
     # --- S28 N6 end ---
+    # --- S29 H6 begin ---
+    cycles:
+      "GET /api/v1/securities/:id/cycles (portfolixir.securities.cycles): low and top are " <>
+        "projection.next_low's and next_top's band as [window from, to, price from, to, " <>
+        "state, n], n the fewest " <>
+        "observations of a present part; an analog band, not a forecast; null without the view"
+    # --- S29 H6 end ---
   }
 
   @doc """
@@ -116,10 +131,38 @@ defmodule PortfolixirWeb.Api.V1.SecurityDossier do
       categories: categories_part(id),
       targets: targets_part(id, portfolio_ids),
       # --- S28 N6 begin ---
-      news: news_part(id)
+      news: news_part(id),
       # --- S28 N6 end ---
+      # --- S29 H6 begin ---
+      cycles: cycles_part(security)
+      # --- S29 H6 end ---
     }
   end
+
+  # --- S29 H6 begin ---
+  # ADR-0060 §11: the two bands of the cycles read, one array each, as the
+  # read renders them; nothing is computed here.
+  defp cycles_part(%Security{halving_chain: nil}), do: nil
+
+  defp cycles_part(%Security{id: id}) do
+    case SecurityCycles.for_security(id) do
+      {:ok, %{reason: nil, projection: projection}} ->
+        %{low: band_line(projection.next_low), top: band_line(projection.next_top)}
+
+      {:ok, _no_view} ->
+        nil
+    end
+  end
+
+  defp band_line(%{band: %{window: window, price: price}} = event) do
+    n = event.parts |> Enum.filter(& &1.window) |> Enum.map(& &1.n_time) |> Enum.min()
+
+    [window.from, window.to, price.from, price.to, event.state, n]
+    |> JSON.plain()
+  end
+
+  defp band_line(_no_band), do: nil
+  # --- S29 H6 end ---
 
   # --- S28 N6 begin ---
   # ADR-0056 §9: the news block, its times to the second as the news reads

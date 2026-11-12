@@ -207,6 +207,17 @@ defmodule PortfolixirWeb.Router do
     # security, each part built by the function its own read uses.
     get("/securities/:id/dossier", SecurityDossierController, :show)
 
+    # --- S29 H6 begin ---
+    # The halving cycles read (FR-58, ADR-0060 §11): the windows, tops, lows,
+    # intervals and the analog band, not a forecast; include=aligned only.
+    get("/securities/:security_id/cycles", SecurityCyclesController, :show)
+
+    # The registered block chains and their source's health (ADR-0059 §8,
+    # §11), and the on-demand run, once per 10 minutes per chain.
+    get("/chains", ChainController, :index)
+    post("/chains/:chain/refresh", ChainController, :refresh)
+    # --- S29 H6 end ---
+
     # The security research log (ADR-0044): append, and the four reads of §7.
     # Deliberately no PATCH and no DELETE — entries never vanish (§3); a
     # retraction is appended.

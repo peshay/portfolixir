@@ -1571,6 +1571,35 @@ empty at `200`. A security merged into another answers `404` with
 unknown id answers the plain `404`. The human view is the security page for
 every part but `targets`, whose view is the Classifications page.
 
+### Halving cycles and the chain source (FR-58, ADR-0059, ADR-0060)
+
+A security bound to a block chain (`halving_chain`) has its halvings as
+calendar events and, from two confirmed halvings on, a cycles read. Bitcoin's
+halvings are read from the chain itself; Bitcoin Cash and Litecoin have no
+source and are written by hand.
+
+- `GET /api/v1/chains` — the registered chains (`bitcoin`, `bitcoin_cash`,
+  `litecoin`) with `halving_interval`, `target_spacing_seconds`, `has_source`
+  and `bound_securities`; for Bitcoin also `health` (`source_host`,
+  `last_tried_at`, `last_ok_at`, `last_error`, `stale` after 24 hours without
+  a successful run), `next_halving_inputs` (the tip, its time, the time 2,016
+  blocks below and `mean_block_seconds`, a decimal string) and
+  `refresh.available_at`. Takes no parameter.
+- `POST /api/v1/chains/:chain/refresh` — reads the chain's source now and
+  answers its entry with `run` (`ok`, `unbound` or `failed`). At most once per
+  10 minutes per chain, scheduled runs counted: sooner answers `429` with
+  `errors.retry_after` and the `Retry-After` header; a chain without a source
+  answers `422` with `errors.code` `no_source`.
+- `GET /api/v1/securities/:security_id/cycles` — the halvings,
+  `chain_source`, the windows with their tops and lows, the six intervals with
+  `n`, minimum and maximum, and the `projection`: the next low's and the next
+  top's analog band, `not_a_forecast: true`, with its parts, `agree` and
+  `state`; `computation_basis` states every rule. `include=aligned` adds each
+  window's closes indexed to its halving day's close. There is no `as_of`: it
+  and every other parameter answer `422` naming it. Decimals are strings.
+
+The dossier carries the two bands as its `cycles` line.
+
 ### Bonds: master data and the bond reading (ADR-0052)
 
 A bond's master data is six nullable fields of the security, settable with
