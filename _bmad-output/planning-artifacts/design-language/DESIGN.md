@@ -10270,3 +10270,43 @@ superseded note name no amount (ADR-0056 D8, as the pins).
 `.research-entry--superseded .note-glyph circle` (`--color-border-strong`,
 as the superseded entry's left edge). Every colour is a token.
 <!-- S29 N3 end -->
+
+<!-- S29 N4 begin -->
+### The form that writes them *(Sprint 29 N4; board 03, frames ⑦ to ⑪, A)*
+
+„Eintrag anhängen“ (`#research-entry-form`) writes the three fields the
+entry's anatomy above reads, with `notes.append`'s validation
+(`SecurityNote.changeset/3`); the author stays the operator and
+`news_label_id` stays empty (no label was taken from).
+
+- **Only on the kinds that carry them** (`SecurityNote.marker_kinds()`:
+  Beleg, Ereignisergebnis). Any other kind renders none of them, by the
+  same `phx-change` that shows the thesis fields on a thesis; a field not
+  rendered is not submitted.
+- **In the grid, no disclosure**, after Art · Quellenqualität · Stichtag ·
+  Ersetzt and before „Eintrag“, in the entry's order: a
+  `div.research-entry-form__full.research-entry-form__grid`
+  (`data-role="research-marker-fields"`) holding the headline across the
+  width (`input type="text"`, `aria-describedby` its hint), the hint
+  („Höchstens 80 Zeichen, eine Zeile. Nur ein Eintrag mit Überschrift steht
+  als Nadel im Diagramm.“, `p.hint`), then „Ereignisart“ and „Tonalität“
+  side by side, each with „— nicht angegeben —“ first and the words of
+  `EventTypeLabel`. The controls are those of „Ins Research-Log“.
+- **No `maxlength` and no counter**: the browser counts UTF-16 units, the
+  server code points, and a paste cut silently would be worse than the
+  refusal; the hint names the bound.
+- **Refused** like every refusal of the form: „Überschrift: darf höchstens
+  80 Zeichen lang sein“ in `.research-entry-form__errors`, the field
+  `aria-invalid="true"`, every value kept. The comment „Research-Formular
+  B“ would move the three behind a disclosure „Überschrift und
+  Einordnung“.
+
+**The `app.css` rule** (between `S29 N4 begin` / `end`):
+`.research-entry-form__grid [aria-invalid="true"]` sets
+`--color-danger` as the border. Without it the grid's own border rule
+outranked the general `[aria-invalid="true"]`, and a refused field kept
+its grey border here and in „Ins Research-Log“.
+
+**„Ins Research-Log“ shows its source link as its domain** (ADR-0056 E2),
+as the entry does: `PortfolixirWeb.LinkDomain.of/1` is the one helper.
+<!-- S29 N4 end -->

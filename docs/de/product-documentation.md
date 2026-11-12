@@ -739,7 +739,15 @@ Stichdatum eintragen (den Stand der Aussage, nicht das heutige Datum, wenn
 beide auseinanderfallen) und optional den Quellenlink, ein „Gültig bis“ für
 eine datierte Sperre und den Eintrag, den dieser ersetzt. Die Art *These*
 blendet die Thesenfelder ein (Überzeugung, Invalidierungsbedingung,
-Zeitstopp). Dasselbe Log ist über API und MCP lesbar und beschreibbar
+Zeitstopp). Ein *Beleg* oder ein *Ereignisergebnis* nimmt außerdem eine
+optionale **Überschrift** (höchstens 80 Zeichen, eine Zeile), eine
+**Ereignisart** und eine **Tonalität** (positiv, neutral, negativ), wie der
+Agent sie mit `notes.append` schreiben kann; nur ein Eintrag mit Überschrift
+steht als Nadel im Diagramm. Jede andere Art zeigt keines der drei Felder.
+Eine zu lange Überschrift, oder eine mit Zeilenumbruch oder unsichtbarem
+Zeichen, wird in der Fehlerliste des Formulars abgelehnt („Überschrift: darf
+höchstens 80 Zeichen lang sein“), das Feld markiert, das Getippte bleibt
+stehen. Dasselbe Log ist über API und MCP lesbar und beschreibbar
 (`/api/v1/securities/:id/notes` und die `portfolixir.notes.*`-Tools),
 einschließlich der drei Hygiene-Reads — gehaltene Positionen ohne Eintrag
 seit N Tagen, Einträge, die noch bestätigt werden müssen, und datierte
