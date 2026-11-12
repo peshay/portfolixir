@@ -10253,9 +10253,13 @@ as before.
 ### At 390 px *(board ④)*
 
 The headline wraps beside the glyph, which stays on its first line; the
-label wraps as one line under it. The browser walk
+label wraps as one line under it: the „·“ before „nicht im Diagramm,
+weil ersetzt“ ends the part before it, joined by a no-break space, so no
+line starts with it (closing act, D3). The browser walk
 `research_entry_phone.js` measures both at 390 px, with an 80-character
-headline and a 400-character link, and that nothing runs past the entry.
+headline and a 400-character link, and that nothing runs past the entry,
+and a superseded entry's label, which wraps, for a line starting with
+„·“.
 
 ### The privacy mode
 

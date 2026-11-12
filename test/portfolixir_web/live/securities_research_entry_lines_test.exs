@@ -116,10 +116,13 @@ defmodule PortfolixirWeb.SecuritiesResearchEntryLinesTest do
     |> LazyHTML.query("#research-entry-#{note.id}")
   end
 
+  # The text as read, spaces collapsed; the label's no-break space before
+  # its „·“ (closing act, D3) reads as a space.
   defp text(node, selector) do
     node
     |> LazyHTML.query(selector)
     |> LazyHTML.text()
+    |> String.replace("\u00A0", " ")
     |> String.split()
     |> Enum.join(" ")
   end

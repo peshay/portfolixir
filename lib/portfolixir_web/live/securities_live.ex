@@ -3627,17 +3627,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <SecurityChart.note_glyph tone={note.tone} />
                 <span><%= note.headline %></span>
               </p>
+              <%!-- Closing act, D3: the „·“ before „not on the chart“ ends the
+                   part before it, joined by a no-break space, so a wrap
+                   never starts a line with it (DESIGN.md S29 N3: the label
+                   wraps as one line). --%>
               <p :if={entry_label?(note)} class="research-entry__label">
-                <span :if={entry_label(note) != ""}><%= entry_label(note) %></span>
-                <span
-                  :if={note.news_label_id}
-                  class="badge badge--neutral"
-                  title={gettext("Event type and tone taken from a model's labelling of the story; confirmed by the write")}
-                >
-                  <%= gettext("machine-made") %>
+                <span :if={entry_label(note) != ""}><%= entry_label(note) %><%= if off_chart?(note) and is_nil(note.news_label_id), do: "\u00A0·" %></span>
+                <span :if={note.news_label_id}>
+                  <span
+                    class="badge badge--neutral"
+                    title={gettext("Event type and tone taken from a model's labelling of the story; confirmed by the write")}
+                  >
+                    <%= gettext("machine-made") %>
+                  </span><%= if off_chart?(note), do: "\u00A0·" %>
                 </span>
                 <span :if={off_chart?(note)}>
-                  <%= if entry_label(note) != "" or note.news_label_id, do: "· " %><%= gettext("not on the chart, as it is superseded") %>
+                  <%= gettext("not on the chart, as it is superseded") %>
                 </span>
               </p>
               <%!-- S29 N3 end --%>
