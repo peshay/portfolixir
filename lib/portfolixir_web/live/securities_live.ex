@@ -49,6 +49,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.EventTypeLabel
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LinkDomain
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleReferences
   alias PortfolixirWeb.PrivacyMode
@@ -84,8 +85,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   # The fields the research form renders (`research_tab_panel/1`), and the
   # only ones its submit is read for (E25 S6, F15, decision T-5).
+  # S29 N4: headline, event type and tone, rendered on evidence and
+  # event_result only (board ux-design-2026-11-12-sprint29/03, A).
   @research_form_keys ~w(kind source_quality as_of supersedes_id body source_url
-                         valid_until conviction invalidation_condition time_stop)
+                         valid_until conviction invalidation_condition time_stop
+                         headline event_type tone)
 
   # S28 N8: the fields the story's note form offers to change (ADR-0056 §8);
   # its body is the operator's, its date and source the story's.
@@ -183,6 +187,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_note_editing?, false)
      |> assign(:research_form_kind, "evidence")
      |> assign(:research_form_errors, [])
+     |> assign(:research_form_invalid, [])
      |> assign(:research_form_values, %{})
      # S28 N8: the tab „Nachrichten“ and its note form, closed.
      |> assign(:detail_stories, %{rows: [], truncated: false})
@@ -1534,6 +1539,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           thesis_state={@detail_thesis_state}
           form_kind={@research_form_kind}
           form_errors={@research_form_errors}
+          form_invalid={@research_form_invalid}
           form_values={@research_form_values}
         />
       <% end %>
@@ -3345,6 +3351,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # What a refused submit carried, drawn back into the form (E25 S6, board 11):
   # a refusal names what to correct, never what to type again.
   attr(:form_values, :map, default: %{})
+  # S29 N4: the fields a refused submit named, each marked aria-invalid.
+  attr(:form_invalid, :list, default: [])
 
   # ADR-0044 §6: the research timeline. Newest first; kind and source quality
   # visible; a superseded entry stays in the list marked as superseded; a
@@ -3482,6 +3490,51 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <% end %>
             </select>
           </label>
+          <%!-- S29 N4 begin (board ux-design-2026-11-12-sprint29/03 ⑧ A;
+               ADR-0054 §4, ADR-0056 §8): on evidence and event_result only,
+               the headline, its hint, the event type and the tone, in the
+               entry's order and with the controls of „To the research log“.
+               No maxlength: the browser counts UTF-16 units, the server
+               code points, and a paste silently cut would be worse than the
+               refusal. --%>
+          <div
+            :if={@form_kind in SecurityNote.marker_kinds()}
+            class="research-entry-form__full research-entry-form__grid"
+            data-role="research-marker-fields"
+          >
+            <label class="research-entry-form__full">
+              <span><%= gettext("Headline") %></span>
+              <input
+                type="text"
+                name="note[headline]"
+                value={@form_values["headline"]}
+                aria-describedby="research-headline-hint"
+                aria-invalid={if "headline" in @form_invalid, do: "true"}
+              />
+            </label>
+            <p class="hint research-entry-form__full" id="research-headline-hint">
+              <%= gettext("At most 80 characters, one line. Only an entry with a headline is drawn as a pin on the chart.") %>
+            </p>
+            <label>
+              <span><%= gettext("Event type") %></span>
+              <select name="note[event_type]" aria-invalid={if "event_type" in @form_invalid, do: "true"}>
+                <option value="" selected={@form_values["event_type"] in [nil, ""]}><%= gettext("— not stated —") %></option>
+                <option :for={type <- SecurityNote.event_types()} value={type} selected={@form_values["event_type"] == type}>
+                  <%= EventTypeLabel.event_type(type) %>
+                </option>
+              </select>
+            </label>
+            <label>
+              <span><%= gettext("Tone") %></span>
+              <select name="note[tone]" aria-invalid={if "tone" in @form_invalid, do: "true"}>
+                <option value="" selected={@form_values["tone"] in [nil, ""]}><%= gettext("— not stated —") %></option>
+                <option :for={tone <- [1, 0, -1]} value={tone} selected={@form_values["tone"] == to_string(tone)}>
+                  <%= EventTypeLabel.tone(tone) %>
+                </option>
+              </select>
+            </label>
+          </div>
+          <%!-- S29 N4 end --%>
           <label class="research-entry-form__full">
             <span><%= gettext("Entry") %></span>
             <textarea name="note[body]" rows="3" required><%= @form_values["body"] %></textarea>
@@ -5615,6 +5668,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             {:noreply,
              socket
              |> assign(:research_form_errors, [])
+             |> assign(:research_form_invalid, [])
              |> assign(:research_form_values, %{})
              |> assign(:research_form_kind, "evidence")
              |> load_research_log()
@@ -5624,6 +5678,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             {:noreply,
              socket
              |> assign(:research_form_errors, research_form_errors(changeset))
+             |> assign(:research_form_invalid, research_form_invalid(changeset))
              |> assign(:research_form_values, text_values(typed))
              |> put_action_result(:problem, gettext("Could not append the entry."))}
         end
@@ -6671,6 +6726,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_bond, nil)
     |> assign(:detail_note_editing?, false)
     |> assign(:research_form_errors, [])
+    |> assign(:research_form_invalid, [])
     |> assign(:research_form_values, %{})
   end
 
@@ -6997,12 +7053,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   # ADR-0056 E2: an entry's link is shown as its host (lower-cased) and opens
   # the link; a link without a host reads „link“, never the link in full.
-  defp link_domain(url) do
-    case URI.parse(url) do
-      %URI{host: host} when is_binary(host) and host != "" -> String.downcase(host)
-      _no_host -> gettext("link")
-    end
-  end
+  # S29 N4 moved it to `PortfolixirWeb.LinkDomain`, which the story's form
+  # reads too.
+  defp link_domain(url), do: LinkDomain.of(url)
 
   # --- S29 N3 end ---
 
@@ -7112,6 +7165,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end)
   end
 
+  # S29 N4: the fields a refused submit named, as the form's names, so each
+  # control the form renders marks itself aria-invalid.
+  defp research_form_invalid(changeset),
+    do: changeset.errors |> Keyword.keys() |> Enum.uniq() |> Enum.map(&Atom.to_string/1)
+
   defp translate_research_error({message, opts}) do
     if count = opts[:count] do
       Gettext.dngettext(PortfolixirWeb.Gettext, "errors", message, message, count, opts)
@@ -7138,6 +7196,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp research_field_label(:conviction), do: gettext("Conviction")
   defp research_field_label(:invalidation_condition), do: gettext("Invalidation condition")
   defp research_field_label(:time_stop), do: gettext("Time stop")
+  defp research_field_label(:headline), do: gettext("Headline")
+  defp research_field_label(:event_type), do: gettext("Event type")
+  defp research_field_label(:tone), do: gettext("Tone")
   defp research_field_label(field), do: Atom.to_string(field)
 
   # #920, pick H8.6 = A (board 08-dialogs-copy): a row action that finds its
