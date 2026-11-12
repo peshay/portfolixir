@@ -256,12 +256,14 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventControllerTest do
   # so that a long URL is a 422 I can act on rather than a 500 I cannot.
   #
   # Acceptance criteria:
-  # - A `source_url` longer than the column answers 422 naming the field.
+  # - A `source_url` longer than the column's 2,048 characters (ADR-0056
+  #   E2, #1443) answers 422 naming the field.
   # - A link at the limit is stored.
   test "a source_url longer than the column is a 422, not a 500", %{conn: conn} do
     security = create_security!(name: "Long Link Co", ticker: "LLC")
 
-    too_long = "https://example.invalid/?q=" <> String.duplicate("a", 300)
+    too_long = "https://example.invalid/?q=" <> String.duplicate("a", 2049 - 27)
+    assert String.length(too_long) == 2049
 
     assert %{"errors" => %{"source_url" => [_ | _]}} =
              conn
@@ -276,8 +278,8 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventControllerTest do
              })
              |> json_response(422)
 
-    at_limit = "https://example.invalid/?q=" <> String.duplicate("a", 255 - 27)
-    assert String.length(at_limit) == 255
+    at_limit = "https://example.invalid/?q=" <> String.duplicate("a", 2048 - 27)
+    assert String.length(at_limit) == 2048
 
     assert %{"data" => %{"source_url" => ^at_limit}} =
              conn

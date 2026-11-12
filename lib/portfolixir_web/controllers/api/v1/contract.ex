@@ -57,8 +57,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             "Sprint 29, N1 (ADR-0056 E1, #1444): a rating by hand or by seed that changes " <>
               "a source's tier re-rates the stored news items it decides in the same " <>
               "write, a block removes the ones no research entry names, and the write's " <>
-              "journal entry counts both; portfolixir.news.sources_put says so."
+              "journal entry counts both; portfolixir.news.sources_put says so.",
             # --- S29 N1 end ---
+            # --- S29 N2 begin ---
+            "Sprint 29, N2 (ADR-0056 E2, #1443): a research entry's and an event's " <>
+              "source_url hold 2,048 characters, the news parser's own cap, so a story " <>
+              "whose links are all long becomes an entry."
+            # --- S29 N2 end ---
           ],
           " "
         ),
@@ -76,8 +81,20 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "unchanged (domain, tier, set_by); the write's journal entry (news_source) " <>
           "carries items_rerated, items_removed and items_kept_promoted beside the tier. " <>
           "A seed onto a hand rating still changes nothing. The tool's description says " <>
-          "so, within its former bytes."
+          "so, within its former bytes.",
         # --- S29 N1 end ---
+        # --- S29 N2 begin ---
+        "POST /api/v1/securities/:security_id/notes (portfolixir.notes.append), changed: " <>
+          "source_url is an http(s) URL of at most 2,048 characters (was 255), counted in " <>
+          "code points; a longer one still answers 422 naming source_url. With cluster_id " <>
+          "the entry takes the representative's link whenever it is stored, every stored " <>
+          "news link being at most 2,048 characters.",
+        "POST /api/v1/securities/:security_id/events (portfolixir.events.create) and " <>
+          "PATCH /api/v1/security_events/:id (portfolixir.events.update), changed: " <>
+          "source_url is at most 2,048 characters (was 255), else 422 naming source_url; " <>
+          "with news_id the item's link is taken whole, and the 422 naming news_id for a " <>
+          "link over 2,048 characters is kept."
+        # --- S29 N2 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

@@ -313,11 +313,14 @@ defmodule PortfolixirWeb.ApiV1NotesTest do
   # so that a long URL is a 422 I can act on rather than a 500 I cannot.
   #
   # Acceptance criteria:
-  # - A note `source_url` longer than 255 characters answers 422 naming the
-  #   field, and nothing is appended.
+  # - A note `source_url` longer than 2,048 characters (ADR-0056 E2, #1443)
+  #   answers 422 naming the field, and nothing is appended.
+  # - A 300-character link, an aggregator's redirect, is appended.
   test "a note source_url longer than the column is a 422, not a 500", %{conn: conn} do
     security = WorldFixtures.create_security!(name: "Long Link Co", ticker: "LLC")
-    too_long = "https://example.invalid/?utm_source=" <> String.duplicate("a", 300)
+    prefix = "https://example.invalid/?utm_source="
+    too_long = prefix <> String.duplicate("a", 2049 - String.length(prefix))
+    assert String.length(too_long) == 2049
 
     assert %{"errors" => %{"source_url" => [_ | _]}} =
              post_json(
@@ -337,17 +340,36 @@ defmodule PortfolixirWeb.ApiV1NotesTest do
              )
 
     assert Knowledge.list_notes(security.id) == []
+
+    redirect = prefix <> String.duplicate("a", 300 - String.length(prefix))
+
+    assert %{"data" => %{"source_url" => ^redirect}} =
+             post_json(
+               conn,
+               "/api/v1/securities/#{security.id}/notes",
+               %{
+                 "note" => %{
+                   "kind" => "evidence",
+                   "body" => "a filing behind an aggregator's redirect",
+                   "source_quality" => "primary",
+                   "as_of" => "2026-08-01",
+                   "author" => "agent",
+                   "source_url" => redirect
+                 }
+               },
+               201
+             )
   end
 
   # Acceptance criteria (closing-act finding on #841): the column counts
-  # characters (codepoints), not graphemes — 237 combining "é" graphemes are
-  # 474 codepoints and must be refused, not reach the database.
-  test "a source_url over 255 codepoints is a 422 even when it is fewer graphemes", %{
+  # characters (codepoints), not graphemes — 2,030 combining "é" graphemes
+  # are 4,060 codepoints and must be refused, not reach the database.
+  test "a source_url over 2048 codepoints is a 422 even when it is fewer graphemes", %{
     conn: conn
   } do
     security = WorldFixtures.create_security!(name: "Accent Link Co", ticker: "ALC")
-    combining = "https://x.invalid/" <> String.duplicate("e\u0301", 237)
-    assert String.length(combining) == 255
+    combining = "https://x.invalid/" <> String.duplicate("e\u0301", 2030)
+    assert String.length(combining) == 2048
 
     assert %{"errors" => %{"source_url" => [_ | _]}} =
              post_json(

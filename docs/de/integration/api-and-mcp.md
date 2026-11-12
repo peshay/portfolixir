@@ -232,8 +232,9 @@ Komma liefert `422` mit dem Namen des Felds.
 
 **Text.** Ein Name, eine Kennung oder jeder andere einzeilige Text, den ein
 Schreibzugriff speichert, ist höchstens so lang wie seine Spalte — 255 Zeichen,
-sofern keine engere Grenze genannt ist (der Name eines Buckets oder einer
-Ansicht 100, der eines Plans oder Snapshots 120), gezählt in
+sofern keine andere Grenze genannt ist (der Name eines Buckets oder einer
+Ansicht 100, der eines Plans oder Snapshots 120, die `source_url` eines
+Research-Eintrags oder eines Termins 2.048), gezählt in
 Unicode-Codepunkten, der Einheit der Datenbank — und enthält weder Steuerzeichen
 noch Zeilenumbrüche. Freitext (die `notes` einer Buchung, ein
 Research-Log-Eintrag, die `note` eines Termins oder einer Regelversion, eine
@@ -867,8 +868,9 @@ absichtlich kein `PATCH` und kein `DELETE` für einen Eintrag.
 
 Jeder Eintrag trägt `kind` (`thesis`, `evidence`, `invalidation_check`,
 `event_result`, `risk`, `retraction`, `decision`), `body`, `source_url` (eine
-`http(s)`-URL mit höchstens 255 Zeichen; andere Schemata und längere Links
-sind ein `422`),
+`http(s)`-URL mit höchstens 2.048 Zeichen, der eigenen Grenze des
+Nachrichten-Parsers (ADR-0056 E2); andere Schemata und längere Links sind
+ein `422`),
 `source_quality` (`primary`, `secondary_multi`, `awareness`, `unverified` —
 **gesetzt, nicht geraten**), `as_of` (das Stichdatum der Aussage, getrennt
 von `inserted_at`: ein heute geschriebener Eintrag über das letzte Quartal
@@ -969,7 +971,7 @@ schreibt einen Eintrag, den der Server aus der Story vorbelegt: `kind`
 liefert `422` mit `kind`); `as_of` der Tag, an dem die Story veröffentlicht
 wurde (die Veröffentlichung ihres Repräsentanten, wie `news.get` sie
 antwortet); `source_url` der Link ihres Mitglieds der besten Stufe, der erste,
-der in 255 Zeichen passt; `source_quality` nach der Regel von ADR-0056 §3 (ein
+der in 2.048 Zeichen passt; `source_quality` nach der Regel von ADR-0056 §3 (ein
 `primary`-Mitglied ergibt `primary`, zwei oder mehr verschiedene
 `secondary`-Domains `secondary_multi`, eine `unverified`, sonst
 `awareness`); `headline` ihr Titel, an einer Wortgrenze auf 80 Zeichen
@@ -1210,7 +1212,7 @@ dieses Wertpapiers als Quelle des Termins: Sein Link wird `source_url`, seine
 Stufe `source_quality` (`primary`, `secondary` als `unverified`,
 `awareness`); `source_url` oder `source_quality` daneben liefert `422` mit
 dem Feldnamen, und ein Eintrag eines anderen Wertpapiers, einer, den es nicht
-gibt, oder einer mit einem Link über 255 Zeichen liefert `422` mit `news_id`.
+gibt, oder einer mit einem Link über 2.048 Zeichen liefert `422` mit `news_id`.
 Der Eintrag wird nicht übernommen: Was von Nachrichten bleibt, ist ein
 Research-Eintrag. Das Wertpapier, zu dem ein Termin gehört, lässt sich nicht
 ändern. Auf beiden schreibenden Wegen liefert ein `checked_at` nach morgen
