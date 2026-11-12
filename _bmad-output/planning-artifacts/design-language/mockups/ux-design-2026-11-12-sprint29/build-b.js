@@ -561,6 +561,73 @@ const tcSince = (tcAfterSrc.match(/<button type="button" id="[a-z-]*-today"[\s\S
 const tcAfter = `<div class="workspace-page"><div class="transactions-columns "><section class="workspace-section"><div id="transaction-chips" class="control-bar mock-new" role="group" aria-label="Historie filtern">${group('Konto', buttonsAfter(tcAfterSrc, 'Konto'))}${group('Typ', buttonsAfter(tcAfterSrc, 'Typ'))}${group('Geändert seit', tcSince)}</div></section></div></div>`;
 B6.txBefore = sized(writeFrame('06g-transaktionen-heute', pad(964, tc), { width: 964 }), 'Transaktionen heute, 1200 px (924 px Leiste)');
 B6.txAfter = sized(writeFrame('06h-transaktionen-neu', pad(964, tcAfter), { width: 964, css: CONTROL_BAR_CSS }), 'Transaktionen neu (A)');
+
+// ⑤ to ⑩ — open prose (#1435 (4), Sprint 29 L5; inventory §3): the six
+// paragraphs past one sentence of at most 25 words, today and with their
+// method sentences behind the line's ⓘ (DESIGN.md, amendment 2026-11-02, I1).
+// The text is the shipped German; each "after" frame draws its ⓘ opened in
+// the flow under its line, so the frame shows where every sentence went.
+const PROSE_W = 520;
+const PROSE_CSS = `
+.mock-open .metric-tooltip--section { position: static; display: block; margin: 8px 0 0; }
+.mock-open .metric-tooltip--section summary { display: none; }
+.mock-open .metric-tooltip--section p { position: static; display: block; width: auto; max-width: none; translate: none; }
+.mock-open .mock-i { display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 1.25rem; margin-left: var(--space-1); border-radius: 50%; border: 1px solid var(--color-border); background: var(--color-bg-muted); color: var(--color-text-muted); font-size: 0.75rem; vertical-align: middle; }
+`;
+// The ⓘ as the app draws it (AppShell.section_info): closed, or opened
+// below its line (the board's way of showing the panel's lines).
+const sectionInfo = (lines, open) => open
+  ? `<span class="mock-i mock-new" aria-hidden="true">ⓘ</span><details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" open><summary aria-label="Zu diesem Abschnitt">ⓘ</summary><p role="tooltip">${lines.join('<br>')}</p></details>`
+  : `<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section"><summary aria-label="Zu diesem Abschnitt">ⓘ</summary><p role="tooltip">${lines.join('<br>')}</p></details>`;
+const proseFrame = (name, html, tag, open) =>
+  sized(writeFrame(name, `<div class="mock-pad${open ? ' mock-open' : ''}" style="width: ${PROSE_W}px; box-sizing: border-box;">${html}</div>`, { width: PROSE_W, css: PROSE_CSS }), tag);
+const crop = (text) => `<p class="mock-crop">${text}</p>`;
+// ⑤ Vermögen › Bestände, the positions' basis line.
+const POS_ROWS = 'Eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Kurs oder, ohne Kurs, zum letzten eigenen Handelspreis.';
+const POS_SUM = 'Marktwert in EUR, wie ihn die Summe zählt.';
+const posSection = (basis) => `<section class="workspace-section"><header class="section-head"><h2>Positionen</h2></header>${basis}${crop('Die Tabelle der Positionen, unverändert.')}</section>`;
+B6.posBefore = proseFrame('06i-positionen-heute', posSection(`<p class="summary-basis" data-role="positions-basis">${POS_ROWS} ${POS_SUM}</p>`), 'Heute: 2 Sätze, 26 Wörter');
+B6.posAfter = proseFrame('06j-positionen-neu', posSection(`<div class="summary-basis mock-new" data-role="positions-basis">${POS_ROWS}${sectionInfo([POS_SUM], true)}</div>`), 'Neu: 1 Satz, 18 Wörter; ⓘ geöffnet', true);
+// ⑥ Wertpapier › Nachrichten, the stories' basis line.
+const STORIES = 'Die Meldungen zu diesem Wertpapier, die die Nachrichtenschicht hält, neueste zuerst, so wie der Agent sie liest';
+const STORIES_INFO = [
+  'Eine Einordnung ist die Lesart eines Modells außerhalb der App, markiert als „maschinell“; sie verschiebt und schreibt nichts.',
+  '„Ins Research-Log“ öffnet das Eintragsformular, vorausgefüllt aus der Meldung, wie es notes.append des Agenten mit der Meldung füllt: die Überschrift aus ihrem Titel, Ereignisart und Tonalität aus ihrer Einordnung, Datum und Quelle aus ihrer besten Quelle. Erst das Speichern schreibt den Eintrag.',
+  'Nur ein Eintrag mit Überschrift erscheint im Diagramm, eine Meldung nie.'
+];
+const storiesPanel = (hint) => `<section class="detail-tab-panel detail-tab-panel--news">${hint}${crop('Die Meldungen, unverändert.')}</section>`;
+B6.storiesBefore = proseFrame('06k-meldungen-heute', storiesPanel(`<div class="detail-tab-hint" data-role="stories-basis">${STORIES}. Zeiten in UTC. ${sectionInfo(STORIES_INFO, false)}</div>`), 'Heute: 2 Sätze, 20 Wörter');
+B6.storiesAfter = proseFrame('06l-meldungen-neu', storiesPanel(`<div class="detail-tab-hint mock-new" data-role="stories-basis">${STORIES} · Zeiten in UTC${sectionInfo(STORIES_INFO, true)}</div>`), 'Neu: 1 Satz, 20 Wörter; ⓘ wie heute', true);
+// ⑦ Wertpapier › Diagramm, the price basis under the chart.
+const chartPanel = (hint) => `<section class="detail-tab-panel">${crop('Das Diagramm und seine Legende, unverändert.')}${hint}${crop('Die Kennzahlen unter dem Diagramm, unverändert.')}</section>`;
+B6.chartBefore = proseFrame('06m-diagramm-heute', chartPanel('<p class="detail-tab-hint" data-role="chart-basis">Kursbasis: splitbereinigt. Gespeicherte Kurse werden nie verändert (siehe Tab Kurse).</p>'), 'Heute: 2 Sätze, 11 Wörter');
+B6.chartAfter = proseFrame('06n-diagramm-neu', chartPanel(`<div class="detail-tab-hint mock-new" data-role="chart-basis">Kursbasis: splitbereinigt.${sectionInfo(['Gespeicherte Kurse werden nie verändert (siehe Tab Kurse).'], true)}</div>`), 'Neu: 1 Satz, 2 Wörter; ⓘ geöffnet, wie im Tab Kurse', true);
+// ⑧ Wertpapier › Prognosen, the tab's line.
+const PRED = 'Festgehaltene Prognosen zu diesem Wertpapier, die neueste zuerst.';
+const PRED_INFO = [
+  'Eine Prognose bleibt, wie sie abgegeben wurde: Sie wird nie geändert, zurückgezogen oder gelöscht. Eine korrigierte Prognose ist eine neue, und beide zählen.',
+  'Ausgewertet wird beim Lesen aus gespeicherten Schlusskursen, beide Seiten in EUR zum gespeicherten Wechselkurs ihres Tages; ein Ergebnis wird nie gespeichert.',
+  '… und fünf weitere Zeilen, unverändert.'
+];
+const predPanel = (hint) => `<section class="detail-tab-panel detail-tab-panel--predictions">${hint}${crop('Die Prognosen, unverändert.')}</section>`;
+B6.predBefore = proseFrame('06o-prognosen-heute', predPanel(`<div class="detail-tab-hint" data-role="predictions-basis">${PRED} Keine wird geändert oder gelöscht. ${sectionInfo(PRED_INFO, false)}</div>`), 'Heute: 2 Sätze, 13 Wörter');
+B6.predAfter = proseFrame('06p-prognosen-neu', predPanel(`<div class="detail-tab-hint mock-new" data-role="predictions-basis">${PRED}${sectionInfo(PRED_INFO, true)}</div>`), 'Neu: 1 Satz, 8 Wörter; die Regel steht in der ersten Zeile des ⓘ', true);
+// ⑨ Transaktionen, the summary's basis line (synthetic figures).
+const txSummary = (basis) => `<div class="transaction-summary" role="status"><span class="summary-total"><strong>128</strong> Transaktionen</span><span class="summary-type">Kauf: <strong>40</strong> · 52.300,00 EUR</span><span class="summary-type">Verkauf: <strong>12</strong> · 18.940,00 EUR</span><span class="summary-type">Dividende: <strong>31</strong> · 1.204,50 EUR</span>${basis}</div>`;
+B6.txSumBefore = proseFrame('06q-summe-heute', txSummary('<p class="summary-basis" data-role="summary-basis">Anzahl und bewegtes Geld je Art der Transaktionen, die dieser Filter auswählt — je Währung in der Richtung ihrer Art summiert und nicht umgerechnet; ein Verkauf, dessen Gebühren und Steuern seinen Erlös übersteigen, mindert die Summe der Verkäufe.</p>'), 'Heute: 1 Satz, 37 Wörter');
+B6.txSumAfter = proseFrame('06r-summe-neu', txSummary(`<div class="summary-basis mock-new" data-role="summary-basis">Anzahl und bewegtes Geld je Art der Transaktionen, die dieser Filter auswählt — je Währung summiert und nicht umgerechnet.${sectionInfo(['Jede Art wird in ihrer eigenen Richtung summiert; ein Verkauf, dessen Gebühren und Steuern seinen Erlös übersteigen, mindert die Summe der Verkäufe.'], true)}</div>`), 'Neu: 1 Satz, 18 Wörter; ⓘ geöffnet', true);
+// ⑩ Wertpapier › Übersicht, the bond strip's basis line.
+const BOND_INFO = [
+  'Ein Stück im Bestand ist ein Hundertstel des Nominals, darum ist der Kurs zugleich der Preis je Stück.',
+  'Laufende Rendite = Kupon ÷ Kurs.',
+  'Restlaufzeit in Kalendertagen, das Jahr zu 365 Tagen.',
+  'Rendite bis Fälligkeit linear angenähert: (Kupon + (100 − Kurs) ÷ Restlaufzeit in Jahren) ÷ Kurs, ohne Zinseszins.',
+  'Berichtet, nicht bewertet.'
+];
+const bondStrip = (hint) => `<section class="bond-strip"><div class="bond-strip__head"><h3>Anleihe</h3></div>${crop('Fälligkeit, Kupon, Nominal, Restlaufzeit, laufende Rendite und Rendite bis Fälligkeit, unverändert.')}${hint}</section>`;
+B6.bondBefore = proseFrame('06s-anleihe-heute', bondStrip('<p class="detail-tab-hint" data-role="bond-basis">Kupon und Kurs in Prozent vom Nennwert: Ein Stück im Bestand ist ein Hundertstel des Nominals, darum ist der Kurs zugleich der Preis je Stück. Laufende Rendite = Kupon ÷ Kurs. Restlaufzeit in Kalendertagen ab heute, das Jahr zu 365 Tagen. Rendite bis Fälligkeit linear angenähert: (Kupon + (100 − Kurs) ÷ Restlaufzeit in Jahren) ÷ Kurs, ohne Zinseszins. Ohne Stückzinsen, Gebühren und Steuern. Berichtet, nicht bewertet.</p>'), 'Heute: 6 Sätze, 65 Wörter');
+B6.bondAfter = proseFrame('06t-anleihe-neu', bondStrip(`<div class="detail-tab-hint mock-new" data-role="bond-basis">Kupon und Kurs in Prozent vom Nennwert, Restlaufzeit ab heute, ohne Stückzinsen, Gebühren und Steuern.${sectionInfo(BOND_INFO, true)}</div>`), 'Neu: 1 Satz, 15 Wörter; ⓘ geöffnet', true);
+const PROSE_LEAD = '<p><strong>Was entschieden ist (DESIGN.md, Amendment 2026-11-02, I1; Plan Sprint 29, L5):</strong> die Methodensätze eines Abschnitts (wie eine Zahl entsteht, was ein Begriff bedeutet, was ein Bedienelement tut) stehen in seinem ⓘ; die Basis (Ansicht, Zeitraum, Währung, Stand, die Menge der Zeilen) bleibt sichtbar. Die Schwelle aus dem Inventar (§3): ein freier Absatz ist höchstens ein Satz mit höchstens 25 Wörtern. Der Rundgang (L3) prüft das auf jeder Seite, deutsch und englisch; Ausnahmen nur mit Grund: Leerzustände (der Zustand und wo man handelt), Fehlermeldungen (der Fehler und seine Abhilfe), eine Namensliste, die Beschriftung einer Zahl.</p><p><strong>Was dieses Board zeigt:</strong> die sechs Absätze über der Schwelle, heute und neu. Der Text bleibt; nur sein Platz ändert sich. Die Anleihe (⑩) schlug das Inventar als Ausnahme bis zu einer eigenen Story vor; der Plan holt sie in L5. Gestrichelt: neu. Jedes ⓘ ist im Frame unter seiner Zeile geöffnet gezeichnet; in der App öffnet es als Popover.</p>';
 board('06-control-bar.html', 'Sprint 29 — Board 06: beschriftete Bedienelemente beginnen an einer Kante (#1435)', 1100,
   `<div class="mock-pickbar"><p><strong>Was entschieden ist (DESIGN.md, Amendment 2026-11-08, Board 07 ④ von Sprint 28, Wahl A; Amendment D-A5):</strong> eine Leiste beschrifteter Bedienelemente (ein Label neben einem Segmentschalter, einer Auswahl oder einer Chip-Familie) ist eine Komponente. Solange sie passt, eine Zeile; bricht sie um, eine Labelspalte so breit wie das längste Label und jedes Feld an derselben Kante (A); passt auch das nicht, jedes Label über seinem Feld (B). Die Leiste des gestapelten Charts ist der erste Nutzer und hält die Regel schon (390 px: alle drei Felder bei 100 px).</p><p><strong>Was dieses Board zeigt und vorschlägt:</strong> die Leisten, die die Regel heute brechen, gemessen an der Review-Instanz bei 390 und 1200 px (<code>capture-b-inventory.js</code>; das Inventar steht in <code>06-control-bar-inventory.md</code>), vorher wie ausgeliefert und nachher in der gemeinsamen Komponente. Vorgeschlagen: eine Chip-Familie ist ein Feld und bricht in ihrer Spalte um; jede Familie trägt ihr Label, auch „Bestand“ und „Datenqualität“, die heute nur das Filterblatt nennt; das Journal wird eine Leiste statt zwei. Gestrichelt: neu.</p></div>`,
   [
@@ -568,6 +635,12 @@ board('06-control-bar.html', 'Sprint 29 — Board 06: beschriftete Bedienelement
     { title: '② „Nach dem Verkauf“, Vergleich „Fester Zins“, bei 390 px', note: 'Heute steht „Vergleich“ allein über dem Schalter (der Schalter ist auf dem Telefon volle Breite), das Zinsfeld aber hinter seinem Label (113 px): zwei Felder, zwei Kanten. Neu: B, der Boden der Regel, weil der volle Schalter neben einer Labelspalte nicht passt; beide Labels über ihrem Feld, alles an der linken Kante. Bei 1200 px bleibt die Leiste eine Zeile.', frames: [B6.hsBefore, B6.hsAfter], recommended: true },
     { title: '③ Wertpapiere bei 1200 px', note: 'Heute fließen die Familien in einer Reihe, und ein Label bleibt am Zeilenende stehen, während seine Chips in der nächsten Zeile beginnen (gemessen an der Review-Instanz: „Währung“ am Ende der ersten Zeile; die ersten Felder der Gruppen bei 18, 18, 364 und 854 px; im Frame trifft es „Geändert seit“). „Bestand“ und „Datenqualität“ haben kein sichtbares Label. Neu (A): eine Zeile je Familie, jede benannt wie im Filterblatt des Telefons, alle Chips von einer Kante. Kostet zwei Zeilen Höhe.', frames: [B6.secBefore, B6.secAfter], recommended: true },
     { title: '④ Transaktionen bei 1200 px', note: 'Heute brechen die Kontochips über mehrere Zeilen, und jede weitere Zeile beginnt unter dem Label „Konto“ statt unter dem ersten Chip (gemessen mit den Namen des Seeds: 52, 0, 0, 33, 0 px; „Typ“ begann mitten in einer Zeile, „Geändert seit“ stand am Zeilenende, seine Chips in der nächsten). Die Kontonamen sind auf dem Board generisch, daher brechen die Zeilen im Frame etwas anders. Neu (A): alle Kontochips von einer Kante.', frames: [B6.txBefore, B6.txAfter], recommended: true },
+    { lead: PROSE_LEAD, title: '⑤ Vermögen › Bestände, die Zeile über den Positionen', note: 'Heute zwei Sätze, 26 Wörter. Neu: die Menge der Zeilen und ihre Bewertung bleiben die Zeile; „Marktwert in EUR, wie ihn die Summe zählt.“ sagt, was die Summe rechnet, und geht ins ⓘ am Ende der Zeile. Die Währung steht in jeder Zelle des Marktwerts.', frames: [B6.posBefore, B6.posAfter], recommended: true },
+    { title: '⑥ Wertpapier › Nachrichten', note: 'Heute zwei Sätze. „Zeiten in UTC“ ist eine Basis (die Zeitzone), keine Methode: sie bleibt sichtbar, als „·“-Fakt derselben Zeile. Das ⓘ bleibt, wie es ist.', frames: [B6.storiesBefore, B6.storiesAfter], recommended: true },
+    { title: '⑦ Wertpapier › Diagramm, die Kursbasis', note: 'Heute zwei Sätze. Neu wie die Zeile des Tabs Kurse (I1 von Sprint 23): „Kursbasis: …“ bleibt, „Gespeicherte Kurse werden nie verändert (siehe Tab Kurse).“ geht ins ⓘ.', frames: [B6.chartBefore, B6.chartAfter], recommended: true },
+    { title: '⑧ Wertpapier › Prognosen', note: 'Heute zwei Sätze; der zweite („Keine wird geändert oder gelöscht.“) ist die Regel, die die erste Zeile des ⓘ schon vollständig sagt. Neu: er entfällt aus der Zeile, wie im Tab Research.', frames: [B6.predBefore, B6.predAfter], recommended: true },
+    { title: '⑨ Transaktionen, die Zeile unter der Summe', note: 'Heute ein Satz mit 37 Wörtern Methode. Neu: die Menge (was der Filter auswählt) und die Währung (je Währung, nicht umgerechnet) bleiben; die Richtung je Art und der Verkauf, dessen Kosten den Erlös übersteigen, gehen ins ⓘ.', frames: [B6.txSumBefore, B6.txSumAfter], recommended: true },
+    { title: '⑩ Wertpapier › Übersicht, die Anleihe', note: 'Heute sechs Sätze, 65 Wörter, der längste freie Absatz der App. Neu: die Basis in einer Zeile (in Prozent vom Nennwert, ab heute, ohne Stückzinsen, Gebühren und Steuern); jede Formel und „Berichtet, nicht bewertet.“ als eigene Zeile im ⓘ.', frames: [B6.bondBefore, B6.bondAfter], recommended: true },
   ]);
 
 console.log('wrote frames/03* to 06* and boards 03 to 06');
