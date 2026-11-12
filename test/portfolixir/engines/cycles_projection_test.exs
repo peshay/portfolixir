@@ -332,4 +332,264 @@ defmodule Portfolixir.Engines.CyclesProjectionTest do
   end
 
   # --- Sprint 29 H5 commit 1 end ---
+
+  # --- Sprint 29 H5 commit 2: the bands, agree, the states, the cones ---
+
+  # Fixture A with the open window's closes replaced.
+  defp rows_a_open(open_rows),
+    do: Enum.filter(rows_a(), &(Date.compare(elem(&1, 0), ~D[2019-01-10]) == :lt)) ++ open_rows
+
+  defp band(%{band: nil}), do: nil
+  defp band(%{band: band}), do: {range(band.window), range(band.price)}
+
+  defp state(%{state: state, state_reason: reason, window_ended: ended}),
+    do: {state, reason, ended}
+
+  # User story (ADR-0060 §5; plan row H5):
+  # As the operator reading two ways to the same low,
+  # I want one band per event, the hull of its parts, with the range where
+  # the parts with a price side of their own agree marked,
+  # so that the whole disagreement shows and no narrow figure is made out of
+  # two rules over the same few cycles.
+  #
+  # Acceptance criteria:
+  # - The band: in time the earliest start to the latest end, in price the
+  #   lowest lower end to the highest upper end.
+  # - `agree`: the highest lower end to the lowest upper end of the parts
+  #   with an own price side, when not empty; `parts_disjoint` when empty;
+  #   `one_price_relation` when fewer than two such parts (the next top,
+  #   whose `halving_to_top` borrows; the next low of fixture B, whose
+  #   top → low part is absent).
+  # - No part: no band, `no_parts`.
+  test "one band per event as the hull, agree the overlap of the parts with their own price side" do
+    a = Cycles.compute(series(rows_a()), halvings_a()).projection
+
+    # py: hull of top_to_low (2020-04-02..2020-06-30, 300..382.926) and
+    # low_to_low (2019-12-29..2020-05-01, 333.3333..374.1316)
+    assert band(a.next_low) == {{~D[2019-12-29], ~D[2020-06-30]}, {"300.000000", "382.926000"}}
+
+    assert {range(a.next_low.agree), a.next_low.agree_reason} ==
+             {{"333.333300", "374.131600"}, nil}
+
+    # py: hull of halving_to_top (2021-07-27..2022-03-12) and top_to_top
+    # (2021-03-02..2021-11-30), one price 4500..5599.497
+    assert band(a.next_top) ==
+             {{~D[2021-03-02], ~D[2022-03-12]}, {"4500.000000", "5599.497000"}}
+
+    assert {a.next_top.agree, a.next_top.agree_reason} == {nil, :one_price_relation}
+
+    # The open top at 1200 instead of 1500: top → low's 240..306.3408 ends
+    # below low → low's 333.3333.
+    lower =
+      rows_a_open([
+        {~D[2019-01-10], "470"},
+        {~D[2019-06-01], "900"},
+        {~D[2019-10-01], "1200"},
+        {~D[2020-01-01], "1100"},
+        {~D[2020-03-01], "1150"},
+        {~D[2020-05-01], "900"}
+      ])
+
+    v = Cycles.compute(series(lower), halvings_a()).projection
+
+    # py: 1200 × 0.2 = 240.000000, 1200 × 0.255284 = 306.340800; max lower 333.3333 > min upper 306.3408
+    assert range(part(v.next_low, :top_to_low).price) == {"240.000000", "306.340800"}
+    assert elem(band(v.next_low), 1) == {"240.000000", "374.131600"}
+    assert {v.next_low.agree, v.next_low.agree_reason} == {nil, :parts_disjoint}
+
+    b = Cycles.compute(series(rows_b()), halvings_b()).projection
+    assert band(b.next_low) == {{~D[2013-08-01], ~D[2013-08-02]}, {"15.000000", "22.500000"}}
+    assert {b.next_low.agree, b.next_low.agree_reason} == {nil, :one_price_relation}
+
+    c_halvings =
+      Enum.take(halvings_a(), 3) ++
+        [%{height: 3_360_000, date: ~D[2019-01-05], date_end: ~D[2019-01-20], confirmed: false}]
+
+    c_rows = Enum.filter(rows_a(), &(Date.compare(elem(&1, 0), ~D[2017-06-01]) == :lt))
+    c = Cycles.compute(series(c_rows), c_halvings).projection
+
+    for event <- [c.next_low, c.next_top] do
+      assert {event.band, event.reason, event.agree, state(event)} ==
+               {nil, :no_parts, nil, {nil, nil, nil}}
+    end
+
+    for projection <- [a, v, b, c] do
+      assert {projection.kind, projection.not_a_forecast} == {:analog_band, true}
+    end
+  end
+
+  # User story (ADR-0060 §7; plan row H5):
+  # As the operator reading a band against what happened since,
+  # I want its state read from the stored closes, and none where the band
+  # was made from closes inside its own window,
+  # so that a band is never "reached" by the close it was anchored on, and
+  # the same closes always give the same state.
+  #
+  # Acceptance criteria:
+  # - Read against the last stored close: `open` before the window starts;
+  #   `reached` once a close inside the window lies within the price range,
+  #   inclusive; `running` while the window has started without one;
+  #   `missed` when it has ended without one. `window_ended` once the last
+  #   stored close is on or after the window's last day.
+  # - The band and every part carry their own state; an absent part none.
+  # - A band whose inputs (its anchors' and observations' closes) reach into
+  #   its window: `state: nil`, `state_reason: :input_after_window`.
+  # - The next low carries the open window's `low_so_far`.
+  test "the states from the stored closes, none for a band whose inputs reach into its window" do
+    a = Cycles.compute(series(rows_a()), halvings_a()).projection
+
+    # py: last close 2020-05-01; low band 2019-12-29..2020-06-30 started,
+    # no close in 300..382.926 → running; low → low's window ended on
+    # 2020-05-01 without a close in 333.3333..374.1316 → missed
+    assert state(a.next_low) == {:running, nil, false}
+    assert state(part(a.next_low, :top_to_low)) == {:running, nil, false}
+    assert state(part(a.next_low, :low_to_low)) == {:missed, nil, true}
+    assert a.next_low.low_so_far.date == ~D[2020-05-01]
+    # py: the top band starts 2021-03-02, after the last close → open
+    assert state(a.next_top) == {:open, nil, false}
+    assert state(part(a.next_top, :halving_to_top)) == {:open, nil, false}
+    assert state(part(a.next_top, :low_to_top)) == {nil, nil, nil}
+
+    # py: a close of 350 on 2020-06-01 lies in the top → low part and the band
+    reached = Cycles.compute(series(rows_a() ++ [{~D[2020-06-01], "350"}]), halvings_a())
+    low = reached.projection.next_low
+    assert state(low) == {:reached, nil, false}
+    assert state(part(low, :top_to_low)) == {:reached, nil, false}
+    assert state(part(low, :low_to_low)) == {:missed, nil, true}
+
+    assert {low.low_so_far.date, Decimal.to_string(low.low_so_far.close)} ==
+             {~D[2020-06-01], "350"}
+
+    # The open top on 2020-02-01, after the low band starts (2019-12-29,
+    # from low → low): the band's own anchor lies inside its window.
+    late =
+      rows_a_open([
+        {~D[2019-01-10], "470"},
+        {~D[2019-06-01], "900"},
+        {~D[2020-01-01], "1100"},
+        {~D[2020-02-01], "1500"},
+        {~D[2020-05-01], "1000"}
+      ])
+
+    late = Cycles.compute(series(late), halvings_a()).projection.next_low
+    # py: hull 2019-12-29..2020-10-31; top → low 2020-08-03..2020-10-31
+    assert band(late) == {{~D[2019-12-29], ~D[2020-10-31]}, {"300.000000", "382.926000"}}
+    assert late.band.inputs_until == ~D[2020-02-01]
+    assert state(late) == {nil, :input_after_window, nil}
+    assert state(part(late, :top_to_low)) == {:open, nil, false}
+    assert state(part(late, :low_to_low)) == {:missed, nil, true}
+  end
+
+  # User story (ADR-0060 §6; plan row H5):
+  # As the operator switching on a line between tops and lows,
+  # I want it to continue as a cone from its last anchor into its own
+  # relation's part, never as a line past that anchor,
+  # so that the chart points at a range and never at a single target.
+  #
+  # Acceptance criteria:
+  # - Three cones: `top_low` ("Top ↔ Tief") into `top_to_low` after a top,
+  #   into `low_to_top` after a final low; `top_top` into `top_to_top`;
+  #   `low_low` into `low_to_low`; each from its part's anchor, with its
+  #   part's window and price range. `halving_to_top` has none.
+  # - A cone into an absent part has no apex and carries the part's reason.
+  test "the cones from the last anchor into their own relation's part" do
+    a = Cycles.compute(series(rows_a()), halvings_a()).projection
+
+    assert Enum.map(a.cones, &{&1.line, &1.relation, &1.reason}) == [
+             {:top_low, :top_to_low, nil},
+             {:top_top, :top_to_top, nil},
+             {:low_low, :low_to_low, nil}
+           ]
+
+    [top_low, top_top, low_low] = a.cones
+    tl = part(a.next_low, :top_to_low)
+    assert {top_low.apex.date, Decimal.to_string(top_low.apex.close)} == {~D[2019-10-01], "1500"}
+    assert {top_low.window, top_low.price} == {tl.window, tl.price}
+    assert top_top.apex.date == ~D[2019-10-01]
+    assert low_low.apex.date == ~D[2018-05-01]
+
+    c_halvings =
+      Enum.take(halvings_a(), 3) ++
+        [%{height: 3_360_000, date: ~D[2019-01-05], date_end: ~D[2019-01-20], confirmed: false}]
+
+    c_rows = Enum.filter(rows_a(), &(Date.compare(elem(&1, 0), ~D[2017-06-01]) == :lt))
+    c = Cycles.compute(series(c_rows), c_halvings).projection
+
+    # The last point of the zigzag is the 2016-09-01 low: low → top, absent.
+    assert hd(c.cones) == %{
+             line: :top_low,
+             relation: :low_to_top,
+             apex: nil,
+             window: nil,
+             price: nil,
+             reason: :too_few_observations
+           }
+  end
+
+  # User story (ADR-0060 §8; AGENTS.md's analog-band entry; plan D-1 item 9):
+  # As the maintainer holding the scope ladder,
+  # I want no field of the projection to hold a single coming date or price,
+  # so that the band stays a range with both ends, and a caller who wants
+  # one figure records an ADR-0055 prediction instead.
+  #
+  # Acceptance criteria:
+  # - Over every fixture above: every `window`, `price`, `agree` and
+  #   `factor` is null or `from` < `to`, strictly.
+  # - Outside the past points (`anchor`, `apex`, `low_so_far`), no key
+  #   names a single figure (`date`, `close`, `price_target`, `point`,
+  #   `estimate`, `expected`, `mid`, `midpoint`, `center`, `mean`,
+  #   `median`, `forecast`, `target`, `value`).
+  # - `not_a_forecast: true` on every projection.
+  test "no field of the projection holds a single coming date or price" do
+    projections =
+      for {rows, halvings} <- [
+            {rows_a(), halvings_a()},
+            {rows_a() ++ [{~D[2020-06-01], "350"}], halvings_a()},
+            {rows_b(), halvings_b()},
+            {Enum.take(rows_a(), 16), Enum.take(halvings_a(), 3)},
+            {[], halvings_a()},
+            {rows_a(), []}
+          ] do
+        Cycles.compute(series(rows), halvings).projection
+      end
+
+    for projection <- projections do
+      assert projection.not_a_forecast == true
+      assert single_figures(projection) == []
+    end
+  end
+
+  @past_points [:anchor, :apex, :low_so_far]
+  @ranges [:window, :price, :agree, :factor]
+  @single ~w(date close price_target point estimate expected mid midpoint center mean median forecast target value)a
+
+  defp single_figures(%{} = map) when not is_struct(map) do
+    Enum.flat_map(map, fn
+      {key, _value} when key in @past_points ->
+        []
+
+      {key, nil} when key in @ranges ->
+        []
+
+      {key, %{from: from, to: to}} when key in @ranges ->
+        if less?(from, to), do: [], else: [{key, from, to}]
+
+      {key, value} when key in @ranges ->
+        [{key, value}]
+
+      {key, _value} when key in @single ->
+        [key]
+
+      {_key, value} ->
+        single_figures(value)
+    end)
+  end
+
+  defp single_figures(list) when is_list(list), do: Enum.flat_map(list, &single_figures/1)
+  defp single_figures(_value), do: []
+
+  defp less?(%Date{} = a, %Date{} = b), do: Date.compare(a, b) == :lt
+  defp less?(%Decimal{} = a, %Decimal{} = b), do: Decimal.compare(a, b) == :lt
+
+  # --- Sprint 29 H5 commit 2 end ---
 end

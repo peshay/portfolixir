@@ -77,6 +77,19 @@ defmodule Portfolixir.Engines.Cycles do
     range is one price is absent too (`zero_width`): it would name the single
     date or price §8 rules out.
 
+  ## One band per event, its state, the cones (§5 to §7)
+
+  The event's band is the **hull** of its present parts; `agree` is the
+  price range where every part with a price side of its own overlaps
+  (`one_price_relation` with fewer than two such parts, `parts_disjoint`
+  where the range is empty or one price). Nothing is averaged and nothing is
+  intersected into the band. Each band and each part carries its state, read
+  from the stored closes against the last one: `open`, `running`, `reached`
+  (a close inside the window within the price range, inclusive), `missed`,
+  with `window_ended`; none (`input_after_window`) where a close that went
+  into it lies inside its window. The cones continue each line from its last
+  anchor into its own relation's part. The projection is `not_a_forecast`.
+
   The log step is AR-3's fourth float operation (`:math.log/1`, with the
   already named `:math.pow/2`), registered in
   `test/invariants/float_island_test.exs`.
@@ -158,7 +171,7 @@ defmodule Portfolixir.Engines.Cycles do
       next_halving: next_halving,
       first_close: series_first,
       last_close: closes |> List.last() |> date_of(),
-      projection: projection(windows, intervals, next_halving)
+      projection: projection(windows, intervals, next_halving, closes)
     }
   end
 
@@ -491,7 +504,7 @@ defmodule Portfolixir.Engines.Cycles do
   # the window is open); the next top is the top of the first window without
   # an anchored top — the open window's own, or, once it is anchored, the
   # next window's, which starts at the next halving.
-  defp projection(windows, intervals, next_halving) do
+  defp projection(windows, intervals, next_halving, closes) do
     open = Enum.find(windows, &(&1.kind == :open))
     open_top = open && anchored_top(open)
     last_low = windows |> Enum.reverse() |> Enum.find_value(&final_low/1)
@@ -505,26 +518,170 @@ defmodule Portfolixir.Engines.Cycles do
         do: own_part(:low_to_top, nil, intervals, :low_not_final),
         else: own_part(:low_to_top, last_low, intervals)
 
+    low_parts = [
+      own_part(:top_to_low, open_top, intervals, :no_top_yet),
+      own_part(:low_to_low, last_low, intervals)
+    ]
+
+    top_parts = [
+      halving_part(halving_anchor(top_is_next?, open, next_halving), top_to_top, intervals),
+      top_to_top,
+      low_to_top
+    ]
+
+    next_low =
+      :next_low
+      |> event(low_parts, closes)
+      |> Map.put(:low_so_far, open && open.low_so_far)
+
+    next_top = event(:next_top, top_parts, closes)
+
     %{
       kind: :analog_band,
       not_a_forecast: true,
-      next_low: %{
-        event: :next_low,
-        parts: [
-          own_part(:top_to_low, open_top, intervals, :no_top_yet),
-          own_part(:low_to_low, last_low, intervals)
-        ]
-      },
-      next_top: %{
-        event: :next_top,
-        parts: [
-          halving_part(halving_anchor(top_is_next?, open, next_halving), top_to_top, intervals),
-          top_to_top,
-          low_to_top
-        ]
-      }
+      next_low: next_low,
+      next_top: next_top,
+      cones: cones(next_low, next_top, last_top, last_low)
     }
   end
+
+  # ---------------------------------------------- the band, agree, the state
+  # Sprint 29 H5: ADR-0060 §5, §7.
+
+  # §5: one band per event, the hull of its present parts; `agree` where the
+  # parts with a price side of their own overlap. §7: the band's and every
+  # part's state.
+  defp event(name, parts, closes) do
+    parts = Enum.map(parts, &Map.merge(&1, state_of(&1, closes)))
+
+    case Enum.filter(parts, & &1.window) do
+      [] ->
+        %{
+          event: name,
+          band: nil,
+          reason: :no_parts,
+          agree: nil,
+          agree_reason: nil,
+          state: nil,
+          state_reason: nil,
+          window_ended: nil,
+          parts: parts
+        }
+
+      present ->
+        band = %{
+          window: %{
+            from: present |> Enum.map(& &1.window.from) |> Enum.min(Date),
+            to: present |> Enum.map(& &1.window.to) |> Enum.max(Date)
+          },
+          price: %{
+            from: present |> Enum.map(& &1.price.from) |> Enum.reduce(&Decimal.min/2),
+            to: present |> Enum.map(& &1.price.to) |> Enum.reduce(&Decimal.max/2)
+          },
+          inputs_until: present |> Enum.map(& &1.inputs_until) |> latest()
+        }
+
+        {agree, agree_reason} = agree(present)
+
+        %{event: name, band: band, reason: nil, agree: agree, agree_reason: agree_reason}
+        |> Map.merge(state_of(band, closes))
+        |> Map.put(:parts, parts)
+    end
+  end
+
+  # The highest lower end to the lowest upper end of the parts with a price
+  # side of their own, when that range is not empty. A range of one price is
+  # empty here: a shade on one price would be the single figure §8 rules out.
+  defp agree(present) do
+    case Enum.filter(present, & &1.own_price) do
+      [_, _ | _] = own ->
+        from = own |> Enum.map(& &1.price.from) |> Enum.reduce(&Decimal.max/2)
+        to = own |> Enum.map(& &1.price.to) |> Enum.reduce(&Decimal.min/2)
+
+        if Decimal.compare(from, to) == :lt,
+          do: {%{from: from, to: to}, nil},
+          else: {nil, :parts_disjoint}
+
+      _fewer ->
+        {nil, :one_price_relation}
+    end
+  end
+
+  # §7, read from the stored closes against the last one, so the same
+  # closes give the same state: `open` before the window starts, `reached`
+  # once a close inside the window lies within the price range (inclusive),
+  # `running` while the window has started without one, `missed` once it has
+  # ended without one. A band whose inputs reach into its window has none.
+  defp state_of(%{window: nil}, _closes),
+    do: %{state: nil, state_reason: nil, window_ended: nil}
+
+  defp state_of(%{window: window, price: price, inputs_until: inputs_until}, closes) do
+    last = closes |> List.last() |> date_of()
+
+    if inputs_until && Date.compare(inputs_until, window.from) != :lt do
+      %{state: nil, state_reason: :input_after_window, window_ended: nil}
+    else
+      ended? = not is_nil(last) and Date.compare(last, window.to) != :lt
+
+      state =
+        cond do
+          is_nil(last) or Date.compare(last, window.from) == :lt -> :open
+          Enum.any?(closes, &inside_band?(&1, window, price)) -> :reached
+          ended? -> :missed
+          true -> :running
+        end
+
+      %{state: state, state_reason: nil, window_ended: ended?}
+    end
+  end
+
+  defp inside_band?(close, window, price) do
+    Date.compare(close.date, window.from) != :lt and Date.compare(close.date, window.to) != :gt and
+      Decimal.compare(close.close, price.from) != :lt and
+      Decimal.compare(close.close, price.to) != :gt
+  end
+
+  # §6: each line continues as a cone from its last anchor into its own
+  # relation's part. "Top ↔ Tief" goes into `top_to_low` after a top and
+  # into `low_to_top` after a final low; `halving_to_top` has no line.
+  defp cones(next_low, next_top, last_top, last_low) do
+    after_top? =
+      not is_nil(last_top) and
+        (is_nil(last_low) or Date.compare(last_top.date, last_low.date) == :gt)
+
+    zigzag =
+      if after_top?,
+        do: find_part(next_low, :top_to_low),
+        else: find_part(next_top, :low_to_top)
+
+    [
+      cone(:top_low, zigzag),
+      cone(:top_top, find_part(next_top, :top_to_top)),
+      cone(:low_low, find_part(next_low, :low_to_low))
+    ]
+  end
+
+  defp find_part(event, relation), do: Enum.find(event.parts, &(&1.relation == relation))
+
+  defp cone(line, %{window: nil} = part),
+    do: %{
+      line: line,
+      relation: part.relation,
+      apex: nil,
+      window: nil,
+      price: nil,
+      reason: part.reason
+    }
+
+  defp cone(line, part),
+    do: %{
+      line: line,
+      relation: part.relation,
+      apex: Map.take(part.anchor, [:event, :date, :close]),
+      window: part.window,
+      price: part.price,
+      reason: nil
+    }
 
   defp anchored_top(%{top: %{anchor: true} = top} = w),
     do: %{
