@@ -82,6 +82,17 @@ defmodule Portfolixir.Application do
            :enabled?,
            false
          )},
+      # ADR-0059 §7, §10: the chain reader's runs, each in its own task, apart
+      # from the quote sync and the news fetcher; it runs exactly where the
+      # quote sync runs, and a security bound to a chain is the opt-in.
+      {Task.Supervisor, name: Portfolixir.Chains.Tasks},
+      {Portfolixir.Chains.Reader,
+       enabled?:
+         Keyword.get(
+           Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, []),
+           :enabled?,
+           false
+         )},
       Portfolixir.Imports.PreviewStore,
       Portfolixir.Derived.Memo,
       {Warmup, Application.get_env(:portfolixir, Warmup, [])},
