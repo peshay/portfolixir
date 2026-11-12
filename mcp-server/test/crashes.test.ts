@@ -28,7 +28,9 @@ describe("the crash tools", () => {
   // Acceptance criteria:
   // - crashes.list sends GET /api/v1/crashes; crashes.rankings sends GET
   //   /api/v1/crashes/:key/rankings with list, universe, limit and
-  //   include_unanswered as given, the key encoded.
+  //   include_unanswered as given, the key encoded; universe takes
+  //   catalogue, held (today's holdings in any depot; the closing act,
+  //   #1421) or view:<id>.
   // - crashes.put sends PUT /api/v1/crashes/:key with the window when a key
   //   is given, else POST /api/v1/crashes (a manual window, or from_name);
   //   crashes.delete sends DELETE /api/v1/crashes/:key without a body;
@@ -49,6 +51,7 @@ describe("the crash tools", () => {
       limit: 20,
       include_unanswered: true
     });
+    await callTool(client, RANKINGS, { key: "d:12:2020-02-19", universe: "held" });
     await callTool(client, PUT, { key: "d:12:2020-02-19", window: { name: "Spring fall" } });
     await callTool(client, PUT, { key: "m:4", window: { trough: "2020-03-16" } });
     await callTool(client, PUT, {
@@ -69,6 +72,7 @@ describe("the crash tools", () => {
           "/api/v1/crashes/m%3A4/rankings?list=rebounders&universe=view%3A3&limit=20&include_unanswered=true",
           undefined
         ],
+        ["GET", "/api/v1/crashes/d%3A12%3A2020-02-19/rankings?universe=held", undefined],
         ["PUT", "/api/v1/crashes/d%3A12%3A2020-02-19", { window: { name: "Spring fall" } }],
         ["PUT", "/api/v1/crashes/m%3A4", { window: { trough: "2020-03-16" } }],
         [
@@ -91,7 +95,8 @@ describe("the crash tools", () => {
       [LIST, { benchmark: "security:12" }],
       [RANKINGS, {}],
       [RANKINGS, { key: "d:12:2020-02-19", list: "fallers" }],
-      [RANKINGS, { key: "d:12:2020-02-19", universe: "held" }],
+      [RANKINGS, { key: "d:12:2020-02-19", universe: "holdings" }],
+      [RANKINGS, { key: "d:12:2020-02-19", universe: "held:3" }],
       [RANKINGS, { key: "d:12:2020-02-19", limit: 51 }],
       [RANKINGS, { key: "d:12:2020-02-19", order: "asc" }],
       [RANKINGS, { key: "12:2020-02-19" }],

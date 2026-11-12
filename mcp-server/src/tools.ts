@@ -3618,7 +3618,7 @@ const crashesRankingsSchema = {
   properties: {
     key: crashKey(),
     list: { type: "string", enum: ["losers", "winners", "rebounders"] },
-    universe: { type: "string", pattern: "^(catalogue|view:[1-9][0-9]*)$" },
+    universe: { type: "string", pattern: "^(catalogue|held|view:[1-9][0-9]*)$" },
     limit: { type: "integer", minimum: 1, maximum: 50 },
     include_unanswered: { type: "boolean" }
   }
@@ -3630,7 +3630,7 @@ const crashesRankingsZ = z
     list: z.enum(["losers", "winners", "rebounders"]).optional(),
     universe: z
       .string()
-      .regex(/^(catalogue|view:[1-9][0-9]*)$/)
+      .regex(/^(catalogue|held|view:[1-9][0-9]*)$/)
       .optional(),
     limit: z.number().int().min(1).max(50).optional(),
     include_unanswered: z.boolean().optional()
@@ -4988,7 +4988,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.crashes.rankings",
     "Rank a crash window",
-    "One list of window key: losers (default) or winners by EUR price return start to trough; rebounders by the rise from each own low to trough + 3 calendar months, days_back in calendar days or not_yet. universe catalogue (default, flagged benchmarks left out) or view:<id> (held today). Beside each: the crash benchmark's return, vs_benchmark_pp. limit 8 (max 50); include_unanswered lists those counted under no_close_at_start, no_close_at_end, no_fx_rate. provisional: not over yet. Survivorship: removed securities are in no list. Decimals are strings; computation_basis states the rules. Data, never advice.",
+    "One list of window key: losers (default) or winners by EUR price return start to trough; rebounders by the rise from each own low to trough + 3 calendar months, days_back in calendar days or not_yet. universe catalogue (default; no flagged benchmarks), held (any depot) or view:<id>, held today. Beside each: the crash benchmark's return, vs_benchmark_pp. limit 8 (max 50); include_unanswered lists those under no_close_at_start, no_close_at_end, no_fx_rate. provisional: not over yet. Survivorship: removed securities in no list. Decimals are strings; computation_basis states rules. Data, never advice.",
     crashesRankingsSchema,
     crashesRankingsZ
   ),

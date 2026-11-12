@@ -1282,9 +1282,12 @@ parameters, each optional:
 - `list` — `losers` (default), `winners` or `rebounders`;
 - `universe` — `catalogue` (default): every security in the catalogue not
   merged away and not flagged `is_benchmark`, minus the crash benchmark
-  itself; or `view:<id>`: of those, the securities the view holds **today**
-  (a position in a depot the view covers whose quantity summed over those
-  depots is not zero). Held today, not at the window's dates;
+  itself; `held`: of those, the securities held **today** in any depot
+  (their quantity summed over every depot is not zero), what the screen's
+  „Im Depot“ lists when no view is chosen; or `view:<id>`: of those, the
+  securities the view holds **today** (a position in a depot the view covers
+  whose quantity summed over those depots is not zero, the rule the news
+  digest reads a view's holdings by). Held today, not at the window's dates;
 - `limit` — default 8, a positive integer; above 50 it is capped at 50 and
   the answer's `limit` says so;
 - `include_unanswered` — `true` adds `unanswered_entries`; `false` or absent
@@ -1383,8 +1386,8 @@ says so in every answer.
 
 Refusals, each before anything is read: `list` other than the three answers
 `422` with `errors.list` `["is invalid: losers, winners or rebounders"]`;
-`universe` other than `catalogue` or `view:<id>` (a leading zero or a sign
-included) `errors.universe` `["is invalid: catalogue or view:<id>"]`;
+`universe` other than `catalogue`, `held` or `view:<id>` (a leading zero or a sign
+included) `errors.universe` `["is invalid: catalogue, held or view:<id>"]`;
 `limit` zero, negative or not a number `errors.limit` `["is invalid: a
 positive integer, at most 50"]`; `include_unanswered` other than `true` or
 `false` `errors.include_unanswered` `["is invalid: true or false"]`; any

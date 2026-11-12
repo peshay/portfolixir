@@ -11,8 +11,8 @@ defmodule PortfolixirWeb.Api.V1.CrashController do
       computation basis. Takes no parameter.
     * `GET /api/v1/crashes/:key/rankings` — one list of the window `key`:
       `list` (`losers`, the default, `winners` or `rebounders`), `universe`
-      (`catalogue`, the default, or `view:<id>`, the securities the view
-      holds today), `limit` (default 8, capped at 50 and echoed) and
+      (`catalogue`, the default; `held`, the securities held today in any
+      depot; or `view:<id>`, the securities the view holds today), `limit` (default 8, capped at 50 and echoed) and
       `include_unanswered` (`true` lists the securities without an answer).
     * `PUT /api/v1/crashes/:key` — `{"window": {"name"}}` names a detected
       window (`d:<benchmark_security_id>:<start>`), or renames it;
@@ -200,7 +200,7 @@ defmodule PortfolixirWeb.Api.V1.CrashController do
     do: ClosedBody.refuse(conn, %{list: ["is invalid: losers, winners or rebounders"]})
 
   defp refuse(conn, :invalid_universe),
-    do: ClosedBody.refuse(conn, %{universe: ["is invalid: catalogue or view:<id>"]})
+    do: ClosedBody.refuse(conn, %{universe: ["is invalid: catalogue, held or view:<id>"]})
 
   defp refuse(conn, :invalid_limit),
     do: ClosedBody.refuse(conn, %{limit: ["is invalid: a positive integer, at most 50"]})

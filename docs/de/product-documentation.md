@@ -3585,10 +3585,10 @@ Abschnitt:
   Daten (oder „läuft“) und „manuell“, wo eine Person es gezogen hat;
 - **Liste**: **Verlierer**, **Gewinner** oder **Erholer**;
 - **Wertpapiere**: **Im Depot**, die Wertpapiere, die die aktive Ansicht
-  heute hält, oder **Ganzer Katalog**, jedes Wertpapier im Katalog.
-  Wertpapiere, die als Benchmark markiert sind, stehen in keiner Liste, und
-  der Crash-Benchmark selbst auch nicht. Ohne gewählte Ansicht (Alles) wird
-  der Katalog gelistet, und eine Zeile sagt warum.
+  heute hält (ohne gewählte Ansicht, Alles: die Wertpapiere, die heute in
+  irgendeinem Depot liegen), oder **Ganzer Katalog**, jedes Wertpapier im
+  Katalog. Wertpapiere, die als Benchmark markiert sind, stehen in keiner
+  Liste, und der Crash-Benchmark selbst auch nicht.
 
 Der Abschnitt öffnet mit dem neuesten Fenster, den Verlierern und **Im
 Depot**. Die Wahl steht in der Adresse, sodass ein Link dieselbe Liste wieder

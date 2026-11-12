@@ -60,19 +60,17 @@ defmodule Portfolixir.News.Reads do
 
   import Ecto.Query
 
-  alias Portfolixir.Buckets
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Classifications.Category
   alias Portfolixir.DeltaCursor
   alias Portfolixir.Input.Text
-  alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.HeldSecurities
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.Item
   alias Portfolixir.News.Label
   alias Portfolixir.News.Labels
   alias Portfolixir.News.Shapes
   alias Portfolixir.News.Universe
-  alias Portfolixir.Portfolios
   alias Portfolixir.Repo
 
   @fetch_lag_seconds 120
@@ -675,9 +673,9 @@ defmodule Portfolixir.News.Reads do
 
   @doc """
   The securities a digest reads (§9): with a `view_id`, those the view
-  holds — a position of any portfolio in the view's scope
-  (`Portfolixir.Buckets.load_global_scope/1`) whose quantity summed over
-  them is not zero; without one, the news universe
+  holds today (`Portfolixir.Ledger.HeldSecurities.in_view/1`: a position of
+  any portfolio in the view's scope whose quantity summed over them is not
+  zero, the rule a crash window's view universe reads too); without one, the news universe
   (`Portfolixir.News.Universe`: held, targeted or watched).
   `{:error, :not_found}` for a view that does not exist.
   """
@@ -685,28 +683,9 @@ defmodule Portfolixir.News.Reads do
   def digest_securities(nil), do: {:ok, Enum.map(Universe.members(), & &1.id)}
 
   def digest_securities(view_id) when is_integer(view_id) do
-    case Buckets.load_global_scope(view_id) do
-      {:error, :view_not_found} ->
-        {:error, :not_found}
-
-      scope ->
-        held =
-          Portfolios.list_portfolios()
-          |> Enum.flat_map(fn portfolio ->
-            portfolio.id
-            |> Ledger.positions_for_portfolio()
-            |> Enum.filter(fn {{account_id, security_id}, _quantity} ->
-              Buckets.position_in_scope?(scope, account_id, security_id)
-            end)
-          end)
-          |> Enum.reduce(%{}, fn {{_account_id, security_id}, quantity}, acc ->
-            Map.update(acc, security_id, quantity, &Decimal.add(&1, quantity))
-          end)
-          |> Enum.reject(fn {_security_id, quantity} -> Decimal.eq?(quantity, 0) end)
-          |> Enum.map(&elem(&1, 0))
-          |> Enum.sort()
-
-        {:ok, held}
+    case HeldSecurities.in_view(view_id) do
+      {:ok, held} -> {:ok, held}
+      {:error, :view_not_found} -> {:error, :not_found}
     end
   end
 

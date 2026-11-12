@@ -3249,11 +3249,11 @@ moves, with every list, while the benchmark falls further.
 - **Window**, every window newest first, each with its name, its dates (or
   "ongoing") and "manual" where a person drew it;
 - **List**: **Losers**, **Winners** or **Rebounders**;
-- **Securities**: **In depot**, the securities the active view holds today,
-  or **Whole catalogue**, every security in the catalogue. Securities marked
-  as a benchmark are in no list, and neither is the crash benchmark itself.
-  With no view chosen (Everything) the catalogue is listed, and a line says
-  why.
+- **Securities**: **In depot**, the securities the active view holds today
+  (with no view chosen, Everything: the securities held today in any
+  depot), or **Whole catalogue**, every security in the catalogue.
+  Securities marked as a benchmark are in no list, and neither is the crash
+  benchmark itself.
 
 The section opens on the newest window, the losers and **In depot**. The
 choice is kept in the address, so a link reopens the same list.

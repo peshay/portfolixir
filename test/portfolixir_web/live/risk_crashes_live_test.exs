@@ -97,11 +97,18 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
     buy!(world, faller, quantity: "10", price: "45", date: ~D[2021-05-04])
     buy!(world, riser, quantity: "10", price: "19", date: ~D[2021-05-04])
 
-    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Synthetic Crash Bucket"})
+    {:ok, bucket} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Synthetic Crash Bucket #{System.unique_integer([:positive])}"
+      })
+
     :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), world.depot, [bucket.id])
 
     {:ok, view} =
-      Buckets.create_view(Actor.owner_ui(), %{name: "Synthetic Crash View", include_all: false})
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Synthetic Crash View #{System.unique_integer([:positive])}",
+        include_all: false
+      })
 
     :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
 
@@ -639,22 +646,27 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
     end
   end
 
-  # User story (board 01 P3; ADR-0058 §5):
+  # User story (board 01 P3; ADR-0058 §5; the closing act, #1421):
   # As the operator who has chosen no view (Everything),
-  # I want the section to list the catalogue and say why „Im Depot“ needs a
-  # view,
-  # so that it never shows a list the API cannot reproduce.
+  # I want „Im Depot“ to list what I hold today in any depot,
+  # so that the section opens on my holdings as it does with a view, and
+  # the list is one the API reproduces.
   #
   # Acceptance criteria:
-  # - With no view: the catalogue is listed, the API's list; „Im Depot“ is
-  #   not a link and one line says why.
-  test "with no view chosen the section lists the catalogue and says why", %{conn: conn} do
+  # - With no view: „Im Depot“ is active and lists the API's universe
+  #   `held`; the catalogue is one click away; no line says a view is
+  #   needed.
+  test "with no view chosen „Im Depot“ lists today's holdings in any depot", %{conn: conn} do
     world = crash_world!()
     {:ok, view, _html} = live(conn, "/risk?view=total")
 
-    assert has_element?(view, "[data-role=crash-universe] .is-active[data-universe=catalogue]")
-    refute has_element?(view, "[data-role=crash-universe] a[data-universe=depot]")
-    assert has_element?(view, "[data-role=crash-depot-needs-view]")
+    assert has_element?(view, "[data-role=crash-universe] .is-active[data-universe=depot]")
+    assert has_element?(view, "[data-role=crash-universe] a[data-universe=catalogue]")
+    refute has_element?(view, "[data-role=crash-depot-needs-view]")
+    data = assert_same_as_api(view, world.ongoing, "losers", "held")
+    refute Enum.any?(data["entries"], &(&1["security"]["name"] == "Synthetic Outsider"))
+
+    view |> element("[data-role=crash-universe] a[data-universe=catalogue]") |> render_click()
     assert_same_as_api(view, world.ongoing, "losers", "catalogue")
   end
 
