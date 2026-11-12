@@ -74,6 +74,19 @@ defmodule Portfolixir.Derived.Registry do
     # every coupon in the interest line.
     performance_contribution: %{computation_version: 4, default_lifetime: :request},
     performance_view_contribution: %{computation_version: 4, default_lifetime: :request},
+    # The stacked value chart's bands (FR-53, I34 step 1, Sprint 29 P1): the
+    # contribution walk keeping each window day's terms apart, grouped into
+    # bands. Its own analytic per scope, period and request, keyed as the
+    # contribution table is plus the request's level, sort, scale, category
+    # filter and classification -- the portfolio basis for a portfolio, the
+    # global basis for a view across portfolios. Every write that moves a
+    # band moves its basis: the walk's own writes (bookings, quotes, rates),
+    # and the classification, category, assignment and target writes, which
+    # `BlastRadius` widens to every portfolio. `:request` by default, no C3
+    # activation; only the fixed periods are memoised, as the contribution
+    # table's are.
+    performance_bands: %{computation_version: 1, default_lifetime: :request},
+    performance_view_bands: %{computation_version: 1, default_lifetime: :request},
     # The benchmark comparison (ADR-0046 §5, Sprint 11 Lane B): a read model
     # over a walk and a benchmark's price series, keyed under the global
     # basis because a benchmark the portfolio never held is outside the

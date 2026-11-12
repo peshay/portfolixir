@@ -312,13 +312,20 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
     Map.put(value, :stale, false)
   end
 
-  defp fixed_period?({:year, year}, today), do: year <= today.year
-  defp fixed_period?(period, _today) when is_binary(period), do: true
-  defp fixed_period?(_range, _today), do: false
+  @doc false
+  # The memo's period rule and the period's part of an entry key, shared
+  # with the stacked chart's bands read (`Bands`, I34 step 1), which is
+  # keyed as this table is: one rule for which periods are remembered.
+  @spec fixed_period?(term(), Date.t()) :: boolean()
+  def fixed_period?({:year, year}, today), do: year <= today.year
+  def fixed_period?(period, _today) when is_binary(period), do: true
+  def fixed_period?(_range, _today), do: false
 
-  defp period_key({:year, year}), do: "year:#{year}"
-  defp period_key({:range, from, to}), do: "range:#{from}..#{to}"
-  defp period_key(period) when is_binary(period), do: period
+  @doc false
+  @spec period_key(term()) :: String.t()
+  def period_key({:year, year}), do: "year:#{year}"
+  def period_key({:range, from, to}), do: "range:#{from}..#{to}"
+  def period_key(period) when is_binary(period), do: period
 
   # -- the table -----------------------------------------------------------------
 
