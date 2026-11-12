@@ -1211,6 +1211,62 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       end
     end
 
+    # The closing act's attack lens on that self-test (D-8 item 5): each
+    # synthetic widening of the chain source's config, seen caught by the
+    # scan the host test runs, as unregistered, stale or computed.
+    test "the chain source's self-test can fail: each widening of its config is caught" do
+      module = "Portfolixir.Chains.Esplora"
+      entry = Map.fetch!(@adapters, module)
+
+      flags = fn allowed_hosts ->
+        config = """
+        import Config
+
+        config :portfolixir, Portfolixir.Chains.Esplora,
+          allowed_hosts: #{allowed_hosts}
+        """
+
+        case config |> config_hosts() |> Map.fetch!(module) do
+          :computed ->
+            :computed
+
+          hosts ->
+            names = Enum.reject(hosts, &(&1 == :any))
+            {Enum.uniq(names) -- entry.hosts, entry.hosts -- names}
+        end
+      end
+
+      # The registered config itself raises no flag.
+      assert flags.(
+               ~s|%{mempool: ["mempool.space"], blockstream: ["blockstream.info"], own: :any}|
+             ) ==
+               {[], []}
+
+      # A third source on a new host: unregistered.
+      assert flags.(
+               ~s|%{mempool: ["mempool.space"], blockstream: ["blockstream.info"], | <>
+                 ~s|own: :any, extra: ["api.llm-vendor.example"]}|
+             ) == {["api.llm-vendor.example"], []}
+
+      # A subdomain wildcard on a public source: unregistered.
+      assert flags.(
+               ~s|%{mempool: [".mempool.space"], blockstream: ["blockstream.info"], own: :any}|
+             ) == {[".mempool.space"], ["mempool.space"]}
+
+      # A public source widened to `:any`: its host goes stale.
+      assert flags.(~s|%{mempool: :any, blockstream: ["blockstream.info"], own: :any}|) ==
+               {[], ["mempool.space"]}
+
+      # An allow-list built at run time, or keyed by strings: computed.
+      assert flags.(~s|Map.put(%{own: :any}, :mempool, ["mempool.space"])|) == :computed
+
+      assert flags.(
+               ~s|%{"mempool" => ["mempool.space"], blockstream: ["blockstream.info"], own: :any}|
+             ) == :computed
+
+      assert flags.(~s|%{mempool: [System.get_env("HOST")], own: :any}|) == :computed
+    end
+
     # --- end Sprint 29 H2 ---------------------------------------------------
 
     test "synthetic environment reads are named, computed ones are caught" do
