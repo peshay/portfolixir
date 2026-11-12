@@ -4195,11 +4195,16 @@ input[pattern]:invalid:not(:placeholder-shown) {
   flex-wrap: wrap;
   gap: 6px 14px;
 }
-/* A phone: the label above its options. */
+/* A phone: the label above its options, and a larger gap before every
+   label after the first, so each label starts its group (the closing act;
+   board 02 ⑥). */
 @media (max-width: 560px) {
   .bm-groups {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-1);
+  }
+  .bm-groups__label:not(:first-child) {
+    margin-top: var(--space-3);
   }
 }
 /* --- Sprint 29 B2 end --- */
