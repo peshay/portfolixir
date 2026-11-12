@@ -441,7 +441,8 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
   # Acceptance criteria:
   # - The Wealth row names the trade-priced positions.
   # - The Wealth row states the consequence for the total, not just the fact.
-  # - The Overview keeps its terse count and its link (unchanged).
+  # - The Overview keeps its terse count and its link (since issue 1417 to
+  #   the held list).
   test "the trade-priced finding names its positions and states the consequence",
        %{conn: conn} do
     world = seed_world()
@@ -483,7 +484,11 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
     {:ok, view, _html} = live(conn, "/")
     html = render_async(view)
 
-    assert has_element?(view, ~s(a[data-role="dq-quotes"][href="/securities?dq=stale_quote"]))
+    assert has_element?(
+             view,
+             ~s(a[data-role="dq-quotes"][href="/securities?dq=stale_quote&holding=held"])
+           )
+
     # The alarm stays a count: the Overview does not name positions.
     refute html =~ "not current"
   end

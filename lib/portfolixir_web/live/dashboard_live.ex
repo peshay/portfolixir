@@ -427,8 +427,12 @@ defmodule PortfolixirWeb.DashboardLive do
           <%!-- Freshness: the newest stored quote across the held positions is
                the fact; the stale count is the finding, shown only when it
                exists (no all-clear badge) and linking where the data-quality
-               line links. --%>
-          <a href="/securities?dq=stale_quote" class="kpi-strip__cell" data-role="kpi-freshness">
+               line's quote count links: the held list (issue 1417). --%>
+          <a
+            href="/securities?dq=stale_quote&holding=held"
+            class="kpi-strip__cell"
+            data-role="kpi-freshness"
+          >
             <span class="kpi-strip__label"><%= gettext("Quotes") %></span>
             <%= if @wealth_card do %>
               <strong :if={@wealth_card.valuation.newest_quote_date}>
@@ -437,23 +441,22 @@ defmodule PortfolixirWeb.DashboardLive do
               <strong :if={is_nil(@wealth_card.valuation.newest_quote_date)} class="kpi-strip__na">
                 —
               </strong>
-              <%!-- The count is the one the link resolves to: the catalog-wide
-                   stale_quote predicate, the same rule that produces the
-                   data-quality finding below and the list the href opens
-                   (#705). The valuation's own view-scoped count answers a
-                   different question and would put two numbers for one
-                   finding on one page. Since #1081 (pick J1.2 A, UX-DR26)
-                   it says that scope, "n stale in the catalog", beside a
-                   basis line about held positions; at 390 px it wraps, the
-                   glyph on its first line. --%>
+              <%!-- The count is the one the link resolves to: the stale_quote
+                   predicate over the held securities, the same rule and
+                   scope as the data-quality finding below and the list the
+                   href opens (#705). Issue 1417 (board
+                   ux-design-2026-11-12-sprint29/04 ② A, reversing J1.2 A of
+                   #1081): "n held stale"; the catalogue count has no room in
+                   a cell that is itself a link, and stands on the line
+                   below. At 390 px it wraps, the glyph on its first line. --%>
               <small
                 :if={@data_quality && @data_quality.without_quote > 0}
                 class="kpi-strip__sub kpi-strip__sub--attention"
               >
                 <AppShell.icon name={:alert_triangle} size={12} />
                 <span><%= ngettext(
-                  "%{count} stale in the catalog",
-                  "%{count} stale in the catalog",
+                  "%{count} held stale",
+                  "%{count} held stale",
                   @data_quality.without_quote
                 ) %></span>
               </small>
@@ -642,6 +645,11 @@ defmodule PortfolixirWeb.DashboardLive do
                   <span aria-hidden="true"> · </span>
                 <% end %>
                 <a href={finding.href} data-role={finding.role}><%= finding.text %></a>
+                <%!-- Issue 1417 (board ux-design-2026-11-12-sprint29/04 ② A):
+                     the count is the held securities'; the catalogue's
+                     stands after it in parentheses, as its own link, only
+                     where the two differ. --%>
+                <span :if={finding[:catalog]} class="dq-catalog" data-catalog-of={finding.role}>(<a href={finding.catalog.href}><%= gettext("%{count} in the catalog", count: finding.catalog.count) %></a>)</span>
                 <%!-- #1121 (board 01 ③, pick N3 A): a finding in the total
                      says what it does to the total above, after its link and
                      outside it, so the link still names the list it opens.
@@ -1262,19 +1270,21 @@ defmodule PortfolixirWeb.DashboardLive do
   # URL that fixes it (#561/#651). Only non-zero counts appear; when the list
   # is empty the whole section is absent — no all-clear badge (UX-DR2).
   #
-  # #1081 (pick J1.2 A): the quote finding says it counts the catalog, as
-  # the strip's cell does. The line's first finding carries its noun ("4
-  # securities without an asset class"), so a line with no stale quote does
-  # not open on a bare "4 without an asset class"; a later finding keeps its
+  # Issue 1417 (board ux-design-2026-11-12-sprint29/04 ② A; the owner's
+  # answer of 2026-11-07 to OQ-4, reversing J1.2 A of #1081): every set of
+  # securities is counted over the held ones, its link opening the list
+  # with the Held chip (`holding=held`), so a sold, unretired security no
+  # longer keeps the line open. The catalogue count follows in parentheses
+  # as its own link where it differs (`catalog/3`). A clause appears only
+  # when its held count is above zero; the ledger's three checks count
+  # bookings and are unchanged. The line's first finding carries its noun
+  # ("4 held securities without an asset class"); a later one keeps its
   # short form after the first one's noun.
   #
   # #1068 (D-15, board 01 pin 5): the bonds priced on two scales, in either
-  # direction, close the line with their own noun, so the finding reads the
-  # same wherever it stands.
-  #
-  # #1101 (D-7, board 02 L2 A): the held securities whose quotes contradict
-  # their own bookings follow two scales, with their noun and scope word
-  # ("held"); the set is held or not since #1414, the line its held ones.
+  # direction, close the securities' part with their own noun; #1101 (D-7,
+  # board 02 L2 A) the securities whose quotes contradict their bookings,
+  # and #1415 those whose provider reports another currency, follow.
   defp dq_findings(dq) do
     [
       dq.without_quote > 0 && {:quotes, dq.without_quote},
@@ -1289,19 +1299,30 @@ defmodule PortfolixirWeb.DashboardLive do
     ]
     |> Enum.filter(& &1)
     |> Enum.with_index()
-    |> Enum.map(fn {{finding, count}, index} -> dq_finding(finding, count, index == 0) end)
+    |> Enum.map(fn {{finding, count}, index} ->
+      finding
+      |> dq_finding(count, index == 0)
+      |> catalog(count, dq.catalog[finding])
+    end)
   end
+
+  # The catalogue count beside a held one, only where the two differ (board
+  # 04 ②: "(im Katalog 26)"); a ledger check has none.
+  defp catalog(finding, held, %{count: count} = catalog) when count != held,
+    do: Map.put(finding, :catalog, catalog)
+
+  defp catalog(finding, _held, _catalog), do: finding
 
   # The quote finding always opens the line when present, so it always
   # carries its noun.
   defp dq_finding(:quotes, count, _first?) do
     %{
       role: "dq-quotes",
-      href: "/securities?dq=stale_quote",
+      href: "/securities?dq=stale_quote&holding=held",
       text:
         ngettext(
-          "one security in the catalog without a quote in 7 days",
-          "%{count} securities in the catalog without a quote in 7 days",
+          "one held security without a quote in 7 days",
+          "%{count} held securities without a quote in 7 days",
           count
         )
     }
@@ -1310,15 +1331,13 @@ defmodule PortfolixirWeb.DashboardLive do
   defp dq_finding(:class, count, first?) do
     %{
       role: "dq-class",
-      href:
-        "/securities?" <>
-          Query.encode(%{"filter" => ["asset_class:is_nil", "is_retired:is_false"]}),
+      href: "/securities?" <> Query.encode(class_filter(%{"holding" => "held"})),
       text:
         if(first?,
           do:
             ngettext(
-              "one security without an asset class",
-              "%{count} securities without an asset class",
+              "one held security without an asset class",
+              "%{count} held securities without an asset class",
               count
             ),
           else: ngettext("one without an asset class", "%{count} without an asset class", count)
@@ -1329,32 +1348,36 @@ defmodule PortfolixirWeb.DashboardLive do
   defp dq_finding(:logo, count, first?) do
     %{
       role: "dq-logo",
-      href: "/securities?dq=missing_logo",
+      href: "/securities?dq=missing_logo&holding=held",
       text:
         if(first?,
           do:
-            ngettext("one security without a logo", "%{count} securities without a logo", count),
+            ngettext(
+              "one held security without a logo",
+              "%{count} held securities without a logo",
+              count
+            ),
           else: ngettext("one without a logo", "%{count} without a logo", count)
         )
     }
   end
 
+  # Issue 1417: the count is the held bonds', each one in the total above,
+  # so the effect has no "if held" any more.
   defp dq_finding(:two_scales, count, _first?) do
     %{
       role: "dq-two-scales",
-      href: "/securities?dq=two_scales",
+      href: "/securities?dq=two_scales&holding=held",
       text:
         ngettext(
-          "one bond priced on two scales",
-          "%{count} bonds priced on two scales",
+          "one held bond priced on two scales",
+          "%{count} held bonds priced on two scales",
           count
         ),
-      # Conditional ("if held"): the count is catalog-wide on purpose, and
-      # only a held bond is in the total above.
       effect:
         ngettext(
-          "— if held, it counts a hundredfold too high or too low in the total above",
-          "— each one held counts a hundredfold too high or too low in the total above",
+          "— it counts a hundredfold too high or too low in the total above",
+          "— each counts a hundredfold too high or too low in the total above",
           count
         )
     }
@@ -1382,22 +1405,22 @@ defmodule PortfolixirWeb.DashboardLive do
   # #1415 (Sprint 28 Q3; board ux-design-2026-11-08-sprint28/05 ②, plan
   # D-6): the securities whose provider stated another currency than their
   # own, right after the implausible series, always with their noun, and
-  # what a series stored in the wrong currency does to the total above.
-  # Conditional ("if held"), as two scales' is: the set counts the catalog.
+  # what a series stored in the wrong currency does to the total above —
+  # since issue 1417 without "if held", the count being the held ones'.
   defp dq_finding(:currency_mismatch, count, _first?) do
     %{
       role: "dq-currency-mismatch",
-      href: "/securities?dq=currency_mismatch",
+      href: "/securities?dq=currency_mismatch&holding=held",
       text:
         ngettext(
-          "one security whose provider reports another currency than its own",
-          "%{count} securities whose provider reports another currency than their own",
+          "one held security whose provider reports another currency than its own",
+          "%{count} held securities whose provider reports another currency than their own",
           count
         ),
       effect:
         ngettext(
-          "— its quotes may be stored in the wrong currency; if held, its value in the total above is wrong",
-          "— their quotes may be stored in the wrong currency; if held, their value in the total above is wrong",
+          "— its quotes may be stored in the wrong currency, so its value in the total above is wrong",
+          "— their quotes may be stored in the wrong currency, so their value in the total above is wrong",
           count
         )
     }
@@ -1477,34 +1500,69 @@ defmodule PortfolixirWeb.DashboardLive do
 
   # Securities needing attention (#337 data-quality card): no recent quote
   # (none at all, or older than 7 days), no persisted asset class, no logo,
-  # since #1068 a bond priced on two scales, since #1101 a held security
-  # whose quotes contradict its own bookings, and since #1415 a security whose
-  # provider stated another currency than its own.
+  # since #1068 a bond priced on two scales, since #1101 a security whose
+  # quotes contradict its own bookings, and since #1415 a security whose
+  # provider stated another currency than its own — each counted over the
+  # held securities since issue 1417, with the catalogue's count under
+  # `catalog` for the sets whose held count is above zero.
   defp data_quality_report do
     # The counts come from the shared predicates (#705), so each finding's
-    # number is produced by the same rule as the list its link opens. The
+    # number is produced by the same rule as the list its link opens, with
+    # `holding_status: :held` as the list's Held chip applies it. The
     # asset-class finding stays an ordinary column filter: `asset_class` is a
     # stored column, so it needs no predicate of its own -- and it is keyed on
     # the STORED value per #700, which is what makes the count addressable.
     # A retired security leaves it as it leaves the predicates' sets (PR
-    # #1102), and the link carries the same `is_retired:is_false` filter.
+    # #1102), and the link carries the same `is_retired:is_false` filter, so
+    # the held count never exceeds the catalogue's.
+    held = [holding_status: :held]
+
+    sets = %{
+      quotes: &DataQuality.count("stale_quote", &1),
+      class: &without_class/1,
+      logo: &DataQuality.count("missing_logo", &1),
+      two_scales: &DataQuality.count("two_scales", &1),
+      implausible_quote: &DataQuality.count("implausible_quote", &1),
+      currency_mismatch: &DataQuality.count("currency_mismatch", &1)
+    }
+
+    counts = Map.new(sets, fn {set, count} -> {set, count.(held)} end)
+
     %{
-      total: length(Catalog.list_securities()),
-      without_quote: DataQuality.count("stale_quote"),
-      without_class:
-        Enum.count(
-          Catalog.list_securities(is_retired: false),
-          &is_nil(&1.asset_class)
-        ),
-      without_logo: DataQuality.count("missing_logo"),
-      two_scales: DataQuality.count("two_scales"),
-      implausible_quote: DataQuality.count("implausible_quote", holding_status: :held),
-      currency_mismatch: DataQuality.count("currency_mismatch"),
+      without_quote: counts.quotes,
+      without_class: counts.class,
+      without_logo: counts.logo,
+      two_scales: counts.two_scales,
+      implausible_quote: counts.implausible_quote,
+      currency_mismatch: counts.currency_mismatch,
+      # The catalogue is read only for a set the line shows.
+      catalog:
+        for {set, count} <- sets, counts[set] > 0, into: %{} do
+          {set, %{count: count.([]), href: catalog_href(set)}}
+        end,
       cash_mismatch: LedgerChecks.count("cash_mismatch"),
       rate_only: LedgerChecks.count("rate_only"),
       incomplete_split: LedgerChecks.count("incomplete_split")
     }
   end
+
+  defp without_class(opts) do
+    opts
+    |> Keyword.put(:is_retired, false)
+    |> Catalog.list_securities()
+    |> Enum.count(&is_nil(&1.asset_class))
+  end
+
+  defp class_filter(extra \\ %{}),
+    do: Map.merge(%{"filter" => ["asset_class:is_nil", "is_retired:is_false"]}, extra)
+
+  # The catalogue list of each set: the held one's link without the chip.
+  defp catalog_href(:quotes), do: "/securities?dq=stale_quote"
+  defp catalog_href(:class), do: "/securities?" <> Query.encode(class_filter())
+  defp catalog_href(:logo), do: "/securities?dq=missing_logo"
+  defp catalog_href(:two_scales), do: "/securities?dq=two_scales"
+  defp catalog_href(:implausible_quote), do: "/securities?dq=implausible_quote"
+  defp catalog_href(:currency_mismatch), do: "/securities?dq=currency_mismatch"
 
   defp count_cards(assigns) do
     ~H"""
