@@ -18,6 +18,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Catalog.BenchmarkSecurity
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Classifications
   alias Portfolixir.Fx.RateSync
@@ -37,6 +38,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Settings
   alias PortfolixirWeb.AccountNames
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.BenchmarkChoices
   alias PortfolixirWeb.BenchmarkScope
   alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.ClassificationName
@@ -197,7 +199,9 @@ defmodule PortfolixirWeb.PortfolioLive do
           # ADR-0046 §4: the remembered benchmark selection, resolved against
           # the catalog; the comparisons follow the performance summary.
           |> assign(:benchmarks, resolve_benchmarks(socket.assigns[:active_benchmark_selectors]))
-          |> assign(:benchmark_options, Portfolixir.Catalog.list_securities(is_benchmark: true))
+          # #1416 (B2; board 02, Q1 A): the picker's labelled groups,
+          # „Benchmarks“ then „Im Bestand“, one rule with the API's.
+          |> then(&assign(&1, :benchmark_groups, benchmark_groups(&1.assigns.benchmarks)))
           |> assign(:comparisons, [])
           |> assign(:selected_segment, nil)
           |> assign(:expanded_categories, MapSet.new())
@@ -2288,16 +2292,35 @@ defmodule PortfolixirWeb.PortfolioLive do
                   <%!-- The empty entry marks an explicit choice, so a form
                        submitted with nothing ticked clears the selection. --%>
                   <input type="hidden" name="benchmark[]" value="" />
-                  <label :for={option <- @benchmark_options} class="benchmark-form__option">
-                    <input
-                      type="checkbox"
-                      name="benchmark[]"
-                      value={"security:#{option.id}"}
-                      checked={benchmark_selected?(@benchmarks, option)}
-                    />
-                    <%= option.name %>
-                  </label>
-                  <span :if={@benchmark_options == []} class="hint" data-role="benchmark-none">
+                  <%!-- #1416 (B2; board 02, Q1 A): two labelled groups,
+                       „Benchmarks“ then „Im Bestand“, each label in one
+                       column and its options from one edge; „Weitere“
+                       only while the address chose a security neither
+                       offers (`PortfolixirWeb.BenchmarkChoices`). --%>
+                  <div :if={@benchmark_groups != []} class="bm-groups" data-role="benchmark-groups">
+                    <%= for group <- @benchmark_groups do %>
+                      <span class="bm-groups__label" id={"benchmark-group-#{group.key}"}>
+                        <%= group.label %>
+                      </span>
+                      <span
+                        class="bm-groups__options"
+                        role="group"
+                        aria-labelledby={"benchmark-group-#{group.key}"}
+                        data-group={group.key}
+                      >
+                        <label :for={option <- group.securities} class="benchmark-form__option">
+                          <input
+                            type="checkbox"
+                            name="benchmark[]"
+                            value={"security:#{option.id}"}
+                            checked={benchmark_selected?(@benchmarks, option)}
+                          />
+                          <%= option.name %>
+                        </label>
+                      </span>
+                    <% end %>
+                  </div>
+                  <span :if={@benchmark_groups == []} class="hint" data-role="benchmark-none">
                     <%= gettext("No benchmark securities yet — mark one on the Securities page.") %>
                   </span>
                   <label class="benchmark-form__rate" for="benchmark-rate">
@@ -4236,9 +4259,10 @@ defmodule PortfolixirWeb.PortfolioLive do
   # -- benchmark comparison (ADR-0046 §4) ---------------------------------------
 
   # The selectors the BenchmarkScope plug remembered, resolved against the
-  # catalog: a flagged security or a fixed rate. Anything else — an unflagged
-  # or vanished security, a malformed selector — is dropped silently, so the
-  # picker shows what is actually active.
+  # catalog: a security the API would take (any with a stored quote, #1416)
+  # or a fixed rate. Anything else — an unquoted or vanished security, a
+  # malformed selector — is dropped silently, so the picker shows what is
+  # actually active.
   defp resolve_benchmarks(selectors) when is_list(selectors) do
     selectors
     |> Enum.flat_map(fn
@@ -4316,15 +4340,20 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp benchmark_merged_notes(_params, _socket), do: []
 
+  # ADR-0058 F5 (#1416, B2): the API's one rule — any security with a
+  # stored quote, flagged or not — so a held fund picked is never dropped.
+  # A merged-away id is redirected to its survivor before this (§12).
   defp resolve_benchmark_security(id) do
     with {:ok, id} <- LiveParam.fetch_id(id),
-         %Portfolixir.Catalog.Security{is_benchmark: true} = security <-
-           Portfolixir.Catalog.get_security(id) do
+         {:ok, security} <- BenchmarkSecurity.resolve(id) do
       [{:security, security}]
     else
-      _unflagged_or_missing -> []
+      _unquoted_or_missing -> []
     end
   end
+
+  defp benchmark_groups(benchmarks),
+    do: BenchmarkChoices.groups(for {:security, security} <- benchmarks, do: security)
 
   # The plug's one bound (E25 S4, F06), so the page resolves exactly the
   # selectors the plug would store.

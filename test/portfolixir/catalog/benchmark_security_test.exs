@@ -123,4 +123,61 @@ defmodule Portfolixir.Catalog.BenchmarkSecurityTest do
     assert BenchmarkSecurity.standing(flagged!(name: "Synthetic Index", ticker: "SIX")) ==
              :flagged
   end
+
+  # --- Sprint 29 B2 begin ---
+  # User story (#1416, B2; ADR-0046's amendment of 2026-11-07, point 3;
+  # ADR-0058 F5; board 02, Q1 A):
+  # As the operator choosing a benchmark on a screen,
+  # I want the picker to offer the flagged benchmarks first and then the
+  # securities I hold today, each only when the rule would accept it,
+  # so that everything I can tick compares, and nothing that compares for
+  # an agent is missing from my screen's short list.
+  #
+  # Acceptance criteria:
+  # - choices/0 answers two lists by name: :flagged, the flagged securities
+  #   with a stored quote; :held, the unflagged securities held today in any
+  #   depot with a stored quote.
+  # - A flagged security that is also held is listed once, under :flagged.
+  # - A held security without a stored quote, a flagged one without a
+  #   stored quote, an unheld unflagged one and a sold-out one are offered
+  #   in neither list.
+  # - Every security offered resolves under resolve/1.
+  test "choices offers the quoted flagged securities, then the quoted held ones, by name" do
+    world = base_world(name: "Synthetic Picker")
+
+    held_b = create_security!(name: "Synthetic Held B", ticker: "SHB")
+    held_a = create_security!(name: "Synthetic Held A", ticker: "SHA")
+    unquoted_held = create_security!(name: "Synthetic Held Unquoted", ticker: "SHU")
+    sold = create_security!(name: "Synthetic Sold Out", ticker: "SSO")
+    watched = create_security!(name: "Synthetic Watched", ticker: "SWA")
+    index_z = flagged!(name: "Synthetic Index Z", ticker: "SIZ")
+    held_index = flagged!(name: "Synthetic Index H", ticker: "SIH")
+    unquoted_index = flagged!(name: "Synthetic Index Unquoted", ticker: "SIU")
+
+    for security <- [held_b, held_a, unquoted_held, sold, held_index] do
+      buy!(world, security, quantity: "2", price: "10", date: ~D[2025-03-03])
+    end
+
+    sell!(world, sold, quantity: "2", price: "11", date: ~D[2025-04-01])
+
+    for security <- [held_b, held_a, sold, watched, index_z, held_index] do
+      put_quote!(security, ~D[2025-03-03], "10")
+    end
+
+    choices = BenchmarkSecurity.choices()
+
+    assert Enum.map(choices.flagged, & &1.name) == ["Synthetic Index H", "Synthetic Index Z"]
+    assert Enum.map(choices.held, & &1.name) == ["Synthetic Held A", "Synthetic Held B"]
+
+    offered = choices.flagged ++ choices.held
+    refute Enum.any?(offered, &(&1.id in [unquoted_held.id, unquoted_index.id]))
+    refute Enum.any?(offered, &(&1.id in [sold.id, watched.id]))
+
+    for security <- offered do
+      assert {:ok, %{id: id}} = BenchmarkSecurity.resolve(security.id)
+      assert id == security.id
+    end
+  end
+
+  # --- Sprint 29 B2 end ---
 end

@@ -4174,6 +4174,35 @@ input[pattern]:invalid:not(:placeholder-shown) {
     min-height: 44px;
   }
 }
+/* --- Sprint 29 B2 begin: the picker's labelled groups (issue 1416; board
+   ux-design-2026-11-12-sprint29/02, Q1 A) --- */
+/* „Benchmarks“ then „Im Bestand“: each label in one column, its options
+   from one edge, the block on a line of its own in the form. */
+.bm-groups {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  align-items: baseline;
+  flex-basis: 100%;
+}
+.bm-groups__label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.bm-groups__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+/* A phone: the label above its options. */
+@media (max-width: 560px) {
+  .bm-groups {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+}
+/* --- Sprint 29 B2 end --- */
 
 .chart-zoom-rect {
   position: absolute;

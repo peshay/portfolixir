@@ -217,9 +217,13 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
     assert has_element?(view, "#kpi-benchmark [data-role='benchmark-row']", "Other Bench")
     refute has_element?(view, "#kpi-benchmark [data-role='benchmark-row']", "% p.a.")
 
-    unflagged = "benchmark[]=security:#{world.held.id}&benchmark[]=bogus&benchmark_rate=abc"
-    conn = get(conn, "/portfolio?#{unflagged}")
-    {:ok, none, _html} = live(conn, "/portfolio?#{unflagged}")
+    # #1416 (B2; ADR-0058 F5): what is not a benchmark is a security
+    # without a stored quote, as the API answers 422; a held fund with one
+    # is a benchmark now and stays chosen (the B2 tests below).
+    unquoted = WorldFixtures.create_security!(name: "Unquoted Fund", ticker: "UQF")
+    invalid = "benchmark[]=security:#{unquoted.id}&benchmark[]=bogus&benchmark_rate=abc"
+    conn = get(conn, "/portfolio?#{invalid}")
+    {:ok, none, _html} = live(conn, "/portfolio?#{invalid}")
     render_async(none)
     refute has_element?(none, "#kpi-benchmark")
   end
@@ -247,10 +251,15 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
   # Closing-act finding (correctness hunter): a benchmark without a quote
   # covers no window, and the row said "from  — 1 earlier flow left out" with
   # a blank date. Nothing is covered, and the row says so.
-  test "a benchmark without a quote shows the uncovered note, never a blank date", %{conn: conn} do
+  test "a benchmark quoted only after every flow shows the uncovered note, never a blank date", %{
+    conn: conn
+  } do
     world = seed_world()
     silent = WorldFixtures.create_security!(name: "Silent Bench", ticker: "SLNT")
     {:ok, silent} = Catalog.update_security(Actor.owner_ui(), silent, %{is_benchmark: true})
+    # #1416 (B2): a benchmark with no stored quote at all is refused now, on
+    # the screen as by the API; one first quoted today covers no window.
+    WorldFixtures.put_quotes!(silent, [{world.today, "10"}])
 
     conn = get(conn, "/portfolio?benchmark[]=security:#{silent.id}")
     {:ok, view, _html} = live(conn, "/portfolio?benchmark[]=security:#{silent.id}")
@@ -265,7 +274,6 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
            )
 
     refute has_element?(view, "#kpi-benchmark [data-role='benchmark-coverage']", "from ")
-    _ = world
   end
 
   # User story (#572, UX-DR13 — the basis line):
@@ -589,6 +597,159 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
       assert has_element?(view, "#tip-benchmark", view_info)
     end
   end
+
+  # --- Sprint 29 B2 begin ---
+  # The picker's GET request as a browser builds it from the form: its
+  # action, the hidden empty entry, every box ticked (here: the boxes named
+  # by `ticked`, whatever was ticked before cleared, as the operator does),
+  # and the rate field as it stands.
+  defp picker_request(view, ticked) do
+    form =
+      view
+      |> element("[data-role='benchmark-form']")
+      |> render()
+      |> LazyHTML.from_fragment()
+
+    [action] = LazyHTML.attribute(form, "action")
+
+    boxes =
+      for label <- form |> LazyHTML.query("label.benchmark-form__option"),
+          name = label |> LazyHTML.text() |> String.trim(),
+          name in ticked,
+          [value] = label |> LazyHTML.query("input") |> LazyHTML.attribute("value"),
+          do: {"benchmark[]", value}
+
+    rate =
+      form
+      |> LazyHTML.query("input[name='benchmark_rate']")
+      |> LazyHTML.attribute("value")
+      |> List.first("")
+
+    action <> "?" <> URI.encode_query([{"benchmark[]", ""} | boxes] ++ [{"benchmark_rate", rate}])
+  end
+
+  defp group_names(view, group) do
+    view
+    |> element("[data-role='benchmark-form']")
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("[data-group='#{group}'] label.benchmark-form__option")
+    |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
+  end
+
+  defp group_labels(view) do
+    view
+    |> element("[data-role='benchmark-form']")
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query(".bm-groups__label")
+    |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
+  end
+
+  # User story (#1416, B2; ADR-0046's amendment of 2026-11-07, point 3;
+  # ADR-0058 F5; board 02 ①, Q1 A):
+  # As the operator who holds the fund I want to compare with,
+  # I want Holdings' „Benchmark…“ to offer the flagged benchmarks first and
+  # then the securities I hold today, as two labelled groups,
+  # so that I tick my own fund and see the comparison drawn with it, the
+  # same figure the API answers, without flagging it reference-only.
+  #
+  # Acceptance criteria:
+  # - The picker shows „Benchmarks“ (the flagged ones with a quote) then
+  #   „In holdings“ (held today, with a quote, not flagged), by name.
+  # - Ticking the held fund and applying sends benchmark[]=security:<id>;
+  #   the page draws it as a chip, a comparison row and a legend entry.
+  # - The row's savings-plan delta is GET /api/v1/performance/benchmark's
+  #   end_value_delta for the same benchmark and the page's period (1y).
+  test "a held fund ticked in the picker is drawn and equals the API's figure", %{conn: conn} do
+    world = seed_world()
+
+    conn = get(conn, "/portfolio")
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    assert group_labels(view) == ["Benchmarks", "In holdings"]
+    assert group_names(view, "flagged") == ["Bench ETF"]
+    assert group_names(view, "held") == ["World ETF"]
+
+    request = picker_request(view, ["World ETF"])
+    assert request =~ "benchmark%5B%5D=security%3A#{world.held.id}"
+
+    conn = get(recycle(conn), request)
+    {:ok, picked, _html} = live(conn, request)
+    render_async(picked)
+
+    assert has_element?(
+             picked,
+             "[data-role='benchmark-active'] [data-role='benchmark-chip']",
+             "World ETF"
+           )
+
+    assert has_element?(picked, "#kpi-benchmark [data-role='benchmark-row']", "World ETF")
+    assert has_element?(picked, "[data-role='benchmark-legend']", "World ETF")
+
+    assert has_element?(
+             picked,
+             "[data-group='held'] input[value='security:#{world.held.id}'][checked]"
+           )
+
+    api =
+      conn
+      |> recycle()
+      |> put_req_header("accept", "application/json")
+      |> put_req_header("authorization", "Bearer test-api-token")
+      |> get("/api/v1/performance/benchmark", %{
+        "benchmark" => "security:#{world.held.id}",
+        "period" => "1y"
+      })
+      |> json_response(200)
+      |> get_in(["data", "savings_plan", "end_value_delta"])
+
+    delta =
+      picked
+      |> element("#kpi-benchmark [data-role='benchmark-delta']")
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.text()
+
+    assert delta =~ Format.signed_decimal(Decimal.new(api), 2)
+  end
+
+  # Acceptance criteria (#1416, B2; ADR-0058 F5):
+  # - A held security named in the address is active, not dropped to "not
+  #   selected"; an unheld one with a quote is active too, as the API takes
+  #   it, and the picker shows it ticked in a third group so Apply keeps it.
+  # - A flagged security that is also held is offered once, under
+  #   „Benchmarks“.
+  # - The groups read „Benchmarks“ and „Im Bestand“ in German.
+  test "a held or quoted security in the address stays chosen; a held benchmark is listed once",
+       %{conn: conn} do
+    world = seed_world()
+    WorldFixtures.buy!(world, world.bench, quantity: "1", price: "50", date: world.start)
+    watched = WorldFixtures.create_security!(name: "Watched Fund", ticker: "WTCH")
+    WorldFixtures.put_quotes!(watched, [{world.start, "10"}, {Date.add(world.today, -1), "11"}])
+
+    query =
+      "locale=de&benchmark[]=security:#{world.held.id}&benchmark[]=security:#{watched.id}"
+
+    conn = get(conn, "/portfolio?" <> query)
+    {:ok, view, _html} = live(conn, "/portfolio?" <> query)
+    render_async(view)
+
+    assert has_element?(view, "#kpi-benchmark [data-role='benchmark-row']", "World ETF")
+    assert has_element?(view, "#kpi-benchmark [data-role='benchmark-row']", "Watched Fund")
+
+    assert group_labels(view) == ["Benchmarks", "Im Bestand", "Weitere"]
+    assert group_names(view, "flagged") == ["Bench ETF"]
+    assert group_names(view, "held") == ["World ETF"]
+    assert group_names(view, "other") == ["Watched Fund"]
+    assert has_element?(view, "[data-group='other'] input[checked]")
+
+    request = picker_request(view, ["World ETF", "Watched Fund"])
+    assert request =~ "security%3A#{watched.id}"
+  end
+
+  # --- Sprint 29 B2 end ---
 
   describe "BenchmarkScope plug" do
     defp run_plug(conn) do
