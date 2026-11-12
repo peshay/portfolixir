@@ -8,7 +8,8 @@ description: "Decision for gate B3.3, narrowed to one chain source (idea I12, FR
 
 - **Status:** Accepted. Adopted by the merge of the Sprint 29 planning PR
   (ADR-0026 step 1, as amended on 2026-10-08: the merge is the signature).
-  **Built in Sprint 30**, not 29 (the Sprint 29 plan, D-2). The merge opens gate
+  **Built in Sprint 29** as its third stacked sprint PR (the Sprint 29 plan,
+  D-2, as the owner decided on 2026-11-12). The merge opens gate
   B3.3 **for this one chain source only**; every other kind of acquisition
   (bank, broker and wallet sync, F13; CPI and other series; any other chain
   data) stays behind it, as ADR-0056 left it for everything but news feeds.
@@ -378,7 +379,7 @@ addendum's "within a day"). It is reported:
 - **Screen:** a "Halving-Kette" choice (none, Bitcoin, Bitcoin Cash,
   Litecoin) in the security's edit form, with the confirmation of §4 when
   halving events exist; the health line in the cycle bar (§8). The
-  Sprint 30 planning PR draws its planning board, from the I12 idea boards,
+  Sprint 29 planning PR draws its planning board (board 07), from the I12 idea boards,
   with the states this record adds: not bound, bound without a source,
   stale, and a refused own URL.
 
@@ -390,7 +391,7 @@ feeds (B3.3)" as gated, and the gate registry
 acquisition beyond quotes, FX, ADR-0056's news feeds and ADR-0059's chain
 source (B3.3)"**, and the *Why* that follows it, "which ADR-0056 gave news
 feeds alone (ADR-0056 B8)", becomes "which ADR-0056 gave news feeds and
-ADR-0059 one chain source". The change goes into the Sprint 30 sprint PR, in
+ADR-0059 one chain source". The change goes into Sprint 29's third sprint PR, in
 the same commit as the registry entry and **never ahead of the code**, as
 ADR-0056 B8 did.
 
