@@ -242,8 +242,14 @@ export const ADMIN_TOOLS: ReadonlyMap<string, string> = new Map([
   [
     "portfolixir.news.feeds_delete",
     "Removes a feed; putting it back registers a new feed, and its old items stay detached from it."
-  ]
+  ],
   // --- Sprint 27 N8 end ---
+  // --- S29 C5 begin ---
+  [
+    "portfolixir.crashes.delete",
+    "Removes a window's name or a manual window; drawing it again makes a new window under a new key."
+  ]
+  // --- S29 C5 end ---
 ]);
 
 // THE OVERWRITES `book` KEEPS — the replace-shaped tools that carry
@@ -339,8 +345,18 @@ export const BOOK_KEPT_DESTRUCTIVE: ReadonlyMap<string, string> = new Map([
   [
     "portfolixir.news.assign",
     "An item's assignment; assigning the previous security restores it, null the matcher's answer."
-  ]
+  ],
   // --- S28 N4 end ---
+  // --- S29 C5 begin ---
+  [
+    "portfolixir.crashes.put",
+    "A window's name or a manual window's fields; putting the previous ones restores them (a window it drew is removed by crashes.delete, admin)."
+  ],
+  [
+    "portfolixir.crashes.benchmark_put",
+    "A setting; setting the previous benchmark restores it, and with it the names given for it."
+  ]
+  // --- S29 C5 end ---
 ]);
 
 interface ProfiledTool {

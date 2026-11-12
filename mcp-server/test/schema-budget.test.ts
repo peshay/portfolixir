@@ -588,6 +588,35 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     full: 228_339
   },
   // --- Sprint 28 closing act, AG5 end ---
+  // --- S29 C5 begin ---
+  {
+    since: "2026-11-12",
+    why:
+      "Sprint 29, C5 (FR-54, ADR-0058 §9): the five crash tools raise each ceiling by their " +
+      "own bytes and no more, measured on the companion's text: portfolixir.crashes.list " +
+      "764 and portfolixir.crashes.rankings 1,219, reads in every profile; " +
+      "portfolixir.crashes.put 1,270 and portfolixir.crashes.benchmark_put 648, writes in " +
+      "book and full; portfolixir.crashes.delete 562, admin, in full only. So read " +
+      "118,437 + 1,983 = 120,420, book 193,317 + 3,901 = 197,218 and full 228,339 + 4,463 " +
+      "= 232,802; the commas before them are paid for by the room under the former " +
+      "ceilings, and no other tool's bytes are added",
+    read: 120_420,
+    book: 197_218,
+    full: 232_802,
+    raisedBy: {
+      tools: [
+        "portfolixir.crashes.list",
+        "portfolixir.crashes.rankings",
+        "portfolixir.crashes.put",
+        "portfolixir.crashes.delete",
+        "portfolixir.crashes.benchmark_put"
+      ],
+      read: 1_983,
+      book: 3_901,
+      full: 4_463
+    }
+  }
+  // --- S29 C5 end ---
 ];
 
 describe("the schema budget", () => {

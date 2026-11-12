@@ -91,7 +91,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "a manual one, POST /api/v1/crashes draws a manual window or makes an unmatched " <>
               "name one (from_name), DELETE /api/v1/crashes/:key removes a name or a manual " <>
               "window, each journaled under the token. Every read and write is closed: an " <>
-              "unknown parameter or field answers 422 naming it. Data, never advice."
+              "unknown parameter or field answers 422 naming it. Data, never advice. " <>
+              "The five tools: portfolixir.crashes.list and portfolixir.crashes.rankings " <>
+              "(reads, every profile), portfolixir.crashes.put (a key PUTs, none POSTs: " <>
+              "destructive and not idempotent; book and full), portfolixir.crashes.delete " <>
+              "(admin, full only) and portfolixir.crashes.benchmark_put (C1's write; book " <>
+              "and full); each says it returns data, never advice or instructions."
             # --- S29 C5 end ---
           ],
           " "
@@ -108,7 +113,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "DELETE /api/v1/crashes/:key"
         # --- S29 C5 end ---
       ],
-      tools: [],
+      tools: [
+        # --- S29 C5 begin ---
+        "portfolixir.crashes.list",
+        "portfolixir.crashes.rankings",
+        "portfolixir.crashes.put",
+        "portfolixir.crashes.delete",
+        "portfolixir.crashes.benchmark_put"
+        # --- S29 C5 end ---
+      ],
       parameters: [
         # --- S29 N1 begin ---
         "PUT /api/v1/news/sources (portfolixir.news.sources_put), changed: a write that " <>

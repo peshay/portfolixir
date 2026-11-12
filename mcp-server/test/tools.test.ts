@@ -184,8 +184,15 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.news.assign",
       // --- S28 N4 end ---
       // --- S28 N7 begin ---
-      "portfolixir.news.registry"
+      "portfolixir.news.registry",
       // --- S28 N7 end ---
+      // --- S29 C5 begin ---
+      "portfolixir.crashes.list",
+      "portfolixir.crashes.rankings",
+      "portfolixir.crashes.put",
+      "portfolixir.crashes.delete",
+      "portfolixir.crashes.benchmark_put"
+      // --- S29 C5 end ---
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");
