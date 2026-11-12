@@ -49,9 +49,33 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 28's sprint PR (version 28). Dated strictly after entry 27, so
-    # since=2026-11-08 still returns it. Each story appends its own items
+    # Sprint 29's sprint PR (version 29). Dated strictly after entry 28, so
+    # since=2026-11-09 still returns it. Each story appends its own items
     # between its own markers.
+    assert newest["version"] == 29
+    assert newest["date"] == "2026-11-12"
+
+    # --- S29 N1 begin ---
+    # N1 (ADR-0056 E1): a rating re-rates the stored items it covers; no new
+    # endpoint or tool, sources_put's description says so.
+    assert newest["summary"] =~ "Sprint 29, N1 (ADR-0056 E1, #1444): "
+
+    assert [rating] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(&1, "PUT /api/v1/news/sources (portfolixir.news.sources_put)")
+             )
+
+    for part <- ~w(re-rates promoted blocked items_rerated items_removed items_kept_promoted) do
+      assert rating =~ part, part
+    end
+
+    # --- S29 N1 end ---
+
+    # Sprint 28's sprint PR (version 28), found by version from Sprint 29 on.
+    # Dated strictly after entry 27, so since=2026-11-08 still returns it.
+    # Each story appends its own items between its own markers.
+    newest = Enum.find(data["entries"], &(&1["version"] == 28))
     assert newest["version"] == 28
     assert newest["date"] == "2026-11-09"
 

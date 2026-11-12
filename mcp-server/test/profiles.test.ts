@@ -147,7 +147,7 @@ describe("the companion's tool profiles", () => {
 
   // User story (PR β closing act, should-fix 1):
   // As the operator reading why a tool sits where it does,
-  // I want each reason to be true of the code, the two residues a kept write
+  // I want each reason to be true of the code, the residues a kept write
   // leaves named where they occur,
   // so that "book can undo it" never promises more than the inverse does.
   //

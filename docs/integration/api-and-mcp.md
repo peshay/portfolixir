@@ -1368,7 +1368,19 @@ Answers are compact: short codes, null fields left out.
 - `PUT /api/v1/news/sources` rates a domain by hand from a `source` object,
   `domain` and `tier` (`primary`, `secondary`, `awareness`, `blocked`); no
   later seed overwrites it. Two puts of a new domain that race both land,
-  the later on the earlier's row.
+  the later on the earlier's row. A write that changes the domain's tier
+  re-rates, in the same transaction, every stored item the domain's row
+  decides (the domain and its subdomains, unless a more specific row
+  decides them) to the tier a fetch would give it now, an aggregator's at
+  most `secondary`, and each story's representative follows the new tiers
+  (ADR-0056 E1). An item promoted to a research entry keeps its tier;
+  `blocked` removes the others from their stories, and a later fetch that
+  lists one again drops it as blocked. The answer stays `domain`, `tier`
+  and `set_by`; the write's journal entry (`news_source`) carries
+  `items_rerated`, `items_removed` and `items_kept_promoted` beside the
+  tier. A fetch storing items of the domain meanwhile is either re-rated by
+  the write or reads the new tier, and a story promoted meanwhile keeps the
+  tiers it was promoted at.
 - `PUT /api/v1/news/items/:id/assignment` (`news.assign`) assigns an
   aggregator item by hand from an `assignment` object, `security_id`
   (required); `null` gives the item back to the matcher's answer now:
@@ -4713,14 +4725,18 @@ version in force and replaces the scheduled ones) and a rule's retirement. A
 replace-shaped write (an update, an upsert, a bucket set, a plan's activation)
 stays in `book`, because the same write sent the former value undoes it; a
 bucket set sent narrower, or a position's override set to `[]`, stays too,
-while clearing the override is admin. Two kept writes leave a residue their
+while clearing the override is admin. Three kept writes leave a residue their
 inverse does not clear: a rename back restores the live name but keeps the
 in-between name as a former name, which no new account may take and a later
 import naming it books onto that account, until
 `portfolixir.cash_accounts.remove_former_name` (or the depot twin), an admin
-tool, clears it; and an upsert over a date that held provider data leaves that
+tool, clears it; an upsert over a date that held provider data leaves that
 date manual, which only `portfolixir.quotes.release`, an admin tool, hands
-back. The writes `book` keeps are a second list beside the admin set, each
+back; and `portfolixir.news.sources_put` rating a domain back from `blocked`
+restores its tier and re-rates its stored items, but the items the block
+removed come back only when a feed lists them again (ADR-0056 E1: stored
+news items are a staging area a fetch refills, so the rating stays a
+replace). The writes `book` keeps are a second list beside the admin set, each
 with its reason, and a companion test fails any tool with
 `destructiveHint: true` that sits in neither. Under `book` a call to an admin
 tool, listed or not, is refused as a tool error naming the profile and

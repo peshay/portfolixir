@@ -301,7 +301,7 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
   # - The EN and DE MCP pages name PORTFOLIXIR_MCP_PROFILE with read, book and
   #   full, the default, what book leaves out and the line as implemented
   #   (removal-shaped tools are admin, replace-shaped writes stay in book),
-  #   the two residues a kept write leaves, the read-only switch as read, the
+  #   the three residues a kept write leaves, the read-only switch as read, the
   #   conflicting pair, and in one sentence that a profile narrows the
   #   companion and not the API token.
   # - No page claims that book holds only writes another book write undoes
@@ -320,6 +320,9 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "removal-shaped tools are admin, and replace-shaped writes stay in `book`",
          "a rename back restores the live name but keeps the in-between name as a former name",
          "an upsert over a date that held provider data leaves that date manual",
+         # --- S29 N1 begin ---
+         "but the items the block removed come back only when a feed lists them again",
+         # --- S29 N1 end ---
          "`PORTFOLIXIR_MCP_READ_ONLY=true` is `read`",
          "beside `PORTFOLIXIR_MCP_PROFILE=book` or `full` it stops the companion naming both variables",
          "A profile narrows the companion, not the API token."
@@ -331,6 +334,9 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "entfernende Tools sind Admin, ersetzende Schreibzugriffe bleiben in `book`",
          "eine Rückbenennung stellt den Namen wieder her, behält aber den Zwischennamen als früheren Namen",
          "ein Upsert über einem Datum mit Anbieterdaten lässt dieses Datum manuell",
+         # --- S29 N1 begin ---
+         "kommen erst zurück, wenn ein Feed sie wieder listet",
+         # --- S29 N1 end ---
          "`PORTFOLIXIR_MCP_READ_ONLY=true` ist `read`",
          "neben `PORTFOLIXIR_MCP_PROFILE=book` oder `full` stoppt es den Begleitdienst und nennt beide Variablen",
          "Ein Profil schränkt den Begleitdienst ein, nicht das API-Token."

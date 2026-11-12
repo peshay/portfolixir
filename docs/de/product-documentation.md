@@ -3643,7 +3643,13 @@ mehrdeutigen Einträge und was verworfen wurde.
 - **Quellen** (`/news?tab=sources`) listet jede bewertete Domain mit ihrer
   Stufe und ob sie von Hand gesetzt oder eine Voreinstellung ist; eine
   Domain ohne Eintrag gilt als `awareness`, und die Einträge einer
-  gesperrten werden beim Abruf verworfen.
+  gesperrten werden beim Abruf verworfen. Eine Bewertung erreicht auch,
+  was schon gespeichert ist: Ändert sich die Stufe einer Domain, werden
+  ihre gespeicherten Einträge sofort neu eingestuft, und der Repräsentant
+  jeder Meldung folgt; wird sie gesperrt, werden ihre gespeicherten
+  Einträge entfernt. Ein Eintrag, der schon in einen Eintrag des
+  Research-Logs übernommen wurde, behält die Stufe, mit der er übernommen
+  wurde (ADR-0056 E1).
 
 Titel, Domains und Links sind Text eines Feeds, gezeigt mit jedem
 unsichtbaren Zeichen als `[U+XXXX]`. Die Ereignisart einer Einordnung steht
