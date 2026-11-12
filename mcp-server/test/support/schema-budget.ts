@@ -642,8 +642,37 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
       book: 3_901,
       full: 4_463
     }
-  }
+  },
   // --- S29 C5 end ---
+  // --- S29 D3 begin ---
+  {
+    since: "2026-11-12",
+    why:
+      "Sprint 29, D3 (#1413; AGENTS.md \"Coverage runs both ways\"): the logo writes, " +
+      "portfolixir.securities.logo_put and portfolixir.securities.logo_discover in book and " +
+      "full and portfolixir.securities.logo_delete in full (admin), whose own schemas the rule " +
+      "of Sprint 24's D-2 lets the ceilings grow by and no more: their tools/list entries " +
+      "measure 718 + 655 = 1,373 bytes in book and 718 + 537 + 655 = 1,910 in full and none " +
+      "in read, so, on C5's ceilings, book 197,218 + 1,373 = 198,591 and full 232,802 + " +
+      "1,910 = 234,712; the commas between the entries are paid for by tightening " +
+      "securities.create's wording by four bytes (\", and no\" to \"; no\", as " +
+      "securities.update words it), and each ceiling is lowered to the figure measured with " +
+      "them: read 120,419, book 198,581 and full 234,704; no other tool's bytes are added",
+    read: 120_419,
+    book: 198_581,
+    full: 234_704,
+    raisedBy: {
+      tools: [
+        "portfolixir.securities.logo_put",
+        "portfolixir.securities.logo_delete",
+        "portfolixir.securities.logo_discover"
+      ],
+      read: 0,
+      book: 1_373,
+      full: 1_910
+    }
+  }
+  // --- S29 D3 end ---
 ];
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];

@@ -2143,6 +2143,16 @@ Hand gesetzt. Ein manuelles Logo oder ein ausdrückliches „kein Logo“
   `result`: `updated`, `no_source` oder `failed`. Gesperrte Wertpapiere bleiben
   unberührt und antworten mit `no_source`.
 
+Der Begleiter erreicht die drei Schreibzugriffe (Sprint 29 D3, Issue #1413):
+`portfolixir.securities.logo_put` (`security_id`, `url`; sein Schema nimmt
+nur eine `https://`-URL, und die API lehnt eine Adresse über reines http oder
+eine private Adresse ab wie oben), `portfolixir.securities.logo_delete` und
+`portfolixir.securities.logo_discover` (`security_id`), jeder antwortet mit
+dem Logo-Status. Das Setzen und die erneute Suche lassen den Server etwas
+abrufen und tragen deshalb `openWorldHint`; beide sind im Profil `book`. Das
+Entfernen löscht das gespeicherte Bild, eine Entfernung, und ist deshalb ein
+Admin-Werkzeug, das nur `full` listet.
+
 ## Kurse
 
 - `GET /api/v1/securities/:security_id/quotes` listet die Kurshistorie eines
@@ -5847,6 +5857,12 @@ lässt sich nicht lesen.
   sein eigener Lesezugriff ihn antwortet, und mit dessen Namen. Es antwortet
   kompaktes JSON (ohne Einrückung), sodass das Budget des News-Blocks von
   etwa 50 Token für den Text gilt, den der Agent erhält.
+- `portfolixir.securities.logo_put`, `portfolixir.securities.logo_discover`
+  und `portfolixir.securities.logo_delete` — das Logo eines Wertpapiers aus
+  einer https-Bild-URL gesetzt, erneut gesucht oder als „kein Logo“ entfernt,
+  über die [Logo-Endpunkte](#logos) (#1413). Die ersten beiden reichen über
+  die Instanz hinaus (`openWorldHint`) und sind in `book`; das Entfernen ist
+  ein Admin-Werkzeug (nur `full`).
 - `portfolixir.notes.list` — das Research-Log eines Wertpapiers, neueste
   zuerst, mit dem abgeleiteten Thesenstand; die Beschreibung benennt, dass
   Einträge nie verschwinden (ADR-0044).

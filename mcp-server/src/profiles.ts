@@ -251,8 +251,14 @@ export const ADMIN_TOOLS: ReadonlyMap<string, string> = new Map([
   [
     "portfolixir.crashes.delete",
     "Removes a window's name or a manual window; drawing it again makes a new window under a new key."
-  ]
+  ],
   // --- S29 C5 end ---
+  // --- S29 D3 begin ---
+  [
+    "portfolixir.securities.logo_delete",
+    "Deletes the stored image and locks the logo as no logo; the image comes back only by putting its URL again."
+  ]
+  // --- S29 D3 end ---
 ]);
 
 // THE OVERWRITES `book` KEEPS — the replace-shaped tools that carry
@@ -358,8 +364,18 @@ export const BOOK_KEPT_DESTRUCTIVE: ReadonlyMap<string, string> = new Map([
   [
     "portfolixir.crashes.benchmark_put",
     "A setting; setting the previous benchmark restores it, and with it the names given for it."
-  ]
+  ],
   // --- S29 C5 end ---
+  // --- S29 D3 begin ---
+  [
+    "portfolixir.securities.logo_put",
+    "Replaces the logo and locks it; putting the previous image's URL restores the image (the journal keeps only its host), and the lock stays."
+  ],
+  [
+    "portfolixir.securities.logo_discover",
+    "Replaces only a discovered logo, as the background discovery does on its own; one set or removed by hand is locked and left alone."
+  ]
+  // --- S29 D3 end ---
 ]);
 
 interface ProfiledTool {

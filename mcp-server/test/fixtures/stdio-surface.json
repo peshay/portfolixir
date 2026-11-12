@@ -289,7 +289,9 @@
         "portfolixir.crashes.list",
         "portfolixir.crashes.rankings",
         "portfolixir.crashes.put",
-        "portfolixir.crashes.benchmark_put"
+        "portfolixir.crashes.benchmark_put",
+        "portfolixir.securities.logo_put",
+        "portfolixir.securities.logo_discover"
       ],
       "prompts/get first_setup": {
         "result": {
@@ -505,7 +507,10 @@
         "portfolixir.crashes.rankings",
         "portfolixir.crashes.put",
         "portfolixir.crashes.delete",
-        "portfolixir.crashes.benchmark_put"
+        "portfolixir.crashes.benchmark_put",
+        "portfolixir.securities.logo_put",
+        "portfolixir.securities.logo_delete",
+        "portfolixir.securities.logo_discover"
       ],
       "prompts/get first_setup": {
         "result": {
@@ -703,7 +708,7 @@
             {
               "name": "portfolixir.securities.create",
               "title": "Create security",
-              "description": "Create a local security. With the instance's enrichment on, a create also queues a quote backfill from the configured provider and a logo lookup, reaching outside the instance (openWorldHint). To keep a position in totals and performance but out of the allocation basis and drift, tag it with a bucket the active view excludes. Every key of attributes, at any depth, is one-line text of at most 255 characters, and no text value has a control character but tab or line break (else 422). A timeout or lost connection answers outcome unknown (ApiOutcomeUnknownError): the write may have committed, so re-read before retrying; a blind retry can store a duplicate.",
+              "description": "Create a local security. With the instance's enrichment on, a create also queues a quote backfill from the configured provider and a logo lookup, reaching outside the instance (openWorldHint). To keep a position in totals and performance but out of the allocation basis and drift, tag it with a bucket the active view excludes. Every key of attributes, at any depth, is one-line text of at most 255 characters; no text value has a control character but tab or line break (else 422). A timeout or lost connection answers outcome unknown (ApiOutcomeUnknownError): the write may have committed, so re-read before retrying; a blind retry can store a duplicate.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -7303,6 +7308,83 @@
                 "destructiveHint": true,
                 "idempotentHint": true,
                 "openWorldHint": false
+              }
+            },
+            {
+              "name": "portfolixir.securities.logo_put",
+              "title": "Set a security's logo",
+              "description": "Set security_id's logo from an image url, https and a public address only, else 422 (errors.logo, a fixed message). The server downloads it once (png, jpeg or webp, at most 256 KiB), stores it and locks it against discovery. Journaled under your token. Returns the logo status (path, source, has_logo, locked, file_missing).",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "security_id",
+                  "url"
+                ],
+                "properties": {
+                  "security_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "url": {
+                    "type": "string",
+                    "pattern": "^https://"
+                  }
+                }
+              },
+              "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": true,
+                "idempotentHint": true,
+                "openWorldHint": true
+              }
+            },
+            {
+              "name": "portfolixir.securities.logo_delete",
+              "title": "Remove a security's logo",
+              "description": "Remove security_id's logo: deletes the stored image and locks the logo as \"no logo\", so discovery leaves it; logo_put sets one again. Journaled under your token. Returns the logo status.",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "security_id"
+                ],
+                "properties": {
+                  "security_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              },
+              "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": true,
+                "idempotentHint": true,
+                "openWorldHint": false
+              }
+            },
+            {
+              "name": "portfolixir.securities.logo_discover",
+              "title": "Search a security's logo again",
+              "description": "Search again for security_id's logo from the discovery sources, outside the instance. A locked logo (set or removed by hand) is left alone and answers result no_source; else updated or failed, a found image replacing a discovered one. Journaled under your token. Returns the logo status with result.",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "security_id"
+                ],
+                "properties": {
+                  "security_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              },
+              "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": true,
+                "idempotentHint": true,
+                "openWorldHint": true
               }
             }
           ]

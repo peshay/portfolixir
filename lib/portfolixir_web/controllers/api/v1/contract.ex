@@ -103,8 +103,20 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             "Sprint 29, D1 (#1414): the data-quality set implausible_quote runs over every " <>
               "security with a priced booking, held or not, each finding saying held; " <>
               "benchmarks are left out, and a retired security unless it is held; " <>
-              "portfolixir.securities.list says so."
+              "portfolixir.securities.list says so.",
             # --- S29 D1 end ---
+            # --- S29 D3 begin ---
+            "Sprint 29, D3 (#1413): the logo writes the API already served reach the " <>
+              "companion, with no new endpoint and no new semantics, each journaled under " <>
+              "the calling token: portfolixir.securities.logo_put (PUT " <>
+              "/api/v1/securities/:security_id/logo with {logo: {url}}; its schema takes an " <>
+              "https url, and the API takes https and a public address only, as before), " <>
+              "portfolixir.securities.logo_discover (POST .../logo/discover) and " <>
+              "portfolixir.securities.logo_delete (DELETE .../logo). The two that make the " <>
+              "server fetch carry openWorldHint; put and discover are in the book and full " <>
+              "profiles, and the delete, which deletes the stored image, is admin: the full " <>
+              "profile alone lists it."
+            # --- S29 D3 end ---
           ],
           " "
         ),
@@ -126,8 +138,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "portfolixir.crashes.rankings",
         "portfolixir.crashes.put",
         "portfolixir.crashes.delete",
-        "portfolixir.crashes.benchmark_put"
+        "portfolixir.crashes.benchmark_put",
         # --- S29 C5 end ---
+        # --- S29 D3 begin ---
+        "portfolixir.securities.logo_put",
+        "portfolixir.securities.logo_delete",
+        "portfolixir.securities.logo_discover"
+        # --- S29 D3 end ---
       ],
       parameters: [
         # --- S29 N1 begin ---

@@ -140,6 +140,26 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- S29 D1 end ---
 
+    # --- S29 D3 begin ---
+    # D3 (#1413): the three logo tools reach the logo endpoints that were
+    # there; a new tool is a contract change, no endpoint is.
+    assert newest["summary"] =~ "Sprint 29, D3 (#1413): "
+
+    for tool <- [
+          "portfolixir.securities.logo_put",
+          "portfolixir.securities.logo_delete",
+          "portfolixir.securities.logo_discover"
+        ] do
+      assert tool in newest["tools"], tool
+      assert newest["summary"] =~ tool, tool
+    end
+
+    # Entry 29 carries C1's and C5's endpoints; D3 adds none of its own.
+    refute Enum.any?(newest["endpoints"], &(&1 =~ "/logo")), "D3 adds no endpoint"
+    assert newest["summary"] =~ "https and a public address only"
+    assert newest["summary"] =~ "the full profile alone"
+    # --- S29 D3 end ---
+
     # Sprint 28's sprint PR (version 28), found by version from Sprint 29 on.
     # Dated strictly after entry 27, so since=2026-11-08 still returns it.
     # Each story appends its own items between its own markers.
