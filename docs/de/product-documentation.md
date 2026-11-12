@@ -787,12 +787,15 @@ und die Datenqualitäts-Hinweise des Katalogs (veralteter oder fehlender
 Kurs, fehlendes Logo) lassen sie in Ruhe; sie kann trotzdem gehalten werden
 und ist dann einfach beides. Die API listet Benchmarks mit
 `is_benchmark=true`. Für einen Vergleich braucht ein Wertpapier die
-Markierung nicht: Über API und MCP kann jedes Wertpapier mit einem
-gespeicherten Kurs die Benchmark eines Vergleichs, des Rückblicks nach dem
-Verkauf oder einer Prognose sein, sodass ein gehaltener Fonds buchbar und
-geprüft bleibt, während er Ihre Referenz ist, und die Basis des Vergleichs
-sagt, ob sie ein markiertes, ein gehaltenes oder ein nicht gehaltenes
-Wertpapier gelesen hat. Was der Vergleich zeigt, steht unter Performance.
+Markierung nicht: Jedes Wertpapier mit einem gespeicherten Kurs kann die
+Benchmark eines Vergleichs, des Rückblicks nach dem Verkauf oder einer
+Prognose sein, sodass ein gehaltener Fonds buchbar und geprüft bleibt,
+während er Ihre Referenz ist, und die Basis des Vergleichs sagt, ob sie ein
+markiertes, ein gehaltenes oder ein nicht gehaltenes Wertpapier gelesen hat.
+Auf dem Bildschirm bieten die beiden Benchmark-Auswahlen die markierten
+Wertpapiere unter **Benchmarks** an und danach die heute gehaltenen unter
+**Im Bestand**; über API und MCP wird jedes Wertpapier mit Kurs
+angenommen. Was der Vergleich zeigt, steht unter Performance.
 Das Entfernen der Markierung (**Benchmark-Markierung entfernen**) ändert
 keine festgehaltene Prognose: Messen festgehaltene Prognosen an ihm, sagt
 der Hinweis, wie viele es weiter tun.
@@ -2699,11 +2702,17 @@ Zahl „seit Jahresbeginn“ auf dieselbe Weise. (ADR-0032.)
 **Benchmark-Vergleich**
 ([ADR-0046](/decisions/0046-benchmark-comparison.html), FR-9) — *war der
 Aufwand das wert?* Unter **Benchmark…** im Performance-Abschnitt lassen
-sich bis zu zwei Benchmarks wählen: ein auf der Wertpapierseite als
-Benchmark markiertes Wertpapier (ein Index über einen ETF, Gold über einen
-ETC, per gewöhnlichem Kurs-Sync) oder ein fester Jahreszins als Prozentwert
-(die Tagesgeld-Alternative; in dieser Version auch die Ausdrucksform der
-Inflation). Die Wahl steht in der URL und wird wie die aktive View gemerkt;
+sich bis zu zwei Benchmarks wählen: ein Wertpapier aus den zwei Gruppen
+der Auswahl — **Benchmarks**, die auf der Wertpapierseite als Benchmark
+markierten Wertpapiere (ein Index über einen ETF, Gold über einen ETC, per
+gewöhnlichem Kurs-Sync), danach **Im Bestand**, die heute in einem
+beliebigen Depot gehaltenen, jeweils nach Name und nur mit gespeichertem
+Kurs; ein markiertes Wertpapier, das auch gehalten wird, steht einmal,
+unter Benchmarks — oder ein fester Jahreszins als Prozentwert (die
+Tagesgeld-Alternative; in dieser Version auch die Ausdrucksform der
+Inflation). Ein Link darf jedes andere Wertpapier mit gespeichertem Kurs
+nennen, wie die API es annimmt; es steht dann angekreuzt unter
+**Weitere**. Die Wahl steht in der URL und wird wie die aktive View gemerkt;
 ein Zins wird nur behalten, wenn der Vergleich ihn exakt verwenden kann
 (zwischen −99,9999 % und 1000 % p. a., als Bruch mit höchstens 15
 Nachkommastellen), und ein gemerkter Zins, der das nicht mehr erfüllt,
@@ -3076,9 +3085,12 @@ keine Zahl ein) und vier Spannen ab dem Verkaufstag: **1M**, **3M**,
 die eigene Kursrendite des verkauften Wertpapiers; **Fester Zins** nimmt
 einen Zins in % p. a. (mit Komma oder Punkt, von -99,9999 bis 1000; alles
 andere wird unter dem Feld genannt und nicht gerechnet) und zeigt die
-Differenz dazu; **Wertpapier** vergleicht mit einem Wertpapier, das auf der
-Seite Wertpapiere als Benchmark markiert ist, und zeigt die Differenz,
-darunter „Wertpapier ggü. Benchmark“. Eine Spanne, die nach heute endet,
+Differenz dazu; **Wertpapier** vergleicht mit einem in der Auswahl
+gewählten Wertpapier — unter **Benchmarks** die auf der Seite Wertpapiere
+als Benchmark markierten, das erste davon vorgewählt, danach unter **Im
+Bestand** die heute gehaltenen, jeweils mit gespeichertem Kurs (ein Link,
+der ein anderes Wertpapier mit Kurs nennt, zeigt es unter **Weitere**) —
+und zeigt die Differenz, darunter „Wertpapier ggü. Benchmark“. Eine Spanne, die nach heute endet,
 lautet „läuft“ mit ihrem Enddatum; einer Spanne ohne Kurs oder Wechselkurs
 steht ihr Grund („kein Startkurs“, „kein Wechselkurs“, …), sie wird nie
 geschätzt. Die Auswahl gehört zur Adresse, ein Link öffnet also denselben

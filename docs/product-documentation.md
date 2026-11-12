@@ -717,11 +717,13 @@ quote sync, so there is no second quote source. A benchmark is never offered
 in a booking form and the catalog's data-quality reminders (stale or missing
 quote, missing logo) leave it alone; it may still be held, and then it is
 simply both. The API lists benchmarks with `is_benchmark=true`. The flag is
-not needed to compare against a security: over the API and MCP, any security
-with a stored quote can be the benchmark of a comparison, of sale hindsight
-or of a prediction, so a fund you hold stays bookable and checked while it
-is your reference, and the comparison's basis says whether it read a
-flagged, a held or an unheld security. What the comparison shows is
+not needed to compare against a security: any security with a stored quote
+can be the benchmark of a comparison, of sale hindsight or of a prediction,
+so a fund you hold stays bookable and checked while it is your reference,
+and the comparison's basis says whether it read a flagged, a held or an
+unheld security. On the screen the two benchmark pickers offer the flagged
+securities under **Benchmarks** and then the securities held today under
+**In holdings**; over the API and MCP any quoted security is accepted. What the comparison shows is
 described under Performance. Removing the flag (**Unmark benchmark**)
 changes no recorded prediction: where recorded predictions measure against
 it, the note says how many keep doing so.
@@ -2448,10 +2450,15 @@ card serves its last known "year to date" figure the same way. (ADR-0032.)
 **Benchmark comparison**
 ([ADR-0046](decisions/0046-benchmark-comparison.html), FR-9) — *was the
 effort worth it?* Under **Benchmark…** in the performance section, pick up
-to two benchmarks: a security marked as a benchmark on the Securities page
+to two benchmarks: a security from the picker's two groups —
+**Benchmarks**, the securities marked as a benchmark on the Securities page
 (an index proxied by an ETF, gold by an ETC, quoted through the ordinary
-sync) or a fixed annual rate typed as a percentage (the savings-account
-alternative; in this version also how inflation is expressed). The choice
+sync), then **In holdings**, the securities held today in any depot, each
+by name and only with a stored quote; a security marked as a benchmark and
+also held is listed once, under Benchmarks — or a fixed annual rate typed as
+a percentage (the savings-account alternative; in this version also how
+inflation is expressed). A link may name any other security with a stored
+quote, as the API accepts it; it is then shown ticked under **Other**. The choice
 rides in the URL and is remembered like the active view; a rate is kept
 only when the comparison can use it exactly (between −99.9999 % and 1000 %
 p.a., with at most 15 decimal places as a fraction), and a remembered rate
@@ -2785,8 +2792,11 @@ day: **1M**, **3M**, **12M** and **To date** (up to the latest close). The
 sold security's own price return; **Fixed rate** takes a rate in % p.a.
 (typed with a point or a comma, from -99.9999 to 1000; anything else is
 named under the field and not computed) and shows the difference to it;
-**Security** compares with a security flagged as a benchmark on the
-Securities page and shows the difference, with "security vs. benchmark"
+**Security** compares with a security chosen in the select — under
+**Benchmarks** the ones flagged as a benchmark on the Securities page, the
+first of them the default, then under **In holdings** the ones held today,
+each with a stored quote (a link naming another quoted security shows it
+under **Other**) — and shows the difference, with "security vs. benchmark"
 under it. A span that ends after today reads "running" with its end date; a
 span without a close or a rate reads its reason ("no start close", "no
 exchange rate", …) and is never estimated. The chooser is part of the
