@@ -74,7 +74,10 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
   # `module => %{purpose, hosts}`: every caller of the chokepoint. `hosts` is
   # what its allow-list declares; `hosts_from: :config` reads a computed
   # allow-list from `config :portfolixir, <module>, allowed_hosts: ...`, and
-  # `any:` is the reason a declared `:any` is allowed. Quotes and FX sit
+  # `any:` is the reason a declared `:any` is allowed. In a config map of
+  # sources, `:any` is allowed under the one key `any_key:` names and no
+  # other (Sprint 29 H2, attack lens: a second source's `:any` merged into
+  # the first's and reached any host unflagged). Quotes and FX sit
   # inside the line B3.3 draws (ADR-0005, ADR-0007); search and logos are
   # catalogue metadata that books nothing.
   @adapters %{
@@ -117,6 +120,8 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
         "companieslogo.com",
         ".companieslogo.com"
       ],
+      # Sprint 29 H2, attack lens: the one source key that may read `:any`.
+      any_key: :manual,
       any:
         "the operator's own logo URL for one security (`manual: :any`): typed by the " <>
           "operator, and still https-only, public-address-only and redirect-guarded"
@@ -145,6 +150,7 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
           "for this one chain source)",
       hosts_from: :config,
       hosts: ["mempool.space", "blockstream.info"],
+      any_key: :own,
       any:
         "ADR-0059 §3, §10: the operator's own instance from " <>
           "PORTFOLIXIR_BITCOIN_ESPLORA_URL, which replaces both public sources; the " <>
@@ -654,6 +660,12 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
                  "(NFR-9 B2): declare the hosts as a literal or register `hosts_from: :config`"
 
         {any?, names} = Enum.split_with(hosts, &(&1 == :any))
+        {misplaced, names} = Enum.split_with(names, &match?({:any_under, _key}, &1))
+
+        assert misplaced == [],
+               "#{module}: a config source other than `#{inspect(entry[:any_key])}` reads " <>
+                 ":any and so reaches any host (NFR-9 B2): " <>
+                 "#{inspect(Enum.map(misplaced, &elem(&1, 1)))}; give it its host list"
 
         unregistered = Enum.uniq(names) -- entry.hosts
         stale = entry.hosts -- names
@@ -662,7 +674,9 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
                "#{module} may reach hosts nobody registered (NFR-9 B2): #{inspect(unregistered)}"
 
         assert stale == [],
-               "#{module}: registered hosts it no longer declares — remove them: #{inspect(stale)}"
+               "#{module}: registered hosts it no longer declares (NFR-9 B2): " <>
+                 "#{inspect(stale)}; remove one only when no source reaches it any more, " <>
+                 "never because a source was widened to :any"
 
         if any? != [] do
           assert is_binary(entry[:any]) and String.length(entry.any) > 20,
@@ -1253,9 +1267,11 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
                ~s|%{mempool: [".mempool.space"], blockstream: ["blockstream.info"], own: :any}|
              ) == {[".mempool.space"], ["mempool.space"]}
 
-      # A public source widened to `:any`: its host goes stale.
+      # A public source widened to `:any`: a misplaced `:any`, and its host
+      # goes stale. Unregistering the stale host, as a stale entry asks,
+      # still leaves the misplaced `:any`, so the gate stays red.
       assert flags.(~s|%{mempool: :any, blockstream: ["blockstream.info"], own: :any}|) ==
-               {[], ["mempool.space"]}
+               {[{:any_under, :mempool}], ["mempool.space"]}
 
       # An allow-list built at run time, or keyed by strings: computed.
       assert flags.(~s|Map.put(%{own: :any}, :mempool, ["mempool.space"])|) == :computed
@@ -1265,6 +1281,13 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
              ) == :computed
 
       assert flags.(~s|%{mempool: [System.get_env("HOST")], own: :any}|) == :computed
+
+      # The attack lens: a third source widened to `:any` merged into the own
+      # URL's `:any` and raised no flag. Only `any_key:` may read `:any`.
+      refute flags.(
+               ~s|%{mempool: ["mempool.space"], blockstream: ["blockstream.info"], | <>
+                 ~s|own: :any, extra: :any}|
+             ) == {[], []}
     end
 
     # --- end Sprint 29 H2 ---------------------------------------------------
@@ -2006,7 +2029,8 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
         when is_list(opts) ->
           if Keyword.keyword?(opts) and Keyword.has_key?(opts, :allowed_hosts) do
             module = Enum.join(segments, ".")
-            {node, Map.put(acc, module, config_value_hosts(opts[:allowed_hosts]))}
+            hosts = config_value_hosts(opts[:allowed_hosts], any_key(module))
+            {node, Map.put(acc, module, hosts)}
           else
             {node, acc}
           end
@@ -2018,14 +2042,38 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     found
   end
 
-  defp config_value_hosts({:%{}, _, pairs}) do
+  defp config_value_hosts({:%{}, _, pairs}, any_key) do
     Enum.reduce(pairs, [], fn
-      {source, value}, acc when is_atom(source) -> merge_hosts(acc, literal_hosts(value, %{}))
-      _computed, _acc -> :computed
+      {source, value}, acc when is_atom(source) ->
+        merge_hosts(acc, value |> literal_hosts(%{}) |> tag_any(source, any_key))
+
+      _computed, _acc ->
+        :computed
     end)
   end
 
-  defp config_value_hosts(value), do: literal_hosts(value, %{})
+  defp config_value_hosts(value, _any_key), do: literal_hosts(value, %{})
+
+  # Sprint 29 H2, attack lens: in a registered module's map of sources,
+  # `:any` stands only under the key its entry names as `any_key:`; under
+  # any other key it reads `{:any_under, key}`, which the host test refuses.
+  # An unregistered module is left as read: its registration fails first.
+  defp any_key(module) do
+    case Map.fetch(@adapters, module) do
+      {:ok, entry} -> Map.get(entry, :any_key)
+      :error -> :unregistered
+    end
+  end
+
+  defp tag_any(:computed, _source, _any_key), do: :computed
+  defp tag_any(hosts, _source, :unregistered), do: hosts
+
+  defp tag_any(hosts, source, any_key) do
+    Enum.map(hosts, fn
+      :any when source != any_key -> {:any_under, source}
+      host -> host
+    end)
+  end
 
   # --- environment names ---------------------------------------------------
 

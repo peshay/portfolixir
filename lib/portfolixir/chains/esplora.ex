@@ -25,9 +25,9 @@ defmodule Portfolixir.Chains.Esplora do
   **The client** (§7, B2). Every request goes through `Portfolixir.Net.Http`,
   GET only, under a 64 KiB byte cap and a 10-second deadline. Each source's
   client carries its own registered host as its allow-list (the config's
-  `allowed_hosts`; the own URL's `:any` narrows to that URL's one host), so
-  a base on any other host is refused by the chokepoint and makes no
-  request. **A redirect is never followed**, not even within the same host:
+  `allowed_hosts`; the own URL's `:any` narrows to that URL's one host,
+  and no other source may be `:any`: its client reaches nothing), so a base
+  on any other host is refused by the chokepoint and makes no request. **A redirect is never followed**, not even within the same host:
   it fails the source with `redirect_refused`. Bodies are decoded here with
   string keys; no atom is ever made from an answer.
 
@@ -141,7 +141,16 @@ defmodule Portfolixir.Chains.Esplora do
 
     case Keyword.get(config, :own_url) do
       nil ->
-        {:ok, for({source, base} <- Keyword.fetch!(config, :sources), do: {source, base(base)})}
+        sources = Keyword.fetch!(config, :sources)
+
+        # The own source is the operator's environment URL alone, checked
+        # with name resolution; a config source named `:own` would borrow
+        # its `:any` without that check.
+        if Keyword.has_key?(sources, :own),
+          do:
+            raise(ArgumentError, "the own source comes from PORTFOLIXIR_BITCOIN_ESPLORA_URL only")
+
+        {:ok, for({source, base} <- sources, do: {source, base(base)})}
 
       url ->
         base = base(url)
@@ -311,12 +320,16 @@ defmodule Portfolixir.Chains.Esplora do
     |> merge_test_plug()
   end
 
-  # The source's registered hosts; `:any` (the own URL) narrows to the
-  # base's one host. A source the config does not list reaches nothing.
+  # The source's registered hosts; the own URL's `:any` narrows to the
+  # base's one host. Only `:own` may be `:any` (the attack lens: a config
+  # source `extra: :any` reached any host); any other source's `:any`, and a
+  # source the config does not list, reach nothing, so the chokepoint
+  # refuses its first request (`url_not_allowed:host_not_allowed`).
   defp allowed_hosts(source, base) do
     case Map.get(Keyword.get(config(), :allowed_hosts, %{}), source, []) do
-      :any -> [host(base)]
+      :any when source == :own -> [host(base)]
       hosts when is_list(hosts) -> hosts
+      _other -> []
     end
   end
 
