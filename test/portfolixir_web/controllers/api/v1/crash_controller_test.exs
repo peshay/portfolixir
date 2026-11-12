@@ -3,7 +3,14 @@ defmodule PortfolixirWeb.Api.V1.CrashControllerTest do
   # GET /api/v1/crashes, GET /api/v1/crashes/:key/rankings, and the writes
   # PUT /api/v1/crashes/:key, POST /api/v1/crashes and DELETE
   # /api/v1/crashes/:key. Every name and figure is synthetic.
-  use PortfolixirWeb.ConnCase, async: true
+  # group: :crash_benchmark -- the async modules that choose the crash
+  # benchmark never run at the same time (the closing act of Sprint 29). The
+  # choice is one settings row for the instance (settings_key_index), taken
+  # under an advisory lock on its key, and a sandboxed test never commits: a
+  # module choosing beside another one waited on the other's lock and row
+  # until that test ended, into the 15 s query timeout under load. The key
+  # is the setting's, so no fixture of a test's own avoids it.
+  use PortfolixirWeb.ConnCase, async: true, group: :crash_benchmark
 
   import Portfolixir.WorldFixtures,
     only: [base_world: 1, buy!: 3, create_security!: 1, put_quotes!: 2]
