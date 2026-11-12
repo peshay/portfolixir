@@ -1197,7 +1197,9 @@ parser's own cap: one migration, no row rewritten, the two changesets'
 length validation and the companion's descriptions with it. D6's two
 references to 255 characters read 2,048: the representative's link is
 used when it fits, else the first member's that fits in `news.get`'s
-member order, else 422 naming `source_url`. **"News follow" stays
+member order, else 422 naming `cluster_id` (the event's path:
+`news_id`), the keys D6 already answers with; the build kept them, so
+the answer's shape is unchanged (Sprint 29, a fact corrected). **"News follow" stays
 deferred** (§2, §13, D9): following the redirect would make the app
 request a host it did not choose, once per item, and that reason is
 unchanged. Where a screen prints an entry's link in full, it is boarded
