@@ -8,7 +8,13 @@ defmodule Portfolixir.Crashes.Rankings do
 
     * `"catalogue"` (default): every security in the catalogue (a merged-away
       one has no row left) not flagged `is_benchmark`, minus the crash
-      benchmark itself.
+      benchmark itself;
+    * `"view:<id>"`: of those, the securities the view holds **today** — a
+      position in a depot the view covers
+      (`Portfolixir.Buckets.load_global_scope/1`) whose quantity summed over
+      those depots is not zero, the rule the news digest reads a view's
+      holdings by. "My holdings in that crash" is this filter, not a
+      calculation of its own (the owner's answer of 2026-11-07).
 
   Flagged securities are reference instruments, not choices; the crash
   benchmark is the reference line beside each entry.
@@ -49,11 +55,14 @@ defmodule Portfolixir.Crashes.Rankings do
 
   import Ecto.Query
 
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog.BenchmarkSecurity
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
   alias Portfolixir.Crashes.PeakTrough
+  alias Portfolixir.Ledger
   alias Portfolixir.Ledger.HeldSecurities
+  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance.WindowReturn
   alias Portfolixir.Repo
 
@@ -63,6 +72,8 @@ defmodule Portfolixir.Crashes.Rankings do
   @recovery_span_months 3
   @hundred Decimal.new(100)
   @reasons [:no_close_at_start, :no_close_at_end, :no_fx_rate]
+  # The largest id a bigint column holds: a longer id names no view.
+  @max_id 9_223_372_036_854_775_807
 
   @typedoc "The checked request: the list, the universe, the limit and the flags."
   @type request :: %{
@@ -84,7 +95,8 @@ defmodule Portfolixir.Crashes.Rankings do
   def max_limit, do: @max_limit
 
   @doc """
-  Checks a request before anything is read: `universe` is `"catalogue"`;
+  Checks a request before anything is read: `universe` is `"catalogue"` or
+  `"view:<id>"`, the id spelled without a leading zero or sign;
   `opts` take `:list` (default `"losers"`), `:limit` (default
   #{@default_limit}, at most #{@max_limit}), `:include_unanswered` (default
   false) and `:today` (default `Portfolixir.Clock.today/0`).
@@ -109,6 +121,17 @@ defmodule Portfolixir.Crashes.Rankings do
   defp list(_list), do: {:error, :invalid_list}
 
   defp universe("catalogue"), do: {:ok, "catalogue"}
+
+  defp universe("view:" <> id_text = universe) do
+    case Integer.parse(id_text) do
+      {id, ""} when id > 0 and id <= @max_id ->
+        if universe == "view:#{id}", do: {:ok, universe}, else: {:error, :invalid_universe}
+
+      _not_an_id ->
+        {:error, :invalid_universe}
+    end
+  end
+
   defp universe(_universe), do: {:error, :invalid_universe}
 
   defp limit(limit) when is_integer(limit) and limit in 1..@max_limit, do: {:ok, limit}
@@ -118,10 +141,17 @@ defmodule Portfolixir.Crashes.Rankings do
   The list `request` names for `window` (a detected or manual window as
   `Portfolixir.Crashes.list_windows/0` reads it), against `benchmark`, the
   crash benchmark (`nil` with `benchmark_reason` saying why).
+  `{:error, :view_not_found}` for a view that does not exist.
   """
-  @spec rank(map(), Security.t() | nil, String.t() | nil, request()) :: map()
+  @spec rank(map(), Security.t() | nil, String.t() | nil, request()) ::
+          {:ok, map()} | {:error, :view_not_found}
   def rank(window, benchmark, benchmark_reason, request) do
-    securities = universe_securities(request.universe, benchmark)
+    with {:ok, securities} <- universe_securities(request.universe, benchmark) do
+      {:ok, ranked(window, securities, benchmark, benchmark_reason, request)}
+    end
+  end
+
+  defp ranked(window, securities, benchmark, benchmark_reason, request) do
     held = MapSet.new(HeldSecurities.held_ids())
 
     {reference, reference_reason} =
@@ -165,9 +195,41 @@ defmodule Portfolixir.Crashes.Rankings do
   # -- the universe ------------------------------------------------------------
 
   defp universe_securities("catalogue", benchmark) do
-    from(s in Security, where: s.is_benchmark == false)
-    |> without(benchmark)
-    |> Repo.all()
+    {:ok, from(s in Security, where: s.is_benchmark == false) |> without(benchmark) |> Repo.all()}
+  end
+
+  defp universe_securities("view:" <> id_text, benchmark) do
+    case Buckets.load_global_scope(String.to_integer(id_text)) do
+      {:error, :view_not_found} ->
+        {:error, :view_not_found}
+
+      scope ->
+        ids = held_in(scope)
+
+        {:ok,
+         from(s in Security, where: s.is_benchmark == false and s.id in ^ids)
+         |> without(benchmark)
+         |> Repo.all()}
+    end
+  end
+
+  # The securities held today in the depots `scope` covers: per position in
+  # scope, summed per security, not zero (the news digest's rule for a
+  # view's holdings, `Portfolixir.News.Reads.digest_securities/1`).
+  defp held_in(scope) do
+    Portfolios.list_portfolios()
+    |> Enum.flat_map(fn portfolio ->
+      portfolio.id
+      |> Ledger.positions_for_portfolio()
+      |> Enum.filter(fn {{account_id, security_id}, _quantity} ->
+        Buckets.position_in_scope?(scope, account_id, security_id)
+      end)
+    end)
+    |> Enum.reduce(%{}, fn {{_account_id, security_id}, quantity}, acc ->
+      Map.update(acc, security_id, quantity, &Decimal.add(&1, quantity))
+    end)
+    |> Enum.reject(fn {_security_id, quantity} -> Decimal.eq?(quantity, 0) end)
+    |> Enum.map(&elem(&1, 0))
   end
 
   defp without(query, nil), do: query
@@ -386,6 +448,12 @@ defmodule Portfolixir.Crashes.Rankings do
     do:
       "catalogue: every security the catalogue holds, not merged away, minus those flagged " <>
         "is_benchmark (reference instruments) and the crash benchmark itself"
+
+  defp universe_text("view:" <> _id),
+    do:
+      "the securities the view holds today: a position in a depot the view covers whose " <>
+        "quantity summed over them is not zero, minus those flagged is_benchmark and the " <>
+        "crash benchmark itself; held today, not at the window's dates"
 
   defp figure_text(list) when list in ["losers", "winners"] do
     order = if list == "losers", do: "lowest first", else: "highest first"

@@ -12,9 +12,18 @@ defmodule Portfolixir.Crashes.RankingsTest do
   use Portfolixir.DataCase, async: true
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 1, buy!: 3, create_security!: 1, put_quotes!: 2, sell!: 3]
+    only: [
+      add_depot: 2,
+      base_world: 1,
+      buy!: 3,
+      create_security!: 1,
+      cross_trade!: 3,
+      put_quotes!: 2,
+      sell!: 3
+    ]
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Crashes
   alias Portfolixir.Fx
@@ -404,6 +413,78 @@ defmodule Portfolixir.Crashes.RankingsTest do
     assert Decimal.to_string(entry.return) == "0.003118641136400619228012788040704"
     assert Decimal.to_string(losers.reference.return) == "-0.0589823888838290528110248105672775"
     assert_decimal(entry.vs_benchmark_pp, "6.210103002022967203903759860798150")
+  end
+
+  # User story (ADR-0058 §5, the owner's answer of 2026-11-07):
+  # As the operator,
+  # I want a crash window's list over what a view holds today,
+  # so that "my holdings in that crash" is a filter, not a calculation of
+  # its own.
+  #
+  # Acceptance criteria:
+  # - view:<id> ranks the securities held today in a depot the view
+  #   covers, by the same figure as the catalogue; a security sold out, one
+  #   held only outside the view, a flagged one and the crash benchmark are
+  #   in no entry and in no count.
+  # - A view that does not exist is :view_not_found.
+  test "a view's universe is the securities it holds today" do
+    %{key: key} = spring_2020!()
+
+    world = base_world(name: "Synthetic Crash Portfolio")
+    outside = add_depot(world.portfolio, depot_name: "Outside Depot", cash_name: "Outside Cash")
+    by_name = &Enum.find(Catalog.list_securities(), fn security -> security.name == &1 end)
+
+    # A USD security bought from the EUR cash account.
+    cross_trade!(world, by_name.("Delta Tech"),
+      quantity: "2",
+      price: "90",
+      settled: "166",
+      gross: "166",
+      date: ~D[2019-06-03]
+    )
+
+    buy!(world, by_name.("Epsilon Gold"), quantity: "3", price: "30", date: ~D[2019-06-03])
+    buy!(world, by_name.("Eta Stale"), quantity: "1", price: "9", date: ~D[2019-06-03])
+    # Sold out before today: not held.
+    buy!(world, by_name.("Beta Cruise"), quantity: "1", price: "70", date: ~D[2019-06-03])
+    sell!(world, by_name.("Beta Cruise"), quantity: "1", price: "75", date: ~D[2021-06-01])
+    # Held, but flagged: a reference instrument.
+    buy!(world, by_name.("Iota Reference"), quantity: "1", price: "90", date: ~D[2019-06-03])
+    # Held only in a depot the view does not cover.
+    buy!(Map.merge(world, outside), by_name.("alpha Travel"),
+      quantity: "1",
+      price: "45",
+      date: ~D[2019-06-03]
+    )
+
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Synthetic Crash Bucket"})
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), world.depot, [bucket.id])
+
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Synthetic Crash View", include_all: false})
+
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+
+    universe = "view:#{view.id}"
+
+    assert {:ok, losers} =
+             Crashes.rankings(key, universe, list: "losers", include_unanswered: true)
+
+    assert %{universe: ^universe, answered: 2} = losers
+    assert names(losers.entries) == [{1, "Delta Tech", nil}, {2, "Epsilon Gold", nil}]
+    assert Enum.all?(losers.entries, & &1.held)
+
+    # The same figure as the catalogue's, the same call.
+    assert Decimal.to_string(hd(losers.entries).return) == "-0.0932835820895522388059701492537313"
+
+    assert losers.unanswered == %{no_close_at_start: 0, no_close_at_end: 1, no_fx_rate: 0}
+
+    assert [%{security: %{name: "Eta Stale"}, reason: "no_close_at_end"}] =
+             losers.unanswered_entries
+
+    assert losers.basis.universe =~ "today"
+
+    assert {:error, :view_not_found} = Crashes.rankings(key, "view:#{view.id + 1000}", [])
   end
 
   # Acceptance criteria (ADR-0058 §5, §9):

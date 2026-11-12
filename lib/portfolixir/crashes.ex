@@ -172,18 +172,22 @@ defmodule Portfolixir.Crashes do
   (`"losers"`, the default, or `"winners"`), `:limit` (default 8, at most
   50), `:include_unanswered` and `:today`.
 
+  `universe` is `"catalogue"` or `"view:<id>"`, the securities the view
+  holds today.
+
   `{:error, :invalid_list | :invalid_universe | :invalid_limit}` before
-  anything is read; `{:error, :not_found}` for a key that names no window.
+  anything is read; `{:error, :not_found}` for a key that names no window;
+  `{:error, :view_not_found}` for a view that does not exist.
   """
   @spec rankings(String.t(), String.t(), keyword()) ::
-          {:ok, map()} | {:error, Rankings.refusal() | :not_found}
+          {:ok, map()} | {:error, Rankings.refusal() | :not_found | :view_not_found}
   def rankings(key, universe, opts \\ []) when is_binary(key) do
     with {:ok, request} <- Rankings.request(universe, opts) do
       listing = list_windows()
 
       case Enum.find(listing.detected ++ listing.manual, &(&1.key == key)) do
         nil -> {:error, :not_found}
-        window -> {:ok, Rankings.rank(window, listing.benchmark, listing.reason, request)}
+        window -> Rankings.rank(window, listing.benchmark, listing.reason, request)
       end
     end
   end
