@@ -23,6 +23,26 @@ async function ready(page, path) {
   await page.waitForSelector("[data-phx-main].phx-connected");
 }
 
+// The page's loads have landed: no busy marker left (period_memory.js's
+// rule). Leaving a page mid-load stops its LiveView and kills a load task
+// mid-query, which the sandbox logs as a dropped connection, and the log
+// noise rule fails the run (CI's browser job on #1447).
+const BUSY = "[aria-busy='true'], .phx-loading, .value-slot-pending";
+
+async function settled(page) {
+  try {
+    for (let pass = 0; pass < 2; pass++) {
+      await page.waitForFunction((busy) => document.querySelector(busy) === null, BUSY, {
+        timeout: 45000,
+        polling: 100
+      });
+      if (pass === 0) await page.waitForTimeout(250);
+    }
+  } catch (_) {
+    throw new Error("the page never settled: at " + (await page.evaluate(() => location.href)));
+  }
+}
+
 async function nextFrame(page) {
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
 }
@@ -319,6 +339,7 @@ async function stackBarSwitch(browser) {
         await ready(page, path);
         await page.waitForSelector("[data-role='stack-level']");
         if (level !== "total") await page.waitForSelector("#stack-legend tbody tr");
+        await settled(page);
         await nextFrame(page);
         const m = await page.evaluate(() => {
           const left = (selector) => document.querySelector(selector).getBoundingClientRect().left;
