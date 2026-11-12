@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.ImportsDetachedTextCellsTest do
   import ExUnit.CaptureLog
   import Phoenix.LiveViewTest
 
+  alias Portfolixir.HeapCap
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.PreviewStore
@@ -18,6 +19,9 @@ defmodule PortfolixirWeb.ImportsDetachedTextCellsTest do
   # 24 characters of base64url, so Plug.CSRFProtection keeps them.
   @token_upload "H58aH58aH58aH58aH58aH58a"
   @token_parked "H58bH58bH58bH58bH58bH58b"
+
+  # The heap cap "lifted": 64 GiB, more than any upload here could reach.
+  @lifted_bytes 64 * 1024 * 1024 * 1024
 
   setup do
     on_exit(fn ->
@@ -267,19 +271,34 @@ defmodule PortfolixirWeb.ImportsDetachedTextCellsTest do
 
     # Park the preview through the page's own flow, with the cap lifted for
     # the upload only.
-    prior = Application.get_env(:portfolixir, PortfolixirWeb.HeapCap)
-    on_exit(fn -> restore_cap(prior) end)
-    Application.put_env(:portfolixir, PortfolixirWeb.HeapCap, max_heap_bytes: 0)
+    prior = Application.get_env(:portfolixir, HeapCap, [])
+    on_exit(fn -> Application.put_env(:portfolixir, HeapCap, prior) end)
+
+    Application.put_env(
+      :portfolixir,
+      HeapCap,
+      Keyword.put(prior, :max_heap_bytes, @lifted_bytes)
+    )
 
     {view, state, _outcome} = upload_and_watch(conn, "synthetic.csv", body, "text/csv")
     assert state == :alive, "control: with the cap lifted the page survives the upload"
+
+    # The lifted cap is the cap the page process took (#1459).
+    lifted_words = div(@lifted_bytes, :erlang.system_info(:wordsize))
+
+    {:max_heap_size, page_cap} = Process.info(view.pid, :max_heap_size)
+
+    assert page_cap.size == lifted_words,
+           "control: the page ran under #{inspect(page_cap)}, not the lifted cap of " <>
+             "#{lifted_words} words"
+
     assert render(view) =~ "Preview"
     assert :ets.member(PreviewStore, key), "control: the page parked the preview"
     GenServer.stop(view.pid, :normal)
     flush_exits()
 
     # The default cap again, as every instance runs it.
-    restore_cap(prior)
+    Application.put_env(:portfolixir, HeapCap, prior)
 
     capture_log(fn ->
       statuses = for _attempt <- 1..3, do: get_in_own_process(conn, "/imports")
@@ -292,9 +311,6 @@ defmodule PortfolixirWeb.ImportsDetachedTextCellsTest do
     assert statuses == [200, 200, 200],
            "every GET /imports of the browser session holding the parked preview: #{inspect(statuses)}"
   end
-
-  defp restore_cap(nil), do: Application.delete_env(:portfolixir, PortfolixirWeb.HeapCap)
-  defp restore_cap(prior), do: Application.put_env(:portfolixir, PortfolixirWeb.HeapCap, prior)
 
   defp flush_exits do
     receive do
