@@ -2315,7 +2315,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                             value={"security:#{option.id}"}
                             checked={benchmark_selected?(@benchmarks, option)}
                           />
-                          <%= option.name %>
+                          <%= BenchmarkChoices.label(group, option) %>
                         </label>
                       </span>
                     <% end %>

@@ -55,6 +55,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.SecurityNames
 
   @lists ~w(losers winners rebounders)
   @universes ~w(depot catalogue)
@@ -125,11 +126,22 @@ defmodule PortfolixirWeb.Risk.CrashSection do
              list: list,
              include_unanswered: socket.assigns.show_unanswered
            ) do
-        {:ok, payload} -> payload
+        {:ok, payload} -> twin_ids(payload)
         {:error, _refusal} -> nil
       end
 
     assign(socket, :ranking, ranking)
+  end
+
+  # UAT-13's rule: a row whose name another row shows for another security
+  # carries the identifier that tells it apart (its ISIN, else its number).
+  defp twin_ids(%{entries: entries} = payload) do
+    entries =
+      entries
+      |> Enum.map(&Map.merge(&1, %{security_id: &1.security.id, isin: &1.security.isin}))
+      |> SecurityNames.put_twin_ids(& &1.security.name)
+
+    %{payload | entries: entries}
   end
 
   # Every window, newest first (P4): by start, a detected one before a
@@ -666,7 +678,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
             >
               <td class="crash-rank"><%= entry.rank %></td>
               <td class="crash-name">
-                <%= entry.security.name %><span
+                <%= entry.security.name %><SecurityNames.twin_id tag={entry.twin_id} /><span
                   :if={@catalogue? and entry.held}
                   class="badge badge--neutral"
                   data-role="crash-held"
@@ -1090,7 +1102,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
             value={security.id}
             selected={@benchmark && @benchmark.id == security.id}
           >
-            <%= security.name %>
+            <%= BenchmarkChoices.label(group, security) %>
           </option>
         </optgroup>
       </select>

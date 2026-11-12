@@ -388,7 +388,7 @@ defmodule PortfolixirWeb.SaleHindsightSection do
                 value={security.id}
                 selected={benchmark_id(@comparison.benchmark) == Integer.to_string(security.id)}
               >
-                <%= security.name %>
+                <%= BenchmarkChoices.label(group, security) %>
               </option>
             </optgroup>
           </select>

@@ -687,4 +687,46 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
     view |> element("[data-role=crash-unanswered] button") |> render_click()
     assert has_element?(view, "[data-role=crash-unanswered-list] li", "Synthetic Outsider")
   end
+
+  # The closing act (#1416, #1421; UAT-13's rule): two securities of one
+  # name read the same in the crash list and in the crash benchmark's
+  # select. A list row carries the identifier that tells its twin apart
+  # (SecurityNames.put_twin_ids/2), the select's option the picker's tag.
+  test "same-named securities are told apart in the list and in the benchmark select",
+       %{conn: conn} do
+    world = crash_world!()
+
+    for {isin, low} <- [{"DE000TWIN011", "25"}, {"LU000TWIN022", "30"}] do
+      twin = create_security!(name: "Synthetic Twin", ticker: nil, isin: isin)
+      put_quotes!(twin, [{~D[2020-02-19], "50"}, {~D[2020-03-23], low}, {~D[2021-05-04], "40"}])
+      buy!(world, twin, quantity: "1", price: "40", date: ~D[2021-05-04])
+    end
+
+    {:ok, view, _html} =
+      live(conn, risk_path(world, crash: world.spring, crash_universe: "catalogue"))
+
+    names =
+      view
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("#risk-crashes table.crash-table tbody td.crash-name")
+      |> Enum.map(&(&1 |> LazyHTML.text() |> squish()))
+      |> Enum.filter(&String.starts_with?(&1, "Synthetic Twin"))
+
+    assert [first, second] = names
+    assert first =~ "Synthetic Twin ISIN DE000TWIN011"
+    assert second =~ "Synthetic Twin ISIN LU000TWIN022"
+
+    view |> element("button[data-role=crash-change-benchmark]") |> render_click()
+
+    options =
+      view
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("#crash-benchmark option")
+      |> Enum.map(&(&1 |> LazyHTML.text() |> squish()))
+      |> Enum.filter(&String.starts_with?(&1, "Synthetic Twin"))
+
+    assert options == ["Synthetic Twin · DE000TWIN011", "Synthetic Twin · LU000TWIN022"]
+  end
 end
