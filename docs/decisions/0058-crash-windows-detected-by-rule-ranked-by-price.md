@@ -10,7 +10,8 @@ description: "Decision for I24 (FR-54). A crash window is a peak-to-trough decli
   (ADR-0026 step 1, as amended on 2026-10-08: the merge is the signature).
   **Built in Sprint 29**, not 28 (the Sprint 28 plan, D-2). Amended on
   2026-11-12 by the merge of the Sprint 29 planning PR (see "Amendment of
-  2026-11-12" at the end).
+  2026-11-12" at the end), and again by the Sprint 29 sprint PR's closing
+  act (see "Amendment of 2026-11-12, part 2").
 - **Date:** 2026-11-08
 - **Answers:** FR-54 (`epics.md`); idea I24
   (`_bmad-output/planning-artifacts/ideas.md`), as the owner narrowed it on
@@ -374,3 +375,51 @@ The screen's own choices (where the section sits, the window as a select,
 the opening universe and window, the phone's rows, the „im Depot“ mark in
 the catalogue, where the crash benchmark is chosen) are the board's, and
 the Sprint 29 plan's D-5 names each with its flip.
+
+## Amendment of 2026-11-12, part 2 — what the closing act found
+
+**Adopted by the merge of the Sprint 29 sprint PR**, whose closing act
+attacked the built lists for order and for what the screen opens on. Two
+places said less than the build needs. Neither books or corrects a stored
+money figure; each flips by a comment.
+
+### G1. The full tie order (§5, §7.2)
+
+§5 orders ties by the figure, the case-folded name and the ISIN. Two
+securities equal on all three (the same name, neither with an ISIN) were
+then ordered by the database's read order, so an unrelated edit of one of
+them could swap the two. **Ties continue with the ticker, then the WKN,
+then the currency**, a security without one after those with one.
+**Entries equal on all of these share a rank** (the same `rank`, the next
+distinct entry taking its own position) and are ordered among themselves
+by the security's creation time; the unanswered entries follow the same
+order. An id never decides a rank. *Why a shared rank and not an id:* two
+such securities are indistinguishable to the rule and to the reader, and a
+rank that separates them would rank by an accident of the catalogue. **To
+flip:** "Crash-Gleichstand nach ID" (the id breaks the last tie, and every
+entry has its own rank).
+
+### G2. „Im Depot“ without a chosen view (§5, D-5 P3)
+
+§5 offers `catalogue` and `view:<id>`, and the screen opens on „Im Depot“.
+With no view chosen (Everything) there was no `view:<id>` to ask, so the
+screen listed the catalogue instead. **A third universe, `held`, lists the
+securities held today in any depot** (the one held predicate,
+`Portfolixir.Ledger.HeldSecurities`), minus the flagged ones and the crash
+benchmark, as the others do; the screen asks for it under „Im Depot“ when
+no view is chosen and for `view:<id>` when one is. A view's holdings and the
+news digest's read one rule (`HeldSecurities.in_view/1`). The API's default
+stays `catalogue`. **To flip:** "Im Depot ohne Ansicht als Katalog".
+
+The same pass found that a split whose ratio does not terminate (3:1) let
+the rule compare a close rounded at 34 digits, so a fall of exactly 10.00 %
+across it opened no window, against §2 and §7.7. That is a defect, not a
+choice: the split factors stay exact integer pairs through the comparison
+and the one division, as §2 already requires.
+
+### G3. The asks (ADR-0043)
+
+| Ask | Source | Verdict |
+|---|---|---|
+| Two securities equal in figure, name and ISIN | the closing act, §7.2 | **Answered** — G1 |
+| „Im Depot“ with no view chosen | the closing act, D-5 P3 | **Answered** — G2 |
