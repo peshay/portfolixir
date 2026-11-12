@@ -8,7 +8,7 @@ msgstr ""
 msgid "Application navigation"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:83
+#: lib/portfolixir_web/field_label.ex:85
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:339
 #, elixir-autogen
 msgid "Base currency"
@@ -2117,7 +2117,7 @@ msgstr ""
 msgid "Clear"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:87
+#: lib/portfolixir_web/field_label.ex:89
 #: lib/portfolixir_web/live/buckets_live.ex:242
 #: lib/portfolixir_web/live/buckets_live.ex:270
 #: lib/portfolixir_web/live/classifications_live.ex:451
@@ -2132,7 +2132,7 @@ msgstr ""
 msgid "Could not update cash account"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:84
+#: lib/portfolixir_web/field_label.ex:86
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:126
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:764
 #, elixir-autogen, elixir-format
@@ -8032,7 +8032,7 @@ msgstr ""
 msgid "Rename — %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:85
+#: lib/portfolixir_web/field_label.ex:87
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:134
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:121
 #, elixir-autogen, elixir-format
@@ -11527,7 +11527,7 @@ msgstr ""
 msgid "Counter depot"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:86
+#: lib/portfolixir_web/field_label.ex:88
 #, elixir-autogen, elixir-format
 msgid "Dimension"
 msgstr ""
@@ -11537,13 +11537,13 @@ msgstr ""
 msgid "Exchange rate"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:91
+#: lib/portfolixir_web/field_label.ex:93
 #: lib/portfolixir_web/live/journal/row.ex:88
 #, elixir-autogen, elixir-format
 msgid "Former ISIN"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:92
+#: lib/portfolixir_web/field_label.ex:94
 #, elixir-autogen, elixir-format
 msgid "ISIN change date"
 msgstr ""
@@ -11558,7 +11558,7 @@ msgstr ""
 msgid "Latest quote feed URL"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:90
+#: lib/portfolixir_web/field_label.ex:92
 #, elixir-autogen, elixir-format
 msgid "New ISIN"
 msgstr ""
@@ -17417,4 +17417,9 @@ msgstr ""
 #: lib/portfolixir_web/live/securities_live.ex:1750
 #, elixir-autogen, elixir-format
 msgid "(on a booking's day, below half or above twice the price per unit). Its comparison after the sale and its returns over the holding period are therefore wrong. Check the quote source (ticker, exchange), then the booking:"
+msgstr ""
+
+#: lib/portfolixir_web/field_label.ex:82
+#, elixir-autogen, elixir-format
+msgid "Halving chain"
 msgstr ""

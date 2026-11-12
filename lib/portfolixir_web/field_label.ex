@@ -78,6 +78,8 @@ defmodule PortfolixirWeb.FieldLabel do
   def label(:news_cik), do: gettext("CIK")
   def label(:news_aliases), do: gettext("News aliases")
   def label(:news_watch), do: gettext("Watched for news")
+  # ADR-0059 §4: the chain a security's halvings come from.
+  def label(:halving_chain), do: gettext("Halving chain")
 
   # A cash account, a depot, a portfolio or a bucket the import creates.
   def label(:base_currency_code), do: gettext("Base currency")

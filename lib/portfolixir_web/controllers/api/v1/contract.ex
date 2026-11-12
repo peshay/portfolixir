@@ -116,8 +116,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "portfolixir.securities.logo_delete (DELETE .../logo). The two that make the " <>
               "server fetch carry openWorldHint; put and discover are in the book and full " <>
               "profiles, and the delete, which deletes the stored image, is admin: the full " <>
-              "profile alone lists it."
+              "profile alone lists it.",
             # --- S29 D3 end ---
+            # --- S29 H1 begin ---
+            "Sprint 29, H1 (ADR-0059 §2, §4; FR-58): a security is bound to a registered " <>
+              "block chain through halving_chain on its update, journaled, and every " <>
+              "security read returns it; no endpoint or tool is added."
+            # --- S29 H1 end ---
           ],
           " "
         ),
@@ -201,8 +206,18 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "narrows the set as it narrows any listing (not_held answered nothing before). " <>
           "The envelope's computation_basis.assumptions opens with what the " <>
           "set covers. The Overview's data-quality line still counts the held ones and " <>
-          "links to the list with the holding filter held."
+          "links to the list with the holding filter held.",
         # --- S29 D1 end ---
+        # --- S29 H1 begin ---
+        "PATCH /api/v1/securities/:id (portfolixir.securities.update), changed: takes " <>
+          ~s[halving_chain, "bitcoin", "bitcoin_cash" or "litecoin" (ADR-0059 §2's registry) ] <>
+          "or null to unbind; any other value answers 422 naming halving_chain and writes " <>
+          "nothing; nothing sets it by itself. GET /api/v1/securities/:id, the full " <>
+          "projection, fields=halving_chain (portfolixir.securities.list's fields enum " <>
+          "offers it) and the dossier's security return it, null when unbound. A PATCH " <>
+          "of a security a merge took away answers 404 with errors.merged_into {kind, id}, " <>
+          "as its reads do (ADR-0050 §12), where it answered the plain 404."
+        # --- S29 H1 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

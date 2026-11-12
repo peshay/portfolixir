@@ -521,6 +521,12 @@ full list.
   It also takes the news identity (ADR-0056 §2): `news_identity`
   `{"cik": ..., "aliases": [{"token", "context", "case"}]}` and the boolean
   `news_watch`; see [News upkeep](#news-upkeep-adr-0056).
+  It binds the security to a block chain (ADR-0059 §4): `halving_chain`
+  takes `"bitcoin"`, `"bitcoin_cash"` or `"litecoin"`, the chains of
+  ADR-0059 §2's registry, and `null` unbinds; any other value answers `422`
+  naming `halving_chain`. Nothing binds a security by itself, and every
+  security read returns the field, `null` when unbound. A security a merge
+  took away answers `404` with `errors.merged_into`, as its reads do.
 - `DELETE /api/v1/securities/:id` deletes a security when nothing references
   it. A policy rule that reads it answers `409 Conflict` with
   `errors.policy_rules`. Bookings, quote history, research notes, security
@@ -5274,7 +5280,9 @@ API may have committed it, and its answer cannot be read.
   policy-rule versions reference a security. The tool is in the `book`
   profile.
   It takes `news_identity` (`cik`, `aliases`) and `news_watch` (ADR-0056 §2),
-  closed as the API's block is.
+  closed as the API's block is, and `halving_chain` (ADR-0059 §4), one of
+  the three registered chains or `null`, any other value refused before any
+  request.
 - `portfolixir.news.feeds_put`, `portfolixir.news.feeds_delete` and
   `portfolixir.news.sources_put` — the news layer's upkeep writes (ADR-0056
   §9, B1), each calling the route of [News upkeep](#news-upkeep-adr-0056) and

@@ -365,6 +365,7 @@ const securityFieldNames = [
   "bond",
   "news_identity",
   "news_watch",
+  "halving_chain",
   "inserted_at",
   "updated_at"
 ] as const;
@@ -917,6 +918,11 @@ const newsIdentityZ = {
 };
 // --- Sprint 27 N8 end ---
 
+// --- S29 H1 begin ---
+// ADR-0059 §2: Portfolixir.Chains.Registry's chains, mirrored.
+const HALVING_CHAINS = ["bitcoin", "bitcoin_cash", "litecoin"] as const;
+// --- S29 H1 end ---
+
 const securityUpdateSchema = {
   type: "object",
   additionalProperties: false,
@@ -933,7 +939,7 @@ const securityUpdateSchema = {
         currency_code: {
           type: "string",
           description:
-            "Frozen once the security has a transaction or a quote (ADR-0050): 422 with errors.currency_code counting them."
+            "Frozen once the security has a transaction or a quote (ADR-0050): 422 counts them."
         },
         exchange_code: { type: "string" },
         asset_class: { type: "string" },
@@ -945,12 +951,12 @@ const securityUpdateSchema = {
         treat_quotes_as_raw: {
           type: "boolean",
           description:
-            "ADR-0028: the provider's closes are raw (as traded, never back-adjusted for a split), so split factors apply."
+            "ADR-0028: provider closes are as traded, not split-adjusted, so split factors apply."
         },
         is_benchmark: {
           type: "boolean",
           description:
-            "ADR-0046: a price series portfolios are compared to (an index ETF), fed by the quote sync; never bookable, out of hygiene checks, may be held."
+            "ADR-0046: a series portfolios are compared to (an index ETF); never bookable, out of hygiene checks, may be held."
         },
         is_retired: {
           type: "boolean",
@@ -959,7 +965,10 @@ const securityUpdateSchema = {
         },
         attributes: { type: "object", additionalProperties: true },
         ...bondProperties(true),
-        ...newsIdentityProperties
+        ...newsIdentityProperties,
+        // --- S29 H1 begin ---
+        halving_chain: { type: ["string", "null"], enum: [...HALVING_CHAINS, null] }
+        // --- S29 H1 end ---
       }
     }
   }
@@ -985,7 +994,10 @@ const securityUpdateZ = z.object({
     is_retired: z.boolean().optional(),
     attributes: z.record(z.string(), z.unknown()).optional(),
     ...bondZ(true),
-    ...newsIdentityZ
+    ...newsIdentityZ,
+    // --- S29 H1 begin ---
+    halving_chain: z.enum(HALVING_CHAINS).nullable().optional()
+    // --- S29 H1 end ---
   })
 });
 
@@ -3766,7 +3778,7 @@ const declaredTools: DeclaredTool[] = [
   })),
   tool("portfolixir.securities.get", "Get security", "Read one security's full record. identifier_aliases: former ISINs portfolixir.securities.isin_change recorded, which keep old exports matching. thesis_state (ADR-0044): the current thesis projected from portfolixir.notes.list entries, never stored (status none|intact|retracted, thesis, conviction, invalidation_condition, time_stop, as_of, last_reviewed_at/by, derived_from_entry_id and, when retracted, the retracted_by_entry_id whose body gives the reason); read the log for the evidence. bond (ADR-0052), for asset class bond or government_bond, or no class, even inferred, plus a maturity or coupon (no certificate), else null: nominal_held (quantity × 100, a unit being a hundredth of the face amount), remaining_term, current_yield and yield_to_maturity (linear), ratios, each with computation_basis, and two_scales, set when quote and booked unit price sit 20-500× apart: direction forward (quotes near 100, figures 100× too high) or reverse (quotes ≤ 5, 100× too low). A security merged into another (portfolixir.securities.merge) answers 404 with errors.merged_into {kind, id}: the live security its history lives on (ADR-0050 §12).", idSchema, idZ),
   tool("portfolixir.securities.create", "Create security", "Create a local security. With the instance's enrichment on, a create also queues a quote backfill from the configured provider and a logo lookup, reaching outside the instance (openWorldHint). To keep a position in totals and performance but out of the allocation basis and drift, tag it with a bucket the active view excludes. Every key of attributes, at any depth, is one-line text of at most 255 characters; no text value has a control character but tab or line break (else 422).", securitySchema, securityZ),
-  tool("portfolixir.securities.update", "Update security", "Patch a security's master data; null clears a bond field. ISIN changes: portfolixir.securities.isin_change. feed MANUAL or NONE stops its quote sync. The currency_code freezes once the security has a transaction or a quote. Every key of attributes, at any depth, is one-line text of at most 255 characters; no text value has a control character but tab or line break (else 422). A changed identifier meets the catalog's rules, else 422 naming the field: an isin whose check digit agrees, a WKN of six letters or digits, a ticker_symbol of printable ASCII; resending it is no change. The name is stored without format characters.", securityUpdateSchema, securityUpdateZ),
+  tool("portfolixir.securities.update", "Update security", "Patch a security; null clears a bond field. ISIN changes: portfolixir.securities.isin_change. feed MANUAL or NONE stops its quote sync. The currency_code freezes once the security has a transaction or a quote. Every key of attributes, at any depth, is one-line text of at most 255 characters; no text value has a control character but tab or line break (else 422). A changed identifier meets the catalog's rules, else 422 naming the field: an isin whose check digit agrees, a WKN of six letters or digits, a ticker_symbol of printable ASCII; a resend is no change. The name drops format characters.", securityUpdateSchema, securityUpdateZ),
   tool(
     "portfolixir.securities.delete",
     "Delete security",
@@ -3880,7 +3892,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.events.list",
     "Calendar of one security",
-    "One security's events (ADR-0048), soonest first: earnings reports, ex-dividend and payment dates, lockup expiries, index reviews, shareholder meetings, regulatory decisions, guidance updates. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is paid, book it through the ledger and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (primary | secondary_multi | awareness | unverified, the same scale as the research log), checked_at (the day the fact was last re-read against its source) and note. limit and truncated are echoed. Optional since (ISO8601 UTC) is a delta read: events changed strictly after it, oldest change first (a rescheduled date returns as its changed row), with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT represented; a full read shows them. The due, stale and unconfirmed queues take no since: time, not a row, changes them." + REIMPORT_GUARANTEE,
+    "One security's events (ADR-0048), soonest first. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is paid, book it through the ledger and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (primary | secondary_multi | awareness | unverified, the same scale as the research log), checked_at (the day the fact was last re-read against its source) and note. limit and truncated are echoed. Optional since (ISO8601 UTC) is a delta read: events changed strictly after it, oldest change first (a rescheduled date returns as its changed row), with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT represented; a full read shows them. The due, stale and unconfirmed queues take no since: time, not a row, changes them." + REIMPORT_GUARANTEE,
     eventsListSchema,
     eventsListZ
   ),

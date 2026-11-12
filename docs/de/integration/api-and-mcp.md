@@ -580,6 +580,13 @@ verengen, was der Betreiber sieht.
   Sie nimmt auch die News-Identität (ADR-0056 §2): `news_identity`
   `{"cik": ..., "aliases": [{"token", "context", "case"}]}` und das Boolean
   `news_watch`; siehe [News-Pflege](#news-pflege-adr-0056).
+  Sie bindet das Wertpapier an eine Blockchain (ADR-0059 §4):
+  `halving_chain` nimmt `"bitcoin"`, `"bitcoin_cash"` oder `"litecoin"`, die
+  Ketten der Registry aus ADR-0059 §2, und `null` löst die Bindung; jeder
+  andere Wert liefert `422` mit `halving_chain`. Nichts bindet ein
+  Wertpapier von selbst, und jede Wertpapier-Lesung liefert das Feld, `null`
+  ohne Bindung. Ein durch eine Zusammenführung entferntes Wertpapier
+  liefert `404` mit `errors.merged_into`, wie seine Lesungen.
 - `DELETE /api/v1/securities/:id` löscht ein Wertpapier, wenn nichts darauf
   verweist. Liest eine Policy-Regel es, antwortet der Aufruf mit
   `409 Conflict` und `errors.policy_rules`. Buchungen, Kurshistorie,
@@ -5776,7 +5783,9 @@ lässt sich nicht lesen.
   Regelversionen auf ein Wertpapier verweisen. Das Tool gehört zum Profil
   `book`.
   Es nimmt `news_identity` (`cik`, `aliases`) und `news_watch` (ADR-0056
-  §2), geschlossen wie der Block der API.
+  §2), geschlossen wie der Block der API, sowie `halving_chain` (ADR-0059
+  §4), eine der drei registrierten Ketten oder `null`; jeder andere Wert
+  wird vor jeder Anfrage abgewiesen.
 - `portfolixir.news.feeds_put`, `portfolixir.news.feeds_delete` und
   `portfolixir.news.sources_put` — die Pflege-Schreibzugriffe der
   News-Schicht (ADR-0056 §9, B1), jeder ruft die Route aus

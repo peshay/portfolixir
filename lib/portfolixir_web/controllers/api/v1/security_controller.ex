@@ -207,8 +207,10 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
          {:ok, updated} <- Catalog.update_security(conn.assigns.actor, security, attrs) do
       json(conn, %{data: JSON.security(updated)})
     else
+      # ADR-0050 §12, and ADR-0059 §4 for a binding: a merged-away security
+      # names the one it lives on.
       nil ->
-        not_found(conn)
+        MergedAway.not_found(conn, :security, id)
 
       {:error, :not_found} ->
         not_found(conn)

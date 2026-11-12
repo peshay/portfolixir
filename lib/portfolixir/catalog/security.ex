@@ -7,6 +7,7 @@ defmodule Portfolixir.Catalog.Security do
   alias Portfolixir.Catalog.Feeds
   alias Portfolixir.Catalog.Isin
   alias Portfolixir.Catalog.SecurityFields
+  alias Portfolixir.Chains.Registry
   alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Input.Text
@@ -76,6 +77,13 @@ defmodule Portfolixir.Catalog.Security do
     # Null is not yet known: no sync has read one since the column exists.
     field(:provider_currency, :string)
     field(:provider_currency_at, :utc_datetime)
+
+    # ADR-0059 §4 (Sprint 29 H1): the block chain whose halvings this
+    # security is aligned on, one of `Portfolixir.Chains.Registry`'s. Set by
+    # the operator or an agent through the update and never by a guess;
+    # cast through the registry's known list (`cast_halving_chain/2`), so
+    # an unknown name is a field error and never an atom.
+    field(:halving_chain, Ecto.Enum, values: Registry.chains())
 
     has_many(:identifier_aliases, Portfolixir.Catalog.IdentifierAlias)
 
@@ -163,6 +171,7 @@ defmodule Portfolixir.Catalog.Security do
   def changeset(security, attrs) do
     security
     |> cast(attrs, @castable)
+    |> cast_halving_chain(attrs)
     # The caller's attributes meet the text rule at any depth before they are
     # merged (E25 S4, G24): the database refuses a NUL in a jsonb key or
     # value, which would otherwise be a failed write.
@@ -247,10 +256,38 @@ defmodule Portfolixir.Catalog.Security do
       name: :securities_provider_online_id_unique_index
     )
     |> unique_constraint(:isin, name: :securities_isin_unique_index)
+    |> check_constraint(:halving_chain, name: :securities_halving_chain_check)
     # ADR-0050 §11: `currency_code` freezes once the security has a
     # transaction or a quote — whichever writer built this changeset (a form,
     # the API, a search result merged into an existing security).
     |> Freeze.validate()
+  end
+
+  # ADR-0059 §4: a registered chain's name or atom, or nil to unbind; any
+  # other value is refused on the field. The name is mapped through the
+  # registry's known list, so input never becomes an atom.
+  defp cast_halving_chain(changeset, attrs) do
+    case fetch_attr(attrs, :halving_chain) do
+      :absent ->
+        changeset
+
+      {:ok, value} when value in [nil, ""] ->
+        put_change(changeset, :halving_chain, nil)
+
+      {:ok, value} ->
+        case Registry.fetch(value) do
+          {:ok, chain} -> put_change(changeset, :halving_chain, chain)
+          :error -> add_error(changeset, :halving_chain, "is not a registered chain")
+        end
+    end
+  end
+
+  defp fetch_attr(attrs, field) do
+    cond do
+      Map.has_key?(attrs, field) -> {:ok, Map.get(attrs, field)}
+      Map.has_key?(attrs, Atom.to_string(field)) -> {:ok, Map.get(attrs, Atom.to_string(field))}
+      true -> :absent
+    end
   end
 
   # E25 S5 (G23): an identifier CHANGED on a stored security meets the
