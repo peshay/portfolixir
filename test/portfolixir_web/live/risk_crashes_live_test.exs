@@ -741,4 +741,54 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
 
     assert options == ["Synthetic Twin · DE000TWIN011", "Synthetic Twin · LU000TWIN022"]
   end
+
+  # The closing act (#1421): a write refused because the window is gone (an
+  # agent deleted it, or switched the crash benchmark away under an open
+  # name form) says "the section was read again". It now is: the deleted
+  # window leaves the select and the windows table, and the old benchmark's
+  # window is no longer offered.
+  test "a refused write reads the section again, as its message says", %{conn: conn} do
+    world = crash_world!()
+
+    {:ok, manual} =
+      Crashes.create_manual_window(Actor.owner_ui(), %{
+        "name" => "Synthetic War",
+        "start" => "2022-02-24",
+        "trough" => "2022-03-09"
+      })
+
+    key = "m:#{manual.id}"
+    {:ok, view, _html} = live(conn, risk_path(world, crash: key))
+
+    view
+    |> element("button[data-role=crash-manual-edit][phx-value-key='#{key}']")
+    |> render_click()
+
+    {:ok, _deleted} = Crashes.delete_window(Actor.api_token_rw("mcp"), key)
+
+    html =
+      view
+      |> element("#crash-window-edit-form")
+      |> render_submit(%{"window" => %{"name" => "Synthetic War, renamed"}})
+
+    assert html =~ "the section was read again"
+    refute has_element?(view, "#crash-window option[value='#{key}']")
+    refute has_element?(view, "#crash-windows-table tr[data-key='#{key}']")
+
+    view
+    |> element("button[data-role=crash-name-open][phx-value-key='#{world.bear}']")
+    |> render_click()
+
+    other = create_security!(name: "Synthetic Other Index", ticker: "SOI")
+    put_quotes!(other, [{~D[2024-01-03], "100"}, {~D[2024-10-12], "80"}])
+    {:ok, _other} = Settings.set_crash_benchmark(Actor.api_token_rw("mcp"), other.id)
+
+    html =
+      view
+      |> element("#crash-window-edit-form")
+      |> render_submit(%{"window" => %{"name" => "Synthetic Bear"}})
+
+    assert html =~ "the section was read again"
+    refute has_element?(view, "#crash-window option[value='#{world.bear}']")
+  end
 end
