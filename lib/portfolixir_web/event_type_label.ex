@@ -34,4 +34,17 @@ defmodule PortfolixirWeb.EventTypeLabel do
   def tone(1), do: pgettext("tone", "positive")
   def tone(0), do: pgettext("tone", "neutral")
   def tone(-1), do: pgettext("tone", "negative")
+
+  @doc """
+  „Event type · tone“ in words, each part only when it is stated, "" when
+  neither is: the second line of a chart pin's tooltip (before its date) and
+  of a research entry under its headline (Sprint 29 N3), so screen and pin
+  read the same.
+  """
+  @spec line(String.t() | atom() | nil, -1 | 0 | 1 | nil) :: String.t()
+  def line(event_type, tone) do
+    [event_type && event_type(event_type), tone in [-1, 0, 1] && tone(tone)]
+    |> Enum.filter(&is_binary/1)
+    |> Enum.join(" · ")
+  end
 end

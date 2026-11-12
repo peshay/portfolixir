@@ -36,4 +36,19 @@ defmodule PortfolixirWeb.EventTypeLabelTest do
       assert EventTypeLabel.tone(-1) == "negativ"
     end)
   end
+
+  # User story (Sprint 29 N3; board ux-design-2026-11-12-sprint29/03, A):
+  # As the operator reading a research entry and its chart pin,
+  # I want both to read „event type · tone“ from one function,
+  # so that the entry's second line and the pin's tooltip never differ.
+  #
+  # Acceptance criteria:
+  # - Both stated read „Earnings · positive“; one alone reads its word
+  #   without a separator; neither reads "".
+  test "line/2 reads „event type · tone“, each part only when stated" do
+    assert EventTypeLabel.line("earnings", 1) == "Earnings · positive"
+    assert EventTypeLabel.line(:legal, nil) == "Legal"
+    assert EventTypeLabel.line(nil, -1) == "negative"
+    assert EventTypeLabel.line(nil, nil) == ""
+  end
 end
