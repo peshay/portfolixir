@@ -986,6 +986,27 @@ defmodule Portfolixir.RuntimeConfig do
   def news_user_agent(_value), do: nil
 
   @doc """
+  The chain source's own base URL, from `PORTFOLIXIR_BITCOIN_ESPLORA_URL`
+  (ADR-0059 §3): the operator's own mempool or Esplora instance, which
+  replaces mempool.space and blockstream.info. Unset or blank is none
+  (`nil`); a value is taken trimmed. It is not judged here: the adapter
+  (`Portfolixir.Chains.Esplora.check_own_url/1`) checks it with name
+  resolution before every run, and a refused URL becomes a reason on the
+  chain's health read rather than a boot that fails.
+  """
+  @spec bitcoin_esplora_url(String.t() | nil) :: String.t() | nil
+  def bitcoin_esplora_url(value \\ System.get_env("PORTFOLIXIR_BITCOIN_ESPLORA_URL"))
+
+  def bitcoin_esplora_url(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      url -> url
+    end
+  end
+
+  def bitcoin_esplora_url(_value), do: nil
+
+  @doc """
   Whether the release fetches from public hosts by itself, from
   `PORTFOLIXIR_BACKGROUND_FETCH` (#1026): logo discovery and the scheduled
   quote and FX sync. The words development reads turn it off (`0`, `false`,
