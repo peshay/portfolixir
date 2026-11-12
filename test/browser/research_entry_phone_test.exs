@@ -51,7 +51,10 @@ defmodule PortfolixirWeb.Browser.ResearchEntryPhoneTest do
   #   first line, left of it;
   # - the headline, the label line and the link end inside the entry, and
   #   the page does not scroll sideways;
-  # - a 400-character link reads its domain.
+  # - a 400-character link reads its domain;
+  # - a superseded entry's label (event type · tone, „maschinell“, „nicht
+  #   im Diagramm, weil ersetzt“) wraps, and no line of it starts with the
+  #   „·“ (closing act, D3: DESIGN.md S29 N3, the label wraps as one line).
   test "a research entry's headline, label and link fit a 390 px phone", %{base_url: base_url} do
     security = security!("Northwind Harbour Logistics AG")
 
@@ -76,10 +79,13 @@ defmodule PortfolixirWeb.Browser.ResearchEntryPhoneTest do
         news_label_id: 7
       )
 
+    superseded = superseded!(security)
+
     args =
       Jason.encode!(%{
         url: base_url <> "/securities/#{security.id}?tab=research",
         entry_id: note.id,
+        superseded_id: superseded.id,
         domain: "news.aggregator.example"
       })
 
@@ -94,5 +100,36 @@ defmodule PortfolixirWeb.Browser.ResearchEntryPhoneTest do
       |> Jason.decode!()
 
     assert result["ok"] == true, inspect(result)
+  end
+
+  # An entry with a headline, an event type, a tone and a news label that a
+  # later entry supersedes: its label carries all three parts.
+  defp superseded!(security) do
+    attrs = %{
+      "security_id" => security.id,
+      "author" => "agent",
+      "kind" => "evidence",
+      "body" => "Synthetic finding.",
+      "source_quality" => "unverified",
+      "as_of" => Date.to_iso8601(Date.add(Clock.today(), -20)),
+      "headline" => "Report expects a profit warning",
+      "event_type" => "capital_measure",
+      "tone" => -1
+    }
+
+    {:ok, superseded} = Knowledge.append_note(Actor.owner_ui(), attrs, news_label_id: 7)
+
+    {:ok, _replacing} =
+      Knowledge.append_note(
+        Actor.owner_ui(),
+        Map.merge(attrs, %{
+          "as_of" => Date.to_iso8601(Date.add(Clock.today(), -15)),
+          "supersedes_id" => superseded.id,
+          "headline" => "Board confirms the outlook",
+          "tone" => 0
+        })
+      )
+
+    superseded
   end
 end

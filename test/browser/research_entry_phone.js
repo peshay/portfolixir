@@ -48,6 +48,38 @@ async function measure(page, entryId) {
   }, entryId);
 }
 
+// A superseded entry's label (closing act, D3; DESIGN.md S29 N3: the label
+// wraps as one line): how many lines it takes, and every „·“ that begins
+// one — a separator at the start of a line, its part pushed below it.
+async function measureLabel(page, entryId) {
+  return page.evaluate((id) => {
+    const label = document.querySelector("#research-entry-" + id + " .research-entry__label");
+    if (!label) return null;
+    const box = label.getBoundingClientRect();
+    const lineHeight = parseFloat(getComputedStyle(label).lineHeight) || 16;
+    const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+    const dots = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      for (let i = node.data.indexOf("·"); i !== -1; i = node.data.indexOf("·", i + 1)) {
+        const range = document.createRange();
+        range.setStart(node, i);
+        range.setEnd(node, i + 1);
+        const r = range.getBoundingClientRect();
+        dots.push({ left: Math.round(r.left * 10) / 10, top: Math.round(r.top * 10) / 10 });
+      }
+    }
+    return {
+      text: label.textContent.replace(/\s+/g, " ").trim(),
+      height: Math.round(box.height * 10) / 10,
+      lineHeight,
+      left: Math.round(box.left * 10) / 10,
+      dots,
+      atLineStart: dots.filter((dot) => dot.left <= box.left + 1)
+    };
+  }, entryId);
+}
+
 async function run(browser) {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -61,6 +93,7 @@ async function run(browser) {
   await page.waitForSelector("#research-entry-" + args.entry_id + " .research-entry__headline");
 
   const seen = await measure(page, args.entry_id);
+  seen && (seen.superseded = await measureLabel(page, args.superseded_id));
   const errors = [];
 
   if (!seen) {
@@ -79,6 +112,14 @@ async function run(browser) {
     }
     if (!seen.inside) errors.push("the headline, its label or the link runs past the entry");
     if (seen.linkText !== args.domain) errors.push("the link reads " + JSON.stringify(seen.linkText));
+    const label = seen.superseded;
+    if (!label) {
+      errors.push("no label on the superseded entry #" + args.superseded_id);
+    } else {
+      if (label.height < 1.5 * label.lineHeight)
+        errors.push("the superseded entry's label does not wrap at 390 px, so the case is not measured");
+      if (label.atLineStart.length > 0) errors.push("a line of the superseded entry's label starts with „·“");
+    }
   }
 
   await leave(context);
