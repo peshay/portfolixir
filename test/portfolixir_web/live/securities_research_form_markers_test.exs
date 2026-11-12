@@ -315,6 +315,86 @@ defmodule PortfolixirWeb.SecuritiesResearchFormMarkersTest do
     refute has_element?(view, ".research-entry-form__errors")
   end
 
+  # User story (Sprint 29 N4, closing act D1; board 03 ⑨ „Die Eingaben
+  # bleiben stehen“, ⑧: the kind change follows the same phx-change rule):
+  # As the operator who typed an entry and then picks another kind,
+  # I want what I typed kept,
+  # so that changing the kind never costs me the entry.
+  #
+  # Acceptance criteria:
+  # - Evidence → event result keeps the entry, the source link and the
+  #   headline; decision → evidence keeps the entry.
+  # - A headline typed on evidence is shown again after a detour through
+  #   thesis, which does not render it.
+  test "a kind change keeps what was typed", %{conn: conn} do
+    security = security!("Kindkeep Logistics AG")
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=research")
+
+    typed = %{
+      kind: "event_result",
+      headline: "Order book doubled",
+      body: "The order book doubled in a quarter.",
+      source_url: "https://ir.example/q3"
+    }
+
+    view |> form(@form, note: typed) |> render_change()
+
+    assert has_element?(view, "#{@form} textarea[name='note[body]']", typed.body)
+
+    assert has_element?(
+             view,
+             "#{@form} input[name='note[source_url]'][value='#{typed.source_url}']"
+           )
+
+    assert has_element?(view, "#{@form} input[name='note[headline]'][value='#{typed.headline}']")
+
+    view
+    |> form(@form, note: %{kind: "decision", body: "Bought a first lot."})
+    |> render_change()
+
+    view
+    |> form(@form, note: %{kind: "evidence", body: "Bought a first lot."})
+    |> render_change()
+
+    assert has_element?(view, "#{@form} textarea[name='note[body]']", "Bought a first lot.")
+    assert has_element?(view, "#{@form} input[name='note[headline]'][value='#{typed.headline}']")
+  end
+
+  # User story (Sprint 29 N4, closing act D2; board 03 ⑨):
+  # As the operator whose headline was refused and who then picks a kind
+  # without a headline,
+  # I want the refusal of a field no longer shown to go with it,
+  # so that the form names no error I cannot see or fix.
+  #
+  # Acceptance criteria:
+  # - After an 81-character headline is refused, switching to thesis drops
+  #   the headline's message from the error list and leaves no control
+  #   marked aria-invalid; the entry typed stays.
+  test "a kind change drops the refusal of a field it no longer renders", %{conn: conn} do
+    security = security!("Kinderror Logistics AG")
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=research")
+
+    typed = %{
+      kind: "evidence",
+      headline: String.duplicate("a", 81),
+      body: "Synthetic finding.",
+      source_quality: "primary",
+      as_of: "2026-10-30"
+    }
+
+    view |> form(@form, note: typed) |> render_submit()
+    assert has_element?(view, ".research-entry-form__errors", "Headline")
+    assert has_element?(view, "#{@form} [aria-invalid='true']")
+
+    view
+    |> form(@form, note: %{kind: "thesis", body: typed.body})
+    |> render_change()
+
+    refute has_element?(view, ".research-entry-form__errors")
+    refute has_element?(view, "#{@form} [aria-invalid]")
+    assert has_element?(view, "#{@form} textarea[name='note[body]']", typed.body)
+  end
+
   # User story (Sprint 29 N4; board 03 ⑨: the grid's border rule won over
   # the general one, in both forms):
   # As the operator whose field is refused,
