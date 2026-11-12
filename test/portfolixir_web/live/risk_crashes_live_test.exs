@@ -461,6 +461,21 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
     assert has_element?(view, "#crash-benchmark-form optgroup[label='Benchmarks']")
     assert has_element?(view, "#crash-benchmark-form optgroup[label='In holdings']")
 
+    # The closing act (board 02 ④ A): with none chosen, the select opens on
+    # a disabled „— choose —“, never on the first security, and saving it
+    # unchanged is refused in the form, writing nothing.
+    assert has_element?(view, "#crash-benchmark option[value=''][disabled][selected]", "choose")
+    refute has_element?(view, "#crash-benchmark optgroup option[selected]")
+
+    html =
+      view
+      |> element("#crash-benchmark-form")
+      |> render_submit(%{"crash_benchmark" => ""})
+
+    assert html =~ "Choose a security"
+    assert Settings.crash_benchmark_security_id() == nil
+    assert has_element?(view, "#crash-benchmark-form .crash-form__errors")
+
     view
     |> element("#crash-benchmark-form")
     |> render_submit(%{"crash_benchmark" => Integer.to_string(world.index.id)})
