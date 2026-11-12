@@ -8,7 +8,6 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Knowledge
   alias Portfolixir.Portfolios.Bonds
-  alias Portfolixir.Portfolios.QuotePlausibility
   alias PortfolixirWeb.Api.V1.FieldSelection
   alias PortfolixirWeb.Api.V1.IntegerParam
   alias PortfolixirWeb.Api.V1.JSON
@@ -106,15 +105,16 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
 
   # #1101 (plan D-7; the AGENTS.md metric rule): implausible_quote names a
   # ratio, so its rule travels in the envelope, with each listed security's
-  # finding — the booking it contradicts — for the agent to check, as
-  # Wealth's note names it for the operator.
+  # finding — the booking it contradicts, and since #1414 whether the
+  # security is held — for the agent to check, as Wealth's note names it
+  # for the operator.
   defp put_findings(envelope, "implausible_quote", securities) do
     Map.merge(envelope, %{
       findings:
         securities
-        |> QuotePlausibility.findings_among()
+        |> DataQuality.implausible_quote_findings()
         |> Enum.map(&JSON.implausible_quote_finding/1),
-      computation_basis: QuotePlausibility.computation_basis()
+      computation_basis: DataQuality.computation_basis("implausible_quote")
     })
   end
 

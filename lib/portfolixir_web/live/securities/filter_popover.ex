@@ -258,8 +258,8 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
   defp dq_label("missing_fx"), do: gettext("Missing FX rate")
   # #1068 (D-15): the bonds the two-scales guard flags, either direction.
   defp dq_label("two_scales"), do: gettext("Priced on two scales")
-  # #1101 (D-7; board 02, L2 A): the held securities whose quotes contradict
-  # their own bookings. A removable chip, as two_scales'; no one-tap chip.
+  # #1101 (D-7; board 02, L2 A), #1414: the securities, held or not, whose
+  # quotes contradict their bookings. A removable chip; no one-tap chip.
   defp dq_label("implausible_quote"), do: gettext("Quote does not match bookings")
   # #1415 (Sprint 28 Q3; board ux-design-2026-11-08-sprint28/05): the
   # securities whose provider stated another currency, the chip's words.

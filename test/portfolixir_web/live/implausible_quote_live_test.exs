@@ -137,10 +137,15 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
   # Acceptance criteria:
   # - Arbolia and Wrenfield read "2 gehaltene Wertpapiere, deren Kurse nicht
   #   zu ihren Buchungen passen" on the German line, linking to
-  #   /securities?dq=implausible_quote, and the note takes the problem
-  #   severity, never attention.
+  #   /securities?dq=implausible_quote&holding=held, and the note takes the
+  #   problem severity, never attention.
+  # - Since #1414 (Sprint 29 D1) the set holds sold securities too; the line
+  #   still counts the held ones it names, so a sold-out "Linden Optik AG"
+  #   whose quotes contradict its bookings is not counted, and its link
+  #   carries holding=held so the count opens a list of the same size.
   # - The finding stands after the two-scales finding, which names a bond
-  #   this guard therefore leaves out; the linked list holds the two named.
+  #   this guard therefore leaves out; the linked list holds the two named,
+  #   the list without the holding filter the sold one as well.
   # - One held security reads "ein gehaltenes Wertpapier, dessen Kurse nicht
   #   zu seinen Buchungen passen" in German, and "one held security whose
   #   quotes do not match its bookings" / "2 held securities whose quotes do
@@ -152,12 +157,17 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
     wrenfield!(world)
     two_scales_bond!(world)
 
+    linden = create_security!(name: "Linden Optik AG", ticker: "LOP")
+    buy!(world, linden, quantity: "10", price: "400.00", date: ~D[2023-03-01])
+    sell!(world, linden, quantity: "10", price: "420.00", date: ~D[2024-06-03])
+    put_quote!(linden, ~D[2024-06-03], "105.00")
+
     {:ok, view, _html} = live(german(conn), "/")
     render_async(view)
 
     assert has_element?(
              view,
-             ~s(#dashboard-dq-line a[data-role="dq-implausible-quote"][href="/securities?dq=implausible_quote"]),
+             ~s(#dashboard-dq-line a[data-role="dq-implausible-quote"][href="/securities?dq=implausible_quote&holding=held"]),
              "2 gehaltene Wertpapiere, deren Kurse nicht zu ihren Buchungen passen"
            )
 
@@ -167,10 +177,14 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
     assert view |> roles("#dashboard-dq-line") |> Enum.take(-2) ==
              ["dq-two-scales", "dq-implausible-quote"]
 
-    {:ok, list, _html} = live(german(conn), "/securities?dq=implausible_quote")
+    {:ok, list, _html} = live(german(conn), "/securities?dq=implausible_quote&holding=held")
     assert has_element?(list, "td", "Arbolia Inc.")
     assert has_element?(list, "td", "Wrenfield Gardens AG")
     refute has_element?(list, "td", "Kestrel Anleihe 2030 2,75%")
+    refute has_element?(list, "td", "Linden Optik AG")
+
+    {:ok, list, _html} = live(german(conn), "/securities?dq=implausible_quote")
+    assert has_element?(list, "td", "Linden Optik AG")
 
     {:ok, view, _html} = live(conn, "/")
     render_async(view)

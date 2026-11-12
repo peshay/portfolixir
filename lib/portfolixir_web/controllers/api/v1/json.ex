@@ -163,9 +163,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   listing's envelope serves it under `data_quality=implausible_quote`: the
   latest booking whose quote is outside [1/2, 2] of its price per unit,
   the quote it was compared with (`close` on the booking's split basis),
-  the `ratio` close ÷ price rounded half up at scale 6, and
-  `bookings_outside`. Decimals are strings; the envelope's
-  `computation_basis` states the rule.
+  the `ratio` close ÷ price rounded half up at scale 6,
+  `bookings_outside`, and `held`, whether the security is held now: the
+  set is held or not since #1414. Decimals are strings; the envelope's
+  `computation_basis` states the rule and what the set covers.
   """
   def implausible_quote_finding(finding) do
     %{
@@ -177,7 +178,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       quote_date: date(finding.quote_date),
       close: decimal(finding.close),
       ratio: decimal(Decimal.round(finding.ratio, 6, :half_up)),
-      bookings_outside: finding.bookings_outside
+      bookings_outside: finding.bookings_outside,
+      held: finding.held
     }
   end
 

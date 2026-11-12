@@ -133,24 +133,31 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
            ]
   end
 
-  # User story (#1101, Sprint 20 plan D-7; contract entry 16):
+  # User story (#1101, Sprint 20 plan D-7; contract entry 16; widened by
+  # #1414, Sprint 29 D1, contract entry 29):
   # As the LLM agent the operator runs,
-  # I want to ask for the held securities whose quotes contradict their own
-  # bookings, with the booking each one contradicts and the rule,
+  # I want to ask for every security whose quotes contradict its own
+  # bookings, held or not, with the booking each one contradicts, whether
+  # it is held, and the rule,
   # so that I can work the set the Overview counts and Wealth names, and
   # check each finding without a second read.
   #
   # Acceptance criteria:
   # - data_quality=implausible_quote answers the held "Wrenfield Gardens
-  #   AG" (bought 48.20, quoted 4.87 that day) and nothing of the seed.
-  # - The envelope's findings name its booking exactly: security_id, kind
-  #   "buy", date "2026-05-12", price "48.2", currency_code "EUR",
-  #   quote_date "2026-05-12", close "4.87", ratio "0.101037" (4.87 / 48.20
-  #   at scale 6, half up), bookings_outside 1.
+  #   AG" (bought 48.20, quoted 4.87 that day) and the sold-out "Arbolia
+  #   Inc." (sold 61.40 beside 618.90 the day before), and nothing of the
+  #   seed; holding_status=held narrows it to Wrenfield, not_held to
+  #   Arbolia.
+  # - The envelope's findings name each booking exactly: security_id, kind,
+  #   date, price, currency_code, quote_date, close, ratio (close / price
+  #   at scale 6, half up), bookings_outside and held (true for Wrenfield,
+  #   false for Arbolia).
   # - The envelope's computation_basis states input_series, reference,
-  #   window, gaps and threshold (the AGENTS.md metric rule); another
-  #   data_quality carries neither key.
-  test "data_quality=implausible_quote lists the held set with its findings and basis",
+  #   window, gaps, threshold and assumptions (the AGENTS.md metric rule),
+  #   its assumptions what the set covers: every security with a priced
+  #   booking, held or not, benchmarks left out and a retired one unless
+  #   held; another data_quality carries neither key.
+  test "data_quality=implausible_quote lists the set, held or not, with its findings and basis",
        %{conn: conn} do
     seed()
     world = base_world([])
@@ -158,12 +165,29 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
     buy!(world, wrenfield, quantity: "120", price: "48.20", date: ~D[2026-05-12])
     put_quote!(wrenfield, ~D[2026-05-12], "4.87")
 
+    arbolia = create_security!(name: "Arbolia Inc.", ticker: "ARBL")
+    buy!(world, arbolia, quantity: "10", price: "58.20", date: ~D[2025-11-03])
+    sell!(world, arbolia, quantity: "10", price: "61.40", date: ~D[2026-04-03])
+    put_quote!(arbolia, ~D[2026-04-02], "618.90")
+
     response =
       get_json(conn, "/api/v1/securities?data_quality=implausible_quote") |> json_response(200)
 
-    assert names(response) == ["Wrenfield Gardens AG"]
+    assert names(response) == ["Arbolia Inc.", "Wrenfield Gardens AG"]
 
     assert response["findings"] == [
+             %{
+               "security_id" => arbolia.id,
+               "kind" => "sell",
+               "date" => "2026-04-03",
+               "price" => "61.4",
+               "currency_code" => "EUR",
+               "quote_date" => "2026-04-02",
+               "close" => "618.9",
+               "ratio" => "10.079805",
+               "bookings_outside" => 1,
+               "held" => false
+             },
              %{
                "security_id" => wrenfield.id,
                "kind" => "buy",
@@ -173,7 +197,8 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
                "quote_date" => "2026-05-12",
                "close" => "4.87",
                "ratio" => "0.101037",
-               "bookings_outside" => 1
+               "bookings_outside" => 1,
+               "held" => true
              }
            ]
 
@@ -184,6 +209,23 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
 
     assert basis["window"] =~ "within 7 days before the booking date"
     assert basis["threshold"] =~ "below 1/2 or above 2"
+    assert basis["assumptions"] =~ "every security with a priced booking, held or not"
+    assert basis["assumptions"] =~ "benchmark securities are left out"
+    assert basis["assumptions"] =~ "a retired security unless it is held"
+
+    held =
+      get_json(conn, "/api/v1/securities?data_quality=implausible_quote&holding_status=held")
+      |> json_response(200)
+
+    assert names(held) == ["Wrenfield Gardens AG"]
+    assert [%{"held" => true}] = held["findings"]
+
+    not_held =
+      get_json(conn, "/api/v1/securities?data_quality=implausible_quote&holding_status=not_held")
+      |> json_response(200)
+
+    assert names(not_held) == ["Arbolia Inc."]
+    assert [%{"held" => false}] = not_held["findings"]
 
     other = get_json(conn, "/api/v1/securities?data_quality=stale_quote") |> json_response(200)
     refute Map.has_key?(other, "findings")

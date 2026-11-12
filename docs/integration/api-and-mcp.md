@@ -404,23 +404,29 @@ full list.
   Overview's data-quality line counts; see `bond.two_scales` below for the
   rule and which securities count as bonds. It keeps a benchmark and a
   retired security too, since their figures are as wrong as before;
-  `implausible_quote` — issue #1101: every **held** security for which a
-  buy, a sell or a priced inbound delivery has a stored quote, on the
-  booking's date or the latest within 7 days before it, below half or above
+  `implausible_quote` — issue #1101: every security, **held or not** (issue
+  #1414), for which a buy, a sell or a priced inbound delivery has a
+  stored quote, on the booking's date or the latest within 7 days before it, below half or above
   twice the booking's price per unit in the security's currency (a booking
   in another currency at its `security_amount` ÷ `quantity`), read on the
   booking's split basis (ADR-0028 §2), so a recorded split is not named and
   an unrecorded one is; a booking at a price of 0, or with no quote in the
   window, is not compared, and a security `two_scales` names is not counted
-  again. It is the set the Overview's data-quality line counts, and keeps a
-  held benchmark or retired security. Under it the envelope adds `findings`,
+  again. A sold security is named too: its series still feeds the snapshot
+  comparison, sale hindsight and the TTWROR windows over its holding
+  period, so a provider series split-adjusted backwards against bookings in
+  the old units is caught. It leaves out a benchmark, and a retired
+  security unless it is held; `holding_status=held` or `not_held` narrows
+  it as any listing. The Overview's data-quality line counts its held
+  members. Under it the envelope adds `findings`,
   one per listed security — `security_id`, `kind` (`buy`, `sell` or
   `inbound_delivery`), `date`, `price`, `currency_code`, `quote_date`,
   `close` (on the booking's split basis), `ratio` (close ÷ price, rounded
-  half up at scale 6) and `bookings_outside`, the latest booking outside the
-  band being the one named — and `computation_basis`, which states
+  half up at scale 6), `bookings_outside`, the latest booking outside the
+  band being the one named, and `held` (`true` or `false`, whether the
+  security is held now) — and `computation_basis`, which states
   `input_series`, `reference`, `window`, `gaps`, `threshold` and
-  `assumptions`; `currency_mismatch` — issue #1415: every security whose
+  `assumptions`, the last opening with what the set covers; `currency_mismatch` — issue #1415: every security whose
   stored `provider_currency`, the currency its quote provider stated at the
   sync that stored it, is present and differs from its `currency_code`, as
   written (`GBp`, pence, differs from `GBP`). The quote sync stores it on

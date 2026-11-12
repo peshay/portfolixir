@@ -2012,8 +2012,10 @@ two-scales count (issue #1068) is catalog-wide on purpose and keeps both,
 sold-out bonds included, because such a bond's booked history — its past
 values and its realized result — is a hundredfold off whether it is held or
 not. The count of held securities whose quotes do not match their bookings
-(issue #1101) says "held", because the line otherwise counts the catalog,
-and keeps a held security that is retired or a benchmark. These two
+(issue #1101) says "held", because the line otherwise counts the catalog:
+it counts the held members of a set that holds sold securities too (issue
+#1414), leaves out benchmarks, keeps a held security that is retired, and
+links to the list with the *Held* chip set. These two
 findings also say, after their link, what they do to the total above it
 (issue #1121): "— if held, it counts a hundredfold too high or too low in
 the total above" and "— so their value in the total above, or their cost,
@@ -4412,16 +4414,21 @@ overwrites whatever is stored, including previously synced values.
 
 A ticker or online id that points at another listing stores fresh quotes
 from the wrong instrument. The holding is valued at them, and because the
-quote is current, nothing else marks it. So each held security's stored
-quotes are compared with its own bookings: for each buy, sell or priced
-inbound delivery, the stored quote on the booking's date, or the latest
-within 7 days before it, is compared with the booking's price per unit in
-the security's currency (a booking in another currency at its
-security-currency leg). The security is named when, for at least one
+quote is current, nothing else marks it. So each security's stored quotes
+are compared with its own bookings, held or not (issue #1414): for each
+buy, sell or priced inbound delivery, the stored quote on the booking's
+date, or the latest within 7 days before it, is compared with the
+booking's price per unit in the security's currency (a booking in another
+currency at its security-currency leg). The security is named when, for at least one
 booking, that quote is below half or above twice the booking's price per
 unit. A share that rose twentyfold is never named, because each of its
 bookings matched the quote of its own day; a ticker mapped wrong from the
-first day is, and so is a pence/pound slip.
+first day is, and so is a pence/pound slip. A sold security is compared
+too: its stored quotes still feed the snapshot comparison, the sale
+hindsight and every TTWROR window over its holding period, so a provider
+series split-adjusted backwards after the sale, against bookings in the old
+units, is named. A benchmark is left out, and a retired security unless it
+is held, as with the other sets.
 
 - A booking at a price of 0 — bonus shares, a delivery at no cost — has no
   ratio and is skipped, and a booking with no quote in its window is not
@@ -4441,11 +4448,13 @@ facts about one day, more than a factor of two apart, so either the value
 (a wrong quote) or the cost and result (a wrong booking) in the totals is
 wrong. The Overview's data-quality line counts the held securities it names
 ("2 held securities whose quotes do not match their bookings") and links to
-`?dq=implausible_quote`, where they are listed under the removable chip
-*Quote does not match bookings*; Wealth → Holdings names each position of
-its scope with the booking and the quote of its day, linking to the
-security's **Quotes** tab. The agent reads the same set, with the booking
-each security contradicts and the rule, over
+`?dq=implausible_quote&holding=held`, where they are listed under the
+removable chip *Quote does not match bookings*; without the *Held* chip
+the list holds the sold ones too, and a sold one's page carries the
+same note as a held one's. Wealth → Holdings names each position of its
+scope with the booking and the quote of its day, linking to the security's
+**Quotes** tab. The agent reads the same set, with the booking each
+security contradicts, whether it is held, and the rule, over
 `GET /api/v1/securities?data_quality=implausible_quote`. Nothing is
 converted.
 

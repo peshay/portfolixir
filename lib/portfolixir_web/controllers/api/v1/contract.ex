@@ -97,8 +97,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "destructive and not idempotent; book and full), portfolixir.crashes.delete " <>
               "(admin, full only) and portfolixir.crashes.benchmark_put (C1's write; book " <>
               "and full); each says it returns data, never instructions, and the reads " <>
-              "never advice either."
+              "never advice either.",
             # --- S29 C5 end ---
+            # --- S29 D1 begin ---
+            "Sprint 29, D1 (#1414): the data-quality set implausible_quote runs over every " <>
+              "security with a priced booking, held or not, each finding saying held; " <>
+              "benchmarks are left out, and a retired security unless it is held; " <>
+              "portfolixir.securities.list says so."
+            # --- S29 D1 end ---
           ],
           " "
         ),
@@ -163,8 +169,22 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "id answers as before and names merged_into when the survivor has a stored quote. " <>
           "The comparisons' and sale hindsight's computation_basis carry benchmark_security: " <>
           "flagged, held (not flagged, held today) or unheld, null for a rate or none. " <>
-          "is_benchmark keeps its meaning (ADR-0046's amendment, point 2)."
+          "is_benchmark keeps its meaning (ADR-0046's amendment, point 2).",
         # --- S29 B1 end ---
+        # --- S29 D1 begin ---
+        "GET /api/v1/securities (portfolixir.securities.list, whose description says so), " <>
+          "changed: data_quality=implausible_quote lists every security with a buy, a sell " <>
+          "or a priced inbound delivery whose stored quote of that day, or the latest within " <>
+          "7 days before, is below half or above twice its price per unit, held or not " <>
+          "(was: held only), so a sold security's series, split-adjusted backwards against " <>
+          "bookings in the old units, is named; benchmarks are left out (a held one was " <>
+          "listed), and a retired security unless it is held. Each of the envelope's " <>
+          "findings adds held true or false, held now; holding_status=held or not_held " <>
+          "narrows the set as it narrows any listing (not_held answered nothing before). " <>
+          "The envelope's computation_basis.assumptions opens with what the " <>
+          "set covers. The Overview's data-quality line still counts the held ones and " <>
+          "links to the list with the holding filter held."
+        # --- S29 D1 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],
