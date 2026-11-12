@@ -464,11 +464,18 @@ defmodule Portfolixir.Crashes.RankingsTest do
       date: ~D[2019-06-03]
     )
 
-    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Synthetic Crash Bucket"})
+    {:ok, bucket} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Synthetic Crash Bucket #{System.unique_integer([:positive])}"
+      })
+
     :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), world.depot, [bucket.id])
 
     {:ok, view} =
-      Buckets.create_view(Actor.owner_ui(), %{name: "Synthetic Crash View", include_all: false})
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Synthetic Crash View #{System.unique_integer([:positive])}",
+        include_all: false
+      })
 
     :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
 
@@ -492,6 +499,24 @@ defmodule Portfolixir.Crashes.RankingsTest do
     assert losers.basis.universe =~ "today"
 
     assert {:error, :view_not_found} = Crashes.rankings(key, "view:#{view.id + 1000}", [])
+
+    # The closing act (#1421): `held`, today's holdings in any depot, the
+    # universe „Im Depot“ reads with no view chosen. The security held only
+    # outside the view is in it; the sold-out, the flagged one and the
+    # benchmark are not. The same holdings rule as the view's and the news
+    # digest's, over every depot.
+    assert {:ok, held} = Crashes.rankings(key, "held", list: "losers", include_unanswered: true)
+    assert %{universe: "held", answered: 3} = held
+
+    assert names(held.entries) == [
+             {1, "alpha Travel", "DE000CRSH002"},
+             {2, "Delta Tech", nil},
+             {3, "Epsilon Gold", nil}
+           ]
+
+    assert held.unanswered == %{no_close_at_start: 0, no_close_at_end: 1, no_fx_rate: 0}
+    assert [%{security: %{name: "Eta Stale"}}] = held.unanswered_entries
+    assert held.basis.universe =~ "any depot"
   end
 
   # User story (ADR-0058 §5, amendment F3):

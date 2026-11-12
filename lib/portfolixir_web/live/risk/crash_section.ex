@@ -27,8 +27,8 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   **The screen answers as the API does** (plan D-1, item 7): every list is
   `Crashes.rankings/3` over `view:<id>` (the page's view, P3) or
   `catalogue`, the call `GET /api/v1/crashes/:key/rankings` makes. With no
-  view chosen (Everything) there is no `view:<id>` to ask, so the section
-  lists the catalogue and says why „Im Depot“ needs a view.
+  view chosen (Everything), „Im Depot“ asks for `held`, the securities held
+  today in any depot (the closing act, #1421).
 
   **The choice is kept in the address** (P4): `crash` (the window's key),
   `crash_list` and `crash_universe`; without one the section opens on the
@@ -97,11 +97,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
     list = if params["crash_list"] in @lists, do: params["crash_list"], else: "losers"
 
     universe =
-      cond do
-        is_nil(view_id) -> "catalogue"
-        params["crash_universe"] in @universes -> params["crash_universe"]
-        true -> "depot"
-      end
+      if params["crash_universe"] in @universes, do: params["crash_universe"], else: "depot"
 
     socket
     |> assign(
@@ -119,7 +115,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
 
   defp rank(socket) do
     %{window: window, list: list, universe: universe, view_id: view_id} = socket.assigns
-    api_universe = if universe == "depot", do: "view:#{view_id}", else: "catalogue"
+    api_universe = api_universe(universe, view_id)
 
     ranking =
       case Crashes.rankings(window.key, api_universe,
@@ -143,6 +139,12 @@ defmodule PortfolixirWeb.Risk.CrashSection do
 
     %{payload | entries: entries}
   end
+
+  # „Im Depot“ is the page's view's holdings today, or with no view chosen
+  # the holdings today in any depot; the API's universe either way.
+  defp api_universe("catalogue", _view_id), do: "catalogue"
+  defp api_universe("depot", nil), do: "held"
+  defp api_universe("depot", view_id), do: "view:#{view_id}"
 
   # Every window, newest first (P4): by start, a detected one before a
   # manual one of the same day, then by key.
@@ -398,15 +400,11 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           window={@window}
           list={@list}
           universe={@universe}
-          view_id={@view_id}
           paths={%{
             lists: Map.new(lists(), fn {list, _label} -> {list, path(assigns, %{"crash_list" => list})} end),
             universes: Map.new(universes(), fn {universe, _label} -> {universe, path(assigns, %{"crash_universe" => universe})} end)
           }}
         />
-        <p :if={is_nil(@view_id)} class="hint" data-role="crash-depot-needs-view">
-          <%= gettext("„In depot“ lists a view's holdings: with no view chosen, the whole catalogue is listed.") %>
-        </p>
 
         <.window_line
           window={@window}
@@ -500,20 +498,14 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           <span class="stack-bar__label" id="crash-universe-label"><%= gettext("Securities") %></span>
           <div class="segmented-control" data-role="crash-universe" role="group" aria-labelledby="crash-universe-label">
             <%= for {universe, label} <- universes() do %>
-              <%= if universe == "depot" and is_nil(@view_id) do %>
-                <span class="segmented-control__option is-disabled" data-universe={universe} aria-disabled="true">
-                  <%= label %>
-                </span>
-              <% else %>
-                <.link
-                  patch={@paths.universes[universe]}
-                  class={["segmented-control__option", @universe == universe && "is-active"]}
-                  data-universe={universe}
-                  aria-current={if @universe == universe, do: "true"}
-                >
-                  <%= label %>
-                </.link>
-              <% end %>
+              <.link
+                patch={@paths.universes[universe]}
+                class={["segmented-control__option", @universe == universe && "is-active"]}
+                data-universe={universe}
+                aria-current={if @universe == universe, do: "true"}
+              >
+                <%= label %>
+              </.link>
             <% end %>
           </div>
         </span>

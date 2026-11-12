@@ -9,12 +9,16 @@ defmodule Portfolixir.Crashes.Rankings do
     * `"catalogue"` (default): every security in the catalogue (a merged-away
       one has no row left) not flagged `is_benchmark`, minus the crash
       benchmark itself;
+    * `"held"`: of those, the securities held **today** in any depot
+      (`Portfolixir.Ledger.HeldSecurities.held_ids/0`, the one held
+      predicate), what the screen's „Im Depot“ lists with no view chosen
+      (the amendment of 2026-11-12, part 2);
     * `"view:<id>"`: of those, the securities the view holds **today** — a
-      position in a depot the view covers
-      (`Portfolixir.Buckets.load_global_scope/1`) whose quantity summed over
-      those depots is not zero, the rule the news digest reads a view's
-      holdings by. "My holdings in that crash" is this filter, not a
-      calculation of its own (the owner's answer of 2026-11-07).
+      position in a depot the view covers whose quantity summed over those
+      depots is not zero (`Portfolixir.Ledger.HeldSecurities.in_view/1`, the
+      one rule the news digest reads a view's holdings by too). "My holdings
+      in that crash" is this filter, not a calculation of its own (the
+      owner's answer of 2026-11-07).
 
   Flagged securities are reference instruments, not choices; the crash
   benchmark is the reference line beside each entry.
@@ -76,15 +80,12 @@ defmodule Portfolixir.Crashes.Rankings do
 
   import Ecto.Query
 
-  alias Portfolixir.Buckets
   alias Portfolixir.Catalog.BenchmarkSecurity
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
   alias Portfolixir.Crashes.PeakTrough
-  alias Portfolixir.Ledger
   alias Portfolixir.Ledger.HeldSecurities
-  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance.WindowReturn
   alias Portfolixir.Repo
 
@@ -117,8 +118,8 @@ defmodule Portfolixir.Crashes.Rankings do
   def max_limit, do: @max_limit
 
   @doc """
-  Checks a request before anything is read: `universe` is `"catalogue"` or
-  `"view:<id>"`, the id spelled without a leading zero or sign;
+  Checks a request before anything is read: `universe` is `"catalogue"`,
+  `"held"` or `"view:<id>"`, the id spelled without a leading zero or sign;
   `opts` take `:list` (`"losers"`, the default, `"winners"` or
   `"rebounders"`), `:limit` (default
   #{@default_limit}, at most #{@max_limit}), `:include_unanswered` (default
@@ -144,6 +145,7 @@ defmodule Portfolixir.Crashes.Rankings do
   defp list(_list), do: {:error, :invalid_list}
 
   defp universe("catalogue"), do: {:ok, "catalogue"}
+  defp universe("held"), do: {:ok, "held"}
 
   defp universe("view:" <> id_text = universe) do
     case Integer.parse(id_text) do
@@ -257,38 +259,20 @@ defmodule Portfolixir.Crashes.Rankings do
     {:ok, from(s in Security, where: s.is_benchmark == false) |> without(benchmark) |> Repo.all()}
   end
 
+  defp universe_securities("held", benchmark),
+    do: {:ok, listed(HeldSecurities.held_ids(), benchmark)}
+
   defp universe_securities("view:" <> id_text, benchmark) do
-    case Buckets.load_global_scope(String.to_integer(id_text)) do
-      {:error, :view_not_found} ->
-        {:error, :view_not_found}
-
-      scope ->
-        ids = held_in(scope)
-
-        {:ok,
-         from(s in Security, where: s.is_benchmark == false and s.id in ^ids)
-         |> without(benchmark)
-         |> Repo.all()}
+    case HeldSecurities.in_view(String.to_integer(id_text)) do
+      {:error, :view_not_found} -> {:error, :view_not_found}
+      {:ok, ids} -> {:ok, listed(ids, benchmark)}
     end
   end
 
-  # The securities held today in the depots `scope` covers: per position in
-  # scope, summed per security, not zero (the news digest's rule for a
-  # view's holdings, `Portfolixir.News.Reads.digest_securities/1`).
-  defp held_in(scope) do
-    Portfolios.list_portfolios()
-    |> Enum.flat_map(fn portfolio ->
-      portfolio.id
-      |> Ledger.positions_for_portfolio()
-      |> Enum.filter(fn {{account_id, security_id}, _quantity} ->
-        Buckets.position_in_scope?(scope, account_id, security_id)
-      end)
-    end)
-    |> Enum.reduce(%{}, fn {{_account_id, security_id}, quantity}, acc ->
-      Map.update(acc, security_id, quantity, &Decimal.add(&1, quantity))
-    end)
-    |> Enum.reject(fn {_security_id, quantity} -> Decimal.eq?(quantity, 0) end)
-    |> Enum.map(&elem(&1, 0))
+  defp listed(ids, benchmark) do
+    from(s in Security, where: s.is_benchmark == false and s.id in ^ids)
+    |> without(benchmark)
+    |> Repo.all()
   end
 
   defp without(query, nil), do: query
@@ -631,6 +615,12 @@ defmodule Portfolixir.Crashes.Rankings do
     do:
       "catalogue: every security the catalogue holds, not merged away, minus those flagged " <>
         "is_benchmark (reference instruments) and the crash benchmark itself"
+
+  defp universe_text("held"),
+    do:
+      "the securities held today in any depot: a security whose quantity summed over every " <>
+        "depot is not zero, minus those flagged is_benchmark and the crash benchmark itself; " <>
+        "held today, not at the window's dates"
 
   defp universe_text("view:" <> _id),
     do:

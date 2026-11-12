@@ -33,9 +33,12 @@ defmodule Portfolixir.Ledger.HeldSecurities do
 
   import Ecto.Query
 
+  alias Portfolixir.Buckets
+  alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Portfolios
   alias Portfolixir.Repo
 
   @doc """
@@ -113,6 +116,40 @@ defmodule Portfolixir.Ledger.HeldSecurities do
   @doc "The ids of the held securities."
   @spec held_ids() :: [integer()]
   def held_ids, do: Repo.all(held_ids_query())
+
+  @doc """
+  The ids of the securities the view `view_id` holds today, ascending: a
+  position of any portfolio in a depot the view covers
+  (`Portfolixir.Buckets.load_global_scope/1`, its overrides included) whose
+  quantity summed over those positions is not zero. The one rule for "what a
+  view holds": the news digest's securities (`Portfolixir.News.Reads`) and a
+  crash window's `view:<id>` universe (`Portfolixir.Crashes.Rankings`) both
+  read it. `{:error, :view_not_found}` for a view that does not exist.
+  """
+  @spec in_view(pos_integer()) :: {:ok, [pos_integer()]} | {:error, :view_not_found}
+  def in_view(view_id) when is_integer(view_id) do
+    case Buckets.load_global_scope(view_id) do
+      {:error, :view_not_found} -> {:error, :view_not_found}
+      scope -> {:ok, held_in_scope(scope)}
+    end
+  end
+
+  defp held_in_scope(scope) do
+    Portfolios.list_portfolios()
+    |> Enum.flat_map(fn portfolio ->
+      portfolio.id
+      |> Ledger.positions_for_portfolio()
+      |> Enum.filter(fn {{account_id, security_id}, _quantity} ->
+        Buckets.position_in_scope?(scope, account_id, security_id)
+      end)
+    end)
+    |> Enum.reduce(%{}, fn {{_account_id, security_id}, quantity}, acc ->
+      Map.update(acc, security_id, quantity, &Decimal.add(&1, quantity))
+    end)
+    |> Enum.reject(fn {_security_id, quantity} -> Decimal.eq?(quantity, 0) end)
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.sort()
+  end
 
   @doc """
   The booking kinds that move a security's total quantity, split by

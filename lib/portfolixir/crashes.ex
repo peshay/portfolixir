@@ -172,8 +172,8 @@ defmodule Portfolixir.Crashes do
   (`"losers"`, the default, `"winners"` or `"rebounders"`), `:limit` (default 8, at most
   50), `:include_unanswered` and `:today`.
 
-  `universe` is `"catalogue"` or `"view:<id>"`, the securities the view
-  holds today.
+  `universe` is `"catalogue"`, `"held"` (the securities held today in any
+  depot) or `"view:<id>"`, the securities the view holds today.
 
   `{:error, :invalid_list | :invalid_universe | :invalid_limit}` before
   anything is read; `{:error, :not_found}` for a key that names no window;

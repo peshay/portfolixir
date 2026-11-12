@@ -113,7 +113,7 @@ defmodule Portfolixir.CrashDocsTest do
       "`422`",
       "`201`",
       ~s(["is invalid: losers, winners or rebounders"]),
-      ~s(["is invalid: catalogue or view:<id>"]),
+      ~s(["is invalid: catalogue, held or view:<id>"]),
       ~s(["is invalid: a positive integer, at most 50"]),
       ~s(["is invalid: true or false"]),
       ~s(["must be after start"]),

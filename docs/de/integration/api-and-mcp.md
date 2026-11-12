@@ -1389,10 +1389,14 @@ Query-Parameter, jeder optional:
 - `list` — `losers` (Vorgabe), `winners` oder `rebounders`;
 - `universe` — `catalogue` (Vorgabe): jedes Wertpapier im Katalog, nicht
   wegfusioniert und nicht mit `is_benchmark` markiert, ohne den
-  Crash-Benchmark selbst; oder `view:<id>`: davon die Wertpapiere, die die
-  Ansicht **heute** hält (eine Position in einem Depot der Ansicht, deren
-  Menge über diese Depots summiert nicht null ist). Heute gehalten, nicht zu
-  den Daten des Fensters;
+  Crash-Benchmark selbst; `held`: davon die Wertpapiere, die **heute** in
+  irgendeinem Depot gehalten werden (ihre Menge über alle Depots summiert ist
+  nicht null), was „Im Depot“ auf dem Bildschirm ohne gewählte Ansicht
+  listet; oder `view:<id>`: davon die Wertpapiere, die die Ansicht **heute**
+  hält (eine Position in einem Depot der Ansicht, deren Menge über diese
+  Depots summiert nicht null ist, die Regel, nach der auch der
+  Nachrichten-Digest die Bestände einer Ansicht liest). Heute gehalten, nicht
+  zu den Daten des Fensters;
 - `limit` — Vorgabe 8, eine positive ganze Zahl; über 50 wird sie bei 50
   gekappt, und das `limit` der Antwort sagt es;
 - `include_unanswered` — `true` fügt `unanswered_entries` hinzu; `false`
@@ -1496,9 +1500,9 @@ besser aussehen als der Markt war, und die Erholer am meisten.
 
 Ablehnungen, jede bevor etwas gelesen wird: eine `list` außer den dreien
 ergibt `422` mit `errors.list` `["is invalid: losers, winners or
-rebounders"]`; ein `universe` außer `catalogue` oder `view:<id>` (eine
-führende Null oder ein Vorzeichen eingeschlossen) `errors.universe` `["is
-invalid: catalogue or view:<id>"]`; ein `limit` von null, negativ oder keine
+rebounders"]`; ein `universe` außer `catalogue`, `held` oder `view:<id>`
+(eine führende Null oder ein Vorzeichen eingeschlossen) `errors.universe`
+`["is invalid: catalogue, held or view:<id>"]`; ein `limit` von null, negativ oder keine
 Zahl `errors.limit` `["is invalid: a positive integer, at most 50"]`; ein
 `include_unanswered` außer `true` oder `false` `errors.include_unanswered`
 `["is invalid: true or false"]`; jeder andere Parameter `422`, das ihn nennt.

@@ -5,7 +5,8 @@ defmodule PortfolixirWeb.Api.V1.CrashControllerTest do
   # /api/v1/crashes/:key. Every name and figure is synthetic.
   use PortfolixirWeb.ConnCase, async: true
 
-  import Portfolixir.WorldFixtures, only: [create_security!: 1, put_quotes!: 2]
+  import Portfolixir.WorldFixtures,
+    only: [base_world: 1, buy!: 3, create_security!: 1, put_quotes!: 2]
 
   alias Portfolixir.Actor
   alias Portfolixir.Crashes
@@ -272,6 +273,29 @@ defmodule PortfolixirWeb.Api.V1.CrashControllerTest do
     assert floats(rebounders) == []
   end
 
+  # The closing act (#1421): universe=held, today's holdings in any depot,
+  # what the screen's „Im Depot“ lists when no view is chosen.
+  test "universe=held ranks the securities held today in any depot", %{conn: conn} do
+    %{key: key, riser: riser} = crash_world!()
+    world = base_world(name: "Synthetic Held World")
+    buy!(world, riser, quantity: "1", price: "20", date: ~D[2020-01-02])
+
+    assert %{"data" => held} =
+             conn
+             |> authed()
+             |> get(path(key) <> "/rankings?universe=held")
+             |> json_response(200)
+
+    assert %{
+             "universe" => "held",
+             "answered" => 1,
+             "entries" => [%{"security" => %{"name" => "Synthetic Riser"}, "held" => true}],
+             "computation_basis" => %{"universe" => universe}
+           } = held
+
+    assert universe =~ "any depot"
+  end
+
   # Acceptance criteria (ADR-0058 §9; the repo's limit contract, #771):
   # - A limit above 50 is capped and echoed; zero or text answers 422.
   # - An unknown list, universe or include_unanswered value answers 422
@@ -288,7 +312,7 @@ defmodule PortfolixirWeb.Api.V1.CrashControllerTest do
 
     for {query, field} <- [
           {"list=fallers", "list"},
-          {"universe=held", "universe"},
+          {"universe=holdings", "universe"},
           {"universe=view:01", "universe"},
           {"limit=0", "limit"},
           {"limit=ten", "limit"},

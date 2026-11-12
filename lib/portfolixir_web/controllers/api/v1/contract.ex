@@ -84,8 +84,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "name), the manual windows (key m:<id>, kind manual), the names whose window " <>
               "is no longer detected (unmatched_names), the benchmark or the reason there is " <>
               "none, and the computation basis; GET /api/v1/crashes/:key/rankings answers a " <>
-              "window's losers, winners or rebounders over the catalogue or view:<id>'s " <>
-              "holdings today, each EUR return beside the benchmark's and the difference in " <>
+              "window's losers, winners or rebounders over the catalogue, the holdings " <>
+              "in any depot (held) or view:<id>'s holdings, each held today, each EUR return beside the benchmark's and the difference in " <>
               "points, decimals as strings, the unanswered counted per reason, the basis with " <>
               "survivorship named; PUT /api/v1/crashes/:key names a detected window or edits " <>
               "a manual one, POST /api/v1/crashes draws a manual window or makes an unmatched " <>
