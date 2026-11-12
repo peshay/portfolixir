@@ -5573,6 +5573,15 @@ details[open] > .cat-summary::before {
 .research-entry-form__grid textarea {
   resize: vertical;
 }
+/* --- S29 N4 begin: a refused field inside the form's grid --- */
+/* Board ux-design-2026-11-12-sprint29/03 ⑨: the grid's own border rule
+   (.research-entry-form__grid input, select, textarea) outranks the general
+   [aria-invalid="true"] rule, so a refused field kept its grey border, in
+   „Append an entry“ and in „To the research log“ alike. */
+.research-entry-form__grid [aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+/* --- S29 N4 end --- */
 .research-entry-form__full {
   grid-column: 1 / -1;
 }

@@ -35,6 +35,7 @@ defmodule PortfolixirWeb.Securities.StoriesTab do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.EventTypeLabel
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LinkDomain
   alias PortfolixirWeb.StoredText
 
   @kinds ~w(evidence event_result)
@@ -311,7 +312,9 @@ defmodule PortfolixirWeb.Securities.StoriesTab do
           <dt><%= gettext("Source link") %></dt>
           <dd data-role="promotion-source">
             <a href={@proposal["source_url"]} rel="noopener noreferrer" target="_blank">
-              <%= foreign(@proposal["source_url"]) %>
+              <%!-- S29 N4 (N3's S3; ADR-0056 E2): the link's domain opens
+                   the link, never printed in full. --%>
+              <%= foreign(LinkDomain.of(@proposal["source_url"])) %>
             </a>
           </dd>
         </div>
