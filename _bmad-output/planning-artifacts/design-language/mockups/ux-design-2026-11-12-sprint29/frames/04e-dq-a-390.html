@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04e-dq-a-390</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-pad { padding: 16px 20px; }
+.mock-crop { margin: 0; padding: 8px 12px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12px; color: var(--color-text-muted); }
+.mock-gone { padding: 10px 14px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12.5px; color: var(--color-text-muted); background: var(--color-bg-muted); }
+</style>
+<style id="proposal">.data-note--clamped .data-note__text, .data-note__actions { max-height: none !important; -webkit-line-clamp: unset !important; } .data-note__more { display: none; } .dq-catalog { color: var(--color-text-muted); } .dq-catalog a { color: inherit; }</style>
+</head>
+<body><div class="mock-pad">
+<div class="kpi-strip" style="max-width: 260px; margin: 0 0 16px;">
+<a href="/securities?dq=stale_quote&amp;holding=held" class="kpi-strip__cell" data-role="kpi-freshness">
+        <span class="kpi-strip__label">Kurse</span>
+
+          <strong>
+            12.11.2026
+          </strong>
+
+
+          <small class="kpi-strip__sub kpi-strip__sub--attention">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true">
+<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z">
+</path>
+<path d="M12 9v4">
+</path>
+<circle cx="12" cy="17" r=".6">
+</circle>
+</svg>
+            <span class="mock-new">19 gehaltene veraltet</span>
+          </small>
+
+      </a>
+</div>
+<section id="dashboard-data-quality" class="workspace-section">
+    <h2>Datenqualität</h2>
+
+    <div role="status">
+      <div id="dashboard-dq-line" class="data-note data-note--problem data-note--clamped" data-role="data-quality-line">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true">
+<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z">
+</path>
+<path d="M12 8v4">
+</path>
+<circle cx="12" cy="16" r=".6">
+</circle>
+</svg>
+  </span>
+  <span class="data-note__word">Problem</span>
+
+    <div class="data-note__body">
+      <div id="dashboard-dq-line-text" class="data-note__text">
+        </div>
+      <div class="data-note__actions"><span class="mock-new" style="display: inline;">
+<a href="/securities?dq=stale_quote&amp;holding=held" data-role="dq-quotes">19 gehaltene Wertpapiere ohne Kurs seit 7 Tagen</a> <span class="dq-catalog" data-catalog-of="dq-quotes">(<a href="/securities?dq=stale_quote">im Katalog 26</a>)</span><span aria-hidden="true"> · </span>
+<a href="/securities?filter[]=asset_class%3Ais_nil&amp;holding=held" data-role="dq-class">eins ohne Anlageklasse</a><span aria-hidden="true"> · </span>
+<a href="/securities?dq=missing_logo&amp;holding=held" data-role="dq-logo">35 ohne Logo</a> <span class="dq-catalog" data-catalog-of="dq-logo">(<a href="/securities?dq=missing_logo">im Katalog 47</a>)</span><span aria-hidden="true"> · </span>
+<a href="/securities?dq=two_scales&amp;holding=held" data-role="dq-two-scales">3 gehaltene Anleihen auf zwei Skalen bepreist</a> <span data-effect-of="dq-two-scales">— jede zählt in der Summe oben hundertfach zu hoch oder zu niedrig</span><span aria-hidden="true"> · </span>
+<a href="/securities?dq=implausible_quote&amp;holding=held" data-role="dq-implausible-quote">ein gehaltenes Wertpapier, dessen Kurse nicht zu seinen Buchungen passen</a> <span data-effect-of="dq-implausible-quote">— sein Wert in der Summe oben oder sein Einstand ist daher falsch</span></span>
+</div>
+    </div>
+    <button type="button" class="link-button data-note__more" aria-expanded="false" aria-controls="dashboard-dq-line-text" data-more="mehr" data-less="weniger" hidden="">mehr</button>
+
+</div>
+    </div>
+  </section>
+</div></body>
+</html>
