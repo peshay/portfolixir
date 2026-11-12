@@ -32,6 +32,7 @@ defmodule PortfolixirWeb.JournalLive do
   alias PortfolixirWeb.Api.V1.JournalQuery
   alias PortfolixirWeb.Api.V1.SinceParam
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.ControlBar
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.Journal.Change
   alias PortfolixirWeb.Journal.Row
@@ -235,90 +236,106 @@ defmodule PortfolixirWeb.JournalLive do
             <h2 id="journal-title"><%= gettext("Entries") %></h2>
           </header>
 
-          <%!-- Chips are toggles, so they carry aria-pressed (UX-DR7). --%>
-          <div id="journal-chips" class="filter-chips" role="group" aria-label={gettext("Filter the journal")}>
-            <span>
-              <span class="filter-chips__family"><%= gettext("Actor") %></span>
-              <button
-                type="button"
-                id="journal-chip-actor-all"
-                class={["filter-chip", @opts[:actor_type] == nil && "is-active"]}
-                aria-pressed={to_string(@opts[:actor_type] == nil)}
-                phx-click="filter_actor"
-                phx-value-actor_type=""
-              >
-                <%= gettext("All") %>
-              </button>
-              <button
-                :for={type <- @actor_chips}
-                type="button"
-                id={"journal-chip-actor-#{type}"}
-                class={["filter-chip", @opts[:actor_type] == type && "is-active"]}
-                aria-pressed={to_string(@opts[:actor_type] == type)}
-                phx-click="filter_actor"
-                phx-value-actor_type={type}
-              >
-                <%= Row.actor_label(type) %>
-              </button>
-            </span>
-            <span>
-              <span class="filter-chips__family"><%= gettext("Operation") %></span>
-              <button
-                :for={operation <- Entry.operations()}
-                type="button"
-                id={"journal-chip-operation-#{operation}"}
-                class={["filter-chip", @opts[:operation] == operation && "is-active"]}
-                aria-pressed={to_string(@opts[:operation] == operation)}
-                phx-click="toggle_operation"
-                phx-value-operation={operation}
-              >
-                <%= Row.operation_label(operation) %>
-              </button>
-            </span>
-          </div>
-
-          <%!-- Enter in „Seit“ submits the form: to the page itself, read
-               like a change, so the chips' filters stay (closing act, J3);
-               a form without phx-submit would GET /journal from its own
-               fields alone. --%>
+          <%!-- Issue 1435 (Sprint 29 L2; board
+               ux-design-2026-11-12-sprint29/06-control-bar ①): the chips
+               and the form are one bar of labelled controls, folded into
+               its label column at every width, since its groups never fit
+               one line: Akteur, Vorgang, Art (its label visible now) and
+               Seit, every control from one edge, the checkbox in the
+               control column. The form holds the whole bar, so a change to
+               the kind, the cut or the checkbox sends all three; the chips
+               are buttons, which send nothing to the form. Enter in „Seit“
+               submits the form: to the page itself, read like a change, so
+               the chips' filters stay (closing act, J3); a form without
+               phx-submit would GET /journal from its own fields alone.
+               Chips are toggles, so they carry aria-pressed (UX-DR7). --%>
           <form id="journal-filters" class="journal-filters" phx-change="filter_form" phx-submit="filter_form">
-            <label class="journal-filters__kind">
-              <span class="visually-hidden"><%= gettext("Kind") %></span>
-              <select id="journal-kind" name="resource_type">
-                <option value=""><%= gettext("All kinds") %></option>
-                <option :for={kind <- kind_options(@opts)} value={kind} selected={@opts[:resource_type] == kind}>
-                  <%= Row.kind_label(kind) %>
-                </option>
-              </select>
-            </label>
-            <%!-- The cut (board 01 ①): the app's ISO date input (UX-DR19),
-                 empty for none, sent on blur so a half-typed date never
-                 patches the cut away. --%>
-            <label class="journal-filters__since">
-              <%= gettext("Since") %>
-              <input
-                type="text"
-                id="journal-since"
-                name="since"
-                value={since_value(@opts[:since])}
-                placeholder="YYYY-MM-DD"
-                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
-                maxlength="10"
-                autocomplete="off"
-                phx-debounce="blur"
-              />
-            </label>
-            <label class="journal-filters__scenarios">
-              <input type="hidden" name="include_scenarios" value="false" />
-              <input
-                type="checkbox"
-                id="journal-scenarios"
-                name="include_scenarios"
-                value="true"
-                checked={@opts[:include_scenarios] == true}
-              />
-              <%= gettext("Include what-if scenarios") %>
-            </label>
+            <ControlBar.bar
+              id="journal-chips"
+              fold={:always}
+              role="group"
+              aria-label={gettext("Filter the journal")}
+            >
+              <:group label={gettext("Actor")} label_id="journal-actor-label">
+                <span class="filter-chips" role="group" aria-labelledby="journal-actor-label">
+                  <button
+                    type="button"
+                    id="journal-chip-actor-all"
+                    class={["filter-chip", @opts[:actor_type] == nil && "is-active"]}
+                    aria-pressed={to_string(@opts[:actor_type] == nil)}
+                    phx-click="filter_actor"
+                    phx-value-actor_type=""
+                  >
+                    <%= gettext("All") %>
+                  </button>
+                  <button
+                    :for={type <- @actor_chips}
+                    type="button"
+                    id={"journal-chip-actor-#{type}"}
+                    class={["filter-chip", @opts[:actor_type] == type && "is-active"]}
+                    aria-pressed={to_string(@opts[:actor_type] == type)}
+                    phx-click="filter_actor"
+                    phx-value-actor_type={type}
+                  >
+                    <%= Row.actor_label(type) %>
+                  </button>
+                </span>
+              </:group>
+              <:group label={gettext("Operation")} label_id="journal-operation-label">
+                <span class="filter-chips" role="group" aria-labelledby="journal-operation-label">
+                  <button
+                    :for={operation <- Entry.operations()}
+                    type="button"
+                    id={"journal-chip-operation-#{operation}"}
+                    class={["filter-chip", @opts[:operation] == operation && "is-active"]}
+                    aria-pressed={to_string(@opts[:operation] == operation)}
+                    phx-click="toggle_operation"
+                    phx-value-operation={operation}
+                  >
+                    <%= Row.operation_label(operation) %>
+                  </button>
+                </span>
+              </:group>
+              <:group label={gettext("Kind")} for="journal-kind">
+                <select id="journal-kind" name="resource_type">
+                  <option value=""><%= gettext("All kinds") %></option>
+                  <option :for={kind <- kind_options(@opts)} value={kind} selected={@opts[:resource_type] == kind}>
+                    <%= Row.kind_label(kind) %>
+                  </option>
+                </select>
+              </:group>
+              <%!-- The cut (board 01 ①): the app's ISO date input (UX-DR19),
+                   empty for none, sent on blur so a half-typed date never
+                   patches the cut away. --%>
+              <:group label={gettext("Since")} for="journal-since">
+                <span class="journal-filters__since">
+                  <input
+                    type="text"
+                    id="journal-since"
+                    name="since"
+                    value={since_value(@opts[:since])}
+                    placeholder="YYYY-MM-DD"
+                    pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                    maxlength="10"
+                    autocomplete="off"
+                    phx-debounce="blur"
+                  />
+                </span>
+              </:group>
+              <:group>
+                <label class="journal-filters__scenarios">
+                  <input type="hidden" name="include_scenarios" value="false" />
+                  <input
+                    type="checkbox"
+                    id="journal-scenarios"
+                    name="include_scenarios"
+                    value="true"
+                    checked={@opts[:include_scenarios] == true}
+                  />
+                  <%= gettext("Include what-if scenarios") %>
+                </label>
+              </:group>
+            </ControlBar.bar>
           </form>
 
           <p class="summary-basis" data-role="journal-basis"><%= basis(@opts, @rows, @truncated) %></p>

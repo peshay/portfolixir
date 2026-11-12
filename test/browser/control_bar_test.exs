@@ -113,4 +113,58 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
 
     assert result == %{"ok" => true}, output
   end
+
+  # --- L2 begin ---
+  # Issue 1435 (Sprint 29 L2; board `ux-design-2026-11-12-sprint29/06-control-bar`
+  # ① to ④ and its inventory §1, rows 2, 3, 5, 7 to 10): the bars that
+  # broke "labelled controls start on one edge" on the review seed, and the
+  # two it did not render, moved onto the shared bar. Each walks the review
+  # seed (priv/demo/finding_surfaces_seed.exs), as the inventory measured
+  # it, in German and in English at 390 and 1200 px.
+  #
+  # User story:
+  # As the operator filtering a list or choosing a comparison, on a phone
+  # or a wide window,
+  # I want every bar of labelled controls to start its controls on one
+  # edge, with each family of chips named,
+  # so that I read a bar down one edge instead of hunting for where each
+  # control starts and which chips belong together.
+  #
+  # Acceptance criteria (each bar, each locale, 390 and 1200 px):
+  # - Once the bar has more than one row, the first control of every row
+  #   and of every labelled group start on one edge (±1 px).
+  # - Every labelled control sits after its label on the label's line, or
+  #   under it on the label's edge (labels above).
+  # - Wertpapiere and Transaktionen name every chip family with a visible
+  #   label.
+  # - The journal's chips and its form are one bar; the sale's comparison
+  #   with „Fester Zins“ puts its labels above at 390 px (board 06 ①, ②).
+  # - Wertpapiere's and Transaktionen's rows show at 1200 px (the phone's
+  #   filter sheet takes their place at 390 px); every other bar shows at
+  #   both widths.
+  # - The page never scrolls sideways.
+  for bar <-
+        ~w(journal sale_comparison securities_chips transaction_chips) do
+    test "the #{bar} bar starts its labelled controls on one edge", %{base_url: base_url} do
+      seed!()
+
+      {result, output} =
+        run!("migrated_bar", base_url, %{bar: unquote(bar), locales: locales()})
+
+      assert result == %{"ok" => true}, output
+    end
+  end
+
+  defp seed! do
+    conflicts = Code.get_compiler_option(:ignore_module_conflict)
+    Code.put_compiler_option(:ignore_module_conflict, true)
+
+    try do
+      ExUnit.CaptureIO.capture_io(fn -> Code.eval_file("priv/demo/finding_surfaces_seed.exs") end)
+    after
+      Code.put_compiler_option(:ignore_module_conflict, conflicts)
+    end
+  end
+
+  # --- L2 end ---
 end

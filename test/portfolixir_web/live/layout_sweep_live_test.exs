@@ -39,7 +39,9 @@ defmodule PortfolixirWeb.LayoutSweepLiveTest do
   end
 
   # User story (#790, the family labels): the "Changed since" family sits in
-  # the same chip row as the other families, with the same label treatment.
+  # the same chip row as the other families, with the same label treatment
+  # (since issue 1435, Sprint 29 L2: a group of the row's bar of labelled
+  # controls, its label the bar's).
   test "the changed-since family is part of the chip row on both lists", %{conn: conn} do
     seeded_world()
 
@@ -47,12 +49,12 @@ defmodule PortfolixirWeb.LayoutSweepLiveTest do
 
     assert has_element?(
              securities,
-             "#securities-filter-chips .filter-chips__family",
+             "#securities-filter-chips .control-bar__label",
              "Changed since"
            )
 
     {:ok, transactions, _html} = live(conn, "/transactions")
-    assert has_element?(transactions, "#transaction-chips .filter-chips__family", "Changed since")
+    assert has_element?(transactions, "#transaction-chips .control-bar__label", "Changed since")
   end
 
   # User story (#790, the review's D10): the Trades tab's ⓘ carries a label,

@@ -137,8 +137,220 @@ async function stackBarLayout(browser) {
   if (errors.length > 0) throw new Error(errors.join("; "));
 }
 
+// --- L2 begin: the migrated bars (issue 1435, Sprint 29 L2; board 06 and
+// its inventory §1, rows 2, 3, 5, 7 to 10) ---
+
+// Measures a bar the way the inventory measured it
+// (`capture-b-inventory.js`), so a run before the migration and one after
+// read the same things: the bar's controls (a segmented control, a select, a
+// chip, a field, a checkbox with its own label, a button), its visible
+// labels, the rows its controls fall on, and its groups (a visible label and
+// the controls after it up to the next one; controls before the first label
+// are a group without a label). `roots` may name more than one element: the
+// journal's chips and its form are measured as one bar, which they become.
+function measureBar(page, roots) {
+  return page.evaluate((roots) => {
+    const round = (n) => Math.round(n * 10) / 10;
+    const visible = (e) => {
+      const r = e.getBoundingClientRect();
+      const s = getComputedStyle(e);
+      return (
+        r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none" &&
+        !e.closest(".visually-hidden, [hidden], details:not([open]) > :not(summary)")
+      );
+    };
+    const CONTROL =
+      ".segmented-control, select, .filter-chip, input:not([type=hidden]):not([type=checkbox]), " +
+      "label:has(input[type=checkbox]), .more-filters-link, button:not(.segmented-control button):not(.filter-chip)";
+    const LABEL =
+      ".control-bar__label, .filter-chips__family, .hs-controls__label, " +
+      "label:not(:has(input[type=checkbox])):not(.visually-hidden)";
+    const rootEls = [...document.querySelectorAll(roots)].filter(visible);
+    if (rootEls.length === 0) return { visible: false };
+    const left = Math.min(...rootEls.map((r) => r.getBoundingClientRect().left));
+    const top = Math.min(...rootEls.map((r) => r.getBoundingClientRect().top));
+    const width = Math.max(...rootEls.map((r) => r.getBoundingClientRect().right)) - left;
+    const all = (selector) => [...new Set(rootEls.flatMap((r) => [...r.querySelectorAll(selector)]))];
+    const controls = all(CONTROL).filter((c) => visible(c) && !c.parentElement.closest(".segmented-control"));
+    const atomic = controls.filter((c) => !controls.some((o) => o !== c && o.contains(c)));
+    const labels = all(LABEL).filter(
+      (l) =>
+        visible(l) && !l.closest(".segmented-control") && l.textContent.trim() &&
+        !atomic.some((c) => c.contains(l)) && !l.querySelector("select, input")
+    );
+    const box = (e) => {
+      const r = e.getBoundingClientRect();
+      return {
+        left: round(r.left - left),
+        right: round(r.right - left),
+        top: round(r.top - top),
+        bottom: round(r.bottom - top)
+      };
+    };
+    const text = (e) => e.textContent.trim().replace(/\s+/g, " ").slice(0, 30);
+    const rows = [];
+    for (const c of [...atomic].sort((a, b) => box(a).top - box(b).top || box(a).left - box(b).left)) {
+      const b = box(c);
+      const mid = (b.top + b.bottom) / 2;
+      const row = rows.find((r) => mid > r.top && mid < r.bottom);
+      if (row) {
+        row.items.push({ text: text(c), ...b });
+        row.top = Math.min(row.top, b.top);
+        row.bottom = Math.max(row.bottom, b.bottom);
+      } else {
+        rows.push({ top: b.top, bottom: b.bottom, items: [{ text: text(c), ...b }] });
+      }
+    }
+    const order = [...labels.map((l) => ({ l })), ...atomic.map((c) => ({ c }))].sort((a, b) =>
+      (a.l || a.c).compareDocumentPosition(b.l || b.c) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+    );
+    const groups = [];
+    let cur = { label: null, first: null, chips: 0 };
+    for (const o of order) {
+      if (o.l) {
+        if (cur.first || cur.label) groups.push(cur);
+        cur = { label: o.l, first: null, chips: 0 };
+      } else {
+        if (!cur.first) cur.first = o.c;
+        if (o.c.matches(".filter-chip")) cur.chips += 1;
+      }
+    }
+    if (cur.first || cur.label) groups.push(cur);
+    return {
+      visible: true,
+      width: round(width),
+      rows: rows
+        .sort((a, b) => a.top - b.top)
+        .map((r) => ({ top: r.top, first: r.items.sort((a, b) => a.left - b.left)[0] })),
+      groups: groups
+        .filter((g) => g.first)
+        .map((g) => ({
+          label: g.label ? { text: text(g.label), ...box(g.label) } : null,
+          control: { text: text(g.first), ...box(g.first) },
+          chips: g.chips
+        })),
+      page: document.documentElement.scrollWidth - document.documentElement.clientWidth
+    };
+  }, roots);
+}
+
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+
+// The rule (DESIGN.md, amendment of 2026-11-08, "Labelled controls start on
+// one edge"; the inventory's measure): once a bar has more than one row,
+// the first control of every row and of every labelled group start on one
+// edge (±1 px). Every labelled group's control sits after its label on the
+// label's line (the one line, or the label column A) or under it on the
+// label's edge (labels above, B). Where a bar names every family, no chip
+// family stands without a visible label.
+function breaches(m, { everyFamilyNamed }) {
+  const errors = [];
+  const near = (a, b) => Math.abs(a - b) <= 1;
+  if (m.rows.length > 1) {
+    const lefts = [
+      ...m.rows.map((r) => r.first.left),
+      ...m.groups.filter((g) => g.label).map((g) => g.control.left)
+    ];
+    const spread = round1(Math.max(...lefts) - Math.min(...lefts));
+    if (spread > 1) {
+      errors.push(
+        m.rows.length + " rows whose controls start " + spread + " px apart: rows at " +
+          JSON.stringify(m.rows.map((r) => r.first.left)) + ", groups at " +
+          JSON.stringify(m.groups.map((g) => (g.label ? g.label.text : "-") + "@" + g.control.left))
+      );
+    }
+  }
+  for (const { label, control } of m.groups.filter((g) => g.label)) {
+    const beside = control.left >= label.right - 0.5 && control.top < label.bottom && control.bottom > label.top;
+    const under = control.top >= label.bottom - 0.5 && near(control.left, label.left);
+    if (!beside && !under) {
+      errors.push(
+        "„" + control.text + "“ sits neither after nor under its label „" + label.text + "“ " +
+          JSON.stringify({ label, control })
+      );
+    }
+  }
+  if (everyFamilyNamed) {
+    for (const g of m.groups.filter((g) => !g.label && g.chips > 0)) {
+      errors.push("a chip family without a visible label, from „" + g.control.text + "“");
+    }
+  }
+  if (m.page > 0) errors.push("the page scrolls sideways by " + m.page);
+  return errors;
+}
+
+// One bar per case: the page, what the walk waits for and opens to reach
+// the state the bar shows in, the element(s) it is, the widths at which it
+// shows (the chip rows of Wertpapiere and Transaktionen give way to the
+// phone's filter sheet at 390 px, which holds by construction, inventory
+// rows 4 and 6), and whether it names every family.
+const BARS = {
+  journal: {
+    path: "/journal",
+    roots: "#journal-chips, #journal-filters",
+    shows: [390, 1200]
+  },
+  sale_comparison: {
+    path: "/cashflow?tab=realized&hindsight=rate",
+    wait: "[data-role='hindsight-rate-form']",
+    roots: "[data-role='hindsight-compare']",
+    shows: [390, 1200]
+  },
+  securities_chips: {
+    path: "/securities",
+    roots: "#securities-filter-chips",
+    shows: [1200],
+    everyFamilyNamed: true
+  },
+  transaction_chips: {
+    path: "/transactions",
+    roots: "#transaction-chips",
+    shows: [1200],
+    everyFamilyNamed: true
+  }
+};
+
+// Issue 1435 (L2): one migrated bar, in German and in English, at 390 and
+// 1200 px, holds the rule; every measure goes to stderr.
+async function migratedBar(browser) {
+  const bar = BARS[args.bar];
+  const errors = [];
+  const host = new URL(base).hostname;
+  for (const locale of ["de", "en"]) {
+    for (const width of [390, 1200]) {
+      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      await context.addCookies([
+        { name: "portfolixir_locale", value: args.locales[locale], domain: host, path: "/" }
+      ]);
+      const page = await context.newPage();
+      await ready(page, bar.path);
+      if (bar.wait) await page.waitForSelector(bar.wait, { state: "attached" });
+      await settle(page);
+      if (bar.open) {
+        await page.click(bar.open);
+        await settle(page);
+      }
+      await nextFrame(page);
+      const m = await measureBar(page, bar.roots);
+      const label = args.bar + ", " + locale + " at " + width + " px: ";
+      console.error(label + JSON.stringify(m));
+      if (!m.visible) {
+        if (bar.shows.includes(width)) errors.push(label + "the bar is not shown");
+      } else {
+        for (const e of breaches(m, bar)) errors.push(label + e);
+      }
+      await leave(context);
+    }
+  }
+  if (errors.length > 0) throw new Error(errors.join("; "));
+}
+// --- L2 end ---
+
 const CASES = {
-  stack_bar_layout: stackBarLayout
+  stack_bar_layout: stackBarLayout,
+  migrated_bar: migratedBar
 };
 
 (async () => {

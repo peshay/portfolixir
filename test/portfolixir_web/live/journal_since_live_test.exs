@@ -178,16 +178,29 @@ defmodule PortfolixirWeb.JournalSinceLiveTest do
 
     {:ok, view, html} = live(conn, "/journal?locale=de")
 
-    [label] =
+    # Issue 1435 (Sprint 29 L2; board 06 ①): the field is a group of the
+    # journal's one bar of labelled controls, „Seit“ its label, after the
+    # kind's group „Art“.
+    labels =
       html
       |> Floki.parse_document!()
-      |> Floki.find("#journal-filters > label")
-      |> Enum.drop(1)
-      |> Enum.take(1)
+      |> Floki.find("#journal-filters .control-bar__label")
+      |> Enum.map(&(&1 |> Floki.text() |> String.trim()))
 
-    assert Floki.attribute(label, "class") == ["journal-filters__since"]
-    assert label |> Floki.text() |> String.trim() == "Seit"
-    assert has_element?(view, "#journal-filters .journal-filters__kind + label #journal-since")
+    assert labels == ["Akteur", "Vorgang", "Art", "Seit"]
+
+    assert has_element?(
+             view,
+             "#journal-filters label.control-bar__label[for='journal-since']",
+             "Seit"
+           )
+
+    assert has_element?(
+             view,
+             "#journal-filters label.control-bar__label[for='journal-kind']",
+             "Art"
+           )
+
     # UX-DR19: the app's ISO text input, not a native date input (which
     # renders the browser locale's format), sent on blur so a half-typed date
     # never patches the cut away.
