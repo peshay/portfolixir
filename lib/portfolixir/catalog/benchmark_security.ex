@@ -2,7 +2,8 @@ defmodule Portfolixir.Catalog.BenchmarkSecurity do
   @moduledoc """
   The one rule for which security may be a benchmark (ADR-0046's amendment
   of 2026-11-07, #1416): **any security with at least one stored quote,
-  flagged `is_benchmark` or not.** Every read that takes
+  flagged `is_benchmark` or not.** A stored close of 0 or below is no price
+  (as every return read treats it), so the quote must be positive. Every read that takes
   `benchmark=security:<id>` applies it — the portfolio and view comparisons,
   sale hindsight, the predictions' write — and so does the crash benchmark of
   ADR-0058 §1.
@@ -30,7 +31,7 @@ defmodule Portfolixir.Catalog.BenchmarkSecurity do
 
   @typedoc """
   Why an id is no benchmark: `:no_quote`, the security exists with no
-  stored quote; `{:merged_into, id}`, a merge took it away and the live end
+  stored positive quote; `{:merged_into, id}`, a merge took it away and the live end
   of its chain is a security this rule accepts (#959); `:not_found`, no row
   under the id, or a merged-away one whose survivor this rule refuses or
   that was deleted since.
@@ -81,7 +82,10 @@ defmodule Portfolixir.Catalog.BenchmarkSecurity do
     quoted =
       from(s in Security,
         as: :security,
-        where: exists(from(q in Quote, where: q.security_id == parent_as(:security).id)),
+        where:
+          exists(
+            from(q in Quote, where: q.security_id == parent_as(:security).id and q.close > 0)
+          ),
         order_by: [asc: s.name, asc: s.id]
       )
 
@@ -97,7 +101,7 @@ defmodule Portfolixir.Catalog.BenchmarkSecurity do
   end
 
   defp quoted(%Security{id: id} = security) do
-    if Repo.exists?(from(q in Quote, where: q.security_id == ^id)),
+    if Repo.exists?(from(q in Quote, where: q.security_id == ^id and q.close > 0)),
       do: {:ok, security},
       else: {:error, :no_quote}
   end
