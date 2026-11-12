@@ -27,6 +27,7 @@ defmodule Portfolixir.Crashes.RankingsTest do
   alias Portfolixir.Catalog
   alias Portfolixir.Crashes
   alias Portfolixir.Fx
+  alias Portfolixir.Ledger.Splits
   alias Portfolixir.Portfolios.Performance.SaleHindsight
   alias Portfolixir.Settings
 
@@ -701,5 +702,40 @@ defmodule Portfolixir.Crashes.RankingsTest do
     assert {:error, :invalid_limit} = Crashes.rankings(key, "catalogue", limit: 0)
     assert {:error, :invalid_limit} = Crashes.rankings(key, "catalogue", limit: 51)
     assert {:ok, %{limit: 50}} = Crashes.rankings(key, "catalogue", limit: 50)
+  end
+
+  # The closing act (#1421; ADR-0058 §5): two securities each exactly 10 %
+  # down tie on the figure, one across a 3:1 split. On the rounded display
+  # close (100/3 at 34 digits) the split one read -0.0999…9, so the tie was
+  # broken by a rounding digit instead of the name. WindowReturn folds the
+  # split factors into its one division: both read exactly -0.1.
+  test "an exactly -10 % return across a 3:1 split ties with a plain one, ordered by name" do
+    world = base_world(name: "Synthetic Split World")
+    split_co = create_security!(name: "Bbb Split", ticker: "BBS")
+    plain = create_security!(name: "Aaa Plain", ticker: "AAP")
+    buy!(world, split_co, quantity: "3", price: "100", date: ~D[2024-01-02])
+    put_quotes!(split_co, [{~D[2024-01-02], "100"}, {~D[2024-02-05], "30"}])
+    put_quotes!(plain, [{~D[2024-01-02], "100"}, {~D[2024-02-05], "90"}])
+
+    {:ok, _txs} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: split_co.id,
+        date: ~D[2024-02-01],
+        ratio_numerator: 3,
+        ratio_denominator: 1
+      })
+
+    {:ok, window} =
+      Crashes.create_manual_window(agent(), %{
+        "name" => "Synthetic Window",
+        "start" => "2024-01-02",
+        "trough" => "2024-02-05"
+      })
+
+    assert {:ok, %{entries: entries}} =
+             Crashes.rankings("m:#{window.id}", "catalogue", list: "losers")
+
+    assert Enum.map(entries, &{&1.rank, &1.security.name, Decimal.to_string(&1.return)}) ==
+             [{1, "Aaa Plain", "-0.1"}, {2, "Bbb Split", "-0.1"}]
   end
 end

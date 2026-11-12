@@ -54,8 +54,14 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturn do
 
       return = (end.close × start_hub) / (start.close × end_hub) - 1
 
-  which is `(end.close / end_hub) / (start.close / start_hub) - 1`. The two
-  products are exact (a stored close and a stored rate have few digits);
+  which is `(end.close / end_hub) / (start.close / start_hub) - 1`. A close
+  read across a split enters as its stored value and its exact split pair,
+  `stored × q / p` (`Portfolixir.Catalog.QuoteAdjustment.exact_close/1`),
+  each factor folded into the two products: a ratio that does not terminate
+  (3:1, a display close of 33.33… at 34 digits) is never rounded before the
+  division (the Sprint 29 closing act). The two
+  products are exact (a stored close, a stored rate and a split's integers
+  have few digits);
   the quotient is rounded once, at `Decimal`'s default context, 34
   significant digits half-up (IEEE 754 decimal128), and the subtraction of
   1 is exact. GBX's factor of 100 (`GBP × 100`) cancels in the ratio; EUR's
@@ -99,6 +105,7 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturn do
   comparison's fixed-rate series compounds. Rate 0 is exactly 0.
   """
 
+  alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Fx
@@ -228,7 +235,7 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturn do
          currency_code: security.currency_code,
          start: opening,
          end: closing,
-         return: ratio_return(opening.close, start_hub, closing.close, end_hub)
+         return: ratio_return(start_adjusted, start_hub, end_adjusted, end_hub)
        }}
     end
   end
@@ -287,10 +294,17 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturn do
     }
   end
 
-  # One division of exact products (see "The return and its precision").
-  defp ratio_return(start_close, start_hub, end_close, end_hub) do
-    Decimal.mult(end_close, start_hub)
-    |> Decimal.div(Decimal.mult(start_close, end_hub))
+  # One division of exact products (see "The return and its precision"):
+  # each end is its stored close and its split pair, `stored × q / p`, so
+  # (end_s × end_q / end_p × start_hub) / (start_s × start_q / start_p ×
+  # end_hub) folds every factor into the two products.
+  defp ratio_return(start_row, start_hub, end_row, end_hub) do
+    {start_num, start_den} = QuoteAdjustment.exact_close(start_row)
+    {end_num, end_den} = QuoteAdjustment.exact_close(end_row)
+
+    Decimal.mult(end_num, start_hub)
+    |> Decimal.mult(start_den)
+    |> Decimal.div(start_num |> Decimal.mult(end_hub) |> Decimal.mult(end_den))
     |> Decimal.sub(@one)
   end
 

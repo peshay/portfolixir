@@ -131,4 +131,38 @@ defmodule Portfolixir.Crashes.DetectedTest do
              max_gap_days: 18
            }
   end
+
+  # The closing act (#1421; ADR-0058 §2, §7.7): "exactly 10.00 % opens a
+  # window, no rounding before the comparison" holds across a split whose
+  # ratio does not terminate. 100 stored before a 3:1 split reads 100/3,
+  # 33.33… at 34 digits; 30 after it is exactly 90 % of 100/3. Compared on
+  # the rounded 33.33…3 it read 9.99…9 %, and no window opened. The split
+  # factor stays rational: the rule cross-multiplies the stored closes by
+  # their integer ratios, so the comparison and the decline are exact.
+  test "an exactly 10.00 % fall across a 3:1 split opens a window, measured exactly" do
+    world = base_world(name: "Synthetic Split World")
+    index = create_security!(name: "Synthetic Three Split Index", ticker: "S3I")
+    buy!(world, index, quantity: "3", price: "100", date: ~D[2024-01-02])
+    put_quotes!(index, [{~D[2024-01-02], "100"}, {~D[2024-02-05], "30"}])
+
+    {:ok, _txs} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: index.id,
+        date: ~D[2024-02-01],
+        ratio_numerator: 3,
+        ratio_denominator: 1
+      })
+
+    choose!(index)
+
+    assert %{detected: [window]} = Crashes.detected()
+    assert window.start == ~D[2024-01-02]
+    assert window.trough == ~D[2024-02-05]
+    # (30 × 3) / (100 × 1) − 1 = 0.9 − 1, one division of exact products.
+    assert Decimal.to_string(window.decline) == "-0.1"
+
+    # 9.99 % across the same split still opens none: 30.003 / (100/3) = 0.90009.
+    put_quotes!(index, [{~D[2024-02-05], "30.003"}])
+    assert %{detected: []} = Crashes.detected()
+  end
 end

@@ -16,6 +16,10 @@ defmodule Portfolixir.Crashes.PeakTrough do
        `(peak − close) / peak ≥ 0.10`, compared exactly: as
        `(peak − close) × 10 ≥ peak`, a `Decimal` product with no division
        and no rounding before the comparison. Its `start` is the peak's date.
+       A close read across a split is the fraction `stored × q / p`
+       (`Portfolixir.Catalog.QuoteAdjustment.exact_close/1`), and every
+       comparison cross-multiplies the fractions, so a ratio that does not
+       terminate (3:1) is never rounded before it is compared.
     3. Its **trough** is the lowest close after `start` and before the
        series first closes at or above the peak again; among equal lows the
        **earliest**.
@@ -29,20 +33,27 @@ defmodule Portfolixir.Crashes.PeakTrough do
   Each window names `max_gap_days`, the longest span in calendar days
   between two consecutive closes the walk read from `start` to its recovery
   (or to the last close while it is ongoing), so a window drawn over a stale
-  stretch reads as such (§7.8). Its `decline` is `(trough_close −
-  peak_close) / peak_close`, the one division, at `Decimal`'s working
-  precision.
+  stretch reads as such (§7.8). Its `decline` is `trough / peak − 1`, the
+  one division of the two exact fractions, at `Decimal`'s working
+  precision; `peak_close` and `trough_close` are the display closes.
 
   Order: the series is sorted by date before the walk, so any read order of
   the same closes gives the same windows (§7.1); a series holds one close
   per date, as the quote table stores them.
   """
 
+  alias Portfolixir.Catalog.QuoteAdjustment
+
   @rule "peak_trough_v1"
   @threshold "0.10"
   # (peak − close) / peak ≥ 1/10  ⇔  (peak − close) × 10 ≥ peak, for peak > 0.
   @threshold_inverse Decimal.new(10)
 
+  @typedoc """
+  One close: its date and display close; an adjusted row's `stored_close`
+  and `display_ratio` (`Portfolixir.Catalog.Quotes.adjust_rows/2`) make it
+  exact across a split, and a point without them is exact as given.
+  """
   @type point :: %{required(:date) => Date.t(), required(:close) => Decimal.t()}
 
   @type window :: %{
@@ -71,13 +82,14 @@ defmodule Portfolixir.Crashes.PeakTrough do
 
   @doc """
   The windows `points` hold, oldest first. `points` is a list of
-  `%{date, close}` in any order; other keys are ignored.
+  `%{date, close}` in any order, with `stored_close` and `display_ratio`
+  when read across a split; other keys are ignored.
   """
   @spec detect([point()]) :: [window()]
   def detect(points) when is_list(points) do
     points
     |> Enum.filter(&positive?(&1.close))
-    |> Enum.map(&%{date: &1.date, close: &1.close})
+    |> Enum.map(&%{date: &1.date, close: &1.close, exact: QuoteAdjustment.exact_close(&1)})
     |> Enum.sort_by(& &1.date, Date)
     |> walk()
   end
@@ -115,7 +127,7 @@ defmodule Portfolixir.Crashes.PeakTrough do
       at_or_above?(close, open.peak) ->
         watch(rest, %{peak: close, last: close, gap: 0}, [window(open, close.date) | windows])
 
-      Decimal.compare(close.close, open.trough.close) == :lt ->
+      compare(close, open.trough) == :lt ->
         fall(rest, %{open | trough: close}, windows)
 
       true ->
@@ -134,20 +146,35 @@ defmodule Portfolixir.Crashes.PeakTrough do
       peak_close: peak.close,
       trough: trough.date,
       trough_close: trough.close,
-      decline: Decimal.div(Decimal.sub(trough.close, peak.close), peak.close),
+      decline: decline(trough, peak),
       recovered_on: recovered_on,
       provisional: is_nil(recovered_on),
       max_gap_days: open.gap
     }
   end
 
-  defp at_or_above?(close, peak), do: Decimal.compare(close.close, peak.close) != :lt
+  defp at_or_above?(close, peak), do: compare(close, peak) != :lt
 
-  defp opens?(peak, close) do
-    peak.close
-    |> Decimal.sub(close.close)
+  # a/b against c/d, b and d positive integers: a·d against c·b, exact.
+  defp compare(%{exact: {a, b}}, %{exact: {c, d}}),
+    do: Decimal.compare(Decimal.mult(a, d), Decimal.mult(c, b))
+
+  # (peak − close) × 10 ≥ peak over the fractions a/b (peak) and c/d
+  # (close), both sides multiplied by b·d: (a·d − c·b) × 10 ≥ a·d.
+  defp opens?(%{exact: {a, b}}, %{exact: {c, d}}) do
+    peak = Decimal.mult(a, d)
+
+    peak
+    |> Decimal.sub(Decimal.mult(c, b))
     |> Decimal.mult(@threshold_inverse)
-    |> Decimal.compare(peak.close) != :lt
+    |> Decimal.compare(peak) != :lt
+  end
+
+  # trough / peak − 1 = (c·b) / (a·d) − 1: the one division.
+  defp decline(%{exact: {c, d}}, %{exact: {a, b}}) do
+    Decimal.mult(c, b)
+    |> Decimal.div(Decimal.mult(a, d))
+    |> Decimal.sub(1)
   end
 
   defp positive?(%Decimal{} = close), do: Decimal.compare(close, 0) == :gt
