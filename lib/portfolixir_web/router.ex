@@ -493,6 +493,17 @@ defmodule PortfolixirWeb.Router do
     # whose closes the crash rule reads; set or cleared, journaled.
     put("/settings/crash_benchmark", SettingsController, :set_crash_benchmark)
     # --- S29 C1 end ---
+    # --- S29 C5 begin ---
+    # ADR-0058 §9 (Sprint 29, C5): the crash windows — the detected ones
+    # with their names, the manual ones and the names that lost their
+    # window; a window's lists; a name or a manual window written, made
+    # and deleted, journaled. A key is d:<benchmark>:<start> or m:<id>.
+    get("/crashes", CrashController, :index)
+    post("/crashes", CrashController, :create)
+    get("/crashes/:key/rankings", CrashController, :rankings)
+    put("/crashes/:key", CrashController, :update)
+    delete("/crashes/:key", CrashController, :delete)
+    # --- S29 C5 end ---
 
     put("/securities_accounts/:id/buckets", BucketAssignmentController, :set_depot_buckets)
     put("/cash_accounts/:id/buckets", BucketAssignmentController, :set_cash_account_buckets)

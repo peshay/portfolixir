@@ -1294,6 +1294,51 @@ Nachkommastellen.
 Empfehlung, kein Rating, keinen Score und keine Handlung in der Antwort. Eine
 Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
 
+### Crash-Fenster (ADR-0058)
+
+Ein Crash-Fenster ist ein Rückgang um 10 % oder mehr in den gespeicherten
+Schlusskursen des **Crash-Benchmarks** (`PUT /api/v1/settings/crash_benchmark`,
+unten unter Einstellungen), von der Regel `peak_trough_v1` beim Lesen erkannt
+und nie gespeichert, oder ein **manuelles** Fenster, das eine Person gezogen
+hat. Die Listen vergleichen Kursbewegungen innerhalb eines Fensters; sie sind
+Daten, nie ein Rat.
+
+- `GET /api/v1/crashes` liefert `benchmark` (`{id, name, isin,
+  currency_code, benchmark_security}`, oder `null` mit `reason`
+  `no_crash_benchmark` oder `crash_benchmark_unavailable`), `detected` (je
+  mit `key` `d:<benchmark_security_id>:<start>`, `kind` `detected`, `name`,
+  `start`, `trough`, `peak_close`, `trough_close` und `decline` als
+  Dezimal-Strings, `recovered_on`, `provisional`, `max_gap_days`), `manual`
+  (`key` `m:<id>`, `kind` `manual`, `name`, `start`, `trough`, `author`,
+  `actor`), `unmatched_names` (ein Name, dessen Schlüssel zu keinem jetzt
+  erkannten Fenster passt, nie geraten neu zugeordnet) und
+  `computation_basis`. Er nimmt keinen Parameter.
+- `GET /api/v1/crashes/:key/rankings` liefert eine Liste des Fensters `key`:
+  `list` `losers` (Vorgabe), `winners` oder `rebounders`; `universe`
+  `catalogue` (Vorgabe) oder `view:<id>`, die Wertpapiere, die die Ansicht
+  heute hält; `limit` (Vorgabe 8, gekappt bei 50 und zurückgegeben);
+  `include_unanswered=true` listet die Wertpapiere ohne Antwort. Jeder
+  Eintrag trägt seine EUR-`return`, die `benchmark_return` des
+  Crash-Benchmarks und `vs_benchmark_pp`, als Dezimal-Strings; `unanswered`
+  zählt `no_close_at_start`, `no_close_at_end` und `no_fx_rate`;
+  `computation_basis` nennt die Survivorship. Eine unbekannte Liste, ein
+  unbekanntes Universum oder Flag ergibt `422`, das es nennt; ein Schlüssel,
+  der kein Fenster nennt, oder eine Ansicht, die es nicht gibt, `404`.
+- `PUT /api/v1/crashes/:key` mit `{"window": {"name"}}` benennt ein erkanntes
+  Fenster (ein erkannter Schlüssel nimmt nur `name`); bei einem manuellen
+  Schlüssel ändert `{"window": {name, start, trough}}`, beliebige davon, es.
+- `POST /api/v1/crashes` mit `{"window": {name, start, trough}}` zieht ein
+  manuelles Fenster (`201`; höchstens 80 Zeichen, der Tiefpunkt nach dem
+  Start, keiner in der Zukunft); mit `{"window": {from_name, trough}}` (und
+  einem optionalen `name`) macht er einen Eintrag aus `unmatched_names` zu
+  einem manuellen Fenster mit seinem gespeicherten Start und löscht den Namen.
+- `DELETE /api/v1/crashes/:key` entfernt den Namen eines erkannten Schlüssels
+  oder ein manuelles Fenster und liefert `{key, kind, deleted, name}`.
+
+Jeder Lese- und Schreibzugriff ist geschlossen: ein unbekannter Parameter oder
+ein unbekanntes Feld ergibt `422`, das es nennt. Ein Schlüssel, der nichts
+nennt, ergibt `404`. Jeder Schreibzugriff wird unter dem Token journalisiert.
+
 ### Das Positionsdossier (FR-49)
 
 Ein Lesezugriff je Wertpapier, der trägt, was ein Agent für eine Entscheidung

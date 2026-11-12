@@ -75,15 +75,38 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "names the crash benchmark, the security whose closes the crash rule reads: body " <>
               "{security_id} with any security that has a stored quote, flagged is_benchmark or " <>
               "not, or null to clear it; journaled under the token as resource_type setting. " <>
-              "Its tool and the crash reads follow in C5."
+              "Its tool and the crash reads follow in C5.",
             # --- S29 C1 end ---
+            # --- S29 C5 begin ---
+            "Sprint 29, C5 (FR-54, #1421; ADR-0058 §9): the crash windows. GET " <>
+              "/api/v1/crashes answers the windows the rule peak_trough_v1 detects over the " <>
+              "crash benchmark's closes (key d:<benchmark_security_id>:<start>, each with its " <>
+              "name), the manual windows (key m:<id>, kind manual), the names whose window " <>
+              "is no longer detected (unmatched_names), the benchmark or the reason there is " <>
+              "none, and the computation basis; GET /api/v1/crashes/:key/rankings answers a " <>
+              "window's losers, winners or rebounders over the catalogue or view:<id>'s " <>
+              "holdings today, each EUR return beside the benchmark's and the difference in " <>
+              "points, decimals as strings, the unanswered counted per reason, the basis with " <>
+              "survivorship named; PUT /api/v1/crashes/:key names a detected window or edits " <>
+              "a manual one, POST /api/v1/crashes draws a manual window or makes an unmatched " <>
+              "name one (from_name), DELETE /api/v1/crashes/:key removes a name or a manual " <>
+              "window, each journaled under the token. Every read and write is closed: an " <>
+              "unknown parameter or field answers 422 naming it. Data, never advice."
+            # --- S29 C5 end ---
           ],
           " "
         ),
       endpoints: [
         # --- S29 C1 begin ---
-        "PUT /api/v1/settings/crash_benchmark"
+        "PUT /api/v1/settings/crash_benchmark",
         # --- S29 C1 end ---
+        # --- S29 C5 begin ---
+        "GET /api/v1/crashes",
+        "POST /api/v1/crashes",
+        "GET /api/v1/crashes/:key/rankings",
+        "PUT /api/v1/crashes/:key",
+        "DELETE /api/v1/crashes/:key"
+        # --- S29 C5 end ---
       ],
       tools: [],
       parameters: [
