@@ -2,7 +2,9 @@
 //
 //   03 the Research tab shows a note's headline, event type and tone (the
 //      two-way coverage gap Sprint 28's close-out recorded; ADR-0044's
-//      amendment of 2026-11-06, ADR-0056 §8, A2 and D8);
+//      amendment of 2026-11-06, ADR-0056 §8, A2 and D8), and the research
+//      form that writes them (the plan's N4, frames 03h to 03q, added
+//      before its story);
 //   04 the Overview counts data-quality findings over held securities
 //      first, the catalog count beside it (#1417; OQ-4 of 2026-11-07);
 //   05 translucent bands in the stacked chart (idea I33);
@@ -223,7 +225,8 @@ p.mock-note { margin: 0 0 12px; max-width: 130ch; font-size: 13px; color: var(--
 `;
 function board(file, title, cols, intro, sections) {
   const sec = sections.map((s) => `
-<section class="mock-board">
+<section class="mock-board">${s.lead ? `
+  <div class="mock-pickbar">${s.lead}</div>` : ''}
   <h2>${s.title}${s.recommended ? ' <small>empfohlen</small>' : ''}${s.decided ? ' <small>entschieden</small>' : ''}${s.option ? ' <small>Option, nicht Standard</small>' : ''}</h2>
   <p class="mock-note">${s.note}</p>
   <div class="mock-row">${s.frames.map((f) => `<figure class="mock-fig">${f.tag ? `<span class="mock-tag">${f.tag}</span>` : ''}<div class="mock-frame"><iframe src="frames/${f.file}" width="${f.width}" height="${f.height}" title="${f.file}"></iframe></div></figure>`).join('')}</div>
@@ -317,8 +320,84 @@ B3.phoneA = sized(writeFrame('03e-research-a-390', researchPane('A', { only: (e)
 B3.filter = sized(writeFrame('03f-research-filter', researchPane('A', { filter: true, only: (e) => e.id >= 37 }), { width: 1000, css: RESEARCH_CSS }), 'C — Filter nach Ereignisart');
 B3.shell = sized(writeFrame('03g-research-a-shell', `<div class="workspace-page" style="padding: 16px 20px;">${researchPane('A', { only: (e) => e.id === 41 })}</div>`, { width: 1200, css: RESEARCH_CSS, shell: true, title: 'Wertpapiere', subtitle: 'Suchen, filtern und pflegen des investierbaren Universums.', active: 'nav-securities' }), 'A im Rahmen der App, 1200 px');
 
+// ---------------------------------------------------------------------------
+// Board 03, N4 — the research form takes a headline, an event type and a
+// tone (the plan's N4, D-8 item 3: a frame added before the story starts).
+// The form is securities_live.ex's #research-entry-form as rendered today
+// (its labels, controls and classes, in German); the three fields copy the
+// story promotion form's controls (stories_tab.ex: „Ereignisart“, „Tonalität“
+// with „— nicht angegeben —“ first, „Überschrift“), whose labels and option
+// words PortfolixirWeb.EventTypeLabel holds. Shown only while the kind is
+// SecurityNote.marker_kinds() — Beleg or Ereignisergebnis — as the thesis
+// fields show only for a thesis.
+
+const FORM_KINDS = [['thesis', 'These'], ['evidence', 'Beleg'], ['invalidation_check', 'Invalidierungsprüfung'], ['event_result', 'Ereignisergebnis'], ['risk', 'Risiko'], ['retraction', 'Widerruf'], ['decision', 'Entscheidung']];
+const FORM_QUALITIES = ['Primärquelle', 'Mehrere Sekundärquellen', 'Wahrnehmung', 'Ungeprüft'];
+const EVENT_TYPES = [['earnings', 'Zahlen'], ['guidance', 'Ausblick'], ['capital_measure', 'Kapitalmaßnahme'], ['legal', 'Recht'], ['m_and_a', 'Übernahme oder Fusion'], ['product', 'Produkt'], ['regulatory', 'Regulierung'], ['macro', 'Makro']];
+const TONES = [['1', 'positiv'], ['0', 'neutral'], ['-1', 'negativ']];
+const MARKER_KINDS = ['evidence', 'event_result'];
+const HEADLINE_HINT = 'Höchstens 80 Zeichen, eine Zeile. Nur ein Eintrag mit Überschrift steht als Nadel im Diagramm.';
+const FORM_CSS = `
+.research-entry-form__more { grid-column: 1 / -1; }
+.research-entry-form__more > summary { color: var(--color-accent); }
+.research-entry-form__more[open] > summary { margin-bottom: var(--space-2); }
+.research-entry-form__grid [aria-invalid="true"] { border-color: var(--color-danger); }
+`;
+const opt = (value, label, selected) => `<option value="${value}"${selected ? ' selected' : ''}>${esc(label)}</option>`;
+const sel = (name, options, value, blank) => `<select name="note[${name}]">${blank ? opt('', blank, !value) : ''}${options.map(([v, l]) => opt(v, l, v === value)).join('')}</select>`;
+const chevron = '<svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>';
+function markerFields(v, { invalid = false } = {}) {
+  return `<label class="research-entry-form__full"><span>Überschrift</span><input type="text" name="note[headline]" value="${esc(v.headline || '')}" aria-describedby="research-headline-hint"${invalid ? ' aria-invalid="true"' : ''} /></label>`
+    + `<p class="hint research-entry-form__full" id="research-headline-hint">${HEADLINE_HINT}</p>`
+    + `<label><span>Ereignisart</span>${sel('event_type', EVENT_TYPES, v.event_type, '— nicht angegeben —')}</label>`
+    + `<label><span>Tonalität</span>${sel('tone', TONES, v.tone, '— nicht angegeben —')}</label>`;
+}
+// mode: 'today' | 'A' | 'B' (B takes opts.open)
+function researchForm(mode, v = {}, opts = {}) {
+  const kind = v.kind || 'evidence';
+  const marks = mode !== 'today' && MARKER_KINDS.includes(kind);
+  let markerBlock = '';
+  if (marks && mode === 'A') markerBlock = `<div class="research-entry-form__full research-entry-form__grid mock-new" data-role="research-marker-fields">${markerFields(v, opts)}</div>`;
+  if (marks && mode === 'B') markerBlock = `<details class="research-entry-form__more mock-new" data-role="research-marker-fields"${opts.open ? ' open' : ''}><summary class="disclosure-summary">${chevron}Überschrift und Einordnung</summary>${opts.open ? `<div class="research-entry-form__grid">${markerFields(v, opts)}</div>` : ''}</details>`;
+  const thesis = kind === 'thesis'
+    ? `<label><span>Überzeugung</span><select name="note[conviction]"><option value="">— nicht angegeben —</option><option>Niedrig</option><option>Mittel</option><option>Hoch</option></select></label><label class="research-entry-form__full"><span>Invalidierungsbedingung</span><input type="text" name="note[invalidation_condition]" value="" /></label><label><span>Zeitstopp</span><input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[time_stop]" value="" /></label>`
+    : '';
+  const errors = opts.errors && opts.errors.length ? `<ul class="research-entry-form__errors" role="alert">${opts.errors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul>` : '';
+  return `<form id="research-entry-form" class="research-entry-form" aria-label="Eintrag anhängen"><h3>Eintrag anhängen</h3><div class="research-entry-form__grid">`
+    + `<label><span>Art</span>${sel('kind', FORM_KINDS, kind)}</label>`
+    + `<label><span>Quellenqualität</span>${sel('source_quality', FORM_QUALITIES.map((q) => [q, q]), v.quality || 'Primärquelle')}</label>`
+    + `<label><span>Stichtag</span><input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[as_of]" value="${v.as_of || '2026-11-12'}" required /></label>`
+    + `<label><span>Ersetzt</span><select name="note[supersedes_id]"><option value="">— nichts —</option></select></label>`
+    + markerBlock
+    + `<label class="research-entry-form__full"><span>Eintrag</span><textarea name="note[body]" rows="3" required>${esc(v.body || '')}</textarea></label>`
+    + `<label class="research-entry-form__full"><span>Quellenlink</span><input type="url" name="note[source_url]" inputmode="url" value="${esc(v.url || '')}" /></label>`
+    + `<label><span>Gültig bis</span><input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[valid_until]" value="" /></label>`
+    + thesis
+    + `</div>${errors}<button type="submit" class="button">Eintrag anhängen</button></form>`;
+}
+const formPane = (form) => `<aside class="detail-pane" id="security-detail-pane" style="position: static; max-height: none;"><header class="detail-pane-head"><div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial" aria-hidden="true">B</span><div><h2>Beispiel Technik AG</h2><p class="detail-pane-sub">XX0000000041 · BTA · EUR · Letzter 142,18 (11.11.2026)</p></div></div><div class="detail-pane-head__actions"><button type="button" class="button-ghost">Bearbeiten</button><button type="button" class="button-ghost">Split erfassen</button></div></header><nav class="detail-pane-tabs" role="tablist">${researchTabs.map((t) => `<button type="button" role="tab" class="detail-pane-tab${t === 'Research' ? ' is-active' : ''}" aria-selected="${t === 'Research'}">${t}</button>`).join('')}</nav><section id="detail-tab-panel-research" role="tabpanel" class="detail-tab-panel detail-tab-panel--research"><p class="mock-crop">Basis und These wie in ①; unverändert.</p>${form}<p class="mock-crop">Die Zeitleiste wie in ① bis ④.</p></section></aside>`;
+// Synthetic values: #41's entry of this board, as the operator would type it.
+const N4_FILLED = { kind: 'evidence', headline: 'Quartalsbericht: Umsatz über dem eigenen Ausblick', event_type: 'earnings', tone: '1',
+  body: 'Umsatz im dritten Quartal rund 6 % über dem Ausblick vom Juli, Marge unverändert. Aus dem Bericht des Emittenten übernommen.', url: 'https://ir.example/berichte/q3-2026' };
+const N4_LONG = { ...N4_FILLED, headline: 'Quartalsbericht: Umsatz im dritten Quartal rund sechs Prozent über dem eigenen Ausblick vom Juli' };
+if ([...N4_LONG.headline].length <= 80) throw new Error('the long headline must pass 80 code points');
+const N4_EVENT = { kind: 'event_result', quality: 'Mehrere Sekundärquellen', headline: 'Klage wegen eines Patents eingereicht', event_type: 'legal', tone: '-1',
+  body: 'Zwei Meldungen nennen eine Klage eines Wettbewerbers; der Streitwert ist offen. Beobachten bis zur ersten Anhörung.', url: 'https://wire.example/2026/10/30/klage' };
+const N4 = {};
+N4.today = sized(writeFrame('03h-form-heute', formPane(researchForm('today')), { width: 1000 }), 'heute, 1200 px (der Bereich), Art Beleg');
+N4.todayPhone = sized(writeFrame('03i-form-heute-390', formPane(researchForm('today')), { width: 390 }), 'heute, 390 px');
+N4.a = sized(writeFrame('03j-form-a', formPane(researchForm('A', N4_FILLED)), { width: 1000, css: FORM_CSS }), 'A, Art Beleg, ausgefüllt');
+N4.aEvent = sized(writeFrame('03k-form-a-ereignis', formPane(researchForm('A', N4_EVENT)), { width: 1000, css: FORM_CSS }), 'A, Art Ereignisergebnis');
+N4.aThesis = sized(writeFrame('03l-form-a-these', formPane(researchForm('A', { kind: 'thesis' })), { width: 1000, css: FORM_CSS }), 'A, Art These: die drei fehlen, die These-Felder erscheinen (wie heute)');
+N4.aError = sized(writeFrame('03m-form-a-fehler', formPane(researchForm('A', N4_LONG, { invalid: true, errors: ['Überschrift: darf höchstens 80 Zeichen lang sein'] })), { width: 1000, css: FORM_CSS }), 'A, abgelehnt: Überschrift über 80 Zeichen');
+N4.aPhone = sized(writeFrame('03n-form-a-390', formPane(researchForm('A', N4_FILLED)), { width: 390, css: FORM_CSS }), 'A, 390 px');
+N4.bClosed = sized(writeFrame('03o-form-b-zu', formPane(researchForm('B', {})), { width: 1000, css: FORM_CSS }), 'B, geschlossen (der Standard)');
+N4.bOpen = sized(writeFrame('03p-form-b-offen', formPane(researchForm('B', N4_FILLED, { open: true })), { width: 1000, css: FORM_CSS }), 'B, geöffnet, ausgefüllt');
+N4.bPhone = sized(writeFrame('03q-form-b-390', formPane(researchForm('B', {})), { width: 390, css: FORM_CSS }), 'B, 390 px, geschlossen');
+
+const N4_LEAD = '<p><strong>N4 — das Research-Formular</strong> (Plan Sprint 29, N4; D-8 Punkt 3: als Rahmen vor der Story ergänzt). <strong>Entschieden:</strong> das Formular „Eintrag anhängen“ nimmt an Beleg und Ereignisergebnis eine optionale Überschrift (höchstens 80 Zeichen, ADR-0054 §4), eine Ereignisart und eine Tonalität, mit derselben Prüfung wie <code>notes.append</code>; der Autor bleibt der Operator, <code>news_label_id</code> bleibt leer (kein Label, aus dem etwas übernommen wurde).</p><p><strong>Was dieser Rahmen vorschlägt (per Kommentar umkehrbar):</strong> A — die drei Felder stehen im Raster, sobald die Art sie trägt, ohne Disclosure, in der Reihenfolge des Eintrags und mit den Steuerelementen von „Ins Research-Log“. Der Kommentar „Research-Formular B“ legt sie hinter die Disclosure „Überschrift und Einordnung“.</p>';
 board('03-research-entry.html', 'Sprint 29 — Board 03: Überschrift, Ereignisart und Tonalität im Research-Tab', 1260,
-  `<div class="mock-pickbar"><p><strong>Was entschieden und gebaut ist (ADR-0044, Amendment 2026-11-06; ADR-0056 §8, A2, D6, D8; Sprint 28 N5, N9):</strong> ein Eintrag der Art Beleg oder Ereignisergebnis kann eine Überschrift (höchstens 80 Zeichen), eine Ereignisart aus acht und eine Tonalität −1 · 0 · +1 tragen, einmal geschrieben, nie geändert; wird er aus einer Meldung übernommen, merkt er sich das Label, aus dem er Ereignisart oder Tonalität nahm (<code>news_label_id</code>). API und MCP schreiben und lesen alle vier; das Diagramm zeichnet jeden nicht ersetzten Eintrag mit Überschrift als Nadel in der Farbe und mit dem Zeichen seiner Tonalität. Die Tonalität ist eine gespeicherte Lesart, nie ein Filter, eine Sortierung oder ein Signal. <strong>Der Research-Tab zeigt keines der vier</strong> — die Lücke, die der Abschluss von Sprint 28 festhielt.</p><p><strong>Was dieses Board vorschlägt (per Kommentar umkehrbar):</strong> A — die Überschrift als erste Zeile des Eintrags, davor das Zeichen der Nadel (+, −, keins), darunter „Ereignisart · Tonalität“ in Worten, wie der Tooltip der Nadel sie liest; „maschinell“ dahinter, wenn der Eintrag Ereignisart oder Tonalität aus dem Label eines Modells nahm. Ein älterer Eintrag ohne Überschrift bleibt, wie er ist. Ein ersetzter Eintrag mit Überschrift sagt, warum er im Diagramm fehlt. Der Quellenlink steht wie heute unter dem Text. Kein Filter als Standard. Gestrichelt: was neu ist.</p></div>`,
+  `<div class="mock-pickbar"><p><strong>Was entschieden und gebaut ist (ADR-0044, Amendment 2026-11-06; ADR-0056 §8, A2, D6, D8; Sprint 28 N5, N9):</strong> ein Eintrag der Art Beleg oder Ereignisergebnis kann eine Überschrift (höchstens 80 Zeichen), eine Ereignisart aus acht und eine Tonalität −1 · 0 · +1 tragen, einmal geschrieben, nie geändert; wird er aus einer Meldung übernommen, merkt er sich das Label, aus dem er Ereignisart oder Tonalität nahm (<code>news_label_id</code>). API und MCP schreiben und lesen alle vier; das Diagramm zeichnet jeden nicht ersetzten Eintrag mit Überschrift als Nadel in der Farbe und mit dem Zeichen seiner Tonalität. Die Tonalität ist eine gespeicherte Lesart, nie ein Filter, eine Sortierung oder ein Signal. <strong>Der Research-Tab zeigt keines der vier</strong> — die Lücke, die der Abschluss von Sprint 28 festhielt.</p><p><strong>Was dieses Board vorschlägt (per Kommentar umkehrbar):</strong> A — die Überschrift als erste Zeile des Eintrags, davor das Zeichen der Nadel (+, −, keins), darunter „Ereignisart · Tonalität“ in Worten, wie der Tooltip der Nadel sie liest; „maschinell“ dahinter, wenn der Eintrag Ereignisart oder Tonalität aus dem Label eines Modells nahm. Ein älterer Eintrag ohne Überschrift bleibt, wie er ist. Ein ersetzter Eintrag mit Überschrift sagt, warum er im Diagramm fehlt. Der Quellenlink steht wie heute unter dem Text. Kein Filter als Standard. Gestrichelt: was neu ist.</p><p><strong>Ergänzt vor N4:</strong> das Formular, das die drei Felder schreibt — ⑦ bis ⑪.</p></div>`,
   [
     { title: '① Heute', note: 'Der Tab, wie gebaut (Basis und These von der Review-Instanz, die Einträge synthetisch in der Markup der Vorlage): Art, Quellgüte, Nummer, Datum, Autor, Text und Quellenlink. Dass #41 im Diagramm als grüne Nadel „Quartalsbericht: Umsatz über dem eigenen Ausblick“ steht, sieht man hier nicht.', frames: [B3.before] },
     { title: '② A — die Zeilen des Tooltips im Eintrag', note: 'Die Überschrift fett mit dem Zeichen der Nadel davor (Farbe und Form, UX-DR7: nie Farbe allein), darunter „Zahlen · positiv“ und „maschinell“ (Titel: „Ereignisart und Tonalität aus der Einordnung eines Modells übernommen; mit dem Schreiben bestätigt“). „maschinell“ steht nur bei gesetztem <code>news_label_id</code>; <code>machine_generated</code> bleibt dem lokalen Modell vorbehalten und behält seinen Text „maschinell erzeugter Vorschlag“. #35 ist durch #37 ersetzt und sagt „nicht im Diagramm, weil ersetzt“ (D8). #30 hat keine Überschrift und sieht aus wie heute.', frames: [B3.afterA], recommended: true },
@@ -326,6 +405,11 @@ board('03-research-entry.html', 'Sprint 29 — Board 03: Überschrift, Ereignisa
     { title: '④ A bei 390 px', note: 'Die Überschrift bricht um, das Zeichen bleibt vor ihrer ersten Zeile; „Ereignisart · Tonalität“ und „maschinell“ brechen als eine Zeile um.', frames: [B3.phoneBefore, B3.phoneA], recommended: true },
     { title: '⑤ C — ein Filter nach Ereignisart', note: 'Chips der Ereignisarten, die die Einträge tragen, mit Anzahl, und „ohne“. Verdient seinen Platz erst, wenn ein Wertpapier Dutzende Einträge hat: heute liest man die Zeitleiste ganz. Er wäre eine neue Fähigkeit und braucht nach der Regel beider Wege einen Parameter <code>event_type</code> an <code>GET …/notes</code> und an notes.list; einen Filter nach Tonalität gibt es nie (ADR-0044). Daher nicht Standard.', frames: [B3.filter], option: true },
     { title: '⑥ A im Rahmen der App', note: 'Der Wertpapierbereich maximiert, 1200 px, mit der Navigation (Nachrichten nach Wertpapiere).', frames: [B3.shell] },
+    { lead: N4_LEAD, title: 'N4 — das Research-Formular · ⑦ Heute', note: 'Das Formular „Eintrag anhängen“, wie <code>securities_live.ex</code> es rendert (<code>#research-entry-form</code>, seine Beschriftungen, Steuerelemente und Klassen): Art, Quellenqualität, Stichtag, Ersetzt, Eintrag, Quellenlink, Gültig bis; bei der Art These zusätzlich Überzeugung, Invalidierungsbedingung und Zeitstopp. Überschrift, Ereignisart und Tonalität setzt der Operator heute nur über „Ins Research-Log“ aus einer Meldung; ein Agent setzt sie über <code>notes.append</code> an jedem Beleg und Ereignisergebnis.', frames: [N4.today] },
+    { title: 'N4 · ⑧ A — die drei Felder im Raster, sobald die Art sie trägt', recommended: true, note: 'Bei Beleg und Ereignisergebnis (<code>SecurityNote.marker_kinds()</code>) stehen über „Eintrag“ die Überschrift über die ganze Breite, darunter ihr Hinweis, dann Ereignisart und Tonalität — die Reihenfolge des Eintrags, den N3 zeichnet (Überschrift, darunter „Ereignisart · Tonalität“, dann der Text). Die Steuerelemente sind die von „Ins Research-Log“ (<code>stories_tab.ex</code>): dieselben Beschriftungen, „— nicht angegeben —“ als erste Wahl, die acht Ereignisarten und positiv · neutral · negativ in den Worten von <code>EventTypeLabel</code>. Ein Zeichenzähler fehlt mit Absicht: die App hat keinen, und ein neuer wäre ein eigenes Bauteil; der Hinweis nennt die Grenze und warum das Feld zählt. Kein <code>maxlength</code>: der Browser zählt UTF-16-Einheiten, der Server Codepunkte, und ein stilles Abschneiden beim Einfügen wäre schlechter als die Ablehnung. Bei jeder anderen Art fehlen die drei, wie die These-Felder bei jeder Art außer These fehlen — dieselbe Regel über dasselbe <code>phx-change</code>.', frames: [N4.a, N4.aEvent, N4.aThesis] },
+    { title: 'N4 · ⑨ A — abgelehnt', recommended: true, note: 'Dieselbe Prüfung wie <code>notes.append</code> (<code>SecurityNote.changeset/3</code>): eine Überschrift über 80 Codepunkte, mit Zeilenumbruch oder unsichtbarem Zeichen wird abgelehnt, und die Meldung steht, wie heute jede Meldung des Formulars, in der Liste über dem Knopf, mit dem Feldnamen auf Deutsch („Überschrift: darf höchstens 80 Zeichen lang sein“; <code>research_field_label/1</code> braucht dafür <code>:headline</code>, <code>:event_type</code> und <code>:tone</code>). Die Eingaben bleiben stehen. Das Feld trägt <code>aria-invalid</code>; damit sein Rand rot wird, braucht das Raster eine Regel (<code>.research-entry-form__grid [aria-invalid="true"]</code>): heute gewinnt der Rand des Rasters gegen die allgemeine Regel, auch in „Ins Research-Log“.', frames: [N4.aError] },
+    { title: 'N4 · ⑩ B — hinter der Disclosure „Überschrift und Einordnung“', note: 'Das Formular bleibt bei Beleg so kurz wie heute; die drei Felder öffnen sich unter einer Disclosure (die Form von „Kosten und Notiz“ im Buchungsformular, die Zusammenfassung in Akzentfarbe, weil sie Felder öffnet, nicht Daten). Der Preis: die Felder, die einen Eintrag ins Diagramm bringen, liegen einen Klick tiefer — die Lücke, die N4 schließt, bleibt halb offen; die Disclosure braucht den Hook <code>DisclosureState</code>, damit sie den Patch jeder Art-Änderung übersteht, muss sich bei einer abgelehnten Überschrift selbst öffnen (wie #869 bei den Kosten), und zwei Regeln schachteln sich (die Art entscheidet, ob es die Disclosure gibt, die Disclosure, ob man die Felder sieht). Eine neue Zeichenkette.', frames: [N4.bClosed, N4.bOpen] },
+    { title: 'N4 · ⑪ Bei 390 px: heute, A, B', note: 'Das Raster legt zwei Spalten: Ereignisart und Tonalität stehen nebeneinander unter der Überschrift, der Hinweis bricht auf zwei Zeilen um. A verlängert das Formular bei Beleg um rund 180 px (bei 1200 px um rund 160), B um eine Zeile von rund 40 px.', frames: [N4.todayPhone, N4.aPhone, N4.bPhone] },
   ]);
 
 // ===========================================================================
