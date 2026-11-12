@@ -253,7 +253,7 @@ been overtaken twice, so it is restated here as the single place to read it:
 | FR-12 rebalancing guidance | **closed** by ADR-0023 (2026-07-03); display-only hints are permitted |
 | Blanket "advanced reports" analytics gate | **retired** 2026-08-12, replaced by the scope ladder below |
 | Ladder level (d), rule backtesting (FR-27) | open; revisit after the policy-rules work (B3.6) |
-| Data acquisition beyond quotes and FX | open (B3.3) |
+| Data acquisition beyond quotes, FX, ADR-0056's news feeds and ADR-0059's chain source | open (B3.3) |
 | Push delivery to external endpoints | open (B3.7) |
 | A local model beyond ADR-0021's PDF intake | open (B3.8) |
 
@@ -310,9 +310,10 @@ review gate, not a documentation chore: a metric whose basis is unstated cannot
 be reviewed, because there is nothing to check the implementation against. *A
 metric without a definition is an opinion with decimal places.*
 
-**Gated, not in:** ladder level (d); data acquisition beyond quotes and FX
-(gate B3.3); push delivery to external endpoints (gate B3.7); a local model
-beyond the already-gated ADR-0021 PDF-intake path (gate B3.8).
+**Gated, not in:** ladder level (d); data acquisition beyond quotes, FX,
+ADR-0056's news feeds and ADR-0059's chain source (gate B3.3); push delivery
+to external endpoints (gate B3.7); a local model beyond the already-gated
+ADR-0021 PDF-intake path (gate B3.8).
 
 ### Permanent non-goals — identity, not backlog
 
