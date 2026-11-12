@@ -63,5 +63,14 @@ p.mock-note b { color: var(--color-text); }
 <figure class="mock-fig"><span class="mock-tag is-rec">A · ändern</span><div class="mock-frame"><iframe src="frames/02g-crash-aendern.html" width="960" height="362" title="02g-crash-aendern.html"></iframe></div></figure>
 <figure class="mock-fig"><span class="mock-tag">B · Einstellungen</span><div class="mock-frame"><iframe src="frames/02h-einstellungen.html" width="1200" height="476" title="02h-einstellungen.html"></iframe></div></figure></div>
 </section>
+
+<section class="mock-board">
+  <h2>⑤ B2 — die Gruppe „Weitere“ (added by the build)</h2>
+  <p class="mock-note"><b>Found while building Q1 A, drawn before the sprint PR lands:</b> a link may name a quoted security that is neither flagged nor held (the API accepts it since the amendment; an agent's link may carry one). The built pickers compare it, and show it in a third group, „Weitere“, after „Benchmarks“ and „Im Bestand“, so the picker never shows one security while comparing another, and applying the form again keeps it (<code>PortfolixirWeb.BenchmarkChoices.with_chosen/2</code>). The group is there only while such a security is chosen: untick it and apply, or pick another in the select, and it is gone; it is never a way to find one (variant B's search stays off). Drawn as the build renders it, with the shipped app.css: the label column at 1200 px, the label above its options on a phone (≤ 560 px). The select's open list is drawn beside it, as in ③. Dashed: the new group. Flip: „Ohne Gruppe Weitere“ — the picker then drops a security it does not offer, as before.</p>
+  <div class="mock-row"><figure class="mock-fig"><span class="mock-tag">Bestände · 1200 px</span><div class="mock-frame"><iframe src="frames/02i-weitere-bestaende-1200.html" width="1200" height="486" title="02i-weitere-bestaende-1200.html"></iframe></div></figure>
+<figure class="mock-fig"><span class="mock-tag">Bestände · 390 px</span><div class="mock-frame"><iframe src="frames/02j-weitere-bestaende-390.html" width="390" height="780" title="02j-weitere-bestaende-390.html"></iframe></div></figure>
+<figure class="mock-fig"><span class="mock-tag">Nach dem Verkauf · 1200 px</span><div class="mock-frame"><iframe src="frames/02k-weitere-verkauf-1200.html" width="1200" height="984" title="02k-weitere-verkauf-1200.html"></iframe></div></figure>
+<figure class="mock-fig"><span class="mock-tag">Nach dem Verkauf · 390 px</span><div class="mock-frame"><iframe src="frames/02l-weitere-verkauf-390.html" width="390" height="1047" title="02l-weitere-verkauf-390.html"></iframe></div></figure></div>
+</section>
 </body>
 </html>

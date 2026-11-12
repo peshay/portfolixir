@@ -5,7 +5,8 @@
 //      states the record adds: no crash benchmark, provisional, unmatched name;
 //   02 the benchmark picker, flagged first and held after (#1416, ADR-0046's
 //      amendment of 2026-11-07 point 3), and where the operator chooses the
-//      crash benchmark (ADR-0058 §1).
+//      crash benchmark (ADR-0058 §1); its frame ⑤ (frames/02i* to 02l*) is
+//      the third group „Weitere“ the B2 build added, drawn after the build.
 //
 // The chrome (sidebar, top bar, area tabs, sections, segmented controls,
 // tables, data notes, disclosures, the ⓘ) is the app's own markup: the shell
@@ -617,6 +618,44 @@ const SETTINGS_NAV = (s) => s.replace(/(\n\s*<\/div>\s*\n\s*<\/nav>)/, `
 const settingsPage = `<div class="workspace-page settings-page"><section class="workspace-section mock-new"><header class="section-head"><div class="section-title"><h2>Crashes</h2></div></header><form class="crash-benchmark-form" style="border:0;padding:0;background:none"><label for="crash-benchmark">Crash-Benchmark</label>${cbSelect('Weltindex ETF')}<div class="crash-benchmark-form__actions"><button type="submit" class="button-primary">Speichern</button></div><p class="hint">Die Regel erkennt Crash-Fenster in seinen Schlusskursen; sie stehen auf Vermögen › Risiko.</p></form></section><section class="workspace-section"><header class="section-head"><h2>Standardansicht</h2></header><p class="hint" style="margin:0">Alles · wird heute im Ansichtswähler gesetzt</p></section></div>`;
 const f02h = writeFrame('02h-einstellungen', settingsPage, { shell: true, width: 1200, css: CRASH_CSS + PICK_CSS, title: 'Einstellungen', subtitle: 'Einstellungen dieser Instanz', active: null, extraNav: SETTINGS_NAV });
 
+// ⑤ Added by the B2 build (#1416), drawn after it: the third group
+// „Weitere“, as the built markup renders it. It appears only while the
+// address names a quoted security that is neither flagged nor held (the API
+// accepts it; an agent's link may carry one), so the picker shows what is
+// compared (`PortfolixirWeb.BenchmarkChoices.with_chosen/2`). The markup is
+// that of `portfolio_live.ex` (`bm-groups`) and `sale_hindsight_section.ex`
+// (optgroups); the groups are drawn by the shipped app.css alone, so no
+// `.bm-groups` rule from PICK_CSS enters these frames. Only the native
+// select's open list (`.bm-listbox`, as ③ draws it) and the dashed mark on
+// the new group are board CSS.
+const OTHER = 'Rohstoff-Index ETC';
+const ID = (n) => 101 + [...FLAGGED, ...HELD, OTHER].indexOf(n);
+const BUILT_CSS = PICK_CSS.split('\n').filter((l) => /^\.bm-(listbox|stack)/.test(l)).join('\n') + `
+.bm-groups #benchmark-group-other, .bm-groups [data-group="other"] { outline: 2px dashed var(--color-accent); outline-offset: 1px; border-radius: 4px; }
+.bm-listbox li.mock-new { outline-offset: -2px; border-radius: 0; }
+.mock-room { height: 560px; } /* room for the open list drawn below the select */
+`;
+const builtOption = (n, checked) => `<label class="benchmark-form__option"><input type="checkbox" name="benchmark[]" value="security:${ID(n)}"${checked ? ' checked' : ''}>${n}</label>`;
+const builtGroups = (checked) => `<input type="hidden" name="benchmark[]" value=""><div class="bm-groups" data-role="benchmark-groups">${[
+  ['flagged', 'Benchmarks', FLAGGED], ['held', 'Im Bestand', HELD], ['other', 'Weitere', [OTHER]],
+].map(([key, label, names]) => `<span class="bm-groups__label" id="benchmark-group-${key}">${label}</span><span class="bm-groups__options" role="group" aria-labelledby="benchmark-group-${key}" data-group="${key}">${names.map((n) => builtOption(n, checked.includes(n))).join('')}</span>`).join('')}</div>`;
+const holdingsWeitere = `<div class="workspace-page">${areaTabs('Bestände')}${perfHead(builtGroups(['Weltindex ETF', OTHER]), { activeChips: ['Weltindex ETF', OTHER] })}</div>`;
+const HOLDINGS_SHELL = { shell: true, css: BUILT_CSS, title: 'Vermögen', subtitle: 'Wert, Performance und Allokation' };
+const f02i = writeFrame('02i-weitere-bestaende-1200', holdingsWeitere, { ...HOLDINGS_SHELL, width: 1200 });
+const f02j = writeFrame('02j-weitere-bestaende-390', holdingsWeitere, { ...HOLDINGS_SHELL, width: 390 });
+
+// „Nach dem Verkauf“ on Cashflow › Trades, the address naming the same
+// unheld security: the select shows it, in a third optgroup.
+const builtSelect = `<select id="sale-hindsight-benchmark" name="benchmark">${[
+  ['flagged', 'Benchmarks', FLAGGED], ['held', 'Im Bestand', HELD], ['other', 'Weitere', [OTHER]],
+].map(([key, label, names]) => `<optgroup label="${label}" data-group="${key}">${names.map((n) => `<option value="${ID(n)}"${n === OTHER ? ' selected' : ''}>${n}</option>`).join('')}</optgroup>`).join('')}</select>`;
+const listboxWeitere = `<ul class="bm-listbox" aria-hidden="true"><li class="is-group">Benchmarks</li>${FLAGGED.map((n) => `<li>${n}</li>`).join('')}<li class="is-group">Im Bestand</li>${HELD.map((n) => `<li>${n}</li>`).join('')}<li class="is-group mock-new">Weitere</li><li class="is-selected mock-new">${OTHER}</li></ul>`;
+const facets = `<div class="workspace-section workspace-section--controls"><nav class="segmented-control" data-role="cashflow-facets" aria-label="Cashflow-Facette">${['Erträge', 'Trades', 'Ein- &amp; Auszahlungen', 'Kosten'].map((f) => `<a class="segmented-control__option${f === 'Trades' ? ' is-active' : ''}" href="#"${f === 'Trades' ? ' aria-current="true"' : ''}>${f}</a>`).join('')}</nav></div>`;
+const saleWeitere = `<div class="workspace-page">${areaTabs('Cashflow')}${facets}<p class="mock-elided">Trades — unverändert</p><section id="sale-hindsight" class="hs-section workspace-section" data-role="sale-hindsight"><h2>Nach dem Verkauf</h2><div class="summary-basis hs-basis">Kursentwicklung je Verkauf in EUR · ab dem Verkaufstag · eine Zeile je Verkaufsbuchung <details class="metric-tooltip metric-tooltip--inline" data-role="hindsight-info"><summary aria-label="Zu diesem Abschnitt">ⓘ</summary><p role="tooltip">Wie sich das verkaufte Wertpapier nach dem Verkauf bewegt hat.</p></details></div><div class="hs-controls" data-role="hindsight-compare"><span class="hs-controls__label" id="sale-hindsight-compare-label">Vergleich</span><nav class="segmented-control" aria-labelledby="sale-hindsight-compare-label">${[['none', 'Ohne'], ['rate', 'Fester Zins'], ['security', 'Wertpapier'], ['reinvestment', 'Anschlusskauf']].map(([k, m]) => `<a class="segmented-control__option${k === 'security' ? ' is-active' : ''}" href="#"${k === 'security' ? ' aria-current="true"' : ''} data-mode="${k}">${m}</a>`).join('')}</nav><div class="bm-stack"><form id="sale-hindsight-benchmark-form" class="hs-controls__field" data-role="hindsight-benchmark-form"><label for="sale-hindsight-benchmark" class="visually-hidden">Benchmark</label>${builtSelect}</form>${listboxWeitere}</div></div><p class="mock-elided" style="border:0;padding:0">… die Tabelle wie heute, gegen ${OTHER}</p></section><div class="mock-room" aria-hidden="true"></div></div>`;
+const SALE_SHELL = { shell: true, css: BUILT_CSS, title: 'Trades', subtitle: 'Abgeschlossene Trades und ihr realisiertes Ergebnis' };
+const f02k = writeFrame('02k-weitere-verkauf-1200', saleWeitere, { ...SALE_SHELL, width: 1200 });
+const f02l = writeFrame('02l-weitere-verkauf-390', saleWeitere, { ...SALE_SHELL, width: 390 });
+
 board('02-benchmark-picker.html', 'Sprint 29 — Board 02: the benchmark picker and the crash benchmark (#1416, ADR-0046 amendment 2026-11-07, ADR-0058 §1)', 1260, `<div class="mock-pickbar">
 <p><b>Decided:</b> every read that takes <code>benchmark=security:&lt;id&gt;</code> accepts any security with at least one stored quote, flagged or not; <code>is_benchmark</code> keeps its meaning (reference-only: not bookable, out of the data-quality sets) and is the picker's default content; the picker offers the flagged securities first and the held ones after them, and is built only after its board (ADR-0046, amendment of 2026-11-07, point 3; #1416). The crash benchmark is one instance setting, set through the API, its MCP tool and the screen, journaled, with no default; the Crashes section's „no benchmark“ line links to it (ADR-0058 §1).</p>
 <p><b>Today the screen has two pickers</b>, both flagged-only (<code>Catalog.list_securities(is_benchmark: true)</code>): Bestände's „Benchmark…“ disclosure (<code>portfolio_live.ex</code>) and „Nach dem Verkauf“'s select, on Cashflow and on a security's Trades tab (<code>sale_hindsight_section.ex</code>). Predictions take their benchmark over the API only. Both screens also resolve a chosen id against the flag (<code>resolve_benchmark_security/1</code> in <code>portfolio_live.ex</code>, the flagged list in <code>sale_hindsight_section.ex</code>), so a held security ticked in the new picker would fall back to „not selected“ unless the story changes those resolvers with the picker. No settings page exists; the one instance setting with a screen, the default view, is set where it acts (the view switcher).</p>
@@ -626,6 +665,7 @@ board('02-benchmark-picker.html', 'Sprint 29 — Board 02: the benchmark picker 
   { title: '② Variant B: plus a search over every security with quotes', note: '<b>B:</b> A and a search for any catalogue security with stored quotes, held or not, which the API accepts since the amendment. Not recommended: the amendment names flagged and held; an unheld reference series is what the flag is for (flag it on Wertpapiere and it appears under „Benchmarks“), and a search turns a short choice into the catalogue. Flip: „Benchmark-Suche“.', frames: [sized(f02c, 'B · mit Suche')] },
   { title: '③ „Nach dem Verkauf“: the select today and as proposed', recommended: true, note: 'The same two groups as <code>&lt;optgroup&gt;</code>s of the native select (drawn open beside it, as a browser shows it). Its default stays the first flagged security, as today.', frames: [sized(f02d, 'heute'), sized(f02e, 'A · zwei Gruppen', true)] },
   { title: '④ Where the crash benchmark is chosen: inline (A) or a settings page (B)', recommended: true, note: '<b>A (recommended, Q2):</b> in the Crashes section. Unset, the data note\'s „Crash-Benchmark wählen“ opens the windows disclosure with the form; set, the rule line\'s „Ändern“ opens it. The select carries the same two groups; „Speichern“ writes the setting through the API\'s path, journaled under the operator. The hints say what the setting means for agents and what happens to names (§3). <b>B:</b> a new page „Einstellungen“ under Verwaltung, where later instance settings could gather (the news clustering\'s two values are API-only today). Not recommended now: one setting does not make a page, the operator meets the question where the crashes are, and the default view set in place is the precedent. Flip: „Einstellungsseite“.', frames: [sized(f02f, 'A · noch kein Crash-Benchmark', true), sized(f02g, 'A · ändern', true), sized(f02h, 'B · Einstellungen')] },
+  { title: '⑤ B2 — die Gruppe „Weitere“ (added by the build)', note: '<b>Found while building Q1 A, drawn before the sprint PR lands:</b> a link may name a quoted security that is neither flagged nor held (the API accepts it since the amendment; an agent\'s link may carry one). The built pickers compare it, and show it in a third group, „Weitere“, after „Benchmarks“ and „Im Bestand“, so the picker never shows one security while comparing another, and applying the form again keeps it (<code>PortfolixirWeb.BenchmarkChoices.with_chosen/2</code>). The group is there only while such a security is chosen: untick it and apply, or pick another in the select, and it is gone; it is never a way to find one (variant B\'s search stays off). Drawn as the build renders it, with the shipped app.css: the label column at 1200 px, the label above its options on a phone (≤ 560 px). The select\'s open list is drawn beside it, as in ③. Dashed: the new group. Flip: „Ohne Gruppe Weitere“ — the picker then drops a security it does not offer, as before.', frames: [sized(f02i, 'Bestände · 1200 px'), sized(f02j, 'Bestände · 390 px'), sized(f02k, 'Nach dem Verkauf · 1200 px'), sized(f02l, 'Nach dem Verkauf · 390 px')] },
 ]);
 
 console.log('wrote frames/01*.html, frames/02*.html, 01-crash-section.html and 02-benchmark-picker.html');
