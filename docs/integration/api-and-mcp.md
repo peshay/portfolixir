@@ -1194,6 +1194,48 @@ above an SMA-200 is two numbers and a distance. A rule over a metric is FR-43
 and is gated; backtesting one is out of scope. A meta-test walks the rendered
 key set so the boundary holds mechanically.
 
+### Crash windows (ADR-0058)
+
+A crash window is a decline of 10 % or more in the stored closes of the
+**crash benchmark** (`PUT /api/v1/settings/crash_benchmark`, below under
+Settings), detected by the rule `peak_trough_v1` at read and never stored,
+or a **manual** window a person drew. The lists compare price moves inside a
+window; they are data, never advice.
+
+- `GET /api/v1/crashes` answers `benchmark` (`{id, name, isin,
+  currency_code, benchmark_security}`, or `null` with `reason`
+  `no_crash_benchmark` or `crash_benchmark_unavailable`), `detected` (each
+  with `key` `d:<benchmark_security_id>:<start>`, `kind` `detected`, `name`,
+  `start`, `trough`, `peak_close`, `trough_close` and `decline` as decimal
+  strings, `recovered_on`, `provisional`, `max_gap_days`), `manual` (`key`
+  `m:<id>`, `kind` `manual`, `name`, `start`, `trough`, `author`, `actor`),
+  `unmatched_names` (a name whose key matches no window detected now, never
+  re-attached by a guess) and `computation_basis`. It takes no parameter.
+- `GET /api/v1/crashes/:key/rankings` answers one list of the window `key`:
+  `list` `losers` (default), `winners` or `rebounders`; `universe`
+  `catalogue` (default) or `view:<id>`, the securities the view holds today;
+  `limit` (default 8, capped at 50 and echoed); `include_unanswered=true`
+  lists the securities without an answer. Each entry carries its EUR
+  `return`, the crash benchmark's `benchmark_return` and `vs_benchmark_pp`,
+  decimal strings; `unanswered` counts `no_close_at_start`,
+  `no_close_at_end` and `no_fx_rate`; `computation_basis` names the
+  survivorship. An unknown list, universe or flag answers `422` naming it; a
+  key that names no window, or a view that does not exist, `404`.
+- `PUT /api/v1/crashes/:key` with `{"window": {"name"}}` names a detected
+  window (a detected key takes only `name`); on a manual key,
+  `{"window": {name, start, trough}}`, any of them, edits it.
+- `POST /api/v1/crashes` with `{"window": {name, start, trough}}` draws a
+  manual window (`201`; at most 80 characters, the trough after the start,
+  neither in the future); with `{"window": {from_name, trough}}` (and an
+  optional `name`) it makes an entry of `unmatched_names` a manual window
+  from its stored start and deletes the name.
+- `DELETE /api/v1/crashes/:key` removes a detected key's name or a manual
+  window, answering `{key, kind, deleted, name}`.
+
+Every read and write is closed: an unknown parameter or field answers `422`
+naming it. A key that names nothing answers `404`. Every write is journaled
+under the token.
+
 ### The position dossier (FR-49)
 
 One read per security that carries what an agent preparing a decision about

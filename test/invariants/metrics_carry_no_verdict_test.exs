@@ -431,23 +431,29 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   end
 
   # --- Sprint 29 C4 begin ---
-  # User story (FR-54, ADR-0058 §5 and §8; Sprint 29 C4):
+  # User story (FR-54, ADR-0058 §5 and §8; Sprint 29 C4, walked over the API
+  # since C5):
   # As the maintainer holding the scope ladder,
   # I want the crash lists' payload checked the same way,
   # so that a list of who fell and who rose stays a comparison of prices
   # and never says what to buy in the next crash.
   #
   # Acceptance criteria:
-  # - No key of the rankings payload, for every list, with the unanswered
-  #   listed, against a crash benchmark and without one, contains a
-  #   forbidden word. The payload is walked at the context, whose answer
-  #   the API renders (C5).
-  test "the crash rankings carry no verdict key" do
+  # - No key of the rendered rankings payload of
+  #   GET /api/v1/crashes/:key/rankings, for every list, with the
+  #   unanswered listed, against a crash benchmark and without one, contains
+  #   a forbidden word; nor does the windows read, GET /api/v1/crashes.
+  test "the crash rankings carry no verdict key", %{conn: conn} do
     index = create_security!(name: "Verdict Crash Index", ticker: "VCI")
     stock = create_security!(name: "Verdict Crash Stock", ticker: "VCS")
     young = create_security!(name: "Verdict Crash Young", ticker: "VCY")
     Quotes.upsert_many(index.id, crash_rows([{~D[2020-02-19], "100"}, {~D[2020-03-23], "70"}]))
-    Quotes.upsert_many(stock.id, crash_rows([{~D[2020-02-19], "50"}, {~D[2020-03-23], "40"}]))
+    # A close at the recovery span's end, so the rebounders list holds an entry.
+    Quotes.upsert_many(
+      stock.id,
+      crash_rows([{~D[2020-02-19], "50"}, {~D[2020-03-23], "40"}, {~D[2020-06-23], "45"}])
+    )
+
     Quotes.upsert_many(young.id, crash_rows([{~D[2020-03-20], "50"}]))
 
     {:ok, window} =
@@ -462,15 +468,18 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
         {:ok, _setting} =
           Settings.set_crash_benchmark(Actor.owner_ui(), benchmark && benchmark.id)
 
-        {:ok, payload} =
-          Crashes.rankings("m:#{window.id}", "catalogue",
-            list: list,
-            include_unanswered: true
-          )
+        path = "/api/v1/crashes/m:#{window.id}/rankings?list=#{list}&include_unanswered=true"
+        %{"data" => payload} = conn |> get(path) |> json_response(200)
+        assert [_entry | _rest] = payload["entries"]
+        assert [_unanswered | _rest] = payload["unanswered_entries"]
 
-        assert offenders(payload) == [],
-               "the #{list} list carries verdict keys #{inspect(offenders(payload))}: " <>
-                 "ADR-0058 §8, the lists compare prices and say nothing about what to buy."
+        %{"data" => windows} = conn |> get("/api/v1/crashes") |> json_response(200)
+
+        for {read, data} <- [{path, payload}, {"/api/v1/crashes", windows}] do
+          assert offenders(data) == [],
+                 "#{read} carries verdict keys #{inspect(offenders(data))}: ADR-0058 §8, " <>
+                   "the lists compare prices and say nothing about what to buy."
+        end
 
         payload |> keys() |> length()
       end
