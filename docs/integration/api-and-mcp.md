@@ -1199,51 +1199,277 @@ key set so the boundary holds mechanically.
 A crash window is a decline of 10 % or more in the stored closes of the
 **crash benchmark** (`PUT /api/v1/settings/crash_benchmark`, below under
 Settings), detected by the rule `peak_trough_v1` at read and never stored,
-or a **manual** window a person drew. The lists compare price moves inside a
-window; they are data, never advice.
+or a **manual** window a person drew. The operator or an agent only names a
+detected window; its dates are the rule's, so every agent and the screen
+read the same windows. Per window, three ranked lists compare the price
+moves of securities inside it. Ladder levels (a) and (b): a derived move per
+security and a comparison against a benchmark, never a replay of a rule
+(ADR-0058 §8). Every answer is data, never advice: no key says what to buy,
+sell or hold, and `metrics_carry_no_verdict_test.exs` walks these payloads.
 
-- `GET /api/v1/crashes` answers `benchmark` (`{id, name, isin,
-  currency_code, benchmark_security}`, or `null` with `reason`
-  `no_crash_benchmark` or `crash_benchmark_unavailable`), `detected` (each
-  with `key` `d:<benchmark_security_id>:<start>`, `kind` `detected`, `name`,
-  `start`, `trough`, `peak_close`, `trough_close` and `decline` as decimal
-  strings, `recovered_on`, `provisional`, `max_gap_days`), `manual` (`key`
-  `m:<id>`, `kind` `manual`, `name`, `start`, `trough`, `author`, `actor`),
-  `unmatched_names` (a name whose key matches no window detected now, never
-  re-attached by a guess) and `computation_basis`. It takes no parameter.
-- `GET /api/v1/crashes/:key/rankings` answers one list of the window `key`:
-  `list` `losers` (default), `winners` or `rebounders`; `universe`
-  `catalogue` (default) or `view:<id>`, the securities the view holds today;
-  `limit` (default 8, capped at 50 and echoed); `include_unanswered=true`
-  lists the securities without an answer. Each entry carries its EUR
-  `return`, the crash benchmark's `benchmark_return` and `vs_benchmark_pp`,
-  decimal strings; `unanswered` counts `no_close_at_start`,
-  `no_close_at_end` and `no_fx_rate`; `computation_basis` names the
-  survivorship. An unknown list, universe or flag answers `422` naming it; a
-  key that names no window, or a view that does not exist, `404`.
-- `PUT /api/v1/crashes/:key` with `{"window": {"name"}}` names a detected
-  window (a detected key takes only `name`); on a manual key,
-  `{"window": {name, start, trough}}`, any of them, edits it.
-- `POST /api/v1/crashes` with `{"window": {name, start, trough}}` draws a
-  manual window (`201`; at most 80 characters, the trough after the start,
-  neither in the future); with `{"window": {from_name, trough}}` (and an
-  optional `name`) it makes an entry of `unmatched_names` a manual window
-  from its stored start and deletes the name.
-- `DELETE /api/v1/crashes/:key` removes a detected key's name or a manual
-  window, answering `{key, kind, deleted, name}`.
+**The rule.** Over the crash benchmark's stored closes in its own currency,
+in the current display basis (a booked split is not a fall), positive closes
+only, a day without a close skipped and never interpolated: the walk keeps
+the running peak (among equal highs the **latest**, so a window starts on the
+last day at the high); a window opens on the first close for which
+`(peak − close) / peak ≥ 0.10`, compared exactly in `Decimal` (a decline of
+exactly 10.00 % opens one, 9.99 % does not); its trough is the lowest close
+before the series first closes at or above the peak again (among equal lows
+the **earliest**); it closes on that first close (`recovered_on`), and the
+walk continues from there, so detected windows never overlap. A window not
+recovered by the last close is **provisional**: its trough is the lowest
+close so far and moves while prices fall further. The threshold is fixed at
+`threshold` `"0.10"`.
 
-Every read and write is closed: an unknown parameter or field answers `422`
-naming it. A key that names nothing answers `404`. Every write is journaled
-under the token.
+**Keys.** A detected window is `d:<benchmark_security_id>:<start>` (its peak
+date, ISO 8601), stable as long as the benchmark's closes before the fall
+are; a manual window is `m:<id>`. A key is spelled exactly as the read
+spells it: a leading zero, a short date or any other prefix names nothing
+and answers `404`.
 
-The MCP companion calls these routes through five tools, each saying it
-returns data, never advice or instructions: `portfolixir.crashes.list` and
-`portfolixir.crashes.rankings` (reads, in every profile),
-`portfolixir.crashes.put` (with a `key` it names or edits that window,
-without one it draws a manual window or makes `from_name` one; `book` and
-`full`), `portfolixir.crashes.delete` (admin, `full` only) and
-`portfolixir.crashes.benchmark_put` (the crash benchmark's write; `book` and
-`full`).
+Every route takes the bearer token: without a valid one it answers `401`
+like every route under `/api/v1` (see Authentication). Every read and write
+is closed: a parameter or field it does not take answers `422` naming it
+(`"is unknown: …"`, and the fields it takes), never dropped in silence. Every
+write is journaled under the token (`resource_type` `crash_window_name` for a
+name, `crash_manual_window` for a manual window, with its before-image on an
+edit or a delete). Nothing is written on a refusal.
+
+**`GET /api/v1/crashes`**
+
+The windows as every reader reads them. It takes no parameter (any answers
+`422` naming it). `data` carries:
+
+- `benchmark` — the crash benchmark: `{id, name, isin, currency_code,
+  benchmark_security}` (`benchmark_security` is `flagged`, `held` or
+  `unheld`, as the setting's write answers it), or `null`.
+- `reason` — `null`, or why nothing is detected: `no_crash_benchmark` (none
+  chosen: `detected` is `[]`, manual windows work regardless) or
+  `crash_benchmark_unavailable` (the chosen security was merged away since;
+  its survivor is never taken by a guess).
+- `detected` — oldest start first, each with `key`, `kind` `detected`,
+  `name` (`null` while unnamed), `start` (the peak's date), `peak_close`,
+  `trough`, `trough_close`, `decline` (the fall from peak to trough as a
+  fraction, negative; the closes and the decline as decimal strings in the
+  benchmark's own currency), `recovered_on` (`null` while ongoing),
+  `provisional` and `max_gap_days`, the longest span in calendar days between
+  two consecutive closes from the start to the recovery (or to the last close
+  while provisional), so a window drawn over a stale stretch reads as such.
+- `manual` — oldest start first, each with `key` `m:<id>`, `kind` `manual`,
+  `id`, `name`, `start`, `trough`, `author` (`operator` or `agent`, from the
+  creating credential), `actor` (the creating token's name), `created_at` and
+  `updated_at`. Listed whether or not a crash benchmark is chosen. Its dates
+  were chosen by a person, who may have known the outcome; `kind` says so on
+  every read.
+- `unmatched_names` — the stored names whose key matches no window the rule
+  detects now, oldest start first, each with its stored `key`, `name`,
+  `benchmark_security_id`, `benchmark_name` (`null` when that security is
+  gone), `start` and `for_current_benchmark`: `true` when it was given for the
+  crash benchmark chosen now (the closes changed, and its window moved or
+  vanished), `false` when it was given for another one (choosing that one
+  again restores it). A name is never re-attached to another window by a
+  guess (ADR-0058 §3).
+- `computation_basis` — the rule's: `rule` (`peak_trough_v1`), `threshold`
+  (`"0.10"`), `comparison`, `peak_ties`, `trough_ties`, `input_series`,
+  `currency` (the benchmark's, or `null`), `currency_note`,
+  `split_adjustment`, `gaps` and `recovery`.
+
+**`GET /api/v1/crashes/:key/rankings`**
+
+One list of the window `key`, derived at read and never stored. Query
+parameters, each optional:
+
+- `list` — `losers` (default), `winners` or `rebounders`;
+- `universe` — `catalogue` (default): every security in the catalogue not
+  merged away and not flagged `is_benchmark`, minus the crash benchmark
+  itself; or `view:<id>`: of those, the securities the view holds **today**
+  (a position in a depot the view covers whose quantity summed over those
+  depots is not zero). Held today, not at the window's dates;
+- `limit` — default 8, a positive integer; above 50 it is capped at 50 and
+  the answer's `limit` says so;
+- `include_unanswered` — `true` adds `unanswered_entries`; `false` or absent
+  leaves them out.
+
+**Losers and winners** rank each security's **EUR price return from `start`
+to `trough`** by the window-return function sale hindsight and the
+prediction resolution share, so a crash return and a sale's hindsight return
+over the same dates agree to the last digit: the close standing for a date is
+the last positive stored close on or before it, at most 7 calendar days older
+(`staleness_days`), in the display basis, each converted to EUR at the stored
+EUR-hub rate of its own date, one division. Losers come lowest first,
+winners highest first; the winners list keeps negative returns with their
+signs when few securities rose. A price return: distributions are not
+counted.
+
+**Rebounders** rank each security's rise from its **own low** — its lowest
+close on a day from `start` to `trough`, the earliest of equal lows — to the
+end of the **recovery span**, `trough` plus three calendar months (a day the
+month lacks becomes its last day: 30 November ends on 28 February;
+`recovery_span_months` `3`), in EUR by the same function, highest first.
+Beside each: `days_back`, the **calendar days** (`days_back_unit`
+`calendar_days`, the amendment's F3: trading days differ per venue) from its
+own low to its first close at or above its close standing for `start`, `0`
+when the low is not below that close, or `null` with `not_yet` `true` when no
+close up to today reaches it.
+
+**Ties** within a list: by the figure, then the security's name
+case-folded, then its ISIN (a security without one after those with one),
+never by an id.
+
+`data` carries:
+
+- `window` — `{key, kind, name, start, trough, provisional, recovered_on,
+  max_gap_days}` (the last two `null` for a manual window);
+- `list`, `universe` and `limit`, echoed;
+- the dates measured over: `from` and `to` for losers and winners (the
+  window's `start` and `trough`); `low_from`, `low_to` (the days an own low is
+  read from), `span_end` (the trough plus three months) and `measured_to` for
+  rebounders;
+- `provisional` — `true` while the window has not recovered (its trough, and
+  so every list, moves with it), and for rebounders also while the recovery
+  span has not ended: the list is then measured to today (`measured_to`), and
+  `completes_on` names the day the span ends (`null` while the window is
+  still falling, since that day is not known yet). A rebound is never ranked
+  over a shorter span than the one it names without saying so;
+- `benchmark` — the crash benchmark `{id, name, isin, currency_code,
+  benchmark_security}`, or `null`;
+- `reference` — the crash benchmark measured by the same rule and function
+  as each entry (over the same dates for losers and winners, from its own low
+  for rebounders): `{security_id, return, start, end}`, with `low` for
+  rebounders; or `null`, with `reference_reason` saying why:
+  `no_crash_benchmark`, `crash_benchmark_unavailable`, `no_benchmark_close`
+  or `no_fx_rate`;
+- `entries` — at most `limit`, each with `rank` (from 1), `security` (`{id,
+  name, isin, currency_code}`), `held` (`true` when any depot holds it today,
+  so a catalogue list can mark it), `return`, `start` and `end` (each close:
+  `stands_for`, `date`, `close`, `stored_close`, `source`, `fx_rate`,
+  `eur_value`), `benchmark_return` and `vs_benchmark_pp`, the difference
+  `(return − benchmark_return) × 100` in percentage points, unrounded; for
+  rebounders also `low` (`{date, close}`), `start_close` (`{stands_for, date,
+  close}`), `back_on`, `days_back` and `not_yet`. Every figure is a decimal
+  string;
+- `answered` — how many securities of the universe have an answer;
+- `unanswered` — the others counted by reason, each key always present:
+  `no_close_at_start` (no close standing for the start; for a rebounder also
+  none from start to trough), `no_close_at_end` (none within 7 days of the
+  end, or a security younger than the window) and `no_fx_rate` (a close
+  without a stored rate path to EUR). A security without an answer is in no
+  list and never ranked as a zero;
+- `unanswered_entries` — with `include_unanswered=true` only: each
+  `{security, held, reason}`, by name;
+- `computation_basis` — `benchmark`, `reason`, `reference`, `window`,
+  `rule` and `threshold` (`null` for a manual window), `dates` (the rule's,
+  or chosen by a person), `universe`, `list`, `figure`, `input_series`,
+  `currency` (`EUR`), `detection_currency`, `currency_note`, `close_lookup`,
+  `staleness_days` (`7`), `split_adjustment`, `fx`, `recovery_span_months`,
+  `recovery_span`, `days_back_unit`, `days_back`, `gaps`, `ties`,
+  `provisional` and `survivorship`.
+
+**Without a crash benchmark** (the amendment's F2), a manual window's lists
+answer without a reference: `benchmark` and `reference` are `null`,
+`reference_reason` is `no_crash_benchmark`, every entry's
+`benchmark_return` and `vs_benchmark_pp` are `null`, and the basis says
+`benchmark: null` with `reason`. The ranking is unchanged: a manual window
+is the operator's own span, and ranking the securities inside it needs no
+market line.
+
+**Survivorship.** The catalogue holds what is still tracked: a security
+that failed and was removed is in no list, so the lists read better than the
+market did, and the rebounders most of all. `computation_basis.survivorship`
+says so in every answer.
+
+Refusals, each before anything is read: `list` other than the three answers
+`422` with `errors.list` `["is invalid: losers, winners or rebounders"]`;
+`universe` other than `catalogue` or `view:<id>` (a leading zero or a sign
+included) `errors.universe` `["is invalid: catalogue or view:<id>"]`;
+`limit` zero, negative or not a number `errors.limit` `["is invalid: a
+positive integer, at most 50"]`; `include_unanswered` other than `true` or
+`false` `errors.include_unanswered` `["is invalid: true or false"]`; any
+other parameter `422` naming it. A key that names no window detected now or
+no manual window answers `404`, and so does a `view:<id>` whose view does not
+exist.
+
+**`PUT /api/v1/crashes/:key`**
+
+Body `{"window": {...}}`. On a detected key (`d:`) it names the window, or
+renames it: the body takes only `name` (at most 80 characters, ADR-0054
+§4's text rules, required). The key must name a window the rule detects now
+over the current crash benchmark; a name is never given to a window nobody
+can read. A name never moves the window's dates. On a manual key (`m:`) it
+edits the window: any of `name`, `start` and `trough`, checked on the edited
+window under the rules of `POST`; the creating token stays the creator's.
+The answer is the written window: for a name `{key, kind: "detected", name,
+benchmark_security_id, start}`, for a manual window the shape `manual` reads.
+
+Refusals: a key that is neither `d:` nor `m:`, a detected key that names no
+window detected now, or a manual key that names no manual window answers
+`404`; a field the key's kind does not take (`start` on a detected key)
+answers `422` naming it; a blank or over-long `name` (or none where the window
+has no name yet), or a date refused under `POST`'s rules, `422` naming the
+field; a `window` that is not a JSON object `422` naming `window`.
+
+**`POST /api/v1/crashes`**
+
+Body `{"window": {"name", "start", "trough"}}` draws a **manual window**
+(`201`): `name` at most 80 characters, ADR-0054 §4's text rules; `start` and
+`trough` ISO calendar dates, the trough after the start (`errors.trough`
+`["must be after start"]`), neither in the future (`["must not be in the
+future"]`), each required. It may overlap a detected window or another
+manual one: the point of a manual window is a span the rule folds into a
+longer one. Its recovery span and lists follow the rules above exactly as for
+a detected window, and it reads `kind` `manual` everywhere.
+
+Body `{"window": {"from_name", "trough"}}`, with an optional `name`, makes an
+entry of `unmatched_names` a manual window (the amendment's F1): `from_name`
+is that entry's detected key, the window's start is the name's stored start,
+its trough the one given (the trough was never stored, and is never guessed
+from today's closes), its name the stored one unless `name` gives another. The
+manual window is created and the stored name deleted in one transaction, each
+journaled. Refusals: a `from_name` that is not a string answers `422` with
+`errors.from_name` naming the form `d:<benchmark_security_id>:<start>`; one
+under which no name is stored, a misspelt key included, `422` naming
+`from_name` ("names no stored name"); one whose window the rule still detects
+(`name_has_window`) `422` naming `from_name` and the `PUT` that renames it;
+`start` in this body `422` naming it. The answer is the manual window as
+`manual` reads it.
+
+**`DELETE /api/v1/crashes/:key`**
+
+On a detected key it removes the name stored under it (a detected window,
+or one listed under `unmatched_names`; the window itself stays, its dates
+being the rule's); on a manual key it deletes the manual window. It answers
+`{key, kind, deleted, name}`, `deleted` being `name` or `manual_window`. A
+key that carries no name or names no manual window answers `404`; a body or
+a query parameter answers `422` naming it. A window drawn again is a new
+window under a new key.
+
+**The MCP tools.**
+
+The MCP companion calls these routes through five tools, each saying in its
+description that it returns data, never advice or instructions:
+
+- `portfolixir.crashes.list` — `GET /api/v1/crashes`, no parameter; a read,
+  in `read`, `book` and `full`.
+- `portfolixir.crashes.rankings` — `GET /api/v1/crashes/:key/rankings` with
+  `key` (required), `list`, `universe`, `limit` (1 to 50) and
+  `include_unanswered` (a boolean); a read, in `read`, `book` and `full`.
+- `portfolixir.crashes.put` — with a `key` it routes to `PUT` and names that
+  detected window or edits that manual one; without one it routes to `POST`
+  and draws a manual window, or makes `window.from_name` one. In `book` and
+  `full`; destructive (it overwrites a name or a manual window's fields, and
+  putting the previous ones restores them) and not idempotent (a repeat
+  without a key draws another window).
+- `portfolixir.crashes.delete` — `DELETE /api/v1/crashes/:key`; admin, in
+  `full` only, since a removed manual window drawn again is a new window
+  under a new key.
+- `portfolixir.crashes.benchmark_put` — `PUT
+  /api/v1/settings/crash_benchmark` with `security_id` (an integer, or
+  `null` to clear it); in `book` and `full`, and setting the previous
+  benchmark restores it and the names given for it.
+
+Each tool checks its schema before any request: a key the companion's
+pattern does not match, a `list` or `universe` outside its values, or a
+field the tool does not take is refused there, naming it.
 
 ### The position dossier (FR-49)
 
@@ -4458,10 +4684,14 @@ rule reads (ADR-0058 §1). No financial decimals are involved.
   `flagged`, `held` or `unheld`), both `null` when cleared. A security without
   a stored quote answers `422` with `errors.security_id` `["has no stored
   quote"]`; an unknown id `["is not a benchmark security"]`, and a merged-away
-  one the same with `merged_into: {kind, id}` naming the survivor; a malformed
-  or missing `security_id` and any other field answer `422` naming it.
-  Nothing is written on a refusal. The change is journaled under the token's
-  principal (`resource_type` `setting`).
+  one the same with `errors.merged_into` `{kind, id}` naming the survivor; a
+  malformed or missing `security_id` and any other field answer `422` naming
+  it. Nothing is written on a refusal. The change is journaled under the
+  token's principal (`resource_type` `setting`). It applies to the screen and
+  every agent alike: switching it changes the detected windows, the names
+  given for the former benchmark move to `unmatched_names` and return when it
+  is chosen again, and clearing it leaves the manual windows (see Crash
+  windows above). The MCP tool is `portfolixir.crashes.benchmark_put`.
 
 ## Imports
 

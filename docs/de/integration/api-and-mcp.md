@@ -1300,53 +1300,299 @@ Ein Crash-Fenster ist ein Rückgang um 10 % oder mehr in den gespeicherten
 Schlusskursen des **Crash-Benchmarks** (`PUT /api/v1/settings/crash_benchmark`,
 unten unter Einstellungen), von der Regel `peak_trough_v1` beim Lesen erkannt
 und nie gespeichert, oder ein **manuelles** Fenster, das eine Person gezogen
-hat. Die Listen vergleichen Kursbewegungen innerhalb eines Fensters; sie sind
-Daten, nie ein Rat.
+hat. Der Betreiber oder ein Agent benennt ein erkanntes Fenster nur; seine
+Daten sind die der Regel, sodass jeder Agent und der Bildschirm dieselben
+Fenster lesen. Je Fenster vergleichen drei Ranglisten die Kursbewegungen der
+Wertpapiere darin. Stufen (a) und (b) der Leiter: eine abgeleitete Bewegung
+je Wertpapier und ein Vergleich mit einem Benchmark, nie das Nachspielen
+einer Regel (ADR-0058 §8). Jede Antwort sind Daten, nie ein Rat: Kein
+Schlüssel sagt, was zu kaufen, zu verkaufen oder zu halten ist, und
+`metrics_carry_no_verdict_test.exs` durchläuft diese Antworten.
 
-- `GET /api/v1/crashes` liefert `benchmark` (`{id, name, isin,
-  currency_code, benchmark_security}`, oder `null` mit `reason`
-  `no_crash_benchmark` oder `crash_benchmark_unavailable`), `detected` (je
-  mit `key` `d:<benchmark_security_id>:<start>`, `kind` `detected`, `name`,
-  `start`, `trough`, `peak_close`, `trough_close` und `decline` als
-  Dezimal-Strings, `recovered_on`, `provisional`, `max_gap_days`), `manual`
-  (`key` `m:<id>`, `kind` `manual`, `name`, `start`, `trough`, `author`,
-  `actor`), `unmatched_names` (ein Name, dessen Schlüssel zu keinem jetzt
-  erkannten Fenster passt, nie geraten neu zugeordnet) und
-  `computation_basis`. Er nimmt keinen Parameter.
-- `GET /api/v1/crashes/:key/rankings` liefert eine Liste des Fensters `key`:
-  `list` `losers` (Vorgabe), `winners` oder `rebounders`; `universe`
-  `catalogue` (Vorgabe) oder `view:<id>`, die Wertpapiere, die die Ansicht
-  heute hält; `limit` (Vorgabe 8, gekappt bei 50 und zurückgegeben);
-  `include_unanswered=true` listet die Wertpapiere ohne Antwort. Jeder
-  Eintrag trägt seine EUR-`return`, die `benchmark_return` des
-  Crash-Benchmarks und `vs_benchmark_pp`, als Dezimal-Strings; `unanswered`
-  zählt `no_close_at_start`, `no_close_at_end` und `no_fx_rate`;
-  `computation_basis` nennt die Survivorship. Eine unbekannte Liste, ein
-  unbekanntes Universum oder Flag ergibt `422`, das es nennt; ein Schlüssel,
-  der kein Fenster nennt, oder eine Ansicht, die es nicht gibt, `404`.
-- `PUT /api/v1/crashes/:key` mit `{"window": {"name"}}` benennt ein erkanntes
-  Fenster (ein erkannter Schlüssel nimmt nur `name`); bei einem manuellen
-  Schlüssel ändert `{"window": {name, start, trough}}`, beliebige davon, es.
-- `POST /api/v1/crashes` mit `{"window": {name, start, trough}}` zieht ein
-  manuelles Fenster (`201`; höchstens 80 Zeichen, der Tiefpunkt nach dem
-  Start, keiner in der Zukunft); mit `{"window": {from_name, trough}}` (und
-  einem optionalen `name`) macht er einen Eintrag aus `unmatched_names` zu
-  einem manuellen Fenster mit seinem gespeicherten Start und löscht den Namen.
-- `DELETE /api/v1/crashes/:key` entfernt den Namen eines erkannten Schlüssels
-  oder ein manuelles Fenster und liefert `{key, kind, deleted, name}`.
+**Die Regel.** Über den gespeicherten Schlusskursen des Crash-Benchmarks in
+seiner eigenen Währung, in der aktuellen Darstellungsbasis (ein gebuchter
+Split ist kein Fall), nur positive Kurse, ein Tag ohne Kurs übersprungen und
+nie interpoliert: Der Lauf führt das laufende Hoch (unter gleichen Hochs das
+**späteste**, sodass ein Fenster am letzten Tag am Hoch beginnt); ein Fenster
+öffnet beim ersten Kurs, für den `(peak − close) / peak ≥ 0.10` gilt, exakt
+in `Decimal` verglichen (ein Rückgang um genau 10,00 % öffnet eines, 9,99 %
+nicht); sein Tiefpunkt ist der niedrigste Kurs, bevor die Reihe zum ersten
+Mal wieder auf oder über dem Hoch schließt (unter gleichen Tiefs das
+**früheste**); es schließt mit diesem ersten Kurs (`recovered_on`), und der
+Lauf geht von dort weiter, sodass erkannte Fenster sich nie überlappen. Ein
+Fenster, das bis zum letzten Kurs nicht erholt ist, ist **vorläufig**
+(`provisional`): Sein Tiefpunkt ist der niedrigste Kurs bisher und wandert,
+solange die Kurse weiter fallen. Die Schwelle ist fest: `threshold` `"0.10"`.
 
-Jeder Lese- und Schreibzugriff ist geschlossen: ein unbekannter Parameter oder
-ein unbekanntes Feld ergibt `422`, das es nennt. Ein Schlüssel, der nichts
-nennt, ergibt `404`. Jeder Schreibzugriff wird unter dem Token journalisiert.
+**Schlüssel.** Ein erkanntes Fenster ist `d:<benchmark_security_id>:<start>`
+(das Datum seines Hochs, ISO 8601), stabil, solange die Kurse des Benchmarks
+vor dem Fall es sind; ein manuelles Fenster ist `m:<id>`. Ein Schlüssel wird
+genau so geschrieben, wie der Lesezugriff ihn schreibt: eine führende Null,
+ein kurzes Datum oder ein anderes Präfix nennt nichts und ergibt `404`.
 
-Der MCP-Begleitdienst ruft diese Routen über fünf Tools auf, die je sagen, dass
-sie Daten liefern, nie einen Rat oder Anweisungen: `portfolixir.crashes.list`
-und `portfolixir.crashes.rankings` (Lesezugriffe, in jedem Profil),
-`portfolixir.crashes.put` (mit `key` benennt oder ändert es dieses Fenster,
-ohne zieht es ein manuelles Fenster oder macht `from_name` zu einem; `book`
-und `full`), `portfolixir.crashes.delete` (Admin, nur `full`) und
-`portfolixir.crashes.benchmark_put` (das Schreiben des Crash-Benchmarks; `book`
-und `full`).
+Jede Route verlangt den Bearer-Token: Ohne gültigen ergibt sie `401` wie
+jede Route unter `/api/v1` (siehe Authentifizierung). Jeder Lese- und
+Schreibzugriff ist geschlossen: ein Parameter oder Feld, das er nicht nimmt,
+ergibt `422`, das es nennt (`"is unknown: …"` und die Felder, die er nimmt),
+nie stillschweigend verworfen. Jeder Schreibzugriff wird unter dem Token
+journalisiert (`resource_type` `crash_window_name` für einen Namen,
+`crash_manual_window` für ein manuelles Fenster, mit Vorher-Abbild bei einer
+Änderung oder einem Löschen). Bei einer Ablehnung wird nichts geschrieben.
+
+**`GET /api/v1/crashes`**
+
+Die Fenster, wie jeder Leser sie liest. Er nimmt keinen Parameter (jeder
+ergibt `422`, das ihn nennt). `data` trägt:
+
+- `benchmark` — der Crash-Benchmark: `{id, name, isin, currency_code,
+  benchmark_security}` (`benchmark_security` ist `flagged`, `held` oder
+  `unheld`, wie das Schreiben der Einstellung es liefert), oder `null`.
+- `reason` — `null`, oder warum nichts erkannt wird: `no_crash_benchmark`
+  (keiner gewählt: `detected` ist `[]`, manuelle Fenster gelten trotzdem)
+  oder `crash_benchmark_unavailable` (das gewählte Wertpapier wurde seither
+  wegfusioniert; sein Überlebender wird nie geraten übernommen).
+- `detected` — der früheste Start zuerst, je mit `key`, `kind` `detected`,
+  `name` (`null`, solange unbenannt), `start` (das Datum des Hochs),
+  `peak_close`, `trough`, `trough_close`, `decline` (der Fall vom Hoch zum
+  Tiefpunkt als Bruch, negativ; die Kurse und der Rückgang als
+  Dezimal-Strings in der eigenen Währung des Benchmarks), `recovered_on`
+  (`null`, solange es läuft), `provisional` und `max_gap_days`, der längste
+  Abstand in Kalendertagen zwischen zwei aufeinanderfolgenden Kursen vom
+  Start bis zur Erholung (oder, solange vorläufig, bis zum letzten Kurs),
+  sodass ein Fenster über einer veralteten Strecke als solches lesbar ist.
+- `manual` — der früheste Start zuerst, je mit `key` `m:<id>`, `kind`
+  `manual`, `id`, `name`, `start`, `trough`, `author` (`operator` oder
+  `agent`, aus der anlegenden Berechtigung), `actor` (der Name des
+  anlegenden Tokens), `created_at` und `updated_at`. Gelistet, ob ein
+  Crash-Benchmark gewählt ist oder nicht. Seine Daten hat eine Person
+  gewählt, die das Ergebnis gekannt haben kann; `kind` sagt es bei jedem
+  Lesen.
+- `unmatched_names` — die gespeicherten Namen, deren Schlüssel zu keinem
+  jetzt erkannten Fenster passt, der früheste Start zuerst, je mit ihrem
+  gespeicherten `key`, `name`, `benchmark_security_id`, `benchmark_name`
+  (`null`, wenn das Wertpapier fort ist), `start` und
+  `for_current_benchmark`: `true`, wenn er für den jetzt gewählten
+  Crash-Benchmark vergeben wurde (die Kurse haben sich geändert, und sein
+  Fenster hat sich verschoben oder ist verschwunden), `false`, wenn für einen
+  anderen (wird jener wieder gewählt, kehrt er zurück). Ein Name wird nie
+  geraten einem anderen Fenster zugeordnet (ADR-0058 §3).
+- `computation_basis` — die der Regel: `rule` (`peak_trough_v1`),
+  `threshold` (`"0.10"`), `comparison`, `peak_ties`, `trough_ties`,
+  `input_series`, `currency` (die des Benchmarks, oder `null`),
+  `currency_note`, `split_adjustment`, `gaps` und `recovery`.
+
+**`GET /api/v1/crashes/:key/rankings`**
+
+Eine Liste des Fensters `key`, beim Lesen abgeleitet und nie gespeichert.
+Query-Parameter, jeder optional:
+
+- `list` — `losers` (Vorgabe), `winners` oder `rebounders`;
+- `universe` — `catalogue` (Vorgabe): jedes Wertpapier im Katalog, nicht
+  wegfusioniert und nicht mit `is_benchmark` markiert, ohne den
+  Crash-Benchmark selbst; oder `view:<id>`: davon die Wertpapiere, die die
+  Ansicht **heute** hält (eine Position in einem Depot der Ansicht, deren
+  Menge über diese Depots summiert nicht null ist). Heute gehalten, nicht zu
+  den Daten des Fensters;
+- `limit` — Vorgabe 8, eine positive ganze Zahl; über 50 wird sie bei 50
+  gekappt, und das `limit` der Antwort sagt es;
+- `include_unanswered` — `true` fügt `unanswered_entries` hinzu; `false`
+  oder fehlend lässt sie weg.
+
+**Verlierer und Gewinner** ordnen die **EUR-Kursrendite jedes Wertpapiers
+von `start` bis `trough`** mit der Fensterrendite-Funktion, die auch der
+Verkaufsrückblick und die Auflösung der Prognosen nutzen, sodass eine
+Crash-Rendite und die Rückblick-Rendite eines Verkaufs über dieselben Daten
+bis auf die letzte Stelle übereinstimmen: Der Kurs, der für ein Datum steht,
+ist der letzte positive gespeicherte Kurs an oder vor ihm, höchstens 7
+Kalendertage älter (`staleness_days`), in der Darstellungsbasis, jeder zum
+gespeicherten EUR-Hub-Kurs seines eigenen Datums umgerechnet, eine Division.
+Verlierer kommen niedrigste zuerst, Gewinner höchste zuerst; die
+Gewinnerliste behält negative Renditen mit ihrem Vorzeichen, wenn wenige
+Wertpapiere stiegen. Eine Kursrendite: Ausschüttungen zählen nicht.
+
+**Erholer** ordnen den Anstieg jedes Wertpapiers von seinem **eigenen
+Tief** — seinem niedrigsten Kurs an einem Tag von `start` bis `trough`, unter
+gleichen Tiefs das früheste — bis zum Ende der **Erholungsspanne**, `trough`
+plus drei Kalendermonate (ein Tag, den der Monat nicht hat, wird sein letzter
+Tag: der 30. November endet am 28. Februar; `recovery_span_months` `3`), in
+EUR mit derselben Funktion, höchster zuerst. Daneben: `days_back`, die
+**Kalendertage** (`days_back_unit` `calendar_days`, F3 des Nachtrags:
+Handelstage unterscheiden sich je Börse) von seinem eigenen Tief bis zu
+seinem ersten Kurs auf oder über seinem Kurs, der für `start` steht, `0`,
+wenn das Tief nicht darunter liegt, oder `null` mit `not_yet` `true`, wenn
+kein Kurs bis heute ihn erreicht.
+
+**Gleichstände** in einer Liste: nach der Zahl, dann nach dem Namen des
+Wertpapiers ohne Groß- und Kleinschreibung, dann nach seiner ISIN (eines ohne
+ISIN nach denen mit), nie nach einer id.
+
+`data` trägt:
+
+- `window` — `{key, kind, name, start, trough, provisional, recovered_on,
+  max_gap_days}` (die letzten beiden `null` bei einem manuellen Fenster);
+- `list`, `universe` und `limit`, zurückgegeben;
+- die gemessenen Daten: `from` und `to` bei Verlierern und Gewinnern (`start`
+  und `trough` des Fensters); `low_from`, `low_to` (die Tage, aus denen ein
+  eigenes Tief gelesen wird), `span_end` (der Tiefpunkt plus drei Monate) und
+  `measured_to` bei Erholern;
+- `provisional` — `true`, solange das Fenster nicht erholt ist (sein
+  Tiefpunkt und damit jede Liste wandert mit), und bei Erholern auch, solange
+  die Erholungsspanne nicht vorbei ist: Die Liste ist dann bis heute gemessen
+  (`measured_to`), und `completes_on` nennt den Tag, an dem die Spanne endet
+  (`null`, solange das Fenster noch fällt, weil dieser Tag noch nicht
+  feststeht). Eine Erholung wird nie über eine kürzere Spanne als die
+  genannte geordnet, ohne dass es gesagt wird;
+- `benchmark` — der Crash-Benchmark `{id, name, isin, currency_code,
+  benchmark_security}`, oder `null`;
+- `reference` — der Crash-Benchmark, mit derselben Regel und Funktion
+  gemessen wie jeder Eintrag (über dieselben Daten bei Verlierern und
+  Gewinnern, von seinem eigenen Tief bei Erholern): `{security_id, return,
+  start, end}`, bei Erholern mit `low`; oder `null`, und `reference_reason`
+  sagt warum: `no_crash_benchmark`, `crash_benchmark_unavailable`,
+  `no_benchmark_close` oder `no_fx_rate`;
+- `entries` — höchstens `limit`, je mit `rank` (ab 1), `security` (`{id,
+  name, isin, currency_code}`), `held` (`true`, wenn ein Depot es heute hält,
+  sodass eine Katalogliste es markieren kann), `return`, `start` und `end`
+  (je Kurs: `stands_for`, `date`, `close`, `stored_close`, `source`,
+  `fx_rate`, `eur_value`), `benchmark_return` und `vs_benchmark_pp`, die
+  Differenz `(return − benchmark_return) × 100` in Prozentpunkten,
+  ungerundet; bei Erholern auch `low` (`{date, close}`), `start_close`
+  (`{stands_for, date, close}`), `back_on`, `days_back` und `not_yet`. Jede
+  Zahl ist ein Dezimal-String;
+- `answered` — wie viele Wertpapiere des Universums eine Antwort haben;
+- `unanswered` — die übrigen nach Grund gezählt, jeder Schlüssel immer
+  vorhanden: `no_close_at_start` (kein Kurs, der für den Start steht; bei
+  einem Erholer auch keiner von Start bis Tiefpunkt), `no_close_at_end`
+  (keiner innerhalb von 7 Tagen vor dem Ende, oder ein Wertpapier, das
+  jünger ist als das Fenster) und `no_fx_rate` (ein Kurs ohne gespeicherten
+  Kursweg nach EUR). Ein Wertpapier ohne Antwort steht in keiner Liste und
+  wird nie als Null geordnet;
+- `unanswered_entries` — nur mit `include_unanswered=true`: je `{security,
+  held, reason}`, nach Namen;
+- `computation_basis` — `benchmark`, `reason`, `reference`, `window`,
+  `rule` und `threshold` (`null` bei einem manuellen Fenster), `dates` (die
+  der Regel, oder von einer Person gewählt), `universe`, `list`, `figure`,
+  `input_series`, `currency` (`EUR`), `detection_currency`, `currency_note`,
+  `close_lookup`, `staleness_days` (`7`), `split_adjustment`, `fx`,
+  `recovery_span_months`, `recovery_span`, `days_back_unit`, `days_back`,
+  `gaps`, `ties`, `provisional` und `survivorship`.
+
+**Ohne Crash-Benchmark** (F2 des Nachtrags) antworten die Listen eines
+manuellen Fensters ohne Referenz: `benchmark` und `reference` sind `null`,
+`reference_reason` ist `no_crash_benchmark`, `benchmark_return` und
+`vs_benchmark_pp` jedes Eintrags sind `null`, und die Basis sagt
+`benchmark: null` mit `reason`. Die Rangfolge bleibt dieselbe: Ein
+manuelles Fenster ist die eigene Spanne des Betreibers, und die Wertpapiere
+darin zu ordnen braucht keine Marktlinie.
+
+**Survivorship.** Der Katalog hält, was noch geführt wird: ein Wertpapier,
+das scheiterte und entfernt wurde, steht in keiner Liste, sodass die Listen
+besser aussehen als der Markt war, und die Erholer am meisten.
+`computation_basis.survivorship` sagt es in jeder Antwort.
+
+Ablehnungen, jede bevor etwas gelesen wird: eine `list` außer den dreien
+ergibt `422` mit `errors.list` `["is invalid: losers, winners or
+rebounders"]`; ein `universe` außer `catalogue` oder `view:<id>` (eine
+führende Null oder ein Vorzeichen eingeschlossen) `errors.universe` `["is
+invalid: catalogue or view:<id>"]`; ein `limit` von null, negativ oder keine
+Zahl `errors.limit` `["is invalid: a positive integer, at most 50"]`; ein
+`include_unanswered` außer `true` oder `false` `errors.include_unanswered`
+`["is invalid: true or false"]`; jeder andere Parameter `422`, das ihn nennt.
+Ein Schlüssel, der kein jetzt erkanntes und kein manuelles Fenster nennt,
+ergibt `404`, ebenso ein `view:<id>`, dessen Ansicht es nicht gibt.
+
+**`PUT /api/v1/crashes/:key`**
+
+Body `{"window": {...}}`. Bei einem erkannten Schlüssel (`d:`) benennt er das
+Fenster oder benennt es um: der Body nimmt nur `name` (höchstens 80 Zeichen,
+die Textregeln von ADR-0054 §4, Pflicht). Der Schlüssel muss ein Fenster
+nennen, das die Regel jetzt über dem aktuellen Crash-Benchmark erkennt; ein
+Name wird nie einem Fenster gegeben, das niemand lesen kann. Ein Name
+verschiebt nie die Daten des Fensters. Bei einem manuellen Schlüssel (`m:`)
+ändert er das Fenster: beliebige von `name`, `start` und `trough`, am
+geänderten Fenster nach den Regeln von `POST` geprüft; der anlegende Token
+bleibt der des Anlegers. Die Antwort ist das geschriebene Fenster: bei einem
+Namen `{key, kind: "detected", name, benchmark_security_id, start}`, bei
+einem manuellen Fenster die Form, die `manual` liest.
+
+Ablehnungen: Ein Schlüssel, der weder `d:` noch `m:` ist, ein erkannter
+Schlüssel, der kein jetzt erkanntes Fenster nennt, oder ein manueller, der
+kein manuelles Fenster nennt, ergibt `404`; ein Feld, das die Art des
+Schlüssels nicht nimmt (`start` bei einem erkannten Schlüssel), ergibt `422`,
+das es nennt; ein leerer oder zu langer `name` (oder keiner, wo das Fenster
+noch keinen Namen hat) oder ein Datum, das nach den Regeln von `POST`
+abgelehnt wird, `422`, das das Feld nennt; ein `window`, das kein JSON-Objekt
+ist, `422`, das `window` nennt.
+
+**`POST /api/v1/crashes`**
+
+Body `{"window": {"name", "start", "trough"}}` zieht ein **manuelles
+Fenster** (`201`): `name` höchstens 80 Zeichen, die Textregeln von ADR-0054
+§4; `start` und `trough` ISO-Kalenderdaten, der Tiefpunkt nach dem Start
+(`errors.trough` `["must be after start"]`), keiner in der Zukunft (`["must
+not be in the future"]`), jedes Pflicht. Es darf ein erkanntes oder ein
+anderes manuelles Fenster überlappen: Ein manuelles Fenster ist gerade für
+eine Spanne da, die die Regel in eine längere faltet. Seine Erholungsspanne
+und Listen folgen den Regeln oben genau wie bei einem erkannten Fenster, und
+es liest überall `kind` `manual`.
+
+Body `{"window": {"from_name", "trough"}}`, mit optionalem `name`, macht einen
+Eintrag aus `unmatched_names` zu einem manuellen Fenster (F1 des Nachtrags):
+`from_name` ist der erkannte Schlüssel dieses Eintrags, der Start des Fensters
+der gespeicherte Start des Namens, sein Tiefpunkt der angegebene (der
+Tiefpunkt wurde nie gespeichert und wird nie aus den heutigen Kursen geraten),
+sein Name der gespeicherte, wenn `name` keinen anderen gibt. Das manuelle
+Fenster wird angelegt und der gespeicherte Name gelöscht, in einer
+Transaktion, jedes journalisiert. Ablehnungen: Ein `from_name`, der kein
+String ist, ergibt `422` mit `errors.from_name`, das die Form
+`d:<benchmark_security_id>:<start>` nennt; einer, unter dem kein Name
+gespeichert ist, ein falsch geschriebener Schlüssel eingeschlossen, `422`, das
+`from_name` nennt („names no stored name“); einer, dessen Fenster die Regel
+noch erkennt (`name_has_window`), `422`, das `from_name` und das `PUT` nennt,
+das ihn umbenennt; `start` in diesem Body `422`, das es nennt. Die Antwort ist
+das manuelle Fenster, wie `manual` es liest.
+
+**`DELETE /api/v1/crashes/:key`**
+
+Bei einem erkannten Schlüssel entfernt er den darunter gespeicherten Namen
+(eines erkannten Fensters oder eines Eintrags unter `unmatched_names`; das
+Fenster selbst bleibt, seine Daten sind die der Regel); bei einem manuellen
+Schlüssel löscht er das manuelle Fenster. Er liefert `{key, kind, deleted,
+name}`, `deleted` ist `name` oder `manual_window`. Ein Schlüssel ohne Namen
+oder ohne manuelles Fenster ergibt `404`; ein Body oder ein Query-Parameter
+`422`, das ihn nennt. Ein neu gezogenes Fenster ist ein neues Fenster unter
+einem neuen Schlüssel.
+
+**Die MCP-Tools.**
+
+Der MCP-Begleitdienst ruft diese Routen über fünf Tools auf, die je in ihrer
+Beschreibung sagen, dass sie Daten liefern, nie einen Rat oder Anweisungen:
+
+- `portfolixir.crashes.list` — `GET /api/v1/crashes`, kein Parameter; ein
+  Lesezugriff, in `read`, `book` und `full`.
+- `portfolixir.crashes.rankings` — `GET /api/v1/crashes/:key/rankings` mit
+  `key` (Pflicht), `list`, `universe`, `limit` (1 bis 50) und
+  `include_unanswered` (ein Boolean); ein Lesezugriff, in `read`, `book` und
+  `full`.
+- `portfolixir.crashes.put` — mit `key` läuft es über `PUT` und benennt
+  dieses erkannte Fenster oder ändert dieses manuelle; ohne läuft es über
+  `POST` und zieht ein manuelles Fenster oder macht `window.from_name` zu
+  einem. In `book` und `full`; destruktiv (es überschreibt einen Namen oder
+  die Felder eines manuellen Fensters, und die vorigen erneut gesetzt stellen
+  sie wieder her) und nicht idempotent (eine Wiederholung ohne Schlüssel
+  zieht ein weiteres Fenster).
+- `portfolixir.crashes.delete` — `DELETE /api/v1/crashes/:key`; Admin, nur
+  in `full`, weil ein entferntes manuelles Fenster, neu gezogen, ein neues
+  Fenster unter einem neuen Schlüssel ist.
+- `portfolixir.crashes.benchmark_put` — `PUT
+  /api/v1/settings/crash_benchmark` mit `security_id` (eine ganze Zahl, oder
+  `null` zum Zurücksetzen); in `book` und `full`, und den vorigen Benchmark
+  erneut zu setzen stellt ihn und die für ihn vergebenen Namen wieder her.
+
+Jedes Tool prüft sein Schema vor jeder Anfrage: Ein Schlüssel, auf den das
+Muster des Begleitdienstes nicht passt, eine `list` oder ein `universe`
+außerhalb ihrer Werte oder ein Feld, das das Tool nicht nimmt, wird dort
+abgelehnt, mit Namen.
 
 ### Das Positionsdossier (FR-49)
 
@@ -4850,11 +5096,16 @@ Decimals kommen hier nicht vor.
   `flagged`, `held` oder `unheld`), beim Zurücksetzen beide `null`. Ein
   Wertpapier ohne gespeicherten Kurs liefert `422` mit `errors.security_id`
   `["has no stored quote"]`; eine unbekannte id `["is not a benchmark
-  security"]`, eine wegfusionierte dasselbe mit `merged_into: {kind, id}`, das
-  den Überlebenden nennt; eine fehlerhafte oder fehlende `security_id` und
-  jedes andere Feld liefern `422`, das es nennt. Bei einer Ablehnung wird
-  nichts geschrieben. Die Änderung wird unter dem Prinzipal des Tokens
-  journalisiert (`resource_type` `setting`).
+  security"]`, eine wegfusionierte dasselbe mit `errors.merged_into`
+  `{kind, id}`, das den Überlebenden nennt; eine fehlerhafte oder fehlende
+  `security_id` und jedes andere Feld liefern `422`, das es nennt. Bei einer
+  Ablehnung wird nichts geschrieben. Die Änderung wird unter dem Prinzipal
+  des Tokens journalisiert (`resource_type` `setting`). Sie gilt für den
+  Bildschirm und jeden Agenten gleich: Ein Wechsel ändert die erkannten
+  Fenster, die für den früheren Benchmark vergebenen Namen wandern nach
+  `unmatched_names` und kehren zurück, wenn er wieder gewählt wird, und das
+  Zurücksetzen lässt die manuellen Fenster stehen (siehe Crash-Fenster
+  oben). Das MCP-Tool ist `portfolixir.crashes.benchmark_put`.
 
 ## Importe
 
