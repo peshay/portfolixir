@@ -77,6 +77,19 @@ config :portfolixir, Portfolixir.Catalog.LogoStore,
     manual: :any
   }
 
+# The chain source (ADR-0059 §3, §10): two public Esplora hosts, the primary
+# first, the fallback only when the primary fails. Each source's client
+# reaches its own registered host only (B2); `own: :any` stands for the
+# operator's PORTFOLIXIR_BITCOIN_ESPLORA_URL, whose client reaches that URL's
+# one host, after the URL policy with name resolution.
+config :portfolixir, Portfolixir.Chains.Esplora,
+  sources: [mempool: "https://mempool.space/api", blockstream: "https://blockstream.info/api"],
+  allowed_hosts: %{
+    mempool: ["mempool.space"],
+    blockstream: ["blockstream.info"],
+    own: :any
+  }
+
 config :portfolixir, Portfolixir.Fx.RateSync,
   enabled?: false,
   interval_ms: 12 * 60 * 60 * 1000,
