@@ -26,6 +26,11 @@ defmodule Portfolixir.News.Retier do
   a note is the provenance of an entry the log never rewrites. It is
   counted, when the rating would have changed it, as kept.
 
+  **A newly blocked domain's items are removed** (rule 3): those on a
+  security or a category through `Portfolixir.News.Stories.remove/5`, as
+  retention removes them (§12), the others deleted; no tombstone is left,
+  so a later fetch that lists one again drops it as `dropped_blocked`.
+
   **Each touched story is chosen again** (rule 4): the scopes and languages
   of the re-rated items are reclustered in full
   (`Portfolixir.News.Stories.recluster/4`), so each story's representative,
@@ -112,7 +117,7 @@ defmodule Portfolixir.News.Retier do
   defp promoted?(%{status: status, note_ids: note_ids}), do: status == :promoted or note_ids != []
 
   defp rerate(items, _rated, now, counts) do
-    {_blocked, rerated} = Enum.split_with(items, &(&1.new == :blocked))
+    {blocked, rerated} = Enum.split_with(items, &(&1.new == :blocked))
 
     rerated
     |> Enum.group_by(& &1.new, & &1.id)
@@ -122,10 +127,45 @@ defmodule Portfolixir.News.Retier do
       )
     end)
 
-    case recluster(scopes(rerated), now) do
-      :ok -> {:ok, %{counts | items_rerated: length(rerated)}}
-      {:error, changeset} -> {:error, changeset}
+    with {:ok, removed} <- remove(blocked, now),
+         :ok <- recluster(scopes(rerated), now) do
+      {:ok, %{counts | items_rerated: length(rerated), items_removed: removed}}
     end
+  end
+
+  # E1 rule 3: a newly blocked domain's unpromoted items are removed, as the
+  # ingest would not have stored them (§3). Those on a security or a
+  # category leave their stories through `Stories.remove/5`, as retention's
+  # do (§12): one scope and language at a time, under its lock, a story left
+  # without a member deleted, one that lost a member recounted and
+  # represented by the best member left, one the item held together split.
+  # An unassigned or ambiguous item sits in no story and is deleted. The
+  # delete reads each item again: one promoted meanwhile no longer matches
+  # and stays. No tombstone: a later fetch that lists the item again drops
+  # it as blocked.
+  defp remove([], _now), do: {:ok, 0}
+
+  defp remove(items, now) do
+    {assigned, open} = Enum.split_with(items, &(&1.assignment == :assigned))
+
+    {open_removed, _} = Repo.delete_all(doomed(Enum.map(open, & &1.id)))
+
+    assigned
+    |> Enum.group_by(&{Stories.scope(&1), &1.language}, & &1.id)
+    |> Enum.sort()
+    |> Enum.reduce_while({:ok, open_removed}, fn {{scope, language}, ids}, {:ok, removed} ->
+      case Stories.remove(scope, language, doomed(ids), now) do
+        {:ok, %{items: count}} -> {:cont, {:ok, removed + count}}
+        {:error, changeset} -> {:halt, {:error, changeset}}
+      end
+    end)
+  end
+
+  # The items of `ids` that are still neither promoted nor linked to a note.
+  defp doomed(ids) do
+    from(i in Item,
+      where: i.id in ^ids and i.status != :promoted and fragment("cardinality(?) = 0", i.note_ids)
+    )
   end
 
   # The scopes and languages of the assigned items among `items`, sorted.
