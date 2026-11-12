@@ -961,5 +961,27 @@ defmodule PortfolixirWeb.SaleHindsightLiveTest do
            ]
   end
 
+  # The closing act (#1416, UAT-13's rule): two held funds of one name read
+  # the same in the select, so the operator could not tell which one is
+  # compared. Each twin's option carries what tells it apart, as every
+  # other picker does (PortfolixirWeb.SecurityNames).
+  test "same-named held funds are told apart in the select", %{conn: conn} do
+    %{world: world} = world()
+
+    for isin <- ["DE000TWIN011", "LU000TWIN022"] do
+      twin = create_security!(name: "Synthetic Twin Fund", ticker: nil, isin: isin)
+      buy!(world, twin, quantity: "1", price: "10", date: ~D[2024-12-02])
+      put_quotes!(twin, [{~D[2025-01-15], "10"}])
+    end
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+
+    assert select_groups(view) == [
+             {"Benchmarks", ["Synthetic Bench Index"]},
+             {"In holdings",
+              ["Synthetic Twin Fund · DE000TWIN011", "Synthetic Twin Fund · LU000TWIN022"]}
+           ]
+  end
+
   # --- Sprint 29 B2 end ---
 end

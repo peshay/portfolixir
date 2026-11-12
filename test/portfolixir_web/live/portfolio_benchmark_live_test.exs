@@ -749,6 +749,26 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
     assert request =~ "security%3A#{watched.id}"
   end
 
+  # The closing act (#1416, UAT-13's rule): two held funds of one name read
+  # the same in the picker; each twin's box now carries what tells it
+  # apart (PortfolixirWeb.SecurityNames).
+  test "same-named held funds are told apart in the picker", %{conn: conn} do
+    world = seed_world()
+
+    for isin <- ["DE000TWIN011", "LU000TWIN022"] do
+      twin = WorldFixtures.create_security!(name: "Twin Fund", ticker: nil, isin: isin)
+      WorldFixtures.put_quotes!(twin, [{world.start, "10"}])
+      WorldFixtures.buy!(world, twin, quantity: "1", price: "10", date: world.start)
+    end
+
+    conn = get(conn, "/portfolio")
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    assert group_names(view, "held") ==
+             ["Twin Fund · DE000TWIN011", "Twin Fund · LU000TWIN022", "World ETF"]
+  end
+
   # --- Sprint 29 B2 end ---
 
   describe "BenchmarkScope plug" do

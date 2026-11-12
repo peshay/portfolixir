@@ -15,14 +15,26 @@ defmodule PortfolixirWeb.BenchmarkChoices do
   chosen all the same, as the API takes it, and shown in a third group,
   „Weitere“, so the picker shows what is compared and applying it again
   keeps it. The group is there only while such a security is chosen.
+
+  Same-named securities are told apart (UAT-13's rule,
+  `PortfolixirWeb.SecurityNames`): each group carries `labels`, the name
+  every option reads, with the tag that tells a twin from the others across
+  all groups (its ISIN, else its ticker, else its number); `label/2` reads
+  it. The crash benchmark's select reads the same groups.
   """
 
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias Portfolixir.Catalog.BenchmarkSecurity
   alias Portfolixir.Catalog.Security
+  alias PortfolixirWeb.SecurityNames
 
-  @type group :: %{key: :flagged | :held | :other, label: String.t(), securities: [Security.t()]}
+  @type group :: %{
+          key: :flagged | :held | :other,
+          label: String.t(),
+          securities: [Security.t()],
+          labels: %{optional(integer()) => String.t()}
+        }
 
   @doc """
   The picker's non-empty groups in their order, with `chosen` (the
@@ -41,6 +53,11 @@ defmodule PortfolixirWeb.BenchmarkChoices do
     |> with_chosen(chosen)
   end
 
+  @doc "The name `security`'s option reads in `group`, its twin's tag included."
+  @spec label(group(), Security.t()) :: String.t()
+  def label(%{labels: labels}, %Security{} = security),
+    do: Map.get(labels, security.id, security.name)
+
   @doc """
   `groups` with „Weitere“ added for each of `chosen` that no group offers;
   unchanged when every one is offered.
@@ -52,12 +69,24 @@ defmodule PortfolixirWeb.BenchmarkChoices do
 
     case chosen |> Enum.reject(&MapSet.member?(offered, &1.id)) |> Enum.uniq_by(& &1.id) do
       [] ->
-        groups
+        labelled(groups)
 
       other ->
-        groups ++
-          [%{key: :other, label: pgettext("benchmark picker", "Other"), securities: other}]
+        labelled(
+          groups ++
+            [%{key: :other, label: pgettext("benchmark picker", "Other"), securities: other}]
+        )
     end
+  end
+
+  # Every option's name, a twin's with its tag, decided over all groups:
+  # one select or one picker shows them together.
+  defp labelled(groups) do
+    tags = groups |> Enum.flat_map(& &1.securities) |> SecurityNames.tags()
+
+    Enum.map(groups, fn group ->
+      Map.put(group, :labels, Map.new(group.securities, &{&1.id, SecurityNames.label(tags, &1)}))
+    end)
   end
 
   @doc "The first security the groups offer, in their order: the default choice."
