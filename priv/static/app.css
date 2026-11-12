@@ -5639,6 +5639,64 @@ details[open] > .cat-summary::before {
   overflow-wrap: anywhere;
 }
 
+/* --- S29 N3 begin: an entry's headline and label (ADR-0056 D8) --- */
+/* Board ux-design-2026-11-12-sprint29/03, A: the headline bold behind the
+   chart pin's head and glyph (colour and shape, UX-DR7: never colour
+   alone, and the tone's word on the next line), aligned to its first line
+   when it wraps at 390 px; „event type · tone“, „machinell“ and „not on
+   the chart“ under it as one muted line that wraps as one. A superseded
+   entry's head is the strong border's grey, as its left edge is. */
+.research-entry__headline {
+  margin: 0;
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  font-size: 14.5px;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.research-entry__headline > span {
+  min-width: 0;
+}
+.research-entry__label {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.research-entry--superseded .research-entry__headline {
+  font-weight: 600;
+}
+.note-glyph {
+  flex: none;
+  margin-top: 2.5px;
+}
+.note-glyph circle {
+  fill: var(--color-text-muted);
+  stroke: var(--color-bg-elevated);
+  stroke-width: 1.5;
+}
+.note-glyph--pos circle {
+  fill: var(--color-positive);
+}
+.note-glyph--neg circle {
+  fill: var(--color-danger);
+}
+.note-glyph path {
+  fill: none;
+  stroke: var(--color-bg-elevated);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.research-entry--superseded .note-glyph circle {
+  fill: var(--color-border-strong);
+}
+/* --- S29 N3 end --- */
+
 /* --- Sprint 26 V1 begin: the security's Predictions tab --- */
 /* F1 (ADR-0055 §5; board ux-design-2026-11-06-sprint26-f1, part 1). The
    list is the research timeline's anatomy (.research-timeline,

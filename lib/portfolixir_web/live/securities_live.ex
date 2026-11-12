@@ -47,6 +47,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.Components.SecurityChart
+  alias PortfolixirWeb.EventTypeLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleReferences
@@ -3563,6 +3564,30 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <%= gettext("Superseded by #%{ids}", ids: Enum.join(note.superseded_by_ids, ", #")) %>
                 </p>
               <% end %>
+              <%!-- S29 N3 begin (board ux-design-2026-11-12-sprint29/03, A;
+                   ADR-0056 D8): the headline behind the chart pin's glyph,
+                   „event type · tone“ in words under it (the pin's tooltip,
+                   the same two lines), „machine-made“ only where a news label
+                   gave them, and a superseded entry saying it is not on the
+                   chart. An entry without them draws neither line. --%>
+              <p :if={note.headline} class="research-entry__headline">
+                <SecurityChart.note_glyph tone={note.tone} />
+                <span><%= note.headline %></span>
+              </p>
+              <p :if={entry_label?(note)} class="research-entry__label">
+                <span :if={entry_label(note) != ""}><%= entry_label(note) %></span>
+                <span
+                  :if={note.news_label_id}
+                  class="badge badge--neutral"
+                  title={gettext("Event type and tone taken from a model's labelling of the story; confirmed by the write")}
+                >
+                  <%= gettext("machine-made") %>
+                </span>
+                <span :if={off_chart?(note)}>
+                  <%= if entry_label(note) != "" or note.news_label_id, do: "· " %><%= gettext("not on the chart, as it is superseded") %>
+                </span>
+              </p>
+              <%!-- S29 N3 end --%>
               <p class="research-entry__body"><%= note.body %></p>
               <%!-- E25 S7, G20; pick G12.2 = B: an entry stored before the
                    refusal that carries characters the operator cannot see.
@@ -3583,7 +3608,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <%= if note.source_url do %>
                   <div>
                     <dt><%= gettext("Source link") %></dt>
-                    <dd><a href={note.source_url} rel="noopener noreferrer" target="_blank"><%= note.source_url %></a></dd>
+                    <%!-- S29 N3 (ADR-0056 E2): the link's domain opens the
+                         link; the link is never printed in full. --%>
+                    <dd><a href={note.source_url} rel="noopener noreferrer" target="_blank"><%= link_domain(note.source_url) %></a></dd>
                   </div>
                 <% end %>
                 <%= if note.valid_until do %>
@@ -6954,6 +6981,30 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   # --- S28 N9 end ---
+
+  # --- S29 N3 begin ---
+  # A research entry's second line (board 03 A): „event type · tone“ as the
+  # chart pin's tooltip reads it, a „machine-made“ badge where a news label
+  # gave them, and „not on the chart“ for an entry the chart leaves out
+  # because another supersedes it (`chart_notes/1`).
+  defp entry_label(note), do: EventTypeLabel.line(note.event_type, note.tone)
+
+  defp entry_label?(note),
+    do: entry_label(note) != "" or not is_nil(note.news_label_id) or off_chart?(note)
+
+  defp off_chart?(note),
+    do: is_binary(note.headline) and note.headline != "" and note.superseded_by_ids != []
+
+  # ADR-0056 E2: an entry's link is shown as its host (lower-cased) and opens
+  # the link; a link without a host reads „link“, never the link in full.
+  defp link_domain(url) do
+    case URI.parse(url) do
+      %URI{host: host} when is_binary(host) and host != "" -> String.downcase(host)
+      _no_host -> gettext("link")
+    end
+  end
+
+  # --- S29 N3 end ---
 
   # ADR-0044 §6: the research log newest first and the thesis state derived
   # from it — one read, the projection computed over the rows just loaded.

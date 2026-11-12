@@ -359,21 +359,46 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   defp pin_glyph(_neutral, _x, _y), do: nil
 
   # A note's two lines: the headline, then „event type · tone · date“ in
-  # words, each part only when the note states it.
+  # words, each part only when the note states it; „event type · tone“ is
+  # also the research entry's second line (Sprint 29 N3).
   defp note_lines(note) do
     meta =
-      [
-        note[:event_type] && EventTypeLabel.event_type(note.event_type),
-        note[:tone] in [-1, 0, 1] && EventTypeLabel.tone(note.tone),
-        Format.date(note.date)
-      ]
-      |> Enum.filter(&is_binary/1)
+      [EventTypeLabel.line(note[:event_type], note[:tone]), Format.date(note.date)]
+      |> Enum.reject(&(&1 == ""))
       |> Enum.join(" · ")
 
     [note.headline, meta]
   end
 
   # --- S28 N9 end ---
+
+  # --- S29 N3 begin ---
+  @doc """
+  The pin's head and glyph on its own, 14 px, for a research entry's
+  headline (Sprint 29 N3; board ux-design-2026-11-12-sprint29/03, A): the
+  same tone classes and the same glyph paths as the chart's pin, so the
+  entry and the pin read the same. Decorative: the entry states its tone in
+  words on the line under it.
+  """
+  attr(:tone, :integer, default: nil, doc: "-1, 0, 1 or nil, as the entry stores it")
+
+  def note_glyph(assigns) do
+    tone = tone_class(assigns.tone)
+    assigns = assign(assigns, tone_class: tone, glyph: pin_glyph(tone, 7, 7))
+
+    ~H"""
+    <svg
+      class={["note-glyph", "note-glyph--#{@tone_class}"]}
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      aria-hidden="true"
+      focusable="false"
+    ><circle cx="7" cy="7" r="6" /><path :if={@glyph} d={@glyph} /></svg>
+    """
+  end
+
+  # --- S29 N3 end ---
 
   # The hook's JSON keeps ISO at `points[i][0]` and on a trade: the zoom
   # sends these dates back as the custom range. #1163 (board 02 ⑥): the
