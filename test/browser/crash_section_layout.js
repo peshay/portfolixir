@@ -6,7 +6,11 @@
 // line at 1200 px; the controls from one edge once it wraps at 390 px),
 // the list's rows (one line each at 1200 px; two lines, the bar under the
 // name, at 390 px), the benchmark's dashed line inside each bar's track,
-// and that the page never scrolls sideways.
+// and that the page never scrolls sideways. The closing act adds: the bar
+// one line at 1200 px with a long manual window in the select; the list's
+// columns, the rebounders' six included, inside the section at 1200 px;
+// the windows table's actions inside it at 1200 px; and at 390 px the
+// dashed lines under each row's name line, never across it.
 //
 // Prints one JSON object on stdout: {"ok": true} or {"ok": false, "error":
 // "...", "seen": {...}}; the exit status is 0 either way unless the browser
@@ -37,14 +41,29 @@ async function measure(page) {
       figure: box(row.querySelector(".crash-fig")),
       track: box(row.querySelector(".crash-track")),
       ref: box(row.querySelector(".crash-track__ref")),
+      zero: box(row.querySelector(".crash-track__zero")),
       bar: box(row.querySelector(".crash-track__bar"))
     }));
+    // A table fits when its wrapper scrolls nothing sideways.
+    const fit = (table) => {
+      if (!table) return null;
+      const wrapper = table.closest(".data-table-wrapper");
+      return {
+        wrapper: box(wrapper),
+        scroll: wrapper.scrollWidth,
+        client: wrapper.clientWidth,
+        heads: Array.from(table.querySelectorAll("thead th")).map(box),
+        actions: Array.from(table.querySelectorAll("td.crash-actions button")).map(box)
+      };
+    };
     return {
       viewport: window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
       section: box(section),
       controls,
-      rows
+      rows,
+      list: fit(section.querySelector("table.crash-table")),
+      windows: fit(section.querySelector("#crash-windows-table"))
     };
   });
 }
@@ -71,6 +90,17 @@ function check(seen, width) {
     if (!(select.top < list.top && list.top < universe.top)) errors.push(width + " px: the controls are not stacked");
   }
 
+  if (width >= 1000) {
+    for (const [name, table] of [["the list", seen.list], ["the windows table", seen.windows]]) {
+      if (!table) continue;
+      if (table.scroll > table.client + 0.5)
+        errors.push("1200 px: " + name + " scrolls sideways: " + table.scroll + " in " + table.client);
+      const right = table.wrapper.right + 0.5;
+      if (table.heads.some((h) => h.right > right)) errors.push("1200 px: a column of " + name + " is cut off");
+      if (table.actions.some((a) => a.right > right)) errors.push("1200 px: an action of " + name + " is cut off");
+    }
+  }
+
   for (const [index, r] of seen.rows.entries()) {
     const inside = [r.name, r.figure, r.track].every((b) => b && b.right <= seen.section.right + 0.5);
     if (!inside) errors.push(width + " px: row " + (index + 1) + " runs past the section");
@@ -82,6 +112,10 @@ function check(seen, width) {
       if (r.track.top > r.name.bottom || r.track.bottom < r.name.top) errors.push("1200 px: row " + (index + 1) + " is not one line");
     } else {
       if (r.track.top < r.name.bottom - 0.5) errors.push(width + " px: row " + (index + 1) + "'s bar is not under its name");
+      for (const [what, line] of [["dashed line", r.ref], ["zero line", r.zero]]) {
+        if (line && line.top < r.name.bottom - 0.5)
+          errors.push(width + " px: row " + (index + 1) + "'s " + what + " crosses its name line");
+      }
       if (Math.abs((r.figure.top + r.figure.bottom) / 2 - (r.name.top + r.name.bottom) / 2) > 4)
         errors.push(width + " px: row " + (index + 1) + "'s figure is not beside its name");
     }
@@ -101,12 +135,19 @@ async function run(browser) {
       locale: "de-DE"
     });
     const page = await context.newPage();
-    await visit(page, args.url);
-    await page.waitForSelector("[data-phx-main].phx-connected");
-    await page.waitForSelector("#risk-crashes table.crash-table tbody tr");
-    const seen = await measure(page);
-    seenAll[width] = seen;
-    errors.push(...check(seen, width));
+    for (const [list, url] of [["losers", args.url], ["rebounders", args.rebounders]]) {
+      if (!url) continue;
+      await visit(page, url);
+      await page.waitForSelector("[data-phx-main].phx-connected");
+      await page.waitForSelector("#risk-crashes table.crash-table tbody tr");
+      await page.evaluate(() => {
+        const windows = document.getElementById("crash-windows");
+        if (windows) windows.open = true;
+      });
+      const seen = await measure(page);
+      seenAll[width + " " + list] = seen;
+      errors.push(...check(seen, width).map((error) => list + ": " + error));
+    }
     await leave(context);
   }
   return { errors, seen: seenAll };

@@ -13326,9 +13326,14 @@ dialog.merge-dialog {
 .crash-section {
   container: crash-section / inline-size;
 }
+/* A fixed cap at full width: a percentage in it resolves against the
+   select's own content when the bar sizes its controls, so the select's
+   form took the longest option's width and the bar wrapped (the closing
+   act; board 01 ① P2). Under 560 px the select may take the section's
+   width (below). */
 .crash-bar select {
   width: auto;
-  max-width: min(19.5rem, 100%);
+  max-width: 19.5rem;
 }
 .crash-window {
   display: flex;
@@ -13382,6 +13387,11 @@ dialog.merge-dialog {
 .crash-table thead th {
   white-space: nowrap;
 }
+/* The difference's head names the benchmark, and may be long: it wraps,
+   so every column stays in the section (the closing act). */
+.crash-table th.crash-pp {
+  white-space: normal;
+}
 .crash-table td {
   padding-top: 6px;
   padding-bottom: 6px;
@@ -13392,8 +13402,10 @@ dialog.merge-dialog {
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
 }
+/* A long name wraps rather than pushing the last columns out of the
+   section (the closing act; a 55-character name at 1200 px). */
 .crash-table td.crash-name {
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .crash-table td.crash-name .badge {
   margin-left: 6px;
@@ -13514,6 +13526,19 @@ dialog.merge-dialog {
 .crash-windows-table th {
   white-space: nowrap;
 }
+/* The name may be long (80 characters): it wraps, so the actions stay in
+   the section (the closing act; board 01 ⑥). The table fits its section
+   where it can, and scrolls only where even a wrapped name leaves no room
+   (a phone). */
+.data-table-wrapper > table.crash-windows-table {
+  min-width: 0;
+  width: 100%;
+}
+.crash-windows-table td:first-child {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 8rem;
+}
 .crash-windows-table td.crash-unnamed {
   font-style: italic;
   color: var(--color-text-muted);
@@ -13607,17 +13632,23 @@ dialog.merge-dialog {
   display: flex;
   gap: var(--space-2);
 }
-.segmented-control__option.is-disabled {
-  color: var(--color-text-subtle);
-  cursor: default;
-}
 /* P5, the phone: each entry two lines — rank, name and figure over the
    bar and the difference in points (the days back on a third) — and the
    column heads leave for the labels in the rows. */
 @container crash-section (max-width: 560px) {
+  .crash-bar select {
+    max-width: 100%;
+  }
   .crash-window__link,
   .crash-window__nolink {
     margin-left: 0;
+  }
+  /* Two lines per entry: the zero line and the benchmark's dashed line
+     stay on the bar's line, never across the name above it. */
+  .crash-track__zero,
+  .crash-track__ref {
+    top: -2px;
+    bottom: -2px;
   }
   .crash-table thead {
     position: absolute;
@@ -13655,6 +13686,7 @@ dialog.merge-dialog {
     grid-row: 1;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .crash-table td.crash-fig {
     grid-column: 3;
