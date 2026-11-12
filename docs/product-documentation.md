@@ -716,11 +716,15 @@ against — an index proxied by an ETF, gold by an ETC — fed by the ordinary
 quote sync, so there is no second quote source. A benchmark is never offered
 in a booking form and the catalog's data-quality reminders (stale or missing
 quote, missing logo) leave it alone; it may still be held, and then it is
-simply both. The API lists benchmarks with `is_benchmark=true`. What the
-comparison shows is described under Performance. Removing the flag
-(**Unmark benchmark**) only stops a *new* prediction from naming the
-security as its benchmark: where recorded predictions measure against it,
-the note says how many keep doing so.
+simply both. The API lists benchmarks with `is_benchmark=true`. The flag is
+not needed to compare against a security: over the API and MCP, any security
+with a stored quote can be the benchmark of a comparison, of sale hindsight
+or of a prediction, so a fund you hold stays bookable and checked while it
+is your reference, and the comparison's basis says whether it read a
+flagged, a held or an unheld security. What the comparison shows is
+described under Performance. Removing the flag (**Unmark benchmark**)
+changes no recorded prediction: where recorded predictions measure against
+it, the note says how many keep doing so.
 
 **Retired securities.** A security you no longer hold and whose listing has
 ended — sold out or delisted — stays in the catalog because its bookings do.

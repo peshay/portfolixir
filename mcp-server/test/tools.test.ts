@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { createApiClient } from "../src/api-client.js";
+import { getPrompt } from "../src/prompts.js";
 import { callTool, listTools } from "../src/tools.js";
 import { createRecordingClient } from "./support/recording-client.js";
 
@@ -4466,7 +4467,7 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(schema?.additionalProperties, false);
     assert.match(schema?.properties?.from?.description ?? "", /1900-01-01/);
     assert.match(schema?.properties?.to?.description ?? "", /1900-01-01/);
-    assert.match(schema?.properties?.benchmark?.description ?? "", /is_benchmark/);
+    assert.match(schema?.properties?.benchmark?.description ?? "", /with a stored quote/);
 
     for (const profile of ["read", "book", "full"] as const) {
       const listed = listTools({ profile }).find((tool) => tool.name === "portfolixir.sales.hindsight");
@@ -4485,7 +4486,7 @@ describe("Portfolixir MCP tools", () => {
       assert.ok(description.includes(reason), reason);
     }
     assert.match(description, /rate:<decimal>/);
-    assert.match(description, /is_benchmark/);
+    assert.match(description, /security:<id> with a stored quote/);
     assert.match(description, /dividend payer's miss is understated/);
     assert.match(description, /IT SCORES NOTHING AND GIVES NO VERDICT/);
     assert.match(description, /\blimit\b/);
@@ -4577,14 +4578,67 @@ describe("Portfolixir MCP tools", () => {
   //
   // Acceptance criteria:
   // - The benchmark property's description reads rate:0.02 = 2 % p.a. and
-  //   names security:<id> flagged is_benchmark.
+  //   names security:<id> with a stored quote (Sprint 29 B1, #1416).
   it("gives the benchmark rate's scale on the parameter itself", () => {
     const tool = listTools().find((entry) => entry.name === "portfolixir.sales.hindsight");
     const benchmark = tool?.inputSchema.properties?.benchmark as { description?: string } | undefined;
     assert.match(benchmark?.description ?? "", /rate:0\.02 = 2 % p\.a\./);
-    assert.match(benchmark?.description ?? "", /security:<id> flagged is_benchmark/);
+    assert.match(benchmark?.description ?? "", /security:<id> with a stored quote/);
   });
   // --- Sprint 26 closing act R end ---
+
+  // --- S29 B1 begin ---
+  // User story (Sprint 29 B1, #1416; ADR-0046's amendment of 2026-11-07):
+  // As the agent comparing against the fund the operator holds,
+  // I want every tool that takes benchmark=security:<id> to say that any
+  // security with a stored quote is taken, flagged or not,
+  // so that I do not ask the operator to flag a held fund, which would take
+  // it out of the booking form and the data-quality checks.
+  //
+  // Acceptance criteria:
+  // - The benchmark property of portfolios.benchmark, views.benchmark and
+  //   sales.hindsight, and the descriptions of portfolios.benchmark,
+  //   sales.hindsight and predictions.create, say "with a stored quote" and
+  //   none of them says the security must be flagged is_benchmark.
+  // - portfolios.benchmark names computation_basis.benchmark_security and
+  //   its three values; views.benchmark answers its shape.
+  it("says any security with a stored quote is a benchmark, flagged or not", () => {
+    const tools = listTools();
+    const find = (name: string) => tools.find((entry) => entry.name === name);
+    const property = (name: string) =>
+      ((find(name)?.inputSchema.properties?.benchmark as { description?: string } | undefined)
+        ?.description ?? "");
+
+    for (const name of [
+      "portfolixir.portfolios.benchmark",
+      "portfolixir.views.benchmark",
+      "portfolixir.sales.hindsight"
+    ]) {
+      assert.match(property(name), /with a stored quote/, name);
+      assert.doesNotMatch(property(name), /security flagged is_benchmark|<id> flagged is_benchmark/, name);
+    }
+
+    for (const name of [
+      "portfolixir.portfolios.benchmark",
+      "portfolixir.sales.hindsight",
+      "portfolixir.predictions.create"
+    ]) {
+      const description = find(name)?.description ?? "";
+      assert.match(description, /with a stored quote/, name);
+      assert.doesNotMatch(description, /security flagged is_benchmark|<id> flagged is_benchmark|list flagged securities/, name);
+    }
+
+    assert.match(
+      find("portfolixir.portfolios.benchmark")?.description ?? "",
+      /benchmark_security \(flagged, held or unheld\)/
+    );
+
+    // The position_review prompt's benchmark line says the same.
+    const review = JSON.stringify(getPrompt("position_review", undefined, "full"));
+    assert.match(review, /security:<id> of a security with a stored quote/);
+    assert.doesNotMatch(review, /security flagged is_benchmark/);
+  });
+  // --- S29 B1 end ---
 
   // User story (Sprint 25, F4; ADR-0055 §5):
   // As the operator's agent with a view on a position,
