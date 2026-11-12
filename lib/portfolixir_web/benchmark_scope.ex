@@ -9,7 +9,9 @@ defmodule PortfolixirWeb.BenchmarkScope do
   on a full navigation (the picker is a plain GET form), is stored in the
   session (so the LiveView mount can read it) and in a long-lived cookie (so
   it survives a new session). At most two selectors are kept, in the order
-  given, securities first and the rate last.
+  given, securities first and the rate last; the picker's hidden
+  `benchmark_order` (the selectors its page had chosen, in order) puts those
+  still ticked first, so applying it keeps the chips' order.
 
   The plug validates only the **shape** of a selector — a positive integer
   security id, or a finite rate inside the engine's own bound
@@ -105,8 +107,23 @@ defmodule PortfolixirWeb.BenchmarkScope do
         _none -> []
       end
 
-    normalize_selectors(entries ++ rate_selector(Map.get(params, "benchmark_rate")))
+    entries
+    |> kept_first(Map.get(params, "benchmark_order"))
+    |> Kernel.++(rate_selector(Map.get(params, "benchmark_rate")))
+    |> normalize_selectors()
   end
+
+  # The picker sends its ticked boxes in the groups' order; its hidden
+  # `benchmark_order` names the selectors the address had chosen, in their
+  # order (the closing act, #1416). Those still ticked come first, in that
+  # order, then the ones ticked anew, so applying the picker never swaps
+  # the chips' colours. A request without it keeps its own order.
+  defp kept_first(entries, order) when is_binary(order) do
+    kept = order |> String.split(",", trim: true) |> Enum.filter(&(&1 in entries))
+    kept ++ Enum.reject(entries, &(&1 in kept))
+  end
+
+  defp kept_first(entries, _order), do: entries
 
   @doc """
   The rate a remembered `rate:<fraction>` selector names, through the one

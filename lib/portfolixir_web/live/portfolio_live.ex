@@ -2292,6 +2292,14 @@ defmodule PortfolixirWeb.PortfolioLive do
                   <%!-- The empty entry marks an explicit choice, so a form
                        submitted with nothing ticked clears the selection. --%>
                   <input type="hidden" name="benchmark[]" value="" />
+                  <%!-- The closing act (#1416): the chosen securities in the
+                       address's order, so „Anwenden“ keeps it for the boxes
+                       still ticked (`PortfolixirWeb.BenchmarkScope`). --%>
+                  <input
+                    type="hidden"
+                    name="benchmark_order"
+                    value={benchmark_order(@benchmarks)}
+                  />
                   <%!-- #1416 (B2; board 02, Q1 A): two labelled groups,
                        „Benchmarks“ then „Im Bestand“, each label in one
                        column and its options from one edge; „Weitere“
@@ -4387,6 +4395,10 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp comparison_name(%{kind: :security, name: name}), do: name
   defp comparison_name(%{kind: :rate, annual_rate: rate}), do: benchmark_name({:rate, rate})
+
+  defp benchmark_order(benchmarks) do
+    Enum.map_join(for({:security, %{id: id}} <- benchmarks, do: id), ",", &"security:#{&1}")
+  end
 
   defp benchmark_selected?(benchmarks, option) do
     Enum.any?(benchmarks, fn
