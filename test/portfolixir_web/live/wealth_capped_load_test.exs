@@ -9,6 +9,7 @@ defmodule PortfolixirWeb.WealthCappedLoadTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Classifications
+  alias Portfolixir.LoweredHeapCap
   alias Portfolixir.WorldFixtures
 
   defp seed_world do
@@ -35,25 +36,6 @@ defmodule PortfolixirWeb.WealthCappedLoadTest do
     end
   end
 
-  # The cap the next task takes as its first act, set after the page mounted
-  # under its own: 2 KiB, below what any load holds, so the runtime kills the
-  # task at its first collection.
-  defp with_lowered_cap(fun) do
-    prior = Application.get_env(:portfolixir, Portfolixir.HeapCap, [])
-
-    Application.put_env(
-      :portfolixir,
-      Portfolixir.HeapCap,
-      Keyword.put(prior, :max_heap_bytes, 2_048)
-    )
-
-    try do
-      fun.()
-    after
-      Application.put_env(:portfolixir, Portfolixir.HeapCap, prior)
-    end
-  end
-
   # User story (#1204):
   # As the operator whose Wealth page loads its figures in capped tasks,
   # I want a load the heap cap kills to end in the page's own failure state,
@@ -76,11 +58,15 @@ defmodule PortfolixirWeb.WealthCappedLoadTest do
     # take the test with it before it could say so.
     Process.flag(:trap_exit, true)
 
-    # The runtime's report of the kill is captured, not asserted: it may land
-    # after the page has answered.
+    # The runtime's report of the kill is captured, not asserted.
     capture_log(fn ->
+      # The cap the next task takes as its first act, lowered after the page
+      # mounted under its own and for this load only: 2 KiB, below what any
+      # load holds, so the runtime kills the task at its first collection.
+      # The call returns once every kill's report is logged, inside this
+      # capture (#1440).
       outcome =
-        with_lowered_cap(fn ->
+        LoweredHeapCap.run(2_048, fn ->
           try do
             view
             |> element("form[phx-change='select_classification']")

@@ -11,6 +11,7 @@ defmodule Portfolixir.Portfolios.Performance.BackgroundWalksCappedTest do
   alias Portfolixir.Derived.Memo
   alias Portfolixir.Derived.Refresher
   alias Portfolixir.DerivedConfig
+  alias Portfolixir.LoweredHeapCap
   alias Portfolixir.Portfolios.Performance.Warmup
 
   @moduletag timeout: 120_000
@@ -30,20 +31,11 @@ defmodule Portfolixir.Portfolios.Performance.BackgroundWalksCappedTest do
     on_exit(fn -> :erlang.trace(:all, false, [:procs]) end)
   end
 
-  # The cap every walk takes as its first act, lowered for this test to
-  # 2 KiB, below what any walk holds, so the runtime kills the walk at its
-  # first collection.
-  defp lower_cap! do
-    prior = Application.get_env(:portfolixir, Portfolixir.HeapCap, [])
-
-    Application.put_env(
-      :portfolixir,
-      Portfolixir.HeapCap,
-      Keyword.put(prior, :max_heap_bytes, 2_048)
-    )
-
-    on_exit(fn -> Application.put_env(:portfolixir, Portfolixir.HeapCap, prior) end)
-  end
+  # The cap every walk takes as its first act, lowered to 2 KiB, below what
+  # any walk holds, so the runtime kills the walk at its first collection;
+  # for the call only, which returns once every kill's report is logged,
+  # inside the caller's capture (#1440).
+  defp with_lowered_cap(fun), do: LoweredHeapCap.run(2_048, fun)
 
   setup do
     Memo.reset()
@@ -64,22 +56,21 @@ defmodule Portfolixir.Portfolios.Performance.BackgroundWalksCappedTest do
   # - The warm-up process survives it and logs the skipped scope.
   test "the boot warm-up walks under the heap cap, and a walk past it fails alone" do
     small_world!()
-    lower_cap!()
     trace_exits!()
 
     log =
       capture_log(fn ->
-        warmup = start_supervised!({Warmup, []})
+        with_lowered_cap(fn ->
+          warmup = start_supervised!({Warmup, []})
 
-        assert_receive {:trace, walker, :exit, :killed}, 10_000
-        assert walker != warmup
+          assert_receive {:trace, walker, :exit, :killed}, 10_000
+          assert walker != warmup
 
-        # The warm-up runs in handle_continue: a system message is served
-        # only after it returns, so this waits for the whole warm.
-        _state = :sys.get_state(warmup, 60_000)
-        assert Process.alive?(warmup)
-        # The runtime's report of the kill is logged by another process.
-        Process.sleep(200)
+          # The warm-up runs in handle_continue: a system message is served
+          # only after it returns, so this waits for the whole warm.
+          _state = :sys.get_state(warmup, 60_000)
+          assert Process.alive?(warmup)
+        end)
       end)
 
     assert log =~ "performance warm-up skipped"
@@ -99,25 +90,25 @@ defmodule Portfolixir.Portfolios.Performance.BackgroundWalksCappedTest do
   # - The refresher survives it and logs the skipped scope.
   test "the refresher walks under the heap cap after a write, and a walk past it fails alone" do
     world = small_world!()
-    lower_cap!()
     trace_exits!()
 
     log =
       capture_log(fn ->
-        refresher =
-          start_supervised!(
-            {Refresher, refresh: &Warmup.warm_basis/1, quiet_ms: 10, max_delay_ms: 50}
-          )
+        with_lowered_cap(fn ->
+          refresher =
+            start_supervised!(
+              {Refresher, refresh: &Warmup.warm_basis/1, quiet_ms: 10, max_delay_ms: 50}
+            )
 
-        Refresher.notify(["portfolio:#{world.portfolio.id}"])
+          Refresher.notify(["portfolio:#{world.portfolio.id}"])
 
-        assert_receive {:trace, walker, :exit, :killed}, 10_000
-        assert walker != refresher
+          assert_receive {:trace, walker, :exit, :killed}, 10_000
+          assert walker != refresher
 
-        # The drain runs in handle_info: wait for it to return.
-        _state = :sys.get_state(refresher, 60_000)
-        assert Process.alive?(refresher)
-        Process.sleep(200)
+          # The drain runs in handle_info: wait for it to return.
+          _state = :sys.get_state(refresher, 60_000)
+          assert Process.alive?(refresher)
+        end)
       end)
 
     assert log =~ "performance warm-up skipped"
