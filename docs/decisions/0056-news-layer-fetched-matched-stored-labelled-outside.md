@@ -15,8 +15,9 @@ description: "Decision for gate B3.3, narrowed to news (idea F12, idea I21; exte
   amended on 2026-11-08 by the Sprint 27 closing act, adopted by the merge
   of the sprint PR (see "Amendment of 2026-11-08"), and amended on
   2026-11-09 by the Sprint 28 build and its closing act, adopted by the
-  merge of that sprint PR (see "Amendment of 2026-11-09" at the end). The
-  merge opens gate B3.3
+  merge of that sprint PR (see "Amendment of 2026-11-09"), and amended on
+  2026-11-12 by the merge of the Sprint 29 planning PR (see "Amendment of
+  2026-11-12" at the end). The merge opens gate B3.3
   **for news feeds only**; every other kind of acquisition (bank, broker
   and wallet sync, F13; CPI and other series) stays behind it.
 - **Date:** 2026-11-05
@@ -1079,3 +1080,128 @@ decided, run one labeller's prompt version at a time, or name
 
 §13's table gains no row: this is a question about D2's default, not an
 ask.
+
+## Amendment of 2026-11-12: what the first fill found
+
+**Adopted by the merge of the Sprint 29 planning PR** (ADR-0026 step 1, as
+amended on 2026-10-08), **built in Sprint 29** (#1443, #1444). The
+operator's agent registered the first feeds and sources and ran the first
+fetch on 2026-11-10; its report was triaged the same day
+(`_bmad-output/planning-artifacts/feedback-triage-2026-11-10.md`), and the
+owner adopted every recommendation of its Part 3. The parser's half (P1,
+P2) was built at once (#1442, merged as #1445) and changes no decision
+(A1 states no encoding). Two items change this record: E1 (C2 of the
+triage) and E2 (C1). Neither books or corrects a stored money figure.
+
+### E1. A rating by hand re-rates the stored items it covers (§3, B5, D6)
+
+§3 rates a domain, and ingest stores each item with the tier its domain
+had at that moment (`Ingest.tier_and_block/2`). Until now a later rating
+changed nothing stored: an item kept the tier it arrived with, and
+promotion turns stored tiers into an entry's `source_quality` (§3's rule,
+D6), which the caller may not override. So a domain rated **down or
+blocked** after its items were stored still promoted at its old tier, and
+the append-only research log (ADR-0044) kept an entry claiming a better
+source than the operator's table now allows, permanently. The other
+direction (rated up) understated.
+
+**The rule.** A write to `news_sources` that changes a row's stored tier
+re-rates, **in the same transaction**, every stored item that is **not
+promoted** and whose domain the row now decides:
+
+1. **Which items:** an item's domain equals the row's domain or is a
+   subdomain of it, and no longer row decides it (§3's longest-suffix
+   rule, `Sources.lookup/1`). A more specific row elsewhere keeps its
+   items.
+2. **Their new tier:** `Sources.tier(class, rated)` exactly as ingest
+   computes it, B5's cap included: an `aggregator` item is at most
+   `secondary`; an `issuer` or `regulatory` item stays `primary` unless
+   the domain is `blocked`.
+3. **A newly `blocked` domain's unpromoted items are removed**, as ingest
+   would not have stored them (§3), and counted in the journal entry
+   (below). A later fetch that lists them again drops them at ingest and
+   counts them `dropped_blocked`, as for any blocked item; no tombstone is
+   needed.
+4. **Each touched story's representative is chosen again** by C2's rule
+   (best tier, then `first_seen_at`, then URL), so a story whose best
+   member lost its tier is represented by the member that now ranks
+   first. Removed items leave their stories through
+   `Stories.remove/5`, as retention's do (§12): a story left without a
+   member is deleted, one that a removed item held together splits. C1's
+   anchoring is read again for each touched story, since an item that
+   was `primary` may no longer be. Labels are kept, as §12 keeps them.
+5. **Promoted items keep their tier.** The entry they name is written, and
+   the log is never rewritten (ADR-0044). The item's stored tier is the
+   provenance of that entry; changing it would make the item and the
+   entry disagree about the same moment.
+6. **The journal entry** of the write (B7) names, beside the row's prior
+   and new tier, the count of items re-rated, the count removed, and the
+   count left untouched because promoted.
+
+**Which writes.** Every write that changes a row's stored tier: a hand
+write (the operator or the agent), and a seed write onto a domain with no
+hand row. **A seed write onto a hand row stays a no-op** (§3: a correction
+by hand is never overwritten), so it changes no tier and re-rates
+nothing. *Why seed writes too:* a seed that changes a default after items
+are stored would otherwise leave the same frozen tier this amendment
+removes; the owner's answer named the hand write, the case that occurs,
+and this is the same rule applied to the other writer. **To flip:** "news
+retier hand only".
+
+**Order** (the Sprint 26 retrospective's first carry-forward):
+
+- *A fetch storing items while a rating is written:* the rating's
+  transaction and ingest's tier read serialize, so an item is either
+  stored before the re-rating (and re-rated by it) or after it (and reads
+  the new tier). The build picks the mechanism (a lock both paths take in
+  a registered order) and pins it with an order test that interleaves
+  the two; what must not happen is an item stored with the old tier after
+  the re-rating committed.
+- *A promotion while a rating is written:* promotion runs under the
+  story's scope lock with its members locked (D6); the re-rating takes the
+  touched stories' locks in the order registered for `news.assign` (D4).
+  Whichever commits first wins: a member promoted first keeps its tier; a
+  member re-rated first is promoted at its new tier.
+- *Two ratings of overlapping domains* (`example.com` and
+  `markets.example.com`): each re-rates only the items its own row
+  decides after its write, so the result depends on the rows, not on
+  which write came first.
+
+*Why at write and not at read:* reading the tier at query time was
+weighed and not chosen. It moves the digest's tier filter, each story's
+representative and C1's anchoring into every read, and a story's
+representative would change between two reads without a write the
+journal names. **To flip:** "news tier at read".
+
+### E2. An entry's link holds what the parser accepts (D6)
+
+The parser accepts links of up to 2,048 bytes; `security_notes.source_url`
+and `security_events.source_url` held 255 characters, so D6 fell back to
+the first member whose link fits and answered 422 when none did.
+Aggregator redirect links are often 250 to 400 characters, so most
+aggregator stories could not become an entry: a flow that cannot be
+completed (S2).
+
+**`source_url` on both tables is widened to 2,048 characters**, the
+parser's own cap: one migration, no row rewritten, the two changesets'
+length validation and the companion's descriptions with it. D6's two
+references to 255 characters read 2,048: the representative's link is
+used when it fits, else the first member's that fits in `news.get`'s
+member order, else 422 naming `source_url`. **"News follow" stays
+deferred** (§2, §13, D9): following the redirect would make the app
+request a host it did not choose, once per item, and that reason is
+unchanged. Where a screen prints an entry's link in full, it is boarded
+before it is built; the Research tab's entry (the Sprint 29 plan) shows
+the link's domain and opens the link, and prints no link in full.
+
+### E3. The asks of the first fill (ADR-0043)
+
+| Ask | Source | Verdict |
+|---|---|---|
+| Read ISO-8859-1, US-ASCII and a UTF-8 BOM | triage P1, P2 | **Answered and built** — #1442 (merged as #1445), no change to this record |
+| An entry for a story whose links are all long | triage C1 | **Answered** — E2 |
+| A rating after ingest reaches the stored items | triage C2 | **Answered** — E1 |
+| Name the refused redirect's host in `last_error` | triage R1 | **Recorded** — a line on "Polish: API and MCP" (#1356), S3 |
+| Resolve aggregator redirects at ingest | the report's premise | **Deferred**, unchanged — "news follow" (§2, D9) |
+
+D5 and D10 stay open questions, unchanged by this amendment.
