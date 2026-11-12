@@ -16789,7 +16789,8 @@ msgstr "Der Kursanbieter hat keine gültige Währung genannt; nichts wurde gespe
 msgid "Event type and tone taken from a model's labelling of the story; confirmed by the write"
 msgstr "Ereignisart und Tonalität aus der Einordnung eines Modells übernommen; mit dem Schreiben bestätigt"
 
-#: lib/portfolixir_web/link_domain.ex:16
+#: lib/portfolixir_web/link_domain.ex:24
+#: lib/portfolixir_web/link_domain.ex:27
 #, elixir-autogen, elixir-format
 msgid "link"
 msgstr "Link"

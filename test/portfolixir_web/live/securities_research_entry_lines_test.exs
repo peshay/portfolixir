@@ -18,6 +18,7 @@ defmodule PortfolixirWeb.SecuritiesResearchEntryLinesTest do
   alias Portfolixir.Actor
   alias Portfolixir.Clock
   alias Portfolixir.Knowledge
+  alias Portfolixir.Repo
   alias PortfolixirWeb.EventTypeLabel
   alias PortfolixirWeb.Format
 
@@ -296,6 +297,44 @@ defmodule PortfolixirWeb.SecuritiesResearchEntryLinesTest do
       assert LazyHTML.attribute(link, "href") == [href]
       assert LazyHTML.text(link) |> String.trim() == shown
     end
+  end
+
+  # User story (closing act, F2; ADR-0044: a stored entry is never
+  # rewritten, so the screen must read an older row safely):
+  # As the operator reading an entry stored before links with a backslash
+  # were refused,
+  # I want its link not to name a domain other than the one it opens,
+  # so that `https://attacker.example\@ir.example/` cannot read
+  # „ir.example“ while the browser opens attacker.example.
+  #
+  # Acceptance criteria:
+  # - Such a stored link reads „link“; its href is the stored link.
+  test "a stored link with a backslash in its authority reads „link“", %{conn: conn} do
+    security = security!("Spoof Check AG")
+    url = "https://attacker.example\\@ir.example/report"
+
+    # The changeset refuses it now; a row stored before stays (ADR-0044).
+    {:ok, %{rows: [[id]]}} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'owner_ui', true)")
+
+        Repo.query!(
+          """
+          INSERT INTO security_notes
+            (security_id, author, machine_generated, kind, body, source_quality, as_of,
+             source_url, inserted_at)
+          VALUES ($1, 'agent', false, 'evidence', 'Synthetic finding.', 'primary', $2, $3, now())
+          RETURNING id
+          """,
+          [security.id, day(-1), url]
+        )
+      end)
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=research")
+    link = view |> entry(%{id: id}) |> LazyHTML.query(".research-entry__facts a")
+
+    assert LazyHTML.attribute(link, "href") == [url]
+    assert LazyHTML.text(link) |> String.trim() == "link"
   end
 
   # User story (Sprint 29 N3; ADR-0056 D8: the privacy mode keeps the pins):

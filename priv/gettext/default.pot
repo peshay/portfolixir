@@ -16779,7 +16779,8 @@ msgstr ""
 msgid "Event type and tone taken from a model's labelling of the story; confirmed by the write"
 msgstr ""
 
-#: lib/portfolixir_web/link_domain.ex:16
+#: lib/portfolixir_web/link_domain.ex:24
+#: lib/portfolixir_web/link_domain.ex:27
 #, elixir-autogen, elixir-format
 msgid "link"
 msgstr ""
