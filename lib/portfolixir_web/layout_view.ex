@@ -44,11 +44,13 @@ defmodule PortfolixirWeb.LayoutView do
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <script id="theme-boot" nonce={@csp_nonce}>
           (function () {
-            var mode = window.localStorage && window.localStorage.getItem("portfolixir-theme");
+            var mode = null;
+            var accent = null;
+            try { mode = window.localStorage && window.localStorage.getItem("portfolixir-theme"); } catch (_) {}
             if (["system", "light", "dark"].indexOf(mode) === -1) {
               mode = "system";
             }
-            var accent = window.localStorage && window.localStorage.getItem("portfolixir-accent");
+            try { accent = window.localStorage && window.localStorage.getItem("portfolixir-accent"); } catch (_) {}
             if (["violet", "teal", "coral"].indexOf(accent) === -1) {
               accent = "violet";
             }
@@ -2297,9 +2299,31 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // A browser that blocks site data throws on the first read of
+            // window.localStorage or window.sessionStorage (#1439), and
+            // LiveSocket reads both as it is built: a throw there and the
+            // page never connects. It gets the browser's storage when the
+            // browser allows it, and otherwise a store that keeps its values
+            // for this page alone.
+            function siteStorage(name) {
+              try {
+                if (window[name]) return window[name];
+              } catch (_) {}
+              var kept = {};
+              return {
+                getItem: function (k) {
+                  return Object.prototype.hasOwnProperty.call(kept, k) ? kept[k] : null;
+                },
+                setItem: function (k, v) { kept[k] = String(v); },
+                removeItem: function (k) { delete kept[k]; }
+              };
+            }
+
             var liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
               hooks: Hooks,
-              params: { _csrf_token: csrfToken }
+              params: { _csrf_token: csrfToken },
+              localStorage: siteStorage("localStorage"),
+              sessionStorage: siteStorage("sessionStorage")
             });
 
             window.addEventListener("phx:copy-to-clipboard", function (event) {
@@ -2431,14 +2455,36 @@ defmodule PortfolixirWeb.LayoutView do
             var allowedModes = ["system", "light", "dark"];
             var allowedAccents = ["violet", "teal", "coral"];
 
+            // Every storage read and write in try/catch, ColumnPrefs' rule
+            // (#1439): a browser that blocks site data throws on the first
+            // read of window.localStorage. A choice then holds for the page
+            // it was made on, and the controls mark what the page shows.
+            function readStored(key) {
+              try {
+                return window.localStorage && window.localStorage.getItem(key);
+              } catch (_) {
+                return null;
+              }
+            }
+
+            function store(key, value) {
+              try {
+                if (window.localStorage) window.localStorage.setItem(key, value);
+              } catch (_) {}
+            }
+
             function currentMode() {
-              var stored = window.localStorage && window.localStorage.getItem("portfolixir-theme");
-              return allowedModes.indexOf(stored) === -1 ? "system" : stored;
+              var stored = readStored("portfolixir-theme");
+              if (allowedModes.indexOf(stored) !== -1) return stored;
+              var shown = document.documentElement.dataset.theme;
+              return allowedModes.indexOf(shown) === -1 ? "system" : shown;
             }
 
             function currentAccent() {
-              var stored = window.localStorage && window.localStorage.getItem("portfolixir-accent");
-              return allowedAccents.indexOf(stored) === -1 ? "violet" : stored;
+              var stored = readStored("portfolixir-accent");
+              if (allowedAccents.indexOf(stored) !== -1) return stored;
+              var shown = document.documentElement.dataset.accent;
+              return allowedAccents.indexOf(shown) === -1 ? "violet" : shown;
             }
 
             function applyTheme(mode) {
@@ -2446,9 +2492,7 @@ defmodule PortfolixirWeb.LayoutView do
                 mode = "system";
               }
 
-              if (window.localStorage) {
-                window.localStorage.setItem("portfolixir-theme", mode);
-              }
+              store("portfolixir-theme", mode);
 
               document.documentElement.dataset.theme = mode;
               syncControls(mode);
@@ -2459,9 +2503,7 @@ defmodule PortfolixirWeb.LayoutView do
                 accent = "violet";
               }
 
-              if (window.localStorage) {
-                window.localStorage.setItem("portfolixir-accent", accent);
-              }
+              store("portfolixir-accent", accent);
 
               document.documentElement.dataset.accent = accent;
               syncAccentControls(accent);
