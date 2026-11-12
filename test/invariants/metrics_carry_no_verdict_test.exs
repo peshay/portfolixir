@@ -31,9 +31,12 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Catalog.SecurityCycles
   alias Portfolixir.Crashes
   alias Portfolixir.Crashes.Rankings
+  alias Portfolixir.Knowledge.Events
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Settings
@@ -501,4 +504,75 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
       end)
 
   # --- Sprint 29 C4 end ---
+
+  # --- Sprint 29 H4 begin ---
+  # User story (FR-58, ADR-0060 §8, §9; Sprint 29 H4):
+  # As the maintainer holding the scope ladder,
+  # I want the halving cycles' payload checked the same way,
+  # so that a cycle's top, low and intervals stay figures and never become a
+  # signal to buy at a low or sell at a top.
+  #
+  # Acceptance criteria:
+  # - No key of the cycles read's payload — windows, tops, lows, the six
+  #   intervals with their observations, the halvings and the computation
+  #   basis — contains a forbidden word, over a payload with cycles AND over
+  #   one with a reason and no cycles.
+  # - The walk is at the context level until the API read lands (H6), which
+  #   moves it to the rendered JSON.
+  test "the halving cycles payload carries no verdict key" do
+    agent = Actor.api_token_rw("synthetic-agent")
+    rich = create_security!(name: "Verdict Cycle", ticker: "VCY", asset_class: "crypto")
+    {:ok, rich} = Catalog.update_security(agent, rich, %{halving_chain: :litecoin})
+    bare = create_security!(name: "Verdict Bare", ticker: "VBR", asset_class: "crypto")
+
+    for {k, date, confirmed} <- [
+          {1, "2020-01-10", true},
+          {2, "2021-01-10", true},
+          {3, "2022-01-10", true},
+          {4, "2023-01-10", false}
+        ] do
+      {:ok, _event} =
+        Events.create_event(agent, %{
+          "security_id" => rich.id,
+          "kind" => "halving",
+          "chain_height" => k * 840_000,
+          "date" => date,
+          "timing" => "exact",
+          "confirmed" => confirmed,
+          "source_quality" => "unverified"
+        })
+    end
+
+    closes = [
+      {~D[2020-01-10], "10"},
+      {~D[2020-05-01], "40"},
+      {~D[2020-09-01], "8"},
+      {~D[2021-01-10], "9"},
+      {~D[2021-06-01], "90"},
+      {~D[2021-10-01], "30"},
+      {~D[2022-01-10], "35"},
+      {~D[2022-06-01], "200"},
+      {~D[2022-09-01], "120"}
+    ]
+
+    rows =
+      for {date, close} <- closes, do: %{date: date, close: Decimal.new(close), source: "manual"}
+
+    {:ok, _count} = Quotes.upsert_many(rich.id, rows)
+
+    {:ok, with_cycles} = SecurityCycles.for_security(rich.id)
+    {:ok, without} = SecurityCycles.for_security(bare.id)
+
+    assert length(with_cycles.cycles) == 3
+    assert with_cycles.intervals.low_to_top.n == 2
+    assert without.reason == :no_halving_chain
+
+    for payload <- [with_cycles, without] do
+      assert offenders(payload) == [],
+             "ADR-0060 §8: the cycles payload carries verdict keys #{inspect(offenders(payload))}; " <>
+               "a top, a low and an interval are figures, never a signal."
+    end
+  end
+
+  # --- Sprint 29 H4 end ---
 end

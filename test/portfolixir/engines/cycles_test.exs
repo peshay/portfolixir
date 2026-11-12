@@ -445,5 +445,7 @@ defmodule Portfolixir.Engines.CyclesTest do
     assert {open.top, open.low_so_far, open.top_reason} == {nil, nil, :no_closes}
 
     assert result.counts == %{cycles_complete: 1, cycles_partial: 0, cycle_open: true}
+    # No unconfirmed halving was given: there is no next one to name.
+    assert result.next_halving == nil
   end
 end
