@@ -17,7 +17,14 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   reads too (ADR-0051 §11, I8): a level (b) decomposition carries no ranking
   label either.
   """
-  use PortfolixirWeb.ConnCase, async: true
+  # group: :crash_benchmark -- the async modules that choose the crash
+  # benchmark never run at the same time (the closing act of Sprint 29). The
+  # choice is one settings row for the instance (settings_key_index), taken
+  # under an advisory lock on its key, and a sandboxed test never commits: a
+  # module choosing beside another one waited on the other's lock and row
+  # until that test ended, into the 15 s query timeout under load. The key
+  # is the setting's, so no fixture of a test's own avoids it.
+  use PortfolixirWeb.ConnCase, async: true, group: :crash_benchmark
 
   import Portfolixir.WorldFixtures,
     only: [base_world: 0, buy!: 3, create_security!: 1, deposit!: 3, sell!: 3]
