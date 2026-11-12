@@ -25,6 +25,13 @@ defmodule Portfolixir.Crashes do
   the start, or it was given for another crash benchmark) is listed under
   `unmatched_names` with its stored key and is never re-attached to another
   window by a guess. Switching the benchmark back restores its names.
+
+  **Manual windows** (§4): a window a person draws, stored
+  (`Portfolixir.Crashes.ManualWindow`), keyed `m:<id>` and of kind
+  `"manual"` on every read, created, edited and deleted under its actor,
+  journaled; it may overlap any window. A name without a window becomes
+  one only with a trough the caller gives (`manual_window_from_name/3`,
+  the amendment's F1): nothing is guessed from the closes.
   """
 
   import Ecto.Query
@@ -35,6 +42,7 @@ defmodule Portfolixir.Crashes do
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
+  alias Portfolixir.Crashes.ManualWindow
   alias Portfolixir.Crashes.PeakTrough
   alias Portfolixir.Crashes.WindowName
   alias Portfolixir.Journal
@@ -47,6 +55,11 @@ defmodule Portfolixir.Crashes do
   # The fields each write takes (ADR-0058 §9: an unknown field is refused,
   # naming it).
   @name_fields ~w(name)
+  @manual_fields ~w(name start trough)
+  @from_name_fields ~w(name trough)
+
+  # The largest id a bigint column holds: a longer key names nothing.
+  @max_id 9_223_372_036_854_775_807
 
   @typedoc "The detected windows over the crash benchmark, or why there are none."
   @type detection :: %{
@@ -108,7 +121,10 @@ defmodule Portfolixir.Crashes do
   @doc """
   The crash windows as every reader reads them (ADR-0058 §3, §9):
   `detected/0`'s answer with each detected window's `name` (`nil` when
-  unnamed), and `unmatched_names`, the stored names whose key matches no
+  unnamed); `manual`, the manual windows (§4), oldest start first, each
+  with its key `m:<id>`, `kind: "manual"`, its dates and the creating
+  token, listed whether or not a crash benchmark is chosen; and
+  `unmatched_names`, the stored names whose key matches no
   window detected now, oldest start first. Each unmatched name carries its
   stored key, its benchmark's id and current name (`nil` when the security
   is gone), its start, and `for_current_benchmark`: `true` when it was given
@@ -119,6 +135,7 @@ defmodule Portfolixir.Crashes do
   @spec list_windows() :: %{
           benchmark: Security.t() | nil,
           detected: [map()],
+          manual: [map()],
           unmatched_names: [unmatched_name()],
           reason: String.t() | nil,
           basis: map()
@@ -142,8 +159,46 @@ defmodule Portfolixir.Crashes do
       |> Enum.reject(&MapSet.member?(detected_keys, name_key(&1)))
       |> unmatched_names(Settings.crash_benchmark_security_id())
 
-    Map.merge(detection, %{detected: detected, unmatched_names: unmatched})
+    Map.merge(detection, %{detected: detected, manual: manual(), unmatched_names: unmatched})
   end
+
+  defp manual do
+    from(w in ManualWindow, order_by: [asc: w.start, asc: w.trough, asc: w.id])
+    |> Repo.all()
+    |> Enum.map(&manual_read/1)
+  end
+
+  defp manual_read(%ManualWindow{} = window) do
+    window
+    |> Map.take([:id, :name, :start, :trough, :author, :actor, :created_at, :updated_at])
+    |> Map.merge(%{key: manual_key(window), kind: "manual"})
+  end
+
+  @doc """
+  The write `PUT /api/v1/crashes/:key` makes (ADR-0058 §9): `name_window/3`
+  for a detected window's key (`d:`), `update_manual_window/3` for a manual
+  one's (`m:`). Any other key is `{:error, :not_found}`.
+  """
+  @spec put_window(Actor.t(), String.t(), map()) ::
+          {:ok, WindowName.t() | ManualWindow.t()} | {:error, refusal()}
+  def put_window(%Actor{} = actor, "d:" <> _rest = key, attrs), do: name_window(actor, key, attrs)
+
+  def put_window(%Actor{} = actor, "m:" <> _rest = key, attrs),
+    do: update_manual_window(actor, key, attrs)
+
+  def put_window(%Actor{}, _key, _attrs), do: {:error, :not_found}
+
+  @doc """
+  The write `DELETE /api/v1/crashes/:key` makes (ADR-0058 §9):
+  `unname_window/2` for a detected window's key (`d:`, its name, matched
+  or not), `delete_manual_window/2` for a manual one's (`m:`). Any other
+  key is `{:error, :not_found}`.
+  """
+  @spec delete_window(Actor.t(), String.t()) ::
+          {:ok, WindowName.t() | ManualWindow.t()} | {:error, :not_found}
+  def delete_window(%Actor{} = actor, "d:" <> _rest = key), do: unname_window(actor, key)
+  def delete_window(%Actor{} = actor, "m:" <> _rest = key), do: delete_manual_window(actor, key)
+  def delete_window(%Actor{}, _key), do: {:error, :not_found}
 
   @doc """
   Names the detected window `key` (`d:<benchmark_security_id>:<start>`) on
@@ -198,6 +253,167 @@ defmodule Portfolixir.Crashes do
       end)
     end
   end
+
+  # --- manual windows (§4; F1) ---
+
+  @doc """
+  Creates a manual window on behalf of `actor` from `attrs`, which take
+  only `name`, `start` and `trough` (§4's rules, checked against
+  `Portfolixir.Clock.today/0`); the creating token (`author`, `actor`) is
+  derived from `actor`. Journaled as a `"crash_manual_window"` create. A
+  field the write does not take is `{:error, {:unknown_fields, errors}}`
+  naming it; nothing is written on a refusal.
+  """
+  @spec create_manual_window(Actor.t(), map()) :: {:ok, ManualWindow.t()} | {:error, refusal()}
+  def create_manual_window(%Actor{} = actor, attrs) when is_map(attrs) do
+    with :ok <- closed(attrs, @manual_fields, "a manual window") do
+      actor
+      |> insert_manual_multi(attrs)
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{manual_window: window}} -> {:ok, window}
+        {:error, :manual_window, %Ecto.Changeset{} = invalid, _changes} -> {:error, invalid}
+      end
+    end
+  end
+
+  @doc """
+  Edits the manual window `key` (`m:<id>`) on behalf of `actor`: `attrs`
+  take any of `name`, `start` and `trough`, checked on the edited window
+  under §4's rules. The creating token stays the creator's. Journaled as a
+  `"crash_manual_window"` update with its before-image. A key that names
+  no manual window is `{:error, :not_found}`.
+  """
+  @spec update_manual_window(Actor.t(), String.t(), map()) ::
+          {:ok, ManualWindow.t()} | {:error, refusal()}
+  def update_manual_window(%Actor{} = actor, key, attrs) when is_binary(key) and is_map(attrs) do
+    with :ok <- closed(attrs, @manual_fields, "a manual window"),
+         {:ok, prior} <- fetch_manual(key) do
+      today = Clock.today()
+
+      Multi.new()
+      |> Multi.update(
+        :manual_window,
+        &(&1 |> Journal.locked_row() |> ManualWindow.changeset(attrs, today))
+      )
+      |> Journal.record(actor,
+        resource_type: "crash_manual_window",
+        operation: :update,
+        source: :manual_window,
+        before: prior
+      )
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{manual_window: window}} -> {:ok, window}
+        {:error, :manual_window, %Ecto.Changeset{} = invalid, _changes} -> {:error, invalid}
+        {:error, {:journal_lock, _step}, :not_found, _changes} -> {:error, :not_found}
+      end
+    end
+  end
+
+  @doc """
+  Deletes the manual window `key` (`m:<id>`) on behalf of `actor`,
+  journaled as a `"crash_manual_window"` delete with its before-image. A
+  key that names no manual window is `{:error, :not_found}`.
+  """
+  @spec delete_manual_window(Actor.t(), String.t()) ::
+          {:ok, ManualWindow.t()} | {:error, :not_found}
+  def delete_manual_window(%Actor{} = actor, key) when is_binary(key) do
+    with {:ok, prior} <- fetch_manual(key) do
+      Multi.new()
+      |> Multi.delete(:manual_window, prior)
+      |> Journal.record(actor,
+        resource_type: "crash_manual_window",
+        operation: :delete,
+        source: :manual_window,
+        before: prior
+      )
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{manual_window: window}} -> {:ok, window}
+        {:error, {:journal_lock, _step}, :not_found, _changes} -> {:error, :not_found}
+      end
+    end
+  end
+
+  @doc """
+  Makes the name stored under `key` (`d:<benchmark_security_id>:<start>`),
+  which no window detected now carries (an entry of `unmatched_names`),
+  into a manual window on behalf of `actor` (ADR-0058 §3; amendment of
+  2026-11-12, F1): its start is the name's stored start, its trough the
+  one the caller gives, its name the stored one unless the caller gives
+  another. `attrs` take only `name` and `trough`: the trough was never
+  stored and is never guessed from today's closes, and the start is the
+  key's. The manual window is created and the name deleted in one
+  transaction, each journaled under `actor`.
+
+  A key that carries no name is `{:error, :not_found}`; a name whose
+  window the rule still detects is `{:error, :name_has_window}`; the
+  trough follows §4's rules. Nothing is written on a refusal.
+  """
+  @spec manual_window_from_name(Actor.t(), String.t(), map()) ::
+          {:ok, ManualWindow.t()} | {:error, refusal() | :name_has_window}
+  def manual_window_from_name(%Actor{} = actor, key, attrs)
+      when is_binary(key) and is_map(attrs) do
+    with :ok <- closed(attrs, @from_name_fields, "a window made from a name"),
+         {:ok, benchmark_id, start} <- parse_detected_key(key) do
+      Repo.transaction(fn ->
+        lock_name!(benchmark_id, start)
+        stored = locked_name(benchmark_id, start) || Repo.rollback(:not_found)
+        if detected_now(key) == :ok, do: Repo.rollback(:name_has_window)
+
+        window_attrs =
+          attrs
+          |> Map.new(fn {field, value} -> {to_string(field), value} end)
+          |> Map.put_new("name", stored.name)
+          |> Map.put("start", stored.start)
+
+        case Repo.transaction(insert_manual_multi(actor, window_attrs)) do
+          {:ok, %{manual_window: window}} ->
+            delete_name!(actor, stored)
+            window
+
+          {:error, _step, refusal, _changes} ->
+            Repo.rollback(refusal)
+        end
+      end)
+    end
+  end
+
+  defp insert_manual_multi(actor, attrs) do
+    window = %ManualWindow{author: Actor.author(actor), actor: actor.label}
+
+    Multi.new()
+    |> Multi.insert(:manual_window, ManualWindow.changeset(window, attrs, Clock.today()))
+    |> Journal.record(actor,
+      resource_type: "crash_manual_window",
+      operation: :create,
+      source: :manual_window
+    )
+  end
+
+  defp fetch_manual(key) do
+    with {:ok, id} <- parse_manual_key(key),
+         %ManualWindow{} = window <- Repo.get(ManualWindow, id) do
+      {:ok, window}
+    else
+      _none -> {:error, :not_found}
+    end
+  end
+
+  # A manual window's key, `m:<id>`, spelled exactly as the read spells it.
+  defp parse_manual_key("m:" <> id_text = key) do
+    with {id, ""} when id > 0 and id <= @max_id <- Integer.parse(id_text),
+         true <- key == "m:#{id}" do
+      {:ok, id}
+    else
+      _not_a_key -> {:error, :not_found}
+    end
+  end
+
+  defp parse_manual_key(_key), do: {:error, :not_found}
+
+  defp manual_key(%ManualWindow{id: id}), do: "m:#{id}"
 
   defp name_multi(actor, attrs, benchmark_id, start, nil) do
     window_name = %WindowName{benchmark_security_id: benchmark_id, start: start}
@@ -263,7 +479,7 @@ defmodule Portfolixir.Crashes do
   # other spelling (a leading zero, a short date) names no window.
   defp parse_detected_key("d:" <> rest) do
     with [id_text, date_text] <- String.split(rest, ":", parts: 2),
-         {id, ""} when id > 0 <- Integer.parse(id_text),
+         {id, ""} when id > 0 and id <= @max_id <- Integer.parse(id_text),
          {:ok, start} <- Date.from_iso8601(date_text),
          true <- PeakTrough.key(id, start) == "d:" <> rest do
       {:ok, id, start}

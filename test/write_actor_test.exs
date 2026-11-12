@@ -191,10 +191,11 @@ defmodule Portfolixir.WriteActorTest do
                   "news_labels",
                   # --- S28 N1 end ---
                   # --- S29 C3 begin ---
-                  # ADR-0058 §3: the names of detected crash windows, armed
-                  # in the migration that creates them, so every name is
-                  # journaled under the token that gave it.
-                  "crash_window_names"
+                  # ADR-0058 §3, §4: the names of detected crash windows and
+                  # the manual windows, armed in the migrations that create
+                  # them, so every write is journaled under its token.
+                  "crash_window_names",
+                  "crash_manual_windows"
                   # --- S29 C3 end ---
                 ])
 
