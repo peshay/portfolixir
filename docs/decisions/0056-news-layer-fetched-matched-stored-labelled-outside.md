@@ -1135,7 +1135,18 @@ promoted** and whose domain the row now decides:
 5. **Promoted items keep their tier.** The entry they name is written, and
    the log is never rewritten (ADR-0044). The item's stored tier is the
    provenance of that entry; changing it would make the item and the
-   entry disagree about the same moment.
+   entry disagree about the same moment. **Rule 5 covers the entry
+   already written; a new entry reads the current tiers.** A second
+   promotion of the same story (D6) and `events.create` with a `news_id`
+   on a promoted item compute `source_quality` from each member's tier
+   as the table gives it now (`Sources.tier(class, rated)`, rule 2),
+   never from a promoted member's stored tier: otherwise the new entry
+   claims the better source this amendment removes. A member whose
+   domain is now `blocked` is left out (of the quality and of the link),
+   and a story with no member left answers 422 naming `cluster_id` (the
+   event's path: `news_id`). *Found by the closing act (Sprint 29); a
+   precision of rule 5, not a new rule.* **To flip:** "news second
+   promotion keeps tier".
 6. **The journal entry** of the write (B7) names, beside the row's prior
    and new tier, the count of items re-rated, the count removed, and the
    count left untouched because promoted.
