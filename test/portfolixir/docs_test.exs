@@ -2794,8 +2794,9 @@ defmodule Portfolixir.DocsTest do
   #   near 100, 1/500 to 1/20) and, since #1112 (Sprint 21 γ2), that the
   #   security's own Overview names it too, the master-data signal on a security showing no
   #   class, that a bond stored as Equity needs its class set, the "no asset
-  #   class" badge, the Overview line's catalog-wide two-scales count in the
-  #   line's singular, and the inference's whole-word rule with its
+  #   class" badge, the Overview line's two-scales count in the line's
+  #   singular (since issue 1417 over the held bonds, the catalog-wide set
+  #   in parentheses), and the inference's whole-word rule with its
   #   unrecognised shorthands.
   # - The API references name data_quality two_scales and the reading's
   #   direction, forward and reverse.
@@ -2812,7 +2813,7 @@ defmodule Portfolixir.DocsTest do
              "set its class to Bond (or Government bond)",
              "The security's own Overview names it too",
              "marked *no asset class*",
-             "one bond priced on two scales",
+             "one held bond priced on two scales",
              "is catalog-wide on purpose",
              "\"TurboCall\" or \"CallOS\", is not recognised"
            ]},
@@ -2913,7 +2914,8 @@ defmodule Portfolixir.DocsTest do
              "An answer in another currency is refused",
              "(`GBp`) is refused for a security in pounds (`GBP`)",
              "Missing FX · Currency mismatch",
-             "2 securities whose provider reports another currency than their own"
+             # Since issue 1417 (Sprint 29 D2) the Overview counts the held ones.
+             "2 held securities whose provider reports another currency than their own"
            ]},
           {"docs/de/product-documentation.md",
            [
@@ -2921,7 +2923,7 @@ defmodule Portfolixir.DocsTest do
              "Eine Kursquelle *Manuell* oder *Keine* hält die Synchronisierung an",
              "Eine Antwort in einer anderen Währung wird abgelehnt",
              "Kein Wechselkurs · Währung abweichend",
-             "2 Wertpapiere, deren Anbieter eine andere Währung meldet als ihre eigene"
+             "2 gehaltene Wertpapiere, deren Anbieter eine andere Währung meldet als ihre eigene"
            ]},
           {"docs/integration/api-and-mcp.md",
            [

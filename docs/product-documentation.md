@@ -235,12 +235,14 @@ be bookmarked or linked to:
   them opens. The first
   three, and *Currency mismatch*, leave a benchmark and a retired security
   alone: a sold-out or delisted security you retire leaves them, and the
-  Overview's counts drop with it; reactivated, it is back in those it
+  Overview's catalogue counts drop with it; reactivated, it is back in those it
   matches. *Currency mismatch* keeps a retired security you still hold, as
   *Quote does not match bookings* does: its value in the total is as wrong
   as before. The same
   conditions can be picked in the filter control under **Data quality** —
-  the dashboard link is a shortcut to them, not the only way in. The agent
+  the dashboard link is a shortcut to them, not the only way in. The
+  Overview's counts open each list with `holding=held` (the *Held* chip),
+  and its "(n in the catalog)" opens it without (issue #1417). The agent
   asks for the identical sets over
   `GET /api/v1/securities?data_quality=…` and the `portfolixir.securities.list`
   tool; all of them are one definition, so a count of N always addresses a list
@@ -590,9 +592,11 @@ rose twentyfold, say — is never named; nor is a name the inference reads as
 a structured product, whose expiry may be stored as a maturity; and a
 security shown under any other class is no bond, whatever master data it
 still carries. A bond named without a class is marked *no asset class* in
-the note. The Overview's data-quality line counts every bond priced on two
-scales, in either direction and catalog-wide, and links to the list of
-exactly those.
+the note. The Overview's data-quality line counts every held bond priced on
+two scales, in either direction ("one held bond priced on two scales"), and
+links to the list of exactly those; where the catalogue holds more, sold or
+never-held bonds included, their count follows in parentheses, linking to
+the catalog-wide list.
 That list opens on a problem note per direction (issue #1121): the bonds
 counting a hundred times too high, each linking to its **Transactions**
 tab, then those counting a hundred times too low, each linking to its
@@ -731,8 +735,9 @@ it, the note says how many keep doing so.
 **Retired securities.** A security you no longer hold and whose listing has
 ended — sold out or delisted — stays in the catalog because its bookings do.
 **Retire** in its row menu marks it so: it leaves the catalog's data-quality
-reminders (stale or missing quote, missing logo) and their counts on the
-Overview, and a retired holding leaves the Wealth page's data-quality rows
+reminders (stale or missing quote, missing logo) and the catalogue counts
+the Overview shows in parentheses (a security you no longer hold does not
+open the Overview's line at all, issue #1417), and a retired holding leaves the Wealth page's data-quality rows
 for a stale quote, a trade price and no price at all, because its stopped
 feed is expected. The *Missing FX* reminder keeps it, because a missing rate
 still breaks the valuation. The performance figure no longer counts its
@@ -1974,12 +1979,12 @@ history) leading to Wealth, the **cash quote** with the cash amount leading
 to Wealth, the **last booking** with its date, kind and account or security
 leading to Transactions, and the **quote freshness**, the newest stored
 quote date across the held positions, leading to the securities list
-pre-filtered to stale quotes; its "n stale in the catalog" sub-line appears
-only when stale quotes exist (with none, the date alone — a fact, not an
-all-clear badge) and counts the whole catalog, held or not, which is the
-list its link opens — the words "in the catalog" say so beside a basis line
-about held positions — and a basis line under the strip names the view, the
-period and the currency — the **Closed trades** card (UX-DR2 as amended
+pre-filtered to the held securities with a stale quote; its "n held stale"
+sub-line appears only when such securities exist (with none, the date
+alone — a fact, not an all-clear badge) and counts the held securities,
+which is the list its link opens (issue #1417; the catalogue's count stands
+on the data-quality line) — and a basis line under the strip names the
+view, the period and the currency — the **Closed trades** card (UX-DR2 as amended
 2026-10-01, issue #984): the five most recently closed round-trips, newest first, each
 with the date it was sold and how long it was held, its realised result in
 the base currency in its sign colour, and under it the return — **per year**
@@ -1998,35 +2003,48 @@ overweight), worst first, each row carrying a decorative drift bar around
 zero beside its text and linking into the Wealth area's Allocation & targets
 tab, under a basis line naming the view, classification tree and
 active plan the drift steers against (or that several plans are active, or
-none) — and the **data-quality line**: one note listing the securities
-in the catalog without a recent quote, asset class, or logo, the bonds
+none) — and the **data-quality line**: one note listing the **held**
+securities without a recent quote, asset class, or logo, the held bonds
 priced on two scales, and the held securities whose quotes do not match
-their own bookings ("25 securities in the catalog without a quote in 7
-days · 4 without an asset class · one bond priced on two scales · 2 held
-securities whose quotes do not match their bookings"), each
-count linking to the securities list pre-filtered to exactly that set — a
-count of N opens a list of N: the stale-quote and logo counts and their
-lists leave out benchmarks and retired securities, the asset-class count and
-its list leave out retired securities and keep benchmarks, and the
-two-scales count (issue #1068) is catalog-wide on purpose and keeps both,
-sold-out bonds included, because such a bond's booked history — its past
-values and its realized result — is a hundredfold off whether it is held or
-not. The count of held securities whose quotes do not match their bookings
-(issue #1101) says "held", because the line otherwise counts the catalog:
-it counts the held members of a set that holds sold securities too (issue
-#1414), leaves out benchmarks, keeps a held security that is retired, and
-links to the list with the *Held* chip set. These two
-findings also say, after their link, what they do to the total above it
-(issue #1121): "— if held, it counts a hundredfold too high or too low in
-the total above" and "— so their value in the total above, or their cost,
-is wrong"; the value card itself stays silent, since such a row is in the
-total, not left out of it. After them (issue #1415) the line counts the
+their own bookings ("19 held securities without a quote in 7 days (26 in
+the catalog) · 4 without an asset class · 35 without a logo (47 in the
+catalog) · one held bond priced on two scales · 2 held securities whose
+quotes do not match their bookings"). **Each set of securities is counted
+over the held ones first** (issue #1417, reversing the catalog-wide count
+of issue #1081): its count links to the securities list pre-filtered to
+exactly that set with the *Held* chip set (`holding=held`), and where the
+whole catalogue holds more, "(n in the catalog)" follows it as its own
+link to the list without the chip, so a sold security you have not
+retired no longer keeps the line open. A count of N opens a list of N:
+the stale-quote and logo counts and their lists leave out benchmarks and
+retired securities, the asset-class count and its list leave out retired
+securities and keep benchmarks, and the two-scales set (issue #1068) is
+catalog-wide on purpose and keeps both, sold-out bonds included, because
+such a bond's booked history — its past values and its realized result —
+is a hundredfold off whether it is held or not; the line counts its held
+bonds, the catalogue's count in parentheses. The set of securities whose
+quotes do not match their bookings (issue #1101) holds sold securities too
+(issue #1414), leaves out benchmarks and keeps a held security that is
+retired. These two findings also say, after their link, what they do to
+the total above it (issue #1121): "— it counts a hundredfold too high or
+too low in the total above" and "— so their value in the total above, or
+their cost, is wrong"; each counted security is held, so in the total.
+The value card itself stays silent, since such a row is in the total, not
+left out of it. After them (issue #1415) the line counts the held
 securities whose quote provider reports another currency than their own
-("2 securities whose provider reports another currency than their own —
-their quotes may be stored in the wrong currency; if held, their value in
-the total above is wrong"), linking to `?dq=currency_mismatch`; like the
-stale-quote count it leaves out benchmarks and retired securities, except a
-retired one still held, and a security no sync has read a currency for is not yet known, never counted. Three findings from the ledger close the line
+("2 held securities whose provider reports another currency than their
+own — their quotes may be stored in the wrong currency, so their value in
+the total above is wrong"), linking to `?dq=currency_mismatch&holding=held`;
+the set leaves out benchmarks and retired securities, except a retired one
+still held, and a security no sync has read a currency for is not yet
+known, never counted. A clause appears only while its held count is above
+zero: with every held count at 0 the line names no security, even when
+the catalogue still holds sold or never-held ones; those stay on
+**Securities** behind the data-quality chips (*Stale quote*, *No price*,
+*Missing FX*, *Currency mismatch*, *Unclassified*) and `?dq=missing_logo`,
+`?dq=two_scales` or `?dq=implausible_quote`, and for your agent over
+`GET /api/v1/securities?data_quality=…` (`holding_status=held` gives the
+Overview's count). Three findings from the ledger close the line
 (Sprint 23), each only when its count is above zero and each linking to the
 transaction history filtered to exactly its rows (`?dq=`, described under
 the history): "one booking whose cash misses its quantity × price, fees and
@@ -2036,14 +2054,17 @@ quantity × price to the account unconverted" and "one split missing a
 portfolio that held the security — there the lots are split and the holding
 is not". Each count is the number of rows the matching API read returns
 (`GET /api/v1/transactions/cash_mismatch`, `…/rate_only`,
-`GET /api/v1/splits/incomplete`). Whichever finding
-opens the line carries the noun ("4 securities without an asset class").
+`GET /api/v1/splits/incomplete`); they count bookings, not securities, and
+are not narrowed to the held ones. Whichever finding
+opens the line carries the noun ("4 held securities without an asset
+class").
 The note takes the highest severity present: a problem while a bond is
 priced on two scales, a held security's quotes do not match its
 bookings, a provider reports another currency or any of the three ledger
 findings stands, attention while a
-quote is stale, otherwise a note. The line renders only when at least one count is
-non-zero; a clean catalog shows nothing (no all-clear badge). The **Due**
+quote is stale, otherwise a note, each following the held counts. The line
+renders only when at least one count is non-zero; clean holdings and a clean
+ledger show nothing (no all-clear badge). The **Due**
 card's dates follow the interface language (15.10.2026 in German). There is
 deliberately no activity feed: the audit journal owns the forensic detail,
 and the Closed trades card shows what a sale realised, never the booking
@@ -4450,8 +4471,9 @@ wrong. The Overview's data-quality line counts the held securities it names
 ("2 held securities whose quotes do not match their bookings") and links to
 `?dq=implausible_quote&holding=held`, where they are listed under the
 removable chip *Quote does not match bookings*; without the *Held* chip
-the list holds the sold ones too, and a sold one's page carries the
-same note as a held one's. Wealth → Holdings names each position of its
+the list holds the sold ones too — the line's "(n in the catalog)" links
+there where the two differ (issue #1417) — and a sold one's page carries
+the same note as a held one's. Wealth → Holdings names each position of its
 scope with the booking and the quote of its day, linking to the security's
 **Quotes** tab. The agent reads the same set, with the booking each
 security contradicts, whether it is held, and the rule, over

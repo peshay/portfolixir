@@ -266,14 +266,16 @@ Ansicht lässt sich als Lesezeichen speichern oder verlinken:
   Charts), die Liste, die der Zähler der Übersicht für sie öffnet. Die
   ersten drei und *Währung abweichend* lassen eine Benchmark und ein
   stillgelegtes Wertpapier in Ruhe: Ein ausverkauftes oder delistetes
-  Wertpapier, das Sie stilllegen, verlässt sie, und die Zahlen der Übersicht
-  sinken mit ihm; reaktiviert, steht es wieder in denen, auf die es passt.
+  Wertpapier, das Sie stilllegen, verlässt sie, und die Katalogzahlen der
+  Übersicht sinken mit ihm; reaktiviert, steht es wieder in denen, auf die es passt.
   *Währung abweichend* behält ein stillgelegtes Wertpapier, das Sie noch
   halten, wie *Kurs passt nicht zu Buchungen*: Sein Wert in der Summe ist so
   falsch wie zuvor.
   Dieselben Bedingungen sind im Filter-Bedienelement unter **Datenqualität**
   direkt wählbar — der Link von der Übersicht ist eine Abkürzung dorthin,
-  nicht der einzige Weg. Der Agent fragt genau dieselben Mengen über
+  nicht der einzige Weg. Die Zahlen der Übersicht öffnen jede Liste mit
+  `holding=held` (dem Chip *Im Bestand*), ihr „(im Katalog n)" öffnet sie
+  ohne (Issue #1417). Der Agent fragt genau dieselben Mengen über
   `GET /api/v1/securities?data_quality=…` und das Werkzeug
   `portfolixir.securities.list` ab; alle beruhen auf einer Definition, sodass
   eine Zahl N immer eine Liste von N adressiert.
@@ -649,9 +651,12 @@ Inferenz als strukturiertes Produkt liest, dessen Laufzeitende als
 Fälligkeit gespeichert sein kann; und ein Wertpapier, das eine andere Klasse
 zeigt, ist keine Anleihe, welche Stammdaten es auch noch trägt. Eine ohne
 Anlageklasse genannte Anleihe ist im Hinweis mit *ohne Anlageklasse*
-markiert. Die Datenqualitätszeile der Übersicht zählt jede auf zwei Skalen
-bepreiste Anleihe, in beiden Richtungen und über den ganzen Katalog, und
-verlinkt auf die Liste genau dieser.
+markiert. Die Datenqualitätszeile der Übersicht zählt jede gehaltene auf
+zwei Skalen bepreiste Anleihe, in beiden Richtungen („eine gehaltene
+Anleihe auf zwei Skalen bepreist"), und verlinkt auf die Liste genau
+dieser; wo der Katalog mehr enthält, verkaufte oder nie gehaltene Anleihen
+eingeschlossen, folgt deren Zahl in Klammern mit Link auf die katalogweite
+Liste.
 Diese Liste öffnet mit einem Problem-Hinweis je Richtung (Issue #1121):
 die Anleihen, die hundertfach zu hoch zählen, jede mit einem Link auf ihren
 Tab **Transaktionen**, dann die, die hundertfach zu niedrig zählen, jede mit
@@ -804,7 +809,9 @@ der Hinweis, wie viele es weiter tun.
 dessen Notierung endete — ausverkauft oder delistet —, bleibt im Katalog,
 weil seine Buchungen bleiben. **Stilllegen** in seinem Zeilenmenü markiert
 es so: Es verlässt die Datenqualitäts-Hinweise des Katalogs (veralteter oder
-fehlender Kurs, fehlendes Logo) und ihre Zahlen in der Übersicht, und eine
+fehlender Kurs, fehlendes Logo) und die Katalogzahlen, die die Übersicht in
+Klammern zeigt (ein Wertpapier, das Sie nicht mehr halten, öffnet die Zeile
+der Übersicht gar nicht, Issue #1417), und eine
 stillgelegte Position verlässt die Datenqualitäts-Zeilen der Vermögensseite
 zu veraltetem Kurs, Handelspreis und fehlendem Kurs, weil ihr versiegter
 Kurs erwartet ist. Der Hinweis *Kein Wechselkurs* behält es, weil ein
@@ -2178,12 +2185,12 @@ Historie die Perioden-MWR) führt zum Vermögen, die **Cashquote** mit dem
 Cash-Betrag zum Vermögen, die **letzte Buchung** mit Datum, Art und Konto
 oder Wertpapier zu den Transaktionen, und die **Kursaktualität**, das Datum
 des neuesten gespeicherten Kurses über die gehaltenen Positionen, zur auf
-veraltete Kurse vorgefilterten Wertpapierliste; ihre Unterzeile „n veraltet
-im Katalog" erscheint nur, wenn es veraltete Kurse gibt (sonst das Datum
-allein — ein Fakt, kein „alles in Ordnung"), und zählt den ganzen Katalog,
-gehalten oder nicht, also die Liste, die ihr Link öffnet — die Worte „im
-Katalog" sagen das neben einer Basiszeile über die gehaltenen Positionen —,
-und eine Basiszeile unter der Leiste nennt Ansicht, Zeitraum und Währung —
+die gehaltenen Wertpapiere mit veraltetem Kurs vorgefilterten
+Wertpapierliste; ihre Unterzeile „n gehaltene veraltet" erscheint nur, wenn
+es solche Wertpapiere gibt (sonst das Datum allein — ein Fakt, kein „alles
+in Ordnung"), und zählt die gehaltenen Wertpapiere, also die Liste, die ihr
+Link öffnet (Issue #1417; die Zahl des Katalogs steht in der
+Datenqualitätszeile) —, und eine Basiszeile unter der Leiste nennt Ansicht, Zeitraum und Währung —
 die Karte **Abgeschlossene Trades** (UX-DR2
 in der Fassung vom 2026-10-01, Issue #984): die fünf zuletzt abgeschlossenen
 Rundläufe, neueste zuerst, je mit Verkaufsdatum und Haltedauer, dem
@@ -2207,40 +2214,53 @@ Drift-Balken um die Null neben ihrem Text und verlinkt in den Tab
 Klassifikationsbaum und aktiven Plan nennt, gegen den die Drift gerechnet
 wird (oder dass mehrere Pläne aktiv sind oder keiner) — und die
 **Datenqualitätszeile**: ein Hinweis,
-der die Wertpapiere im Katalog ohne aktuellen Kurs, Anlageklasse oder Logo,
-die auf zwei Skalen bepreisten Anleihen und die gehaltenen Wertpapiere,
-deren Kurse nicht zu ihren eigenen Buchungen passen, aufzählt („25
-Wertpapiere im Katalog ohne Kurs seit 7 Tagen · 4 ohne Anlageklasse · eine
-Anleihe auf zwei Skalen bepreist · 2 gehaltene Wertpapiere, deren Kurse
-nicht zu ihren Buchungen passen"), wobei jeder Zähler auf die exakt darauf
-vorgefilterte Wertpapierliste verlinkt — ein Zähler N öffnet eine Liste von
-N: Die Zähler für veraltete Kurse und fehlende Logos und ihre Listen lassen
-Benchmarks und stillgelegte Wertpapiere aus, der Zähler für fehlende
-Anlageklassen und seine Liste lassen stillgelegte Wertpapiere aus und
-behalten Benchmarks, und der Zähler für zwei Skalen (Issue #1068) umfasst
-mit Absicht den ganzen Katalog und behält beide, verkaufte Anleihen
+der die **gehaltenen** Wertpapiere ohne aktuellen Kurs, Anlageklasse oder
+Logo, die gehaltenen auf zwei Skalen bepreisten Anleihen und die gehaltenen
+Wertpapiere, deren Kurse nicht zu ihren eigenen Buchungen passen, aufzählt
+(„19 gehaltene Wertpapiere ohne Kurs seit 7 Tagen (im Katalog 26) · 4 ohne
+Anlageklasse · 35 ohne Logo (im Katalog 47) · eine gehaltene Anleihe auf
+zwei Skalen bepreist · 2 gehaltene Wertpapiere, deren Kurse nicht zu ihren
+Buchungen passen"). **Jede Menge von Wertpapieren zählt zuerst die
+gehaltenen** (Issue #1417, kehrt die katalogweite Zahl aus Issue #1081
+um): Ihr Zähler verlinkt auf die exakt darauf vorgefilterte
+Wertpapierliste mit gesetztem Chip *Im Bestand* (`holding=held`), und wo
+der ganze Katalog mehr enthält, folgt „(im Katalog n)" als eigener Link
+auf die Liste ohne den Chip; ein verkauftes Wertpapier, das Sie nicht
+stillgelegt haben, hält die Zeile so nicht mehr offen. Ein Zähler N öffnet
+eine Liste von N: Die Zähler für veraltete Kurse und fehlende Logos und
+ihre Listen lassen Benchmarks und stillgelegte Wertpapiere aus, der Zähler
+für fehlende Anlageklassen und seine Liste lassen stillgelegte Wertpapiere
+aus und behalten Benchmarks, und die Menge für zwei Skalen (Issue #1068)
+umfasst mit Absicht den ganzen Katalog und behält beide, verkaufte Anleihen
 eingeschlossen, denn die gebuchte Geschichte einer solchen Anleihe — ihre
 früheren Werte und ihr realisiertes Ergebnis — liegt hundertfach daneben,
-ob sie gehalten wird oder nicht. Der Zähler der gehaltenen Wertpapiere,
-deren Kurse nicht zu ihren Buchungen passen (Issue #1101), sagt
-„gehaltene", weil die Zeile sonst den Katalog zählt: Er zählt die
-gehaltenen Mitglieder einer Menge, die auch verkaufte Wertpapiere enthält
-(Issue #1414), lässt Benchmarks aus, behält ein gehaltenes stillgelegtes
-Wertpapier und verlinkt auf die Liste mit dem Chip *Im Bestand*. Diese
-beiden Befunde sagen nach ihrem Link auch, was sie mit der Summe darüber
-machen (Issue #1121): „— gehalten zählt sie in der Summe oben hundertfach
-zu hoch oder zu niedrig" und „— ihr Wert in der Summe oben oder ihr
-Einstand ist daher falsch"; die Wertkarte selbst schweigt, denn eine solche
-Zeile steht in der Summe, nicht außerhalb. Nach ihnen (Issue #1415) zählt die
-Zeile die Wertpapiere, deren Kursanbieter eine andere Währung meldet als ihre
-eigene („2 Wertpapiere, deren Anbieter eine andere Währung meldet als ihre
-eigene — ihre Kurse sind womöglich in der falschen Währung gespeichert;
-gehalten ist ihr Wert in der Summe oben daher falsch"), mit Link auf
-`?dq=currency_mismatch`; wie der Zähler veralteter Kurse lässt er Benchmarks
-und stillgelegte Wertpapiere aus, außer einem noch gehaltenen stillgelegten,
-und ein Wertpapier, für das noch keine
+ob sie gehalten wird oder nicht; die Zeile zählt ihre gehaltenen Anleihen,
+die Zahl des Katalogs in Klammern. Die Menge der Wertpapiere, deren Kurse
+nicht zu ihren Buchungen passen (Issue #1101), enthält auch verkaufte
+Wertpapiere (Issue #1414), lässt Benchmarks aus und behält ein gehaltenes
+stillgelegtes Wertpapier. Diese beiden Befunde sagen nach ihrem Link auch,
+was sie mit der Summe darüber machen (Issue #1121): „— sie zählt in der
+Summe oben hundertfach zu hoch oder zu niedrig" und „— ihr Wert in der
+Summe oben oder ihr Einstand ist daher falsch"; jedes gezählte Wertpapier
+wird gehalten, steht also in der Summe. Die Wertkarte selbst schweigt, denn
+eine solche Zeile steht in der Summe, nicht außerhalb. Nach ihnen (Issue
+#1415) zählt die Zeile die gehaltenen Wertpapiere, deren Kursanbieter eine
+andere Währung meldet als ihre eigene („2 gehaltene Wertpapiere, deren
+Anbieter eine andere Währung meldet als ihre eigene — ihre Kurse sind
+womöglich in der falschen Währung gespeichert; ihr Wert in der Summe oben
+ist daher falsch"), mit Link auf `?dq=currency_mismatch&holding=held`; die
+Menge lässt Benchmarks und stillgelegte Wertpapiere aus, außer einem noch
+gehaltenen stillgelegten, und ein Wertpapier, für das noch keine
 Synchronisierung eine Währung gelesen hat, ist noch unbekannt und wird nie
-gezählt. Drei Befunde aus dem Hauptbuch
+gezählt. Ein Befund erscheint nur, solange seine gehaltene Zahl größer als
+null ist: Ist jede gehaltene Zahl 0, nennt die Zeile kein Wertpapier, auch
+wenn der Katalog noch verkaufte oder nie gehaltene enthält; diese bleiben
+unter **Wertpapiere** über die Chips der Datenqualität (*Kurs veraltet*,
+*Kein Kurs*, *Kein Wechselkurs*, *Währung abweichend*, *Ohne
+Anlageklasse*) und `?dq=missing_logo`, `?dq=two_scales` oder
+`?dq=implausible_quote` erreichbar, und für Ihren Agenten über
+`GET /api/v1/securities?data_quality=…` (`holding_status=held` liefert die
+Zahl der Übersicht). Drei Befunde aus dem Hauptbuch
 schließen die Zeile (Sprint 23), jeder nur, wenn sein Zähler größer als null
 ist, und jeder verlinkt auf die Transaktionshistorie, gefiltert auf genau
 seine Zeilen (`?dq=`, beschrieben bei der Historie): „eine Buchung, deren
@@ -2251,15 +2271,17 @@ ohne Umrechnung aufs Konto" und „ein Split, dem ein Portfolio fehlt, das
 das Wertpapier hielt — dort sind die Lots geteilt, der Bestand nicht". Jeder
 Zähler ist die Zahl der Zeilen, die der passende API-Read liefert
 (`GET /api/v1/transactions/cash_mismatch`, `…/rate_only`,
-`GET /api/v1/splits/incomplete`). Der Befund,
-der die Zeile eröffnet, trägt das Substantiv („4 Wertpapiere ohne
+`GET /api/v1/splits/incomplete`); sie zählen Buchungen, nicht Wertpapiere,
+und werden nicht auf die gehaltenen eingeschränkt. Der Befund,
+der die Zeile eröffnet, trägt das Substantiv („4 gehaltene Wertpapiere ohne
 Anlageklasse"). Der Hinweis nimmt die höchste vorhandene Stufe an: Problem,
 solange eine Anleihe auf zwei Skalen bepreist ist, die Kurse eines
 gehaltenen Wertpapiers nicht zu seinen Buchungen passen, ein Anbieter eine
 andere Währung meldet oder einer der drei Hauptbuch-Befunde steht, Achtung, solange ein Kurs veraltet ist, sonst
-Hinweis.
-Die Zeile erscheint nur, wenn mindestens ein Zähler größer als null ist; ein
-sauberer Katalog zeigt nichts (kein grünes „alles in Ordnung"). Die Daten
+Hinweis, jeweils nach den gehaltenen Zahlen.
+Die Zeile erscheint nur, wenn mindestens ein Zähler größer als null ist;
+saubere Bestände und ein sauberes Hauptbuch zeigen nichts (kein grünes
+„alles in Ordnung"). Die Daten
 der Karte **Fällig** folgen der Oberflächensprache (15.10.2026 auf
 Deutsch). Es gibt bewusst keinen Aktivitäts-Feed: die forensischen Details
 gehören dem Audit-Journal, und die Karte Abgeschlossene Trades zeigt, was
@@ -4922,8 +4944,9 @@ also ist entweder der Wert (ein falscher Kurs) oder Einstand und Ergebnis
 Wertpapiere, deren Kurse nicht zu ihren Buchungen passen"), und verlinkt auf
 `?dq=implausible_quote&holding=held`, wo sie unter dem entfernbaren Chip
 *Kurs passt nicht zu Buchungen* stehen; ohne den Chip *Im Bestand* hält
-die Liste auch die verkauften, und die Seite eines verkauften trägt
-denselben Hinweis wie die eines gehaltenen. Vermögen → Bestände nennt jede
+die Liste auch die verkauften — dorthin verlinkt das „(im Katalog n)" der
+Zeile, wo beide Zahlen abweichen (Issue #1417) —, und die Seite eines
+verkauften trägt denselben Hinweis wie die eines gehaltenen. Vermögen → Bestände nennt jede
 Position seines Bereichs mit der Buchung und dem Kurs ihres Tages und
 verlinkt auf den Tab **Kurse** des Wertpapiers. Der Agent liest dieselbe
 Menge, mit der Buchung, der jedes Wertpapier widerspricht, ob es gehalten
