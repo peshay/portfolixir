@@ -5422,6 +5422,14 @@ API may have committed it, and its answer cannot be read.
   https image URL, searched again, or removed as "no logo", through the
   [logo endpoints](#logos) (#1413). The first two reach outside the instance
   (`openWorldHint`) and are in `book`; the delete is admin (`full` only).
+- `portfolixir.chains.list` — the registered chains with Bitcoin's source
+  health and the inputs of its next halving's estimate.
+- `portfolixir.chains.refresh` — reads a chain's source now, at most once per
+  10 minutes per chain; an outbound write, in the `book` and `full` profiles.
+- `portfolixir.securities.cycles` — a bound security's halving cycles and the
+  analog band of its next low and next top; the description says the band is
+  not a forecast and that `n` and both ends belong with every figure. The
+  dossier's `cycles` line holds its two bands in about 40 tokens.
 - `portfolixir.notes.list` — a security's research log newest first with the
   derived thesis state; the description states that entries never vanish
   (ADR-0044).

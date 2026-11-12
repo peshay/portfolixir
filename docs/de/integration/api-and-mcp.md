@@ -5931,6 +5931,16 @@ lässt sich nicht lesen.
   über die [Logo-Endpunkte](#logos) (#1413). Die ersten beiden reichen über
   die Instanz hinaus (`openWorldHint`) und sind in `book`; das Entfernen ist
   ein Admin-Werkzeug (nur `full`).
+- `portfolixir.chains.list` — die registrierten Ketten mit der Gesundheit
+  der Bitcoin-Quelle und den Eingaben der Schätzung ihres nächsten Halvings.
+- `portfolixir.chains.refresh` — liest die Quelle einer Kette sofort,
+  höchstens einmal je 10 Minuten und Kette; ein Schreibzugriff nach außen, in
+  den Profilen `book` und `full`.
+- `portfolixir.securities.cycles` — die Halving-Zyklen eines gebundenen
+  Wertpapiers und das Analogband seines nächsten Tiefs und Hochs; die
+  Beschreibung sagt, dass das Band keine Prognose ist und dass `n` und beide
+  Enden zu jeder Zahl gehören. Die `cycles`-Zeile des Dossiers hält seine
+  beiden Bänder in etwa 40 Token.
 - `portfolixir.notes.list` — das Research-Log eines Wertpapiers, neueste
   zuerst, mit dem abgeleiteten Thesenstand; die Beschreibung benennt, dass
   Einträge nie verschwinden (ADR-0044).

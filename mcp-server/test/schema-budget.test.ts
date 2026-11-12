@@ -644,8 +644,33 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
       book: 1_373,
       full: 1_910
     }
-  }
+  },
   // --- S29 D3 end ---
+  // --- S29 H6 begin ---
+  {
+    since: "2026-11-12",
+    why:
+      "Sprint 29, H6 (FR-58; ADR-0059 §11, ADR-0060 §11): the three chain and cycles tools " +
+      "raise each ceiling by their own bytes and no more, measured on the companion's text: " +
+      "portfolixir.chains.list 705 and portfolixir.securities.cycles 1,156, reads in every " +
+      "profile; portfolixir.chains.refresh 953, an outbound write in book and full. On D3's " +
+      "row: read 120,419 + 1,861 = 122,280, book 198,581 + 2,814 = 201,395 and full " +
+      "234,704 + 2,814 = 237,518; the dossier's cycles line in securities.dossier's description and the commas " +
+      "before the new tools are paid for by tightening the same description's other parts " +
+      "(1,623 bytes before, 1,618 with the line), H1's halving_chain field by tightening " +
+      "securities.update's wording (30 bytes, its own cut in securities.list having gone with " +
+      "D1's), and no other tool's bytes are added",
+    read: 122_280,
+    book: 201_395,
+    full: 237_518,
+    raisedBy: {
+      tools: ["portfolixir.chains.list", "portfolixir.chains.refresh", "portfolixir.securities.cycles"],
+      read: 1_861,
+      book: 2_814,
+      full: 2_814
+    }
+  }
+  // --- S29 H6 end ---
 ];
 
 describe("the schema budget", () => {
@@ -938,6 +963,11 @@ describe("the schema budget", () => {
       assert.equal(debuts.get(name), "2026-11-12", name);
     }
     // --- S29 D3 end ---
+    // --- S29 H6 begin ---
+    assert.equal(debuts.get("portfolixir.chains.list"), "2026-11-12");
+    assert.equal(debuts.get("portfolixir.chains.refresh"), "2026-11-12");
+    assert.equal(debuts.get("portfolixir.securities.cycles"), "2026-11-12");
+    // --- S29 H6 end ---
   });
 
   // --- S28 N1 begin ---
