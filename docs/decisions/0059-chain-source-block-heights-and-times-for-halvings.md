@@ -279,7 +279,7 @@ alone, and the top band's time from that one day).
 ### 7. Failure behaviour
 
 - **The client:** every request goes through `Portfolixir.Net.Http`, GET
-  only, with the source's host as its allow-list, redirects only within it,
+  only, with the source's host as its allow-list, no redirect followed (the build refuses every redirect, stricter than "only within it"),
   a byte cap of 64 KiB and a deadline of 10 seconds. Bodies are decoded with
   string keys, and no atom is ever made from an answer.
 - **Validation, before anything is written:** the tip is a decimal integer
@@ -304,6 +304,43 @@ alone, and the top band's time from that one day).
   source stale.
 - **A failing chain never stops anything else.** The reader is its own
   supervised process, apart from the quote sync and the news fetcher.
+
+**Precision of 2026-11-12: the checks the build's attack lens added.** The
+attack lens on the adapter (Sprint 29, H2) found answers that passed every
+check above and still misled the run. Three checks join the list; each
+refusal fails that source, and the fallback is asked as for any other:
+
+- **A floor and a ceiling on the tip.** The tip is at least **840,000**, the
+  fourth halving (four times the registry's interval, mined on
+  2024-04-20), otherwise `tip_too_low`. *Why this floor and not a
+  genesis-era one:* a height the chain has passed never comes back, so a
+  lower tip is a lie or an instance still syncing, and every height a run
+  asks below an honest tip (the tip, 2,016 below it, a past halving) stays
+  non-negative. A hostile tip of 5 had made those heights negative and
+  crashed the run instead of asking the fallback. The tip is at most the
+  height ten-minute spacing gives for the time since the genesis block,
+  **times 1.1**, otherwise `tip_ahead`. *Why 1.1:* the chain ran 4.4 %
+  ahead of ten-minute spacing at the fourth halving, and 10 % is more than
+  twice that lead, so only a forged tip passes it; a forged far-future tip
+  with blocks made to echo had confirmed a halving that has not happened.
+- **A height out of range is the source's failure.** A height the caller
+  derives from a tip that lies outside 0 and the tip fails that source
+  (`heights_out_of_range`) before any block is asked; it never raises. A
+  caller's answer that is not a list of integers still raises, because no
+  source causes it.
+- **The blocks of one run agree with each other.** Of two blocks read
+  2,016 or more heights apart, the higher one has the later timestamp,
+  otherwise `blocks_out_of_order`. *Why:* a block's time may run an hour or
+  two behind its predecessors', never two weeks of blocks; a tip block
+  older than the block 2,016 below it would make §6's recent mean block
+  time negative.
+
+The caller's last stored tip must be a non-negative integer or nothing; a
+value of another type raises rather than turning `tip_behind` off.
+**To flip:** "Tip-Untergrenze ab Genesis" (the floor becomes 2,016, which
+refuses only a tip that makes the run's heights negative); the ceiling's
+factor, a number by comment. The order check has no flip: the answer it
+refuses is never true.
 
 ### 8. Health: a dead collector is visibly dead within a day
 
@@ -504,5 +541,7 @@ owner's wish of 2026-11-10 for the chain as the source.
 | Confirmations before a halving is confirmed | six | a number by comment |
 | The next halving | a window from the recent 2,016-block rate to the target | "Halving als Einzeldatum" |
 | Run interval and staleness | every 6 hours; stale after 24 hours | numbers by comment |
+| The tip's floor (§7, precision) | the fourth halving, 840,000 | "Tip-Untergrenze ab Genesis" |
+| The tip's ceiling (§7, precision) | ten-minute spacing since genesis × 1.1 | a number by comment |
 | The operator's own URL | https, public address, replaces both defaults | none here; a private address needs the URL-policy record of §14 |
 | Further chain data (fees, mempool, prices) | not read | none: a new record |
