@@ -24,7 +24,14 @@ defmodule Portfolixir.News.Promotion do
     * `source_quality` — §3's one rule over every member: a `primary`
       member gives `primary`; two or more distinct `secondary` domains
       `secondary_multi`; one `secondary` domain `unverified`; else
-      `awareness`;
+      `awareness`. Each member counts at its **current** tier, the one the
+      table gives now (`Portfolixir.News.Sources.tier/2`), not a promoted
+      member's stored tier, which stays the provenance of the entry
+      already written (ADR-0056 E1 rule 5, precision of the closing act,
+      Sprint 29): a second promotion after a re-rating claims no better
+      source than the table allows. A member whose domain is now blocked
+      is left out, of the quality and of the link, and a story with none
+      left is refused naming `cluster_id`;
     * `headline` — the representative's title, cut at 80 characters on a
       word boundary as the companion spells them
       (`Portfolixir.News.Reads.clip_spelled_words/2`); a title that holds an
@@ -78,7 +85,9 @@ defmodule Portfolixir.News.Promotion do
 
   An item of the event's own security gives the event's `source_url` (its
   link) and `source_quality` by §3's rule over that one item (`primary`,
-  `secondary` as `unverified`, `awareness`). The item is not promoted: an
+  `secondary` as `unverified`, `awareness`), at its current tier (E1 rule
+  5, closing act); an item whose domain is now blocked is refused naming
+  `news_id`. The item is not promoted: an
   event is a mutable calendar fact (ADR-0048 §4), and what lasts from news
   is a research note (A2).
   """
@@ -93,6 +102,7 @@ defmodule Portfolixir.News.Promotion do
   alias Portfolixir.News.Label
   alias Portfolixir.News.Labels
   alias Portfolixir.News.Reads
+  alias Portfolixir.News.Sources
   alias Portfolixir.News.Stories
   alias Portfolixir.Repo
 
@@ -132,8 +142,9 @@ defmodule Portfolixir.News.Promotion do
          :ok <- Stories.lock({:security, story.security_id}, story.language),
          {:ok, story} <- own_story(cluster_id, attrs["security_id"]),
          members = lock_members(story),
-         {:ok, source_url} <- source_url(story, members),
-         {prefill, label} = prefill(story, members, source_url),
+         {:ok, current} <- current_members(members),
+         {:ok, source_url} <- source_url(story, current),
+         {prefill, label} = prefill(story, members, current, source_url),
          :ok <- unchanged_since_shown(prefill, shown),
          {:ok, note} <- write(actor, {story, prefill, label}, attrs, shown) do
       link(members, note)
@@ -164,8 +175,9 @@ defmodule Portfolixir.News.Promotion do
   def proposal(cluster_id, security_id) when is_integer(cluster_id) and is_integer(security_id) do
     with {:ok, story} <- own_story(cluster_id, security_id),
          members = Repo.all(from(i in Item, where: i.cluster_id == ^story.id, order_by: i.id)),
-         {:ok, source_url} <- source_url(story, members) do
-      {prefill, label} = prefill(story, members, source_url)
+         {:ok, current} <- current_members(members),
+         {:ok, source_url} <- source_url(story, current) do
+      {prefill, label} = prefill(story, members, current, source_url)
       {:ok, Map.put(prefill, "news_label_id", label && label.id)}
     end
   end
@@ -249,6 +261,27 @@ defmodule Portfolixir.News.Promotion do
     end
   end
 
+  # --- closing act, E1 rule 5 begin ---
+  # A new entry states the source the operator's table gives now (ADR-0056
+  # E1 rule 5, precision of the closing act, Sprint 29): each member at its
+  # current tier, as the ingest would store it (`Sources.tier/2`), never a
+  # promoted member's stored tier, which stays the first entry's
+  # provenance. A member whose domain is now blocked is left out, and a
+  # story with none left is refused naming `cluster_id`.
+  defp current_members(members) do
+    tiers = Sources.lookup(members |> Enum.map(& &1.domain) |> Enum.uniq())
+
+    members
+    |> Enum.map(&%{&1 | tier: Sources.tier(&1.class, Map.get(tiers, &1.domain))})
+    |> Enum.reject(&(&1.tier == :blocked))
+    |> case do
+      [] -> {:error, %{"cluster_id" => ["every member's domain is now blocked"]}}
+      current -> {:ok, current}
+    end
+  end
+
+  # --- closing act, E1 rule 5 end ---
+
   defp lock_members(story) do
     Repo.all(
       from(i in Item, where: i.cluster_id == ^story.id, order_by: i.id, lock: "FOR UPDATE")
@@ -276,7 +309,9 @@ defmodule Portfolixir.News.Promotion do
 
   defp fits?(url), do: url |> String.codepoints() |> length() <= @source_url_max
 
-  defp prefill(story, members, source_url) do
+  # `members` give the story's date and title (its representative), and
+  # `current` (`current_members/1`) its source quality.
+  defp prefill(story, members, current, source_url) do
     representative = Enum.find(members, &(&1.id == story.representative_item_id))
     label = Labels.active_label(story.id, Labels.newest_prompt_version())
 
@@ -284,7 +319,7 @@ defmodule Portfolixir.News.Promotion do
       "kind" => "evidence",
       "as_of" => Clock.local_date(representative.published_at),
       "source_url" => source_url,
-      "source_quality" => Atom.to_string(source_quality(members)),
+      "source_quality" => Atom.to_string(source_quality(current)),
       "headline" => Reads.clip_spelled_words(representative.title, SecurityNote.headline_max())
     }
 
@@ -359,12 +394,23 @@ defmodule Portfolixir.News.Promotion do
           {:ok, %{String.t() => term()}} | {:error, errors()}
   def event_source(security_id, news_id) when is_integer(security_id) and is_integer(news_id) do
     case Repo.get(Item, news_id) do
-      %Item{security_id: ^security_id, canonical_url: url, tier: tier} ->
-        if fits?(url),
-          do: {:ok, %{"source_url" => url, "source_quality" => item_quality(tier)}},
-          else:
-            {:error,
-             %{"news_id" => ["its link is longer than an event's source_url of 2048 characters"]}}
+      %Item{security_id: ^security_id, canonical_url: url} = item ->
+        # The item's current tier (E1 rule 5, closing act), not its stored one.
+        case Sources.tier_for(item.domain, item.class) do
+          :blocked ->
+            {:error, %{"news_id" => ["its domain is now blocked"]}}
+
+          tier ->
+            if fits?(url),
+              do: {:ok, %{"source_url" => url, "source_quality" => item_quality(tier)}},
+              else:
+                {:error,
+                 %{
+                   "news_id" => [
+                     "its link is longer than an event's source_url of 2048 characters"
+                   ]
+                 }}
+        end
 
       %Item{} ->
         {:error, %{"news_id" => ["is not an item of this security"]}}

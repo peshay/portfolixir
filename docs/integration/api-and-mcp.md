@@ -871,7 +871,10 @@ story was published (its representative's publication, as `news.get`
 answers it); `source_url` the link of its best-tier member, the first that
 fits 2,048 characters; `source_quality` by ADR-0056 §3's rule (a `primary`
 member gives `primary`, two or more distinct `secondary` domains
-`secondary_multi`, one `unverified`, else `awareness`); `headline` its title
+`secondary_multi`, one `unverified`, else `awareness`), each member at the
+tier the source table gives it now, so a second promotion after a re-rating
+states the new tier, and a member whose domain is now blocked is left out
+(of the quality and of the link; ADR-0056 E1 rule 5); `headline` its title
 cut at 80 characters on a word boundary; `event_type` and `tone` from its
 active label of the newest prompt version (a `noise` label gives no event
 type), the entry keeping that label's id as `news_label_id`. The pre-fill is
@@ -883,7 +886,8 @@ headline, naming `headline`; send your own. Every member of the story is then
 `promoted` and names the entry in `note_ids` (`news.get`, `news.list` with
 `fields=std`), so it outlives retention; a second promotion appends another
 entry, and the story names both. A story of another security, a category's
-story or an id naming none answers `422` naming `cluster_id`. Nothing in the
+story, an id naming none or a story whose every member's domain is now
+blocked answers `422` naming `cluster_id`. Nothing in the
 news layer writes an entry, an event or a prediction by itself.
 
 **A news item from an outside aggregator** (idea I13; Sprint 25 plan D-5),
@@ -1098,11 +1102,13 @@ The writes:
   `security_id` comes from the path, never the body; `machine_generated` is
   reserved and is ignored in the body. `event.news_id` (ADR-0056 §8) names a
   news item of that security as the event's source: its
-  link becomes `source_url` and its tier `source_quality` (`primary`,
-  `secondary` as `unverified`, `awareness`); `source_url` or
+  link becomes `source_url` and the tier the source table gives it now
+  `source_quality` (`primary`, `secondary` as `unverified`, `awareness`);
+  `source_url` or
   `source_quality` sent beside it answers `422` naming it, and an item of
-  another security, one that does not exist or whose link is longer than
-  2,048 characters answers `422` naming `news_id`. The item is not promoted:
+  another security, one that does not exist, one whose domain is now
+  blocked or whose link is longer than 2,048 characters answers `422`
+  naming `news_id`. The item is not promoted:
   what lasts from news is a research entry.
 - `PATCH /api/v1/security_events/:id` — corrects or confirms one in place. The
   security it belongs to cannot be changed.
