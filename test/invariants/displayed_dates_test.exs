@@ -44,7 +44,9 @@ defmodule Portfolixir.Invariants.DisplayedDatesTest do
     {"lib/portfolixir_web/live/transaction_management_live.ex", :date_field_value} =>
       "the booking drawer's date input and the notes drawer's disabled one",
     {"lib/portfolixir_web/live/portfolio_live.ex", :period_pairs} =>
-      "Wealth's from= and to= address values, the popover's own input format (#1432)"
+      "Wealth's from= and to= address values, the popover's own input format (#1432)",
+    {"lib/portfolixir_web/live/risk/crash_section.ex", :holdings_link} =>
+      "„Im Depot ansehen“: Wealth's from= and to= address values (Sprint 29 C6, F4)"
   }
 
   # User story:

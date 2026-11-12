@@ -13311,3 +13311,374 @@ dialog.merge-dialog {
   font-size: 12px;
   color: var(--color-text-muted);
 }
+
+/* --- S29 C6 begin: the Crashes section on Wealth › Risk (FR-54, ADR-0058
+   §9 and F4; board ux-design-2026-11-12-sprint29/01, plan D-5 P1 to P9;
+   board 02 ④ for the crash benchmark's inline form). The bar is the
+   stacked chart's `stack-bar` (labelled controls start on one edge); the
+   rows give way to two lines per entry where the section is narrower than
+   560 px, by a container query on the section, so the bars stay (P5). --- */
+.crash-section {
+  container: crash-section / inline-size;
+}
+.crash-bar select {
+  width: auto;
+  max-width: min(19.5rem, 100%);
+}
+.crash-window {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.crash-window b {
+  color: var(--color-text);
+  font-weight: 600;
+}
+.crash-window b.is-positive {
+  color: var(--color-positive);
+}
+.crash-window b.is-negative {
+  color: var(--color-danger);
+}
+.crash-window .badge {
+  align-self: center;
+}
+.crash-window__link {
+  margin-left: auto;
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.crash-window__nolink {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+.crash-provisional {
+  margin: 0;
+}
+/* „manuell“ in the accent: its dates were chosen by a person (§4). */
+.badge.crash-badge--manual {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+/* The list fits its section: its bar column takes a share of the width,
+   so the table never grows to its content and scrolls. */
+.data-table-wrapper > table.crash-table {
+  width: 100%;
+  min-width: 0;
+}
+.crash-table thead th {
+  white-space: nowrap;
+}
+.crash-table td {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.crash-table td.crash-rank,
+.crash-table th.crash-rank {
+  width: 1.5rem;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.crash-table td.crash-name {
+  white-space: nowrap;
+}
+.crash-table td.crash-name .badge {
+  margin-left: 6px;
+}
+.crash-table td.crash-plot,
+.crash-table th.crash-plot {
+  width: 44%;
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+.crash-table.is-rebound td.crash-plot,
+.crash-table.is-rebound th.crash-plot {
+  width: 34%;
+}
+.crash-table th.crash-days {
+  white-space: normal;
+  width: 6.5rem;
+}
+.crash-table td.num,
+.crash-table th.num {
+  white-space: nowrap;
+}
+.crash-table td.crash-pp {
+  color: var(--color-text-muted);
+}
+.crash-table td.crash-notyet {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.crash-days__label {
+  display: none;
+}
+.crash-track {
+  position: relative;
+  height: 14px;
+}
+.crash-track__bar {
+  position: absolute;
+  top: 2px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--color-danger);
+}
+.crash-track__bar.is-up {
+  background: var(--color-positive);
+}
+.crash-track__zero {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 1px;
+  background: var(--color-border-strong);
+}
+/* The crash benchmark over the same days: a dashed line, never a bar. */
+.crash-track__ref {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 0;
+  border-left: 1.5px dashed var(--color-text-muted);
+}
+.crash-axis {
+  position: relative;
+  height: 16px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.crash-axis span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.crash-table tfoot td {
+  border: 0;
+  padding-top: 2px;
+  background: transparent;
+}
+.crash-unanswered {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+.crash-unanswered button {
+  margin-left: var(--space-1);
+}
+.crash-unanswered-list {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+.crash-windows__body {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+.crash-rule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px var(--space-3);
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.crash-rule b {
+  color: var(--color-text);
+}
+.crash-rule .crash-rule__add {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.crash-windows-table td,
+.crash-windows-table th {
+  white-space: nowrap;
+}
+.crash-windows-table td.crash-unnamed {
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+.crash-windows-table td.crash-actions {
+  text-align: right;
+}
+.crash-windows-table td.crash-actions .link-button + .link-button {
+  margin-left: var(--space-3);
+}
+.crash-windows-table tr.is-ongoing td {
+  background: var(--color-warning-soft);
+}
+.crash-unmatched {
+  display: grid;
+  gap: 6px;
+}
+.crash-unmatched h3 {
+  margin: var(--space-1) 0 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+.crash-unmatched .hint {
+  margin: 0;
+}
+/* The forms in the disclosure: name, draw, edit, make a name manual (F1). */
+.crash-edit-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-2) var(--space-3);
+  padding: 10px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+}
+.crash-edit-form label {
+  display: grid;
+  gap: var(--space-1);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.crash-edit-form input {
+  min-height: 30px;
+  font-size: 13px;
+}
+.crash-edit-form input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+.crash-edit-form .hint,
+.crash-edit-form .crash-form__errors {
+  flex-basis: 100%;
+  margin: 0;
+}
+.crash-form__errors {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--color-danger);
+  font-size: 12.5px;
+}
+/* Board 02 ④ (Q2): the crash benchmark chosen in place. */
+.crash-benchmark-form {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  padding: var(--space-3) 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+}
+.crash-benchmark-form label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.crash-benchmark-form select {
+  min-height: 30px;
+  max-width: 18rem;
+  font-size: 13px;
+  justify-self: start;
+}
+.crash-benchmark-form__actions,
+.crash-benchmark-form .hint,
+.crash-benchmark-form .crash-form__errors {
+  grid-column: 2;
+  margin: 0;
+}
+.crash-benchmark-form__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+.segmented-control__option.is-disabled {
+  color: var(--color-text-subtle);
+  cursor: default;
+}
+/* P5, the phone: each entry two lines — rank, name and figure over the
+   bar and the difference in points (the days back on a third) — and the
+   column heads leave for the labels in the rows. */
+@container crash-section (max-width: 560px) {
+  .crash-window__link,
+  .crash-window__nolink {
+    margin-left: 0;
+  }
+  .crash-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .crash-table tbody tr,
+  .crash-table tfoot tr {
+    display: grid;
+    grid-template-columns: 1.4rem minmax(0, 1fr) auto;
+    column-gap: var(--space-2);
+    row-gap: 2px;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .crash-table tfoot tr {
+    border-bottom: 0;
+  }
+  .data-table.crash-table tbody tr td,
+  .data-table.crash-table tfoot tr td {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .crash-table td.crash-rank {
+    grid-column: 1;
+    grid-row: 1;
+    width: auto;
+  }
+  .crash-table td.crash-name {
+    grid-column: 2;
+    grid-row: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .crash-table td.crash-fig {
+    grid-column: 3;
+    grid-row: 1;
+    font-weight: 600;
+  }
+  .crash-table td.crash-plot,
+  .crash-table.is-rebound td.crash-plot {
+    grid-column: 2;
+    grid-row: 2;
+    width: auto;
+    padding: var(--space-1) 0 2px;
+  }
+  .crash-table td.crash-pp {
+    grid-column: 3;
+    grid-row: 2;
+    font-size: 12px;
+  }
+  .crash-table td.crash-days {
+    grid-column: 2 / 4;
+    grid-row: 3;
+    text-align: left;
+    font-size: 12px;
+  }
+  .crash-table tfoot td:not(.crash-plot) {
+    display: none;
+  }
+  .crash-days__label {
+    display: inline;
+  }
+}
+/* --- S29 C6 end --- */

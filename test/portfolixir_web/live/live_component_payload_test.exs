@@ -75,8 +75,12 @@ defmodule PortfolixirWeb.LiveComponentPayloadTest do
       PortfolixirWeb.SaleHindsightSection => [
         {"/securities/#{security.id}?tab=trades", "select_detail_tab", %{"tab" => "trades"},
          "#detail-sale-hindsight"}
-      ]
+      ],
       # --- Sprint 26 V3 end ---
+      # Sprint 29 C6: the Crashes section on Risk, mounted with the page.
+      PortfolixirWeb.Risk.CrashSection => [
+        {"/risk", "dismiss_result", %{}, "#risk-crashes"}
+      ]
     }
   end
 

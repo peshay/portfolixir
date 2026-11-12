@@ -285,3 +285,6 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "is still the current ISIN of \"%{security_name}\" (security #%{security_id})"
 msgstr ""
+
+msgid "must be after start"
+msgstr ""

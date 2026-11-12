@@ -121,4 +121,44 @@ defmodule PortfolixirWeb.Journal.RowTest do
       refute Row.kind_label(kind) == kind, kind
     end
   end
+
+  # User story (Sprint 29 C6; ADR-0058 §3, §4, §9):
+  # As the operator reading the audit journal,
+  # I want a crash window's name and a manual crash window named in words,
+  # filterable and linked to the Risk page where the Crashes section is,
+  # so that the section's writes read as every other record's.
+  #
+  # Acceptance criteria:
+  # - "crash_window_name" reads „Crash window name“, "crash_manual_window"
+  #   „Manual crash window“ (German: „Name eines Crash-Fensters“, „Manuelles
+  #   Crash-Fenster“), each with its stored name, linked to the section.
+  # - The kind select offers both, after the rules.
+  test "a crash window's name and a manual crash window are named and linked" do
+    named =
+      entry(%{
+        resource_type: "crash_window_name",
+        resource_id: "4",
+        after: %{"name" => "Synthetic Spring"}
+      })
+
+    manual =
+      entry(%{
+        resource_type: "crash_manual_window",
+        resource_id: "11",
+        after: %{"name" => "Synthetic War"}
+      })
+
+    assert Row.build(named).entity == "Crash window name 4 · Synthetic Spring"
+    assert Row.build(manual).entity == "Manual crash window 11 · Synthetic War"
+    assert Row.build(named).href == "/risk#risk-crashes"
+    assert Row.build(manual).href == "/risk#risk-crashes"
+
+    Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+      assert Row.kind_label("crash_window_name") == "Name eines Crash-Fensters"
+      assert Row.kind_label("crash_manual_window") == "Manuelles Crash-Fenster"
+    end)
+
+    assert Enum.drop_while(Row.kinds(), &(&1 != "policy_rule_version")) |> Enum.take(3) ==
+             ["policy_rule_version", "crash_window_name", "crash_manual_window"]
+  end
 end
