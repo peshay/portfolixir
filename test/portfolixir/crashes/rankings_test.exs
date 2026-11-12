@@ -9,7 +9,18 @@ defmodule Portfolixir.Crashes.RankingsTest do
   # by WindowReturn's formula `(end_close × start_hub) / (start_close ×
   # end_hub) − 1`; each recomputation is written beside its figure. Every
   # name and figure is synthetic.
-  use Portfolixir.DataCase, async: true
+  #
+  # async: false -- the EUR/USD rates below are rows keyed by base, quote and
+  # date alone (exchange_rates' unique index), and another async module can
+  # hold the same key uncommitted: walk_payload_pin_test stores a weekly
+  # EUR/USD series from 2022-06-06, whose Monday 2025-03-03 is this file's
+  # sale date. A sandboxed test never commits, so this module's insert
+  # waited on that row until the other test ended, and under load the wait
+  # ran into the 15 s query timeout (57014 query_canceled; the closing act
+  # of Sprint 29). The crash benchmark it chooses is one setting row for the
+  # whole instance as well. Run alone after the async phase, the module
+  # meets no other test's open transaction.
+  use Portfolixir.DataCase, async: false
 
   import Portfolixir.WorldFixtures,
     only: [
