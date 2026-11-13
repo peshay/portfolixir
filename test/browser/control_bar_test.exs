@@ -216,6 +216,15 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
   #   screen.
   # - A `.control-bar` the walk never sees at any width fails it: a gate
   #   that measured nothing checks nothing.
+  # - PR 2's closing act: the sweep also measures at 1680 and 1920 px, on
+  #   both sides of every width the stylesheets' media queries switch at,
+  #   and on both sides of where a bar on the component crosses its fold or
+  #   its floor; any element a control names by aria-labelledby is a label,
+  #   a screen reader's label is none; and a labelled control (a select, a
+  #   segmented control, a field, a chip family) outside every bar found
+  #   fails, unless STRAY_EXCEPTIONS names it with its reason (a form's
+  #   fields, one labelled control on its own line), an entry that excuses
+  #   nothing failing as stale.
   @tag timeout: 1_200_000
   test "every bar of labelled controls on every page starts its controls on one edge",
        %{base_url: base_url, sandbox_owner: owner} do
@@ -284,6 +293,14 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
   #   sit neither beside nor under them, is caught for that, its labels
   #   read as labels.
   # - A bar that holds the rule at every width is not.
+  # - PR 2's closing act (the attack lens's inputs, each seen slipping
+  #   first): a labelled chip bar under a class no list holds is caught as
+  #   controls outside every bar; labels named only by aria-labelledby are
+  #   read as labels; a family named only by a screen reader's label is
+  #   caught as unnamed; a fold set a few pixels too low is caught at its
+  #   crossing, and a break in a band narrower than a step (761 to 767,
+  #   321 to 327 px) or past 1440 px at the stylesheet's breakpoints; the
+  #   strays' exceptions need a reason and go stale.
   test "the walk catches a bar that wraps only at 768 px and a label set in CSS",
        %{base_url: base_url} do
     {result, output} = run!("attack", base_url, %{})
@@ -300,6 +317,50 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
     [error] = fixtures["css_label"]["errors"]
     assert error =~ "sits neither after nor under its label „Konto“", output
     refute error =~ "without a visible label", output
+
+    # --- PR 2 closing act begin (the attack lens of Lane L, pr2-l-attack) ---
+    # A labelled chip bar under a class no list holds is caught as labelled
+    # controls outside every bar, its labels plain elements named by
+    # aria-labelledby (a span or a label); in a bar the walk knows, labels
+    # named only by aria-labelledby are read as labels.
+    for name <- ~w(unlisted_class unlisted_class_label) do
+      assert [_ | _] = errors = fixtures[name]["errors"], "#{name} went uncaught:\n" <> output
+      assert Enum.all?(errors, &(&1 =~ "outside every bar of labelled controls")), output
+      assert Enum.any?(errors, &(&1 =~ "„Konto“")), output
+    end
+
+    assert [unnamed] = fixtures["unnamed_labels"]["errors"], output
+    assert unnamed =~ "sits neither after nor under its label „Konto“", output
+
+    # A family named only by a screen reader's label has no visible label.
+    for name <- ~w(sr_only_family sr_only_label) do
+      assert [sr_only] = fixtures[name]["errors"], "#{name} went uncaught:\n" <> output
+      assert sr_only =~ "a chip family without a visible label, from „Giro“", output
+    end
+
+    # A fold set a few pixels too low is caught where the bar crosses it
+    # (the line wraps while the bar is 761 to 766 px wide, 777 to 782 px
+    # windows), and only there.
+    assert fixtures["fold_crossing"]["widths"] != [], output
+    assert Enum.all?(fixtures["fold_crossing"]["widths"], &(&1 in 777..782)), output
+
+    # A break in a band narrower than the sweep's step, or past 1440 px, is
+    # caught at the stylesheet's own breakpoints, and only in its band.
+    for {name, band} <- [band_761_767: 761..767, band_321_327: 321..327, wide_1441: 1441..1920] do
+      widths = fixtures[Atom.to_string(name)]["widths"]
+      assert widths != [], "#{name} went uncaught:\n" <> output
+      assert Enum.all?(widths, &(&1 in band)), output
+    end
+
+    # The controls outside every bar take an exception only with a reason,
+    # and one that excuses nothing fails as stale; the one that matches
+    # excuses its bar.
+    strays = result["strays"]
+    refute Enum.any?(strays, &(&1 =~ "outside every bar of labelled controls")), output
+    assert Enum.any?(strays, &(&1 =~ "the exception .no-reason gives no reason")), output
+    assert Enum.any?(strays, &(&1 =~ "the exception .nowhere excuses no control")), output
+
+    # --- PR 2 closing act end ---
   end
 
   # --- L5 begin ---

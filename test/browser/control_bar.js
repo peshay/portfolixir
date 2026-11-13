@@ -157,12 +157,14 @@ function measureBar(page, roots) {
 function measureBars(page, rootsList) {
   return page.evaluate((rootsList) => rootsList.map((roots) => {
     const round = (n) => Math.round(n * 10) / 10;
+    // Visible to the eye: a screen reader's label (`.sr-only`, a box of a
+    // pixel or less) names nothing on the screen (PR 2 closing act).
     const visible = (e) => {
       const r = e.getBoundingClientRect();
       const s = getComputedStyle(e);
       return (
-        r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none" &&
-        !e.closest(".visually-hidden, [hidden], details:not([open]) > :not(summary)")
+        r.width > 1 && r.height > 1 && s.visibility !== "hidden" && s.display !== "none" &&
+        !e.closest(".visually-hidden, .sr-only, [hidden], details:not([open]) > :not(summary)")
       );
     };
     const CONTROL =
@@ -189,7 +191,15 @@ function measureBars(page, rootsList) {
         .join(" ");
     const labelText = (e) => (e.textContent + " " + generated(e)).trim().replace(/\s+/g, " ");
     const cssLabels = all("*").filter((e) => /\p{L}/u.test(generated(e)) && !e.matches(CONTROL));
-    const labels = [...new Set([...all(LABEL), ...cssLabels])].filter(
+    // Any element in the bar that a control or a family names by its
+    // aria-labelledby is a label, whatever its class (PR 2 closing act: a
+    // plain span named so was read as no label, and its bar went unmeasured).
+    const inBar = (e) => rootEls.some((r) => r.contains(e));
+    const named = all("[aria-labelledby]")
+      .flatMap((e) => e.getAttribute("aria-labelledby").split(/\s+/))
+      .map((id) => document.getElementById(id))
+      .filter((e) => e && inBar(e));
+    const labels = [...new Set([...all(LABEL), ...cssLabels, ...named])].filter(
       (l) =>
         visible(l) && !l.closest(".segmented-control") && labelText(l) &&
         !atomic.some((c) => c.contains(l) || l.contains(c)) && !l.querySelector("select, input")
@@ -255,6 +265,25 @@ function measureBars(page, rootsList) {
           chips: g.chips
         })),
       page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      // A bar on the component: the width its container queries read (its
+      // content box) and the named widths it switches at, its fold and its
+      // floor (PR 2 closing act: the sweep steps to each crossing).
+      ...(() => {
+        const e = rootEls[0];
+        if (!e.matches(".control-bar")) return { container: null, folds: [] };
+        const s = getComputedStyle(e);
+        const px = (v) => parseFloat(v) || 0;
+        return {
+          container: (
+            e.getBoundingClientRect().width - px(s.paddingLeft) - px(s.paddingRight) -
+              px(s.borderLeftWidth) - px(s.borderRightWidth)
+          ),
+          folds: [...e.classList]
+            .map((c) => /^control-bar--(?:fold|floor)-(\d+)$/.exec(c))
+            .filter(Boolean)
+            .map((match) => Number(match[1]))
+        };
+      })(),
       // How far the furthest control reaches past the bar or the screen.
       overflow: round(
         Math.max(0, ...atomic.map((c) => c.getBoundingClientRect().right)) -
@@ -413,10 +442,75 @@ const OLDER_BARS = [
 ].join(", ");
 
 // The widths a labelled bar is measured at: 1440 down to 320 px in steps
-// of 8 (768, a tablet's, among them), and 390, the phone the plan names.
-const SWEEP = [390];
-for (let width = 1440; width >= 320; width -= 8) SWEEP.push(width);
+// of 8 (768, a tablet's, among them), 390, the phone the plan names, and
+// 1680 and 1920, the wide screens past them (PR 2 closing act). Between two
+// steps the sweep adds, per page, both sides of each width its stylesheets'
+// media queries switch at (`mediaSides`), and per bar on the component both
+// sides of where the bar crosses its own fold and floor (`crossings`): a
+// break in a band narrower than a step sits at one of those.
+const WIDEST = 1920;
+const NARROWEST = 320;
+const SWEEP = [390, 1680, WIDEST];
+for (let width = 1440; width >= NARROWEST; width -= 8) SWEEP.push(width);
 SWEEP.sort((a, b) => b - a);
+
+// Both sides of every window width a media query of the page's stylesheets
+// switches at: `(max-width: 720px)` holds at 720 and not at 721,
+// `(min-width: 721px)` at 721 and not at 720; rem and em at 16 px.
+function mediaSides(page) {
+  return page.evaluate(
+    ({ narrowest, widest }) => {
+      const sides = new Set();
+      const read = (rules) => {
+        for (const rule of rules) {
+          if (rule instanceof CSSMediaRule) {
+            const text = rule.conditionText || rule.media.mediaText;
+            const forms = [
+              [/\((min|max)-width:\s*([\d.]+)(px|r?em)\)/g, (m) => [m[1] === "min" ? ">=" : "<=", m[2], m[3]]],
+              [/\(width\s*(<=|>=|<|>)\s*([\d.]+)(px|r?em)\)/g, (m) => [m[1], m[2], m[3]]]
+            ];
+            for (const [pattern, parts] of forms) {
+              for (const m of text.matchAll(pattern)) {
+                const [op, value, unit] = parts(m);
+                const n = parseFloat(value) * (unit === "px" ? 1 : 16);
+                // The last width that holds and the first that does not.
+                const edge = op === "<=" ? Math.floor(n) : op === "<" ? Math.ceil(n) - 1 : op === ">=" ? Math.ceil(n) - 1 : Math.floor(n);
+                sides.add(edge);
+                sides.add(edge + 1);
+              }
+            }
+          }
+          if (rule.cssRules) read(rule.cssRules);
+        }
+      };
+      for (const sheet of document.styleSheets) {
+        try {
+          read(sheet.cssRules);
+        } catch (_error) {
+          // A stylesheet of another origin cannot be read; the app has none.
+        }
+      }
+      return [...sides].filter((w) => w >= narrowest && w <= widest);
+    },
+    { narrowest: NARROWEST, widest: WIDEST }
+  );
+}
+
+// The window widths, among `measures` (width → the bar's measure), between
+// which a bar on the component crosses one of its fold and floor: pairs of
+// neighbouring widths with its container on either side of the named width.
+function crossingPairs(measures) {
+  const seen = [...measures.entries()].filter(([, m]) => m.visible && m.container != null).sort((a, b) => a[0] - b[0]);
+  const pairs = [];
+  for (let i = 1; i < seen.length; i += 1) {
+    const [low, a] = seen[i - 1];
+    const [high, b] = seen[i];
+    for (const fold of a.folds) {
+      if ((a.container > fold) !== (b.container > fold) && high - low > 1) pairs.push({ low, high, fold, above: b.container > fold });
+    }
+  }
+  return pairs;
+}
 
 // Opens each closed disclosure that holds a bar (the allocation's drift
 // filter), the way the operator does: its summary pressed.
@@ -511,16 +605,22 @@ function ranges(widths) {
 // `onWidth` (L5), when given, reads the page at 1200 and at 390 px, the
 // widths every page is set to here anyway: the open prose check rides on
 // these visits instead of making its own.
-async function walkBars(page, where, swept = new Set(), onWidth = null) {
+//
+// `strays` (PR 2 closing act), when given, gathers the labelled controls
+// that stand outside every bar found, over a whole walk; without it, the
+// page's own are reported with its bars.
+async function walkBars(page, where, swept = new Set(), onWidth = null, strays = null) {
   await openDisclosures(page);
   const bars = await tagBars(page);
   const report = [];
   const labelled = new Set();
   const seen = new Set();
   const widths = new Map(bars.map((b) => [b.selector, []]));
+  const ownStrays = strays || new Strays([]);
   for (const width of [1200, 390]) {
     await atWidth(page, width);
     if (onWidth) await onWidth(width);
+    await ownStrays.read(page, where + " at " + width + " px");
     const ms = await measureBars(page, bars.map((b) => b.selector));
     bars.forEach((bar, i) => {
       widths.get(bar.selector).push(ms[i].visible ? ms[i].width : null);
@@ -538,11 +638,13 @@ async function walkBars(page, where, swept = new Set(), onWidth = null) {
   });
   const started = Date.now();
   const broken = new Map(measured.map((b) => [b.selector, new Map()]));
-  for (const width of measured.length > 0 ? SWEEP : []) {
+  const byWidth = new Map(measured.map((b) => [b.selector, new Map()]));
+  const sweepAt = async (width) => {
     await atWidth(page, width);
     const ms = await measureBars(page, measured.map((b) => b.selector));
     measured.forEach((bar, i) => {
       const m = ms[i];
+      byWidth.get(bar.selector).set(width, m);
       if (!m.visible) return;
       seen.add(bar.selector);
       const found = breaches(m, { everyFamilyNamed: bar.component, sweep: true });
@@ -550,6 +652,31 @@ async function walkBars(page, where, swept = new Set(), onWidth = null) {
       broken.get(bar.selector).set(width, found);
       console.error(where + " " + bar.name + " at " + width + " px: " + JSON.stringify(m));
     });
+  };
+  if (measured.length > 0) {
+    const widths = [...new Set([...SWEEP, ...(await mediaSides(page))])].sort((a, b) => b - a);
+    for (const width of widths) await sweepAt(width);
+    // Where a bar on the component crosses its fold or its floor between
+    // two steps: halved down to the two neighbouring widths on either side,
+    // then one more on each side (PR 2 closing act).
+    for (const bar of measured) {
+      const measures = byWidth.get(bar.selector);
+      for (const { low, high, fold, above } of crossingPairs(measures)) {
+        let lo = low;
+        let hi = high;
+        while (hi - lo > 1) {
+          const mid = Math.floor((lo + hi) / 2);
+          await sweepAt(mid);
+          const m = measures.get(mid);
+          if (!m.visible || m.container == null) break;
+          if (m.container > fold === above) hi = mid;
+          else lo = mid;
+        }
+        for (const width of [lo - 1, lo, hi, hi + 1]) {
+          if (width >= NARROWEST && width <= WIDEST && !measures.has(width)) await sweepAt(width);
+        }
+      }
+    }
   }
   console.error(where + ": swept " + measured.map((b) => b.name).join(", ") + " in " + (Date.now() - started) + " ms");
   for (const bar of measured) {
@@ -568,9 +695,141 @@ async function walkBars(page, where, swept = new Set(), onWidth = null) {
   for (const bar of measured.filter((b) => b.component && !seen.has(b.selector))) {
     report.push({ bar: bar.name, widths: [], error: where + ": the bar " + bar.name + " is never shown, so it was never measured" });
   }
+  if (!strays) for (const error of ownStrays.breaches) report.push({ bar: "outside", widths: [], error });
   await atWidth(page, 1200);
   return { bars: bars.filter((b) => seen.has(b.selector)).map((b) => b.name), report };
 }
+
+// --- PR 2 closing act begin (the attack lens of Lane L, S1) ---
+// A labelled control the walk finds outside every bar it tagged: a bar
+// under a class no list above holds is no bar to the walk, and so it was
+// never measured. Its controls are found by what they are instead: a
+// control (`CONTROL` of the measure) or a chip family (an element with
+// role="group", or the parent, holding a `.filter-chip`) with a visible
+// label of its own: an element its aria-labelledby names, a `<label for>`
+// its id names, or a `<label>` around it with text of its own. One outside
+// every tagged bar, a dialog, a filter sheet and an ⓘ breaks the rule
+// unless an exception below names it with its reason.
+// The reasons, as L4's static check gives them for the same markup
+// (test/invariants/control_bar_labelled_controls_test.exs).
+const FORM_FIELDS =
+  "a form's fields, each label above its field, one field under another or in a grid of fields: a form, not a bar of controls side by side";
+const SINGLE =
+  "one labelled control on a line of its own, with no second labelled control beside or under it to share an edge with: not a bar";
+const STRAY_EXCEPTIONS = [
+  { selector: "#research-entry-form", reason: FORM_FIELDS + " (a security's Research tab, „Eintrag anhängen“)" },
+  { selector: ".category-form", reason: FORM_FIELDS + " (a classification's new category: name, parent, colour, description)" },
+  { selector: "#classification-form", reason: SINGLE + " (a new classification's name, then „Klassifizierung anlegen“)" },
+  { selector: "#soll-plan-picker-form", reason: SINGLE + " (a classification's target plan version)" },
+  { selector: "[id^='liquidity-role-form-']", reason: SINGLE + " (a cash account's liquidity role, one per account row)" }
+];
+
+// The labelled controls outside every tagged bar on the page as it stands,
+// each with the exceptions it falls under (by index).
+function strayControls(page, exceptions) {
+  return page.evaluate(
+    ({ selectors }) => {
+      const visible = (e) => {
+        const r = e.getBoundingClientRect();
+        const s = getComputedStyle(e);
+        return (
+          r.width > 1 && r.height > 1 && s.visibility !== "hidden" && s.display !== "none" &&
+          !e.closest(".visually-hidden, .sr-only, [hidden], details:not([open]) > :not(summary)")
+        );
+      };
+      const CONTROL =
+        ".segmented-control, select, input:not([type=hidden]):not([type=checkbox]):not([type=radio]), " +
+        "[role='group']:has(.filter-chip), :has(> .filter-chip)";
+      const letters = (t) => /\p{L}/u.test(t);
+      // The text a label shows, its control's own text (a select's options)
+      // and a screen reader's text left out.
+      const shown = (label, control) => {
+        let text = "";
+        const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          const parent = n.parentElement;
+          if (control.contains(n) || parent.closest("select, option, button, .visually-hidden, .sr-only")) continue;
+          text += n.data + " ";
+        }
+        return text.replace(/\s+/g, " ").trim();
+      };
+      const labelOf = (c) => {
+        for (const id of (c.getAttribute("aria-labelledby") || "").split(/\s+/).filter(Boolean)) {
+          const l = document.getElementById(id);
+          if (l && !l.contains(c) && visible(l) && letters(shown(l, c))) return { el: l, text: shown(l, c) };
+        }
+        if (c.id) {
+          for (const l of document.querySelectorAll("label[for='" + CSS.escape(c.id) + "']")) {
+            if (visible(l) && letters(shown(l, c))) return { el: l, text: shown(l, c) };
+          }
+        }
+        const around = c.parentElement && c.parentElement.closest("label");
+        if (around && visible(around) && letters(shown(around, c))) return { el: around, text: shown(around, c) };
+        return null;
+      };
+      const out = [];
+      for (const c of document.querySelectorAll(CONTROL)) {
+        if (c.closest("dialog, .modal, .filter-sheet, details.metric-tooltip")) continue;
+        // A family's own chips, or a control inside a family, are the family's.
+        if (c.parentElement && c.parentElement.closest(".segmented-control, [role='group']:has(.filter-chip)")) continue;
+        if (!visible(c)) continue;
+        const label = labelOf(c);
+        if (!label) continue;
+        // In a bar the walk tagged with its label, it is that bar's: the
+        // bar is labelled and measured. A label outside its control's bar
+        // leaves the bar read as unlabelled, so the control is a stray.
+        const bar = c.closest("[data-walk-bar]");
+        if (bar && bar.contains(label.el)) continue;
+        const html = c.outerHTML.slice(0, c.outerHTML.indexOf(">") + 1).slice(0, 160);
+        out.push({
+          label: label.text.slice(0, 40),
+          html,
+          matches: selectors.map((s, i) => (c.closest(s) ? i : -1)).filter((i) => i >= 0)
+        });
+      }
+      return out;
+    },
+    { selectors: exceptions.map((x) => x.selector) }
+  );
+}
+
+// Gathers the stray controls of a walk, once per control and label, and
+// answers its errors: each stray no exception excuses, each exception
+// without a reason, and each that excused nothing.
+class Strays {
+  constructor(exceptions = STRAY_EXCEPTIONS) {
+    this.exceptions = exceptions;
+    this.used = new Set();
+    this.seen = new Set();
+    this.breaches = [];
+  }
+
+  async read(page, where) {
+    for (const s of await strayControls(page, this.exceptions)) this.add(s, where);
+  }
+
+  add(s, where) {
+    if (s.matches.length > 0) {
+      s.matches.forEach((i) => this.used.add(i));
+      return;
+    }
+    const key = s.html + "\n" + s.label;
+    if (this.seen.has(key)) return;
+    this.seen.add(key);
+    this.breaches.push(
+      where + ": a control labelled „" + s.label + "“ stands outside every bar of labelled controls (" + s.html +
+        "): build it as a group of PortfolixirWeb.ControlBar.bar/1, or register an exception with its reason in STRAY_EXCEPTIONS"
+    );
+  }
+
+  errors() {
+    const stale = this.exceptions
+      .map((x, i) => (this.used.has(i) ? null : "outside the bars: the exception " + x.selector + " excuses no control on any page; remove it"))
+      .filter(Boolean);
+    return [...invalidExceptions(this.exceptions, "outside the bars"), ...this.breaches, ...stale];
+  }
+}
+// --- PR 2 closing act end ---
 
 // The area tabs and comparisons a page links in place (a `tab` or a
 // `hindsight` in the address), as the privacy walk follows them.
@@ -598,6 +857,8 @@ async function everyBar(browser) {
   const started = Date.now();
   let proseMs = 0;
   // --- L5 end ---
+  // PR 2 closing act: the labelled controls outside every bar, over the walk.
+  const strays = new Strays();
   const walkLocale = async (locale) => {
     const context = await browser.newContext({ viewport: { width: 1200, height: 900 } });
     await context.addCookies([
@@ -615,7 +876,7 @@ async function everyBar(browser) {
         proseMs += Date.now() - t;
       };
       // --- L5 end ---
-      const { bars, report } = await walkBars(page, where, swept, readProse);
+      const { bars, report } = await walkBars(page, where, swept, readProse, strays);
       bars.forEach((b) => found.add(b));
       console.error(where + ": " + JSON.stringify(bars));
       for (const r of report) errors.push(r.error);
@@ -681,6 +942,7 @@ async function everyBar(browser) {
     await leave(context);
   };
   await Promise.all(["de", "en"].map(walkLocale));
+  errors.push(...strays.errors());
   // --- L5 begin ---
   const proseErrors = prose.errors();
   console.error("open prose: " + prose.checked + " paragraphs read in " + proseMs + " ms of a walk of " + (Date.now() - started) + " ms");
@@ -701,6 +963,45 @@ const FIXTURE_CSS = `
   .filter-chip { font: inherit; padding: 2px 8px; }
   select { font: inherit; }
 `;
+
+// --- PR 2 closing act begin (the attack lens of Lane L, pr2-l-attack) ---
+// Two chip families, each indented under its label: neither beside it nor
+// on its edge. `label(id, text)` draws the label; `family` is the class of
+// the chips' element.
+const brokenPairs = (cls, label, family = "chip-row") => `
+  <style>.${cls} .grp { display: block; } .${cls} .ctl { display: block; margin-left: 24px; }</style>
+  <div class="bar ${cls}">
+    <span class="grp">${label("a1", "Konto")}
+      <span class="ctl ${family}" role="group" aria-labelledby="a1"><button class="filter-chip">Giro</button></span></span>
+    <span class="grp">${label("b1", "Typ")}
+      <span class="ctl ${family}" role="group" aria-labelledby="b1"><button class="filter-chip">Kauf</button></span></span>
+  </div>`;
+// A bar on the component, one line, whose chip family's only label is
+// `label`, hidden from the eye as a screen reader's label is.
+const srOnlyBar = (label) => `
+  <style>.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }</style>
+  <div class="bar control-bar"><div class="control-bar__controls" style="display: flex; gap: 8px; align-items: center">
+    <span class="control-bar__group">${label}
+      <span class="filter-chips" role="group" aria-labelledby="a"><button class="filter-chip">Giro</button><button class="filter-chip">Depot</button></span></span>
+    <span class="control-bar__group"><label class="control-bar__label" for="k">Typ</label>
+      <select id="k"><option>Alle</option></select></span>
+  </div></div>`;
+// One line at every width but in the windows `media` names, where the
+// groups stack and each control starts after its own label.
+const viewportBand = (media) => `
+  <style>
+    .w { display: flex; gap: 8px; }
+    .w > span { display: inline-flex; gap: 6px; align-items: center; }
+    @media ${media} { .w { flex-direction: column; align-items: flex-start; } }
+  </style>
+  <div class="bar control-bar"><div class="control-bar__controls w">
+    <span class="control-bar__group"><span class="control-bar__label" id="a">Konto</span>
+      <span class="filter-chips" role="group" aria-labelledby="a"><button class="filter-chip">Giro</button></span></span>
+    <span class="control-bar__group"><label class="control-bar__label" for="k">Anlageklasse</label>
+      <select id="k"><option>Alle</option></select></span>
+  </div></div>`;
+// --- PR 2 closing act end ---
 
 const FIXTURES = {
   // The label column (A) at every width: every control from one edge.
@@ -741,7 +1042,46 @@ const FIXTURES = {
       <span class="ctl filter-chips" role="group" aria-labelledby="a"><button class="filter-chip">Giro</button></span>
       <span class="control-bar__label" id="b" data-text="Typ"></span>
       <span class="ctl filter-chips" role="group" aria-labelledby="b"><button class="filter-chip">Kauf</button></span>
-    </div></div>`
+    </div></div>`,
+  // --- PR 2 closing act begin (the attack lens of Lane L, pr2-l-attack) ---
+  // A labelled chip bar under a class no list of the walk holds, its labels
+  // plain elements named by the families' aria-labelledby: neither found
+  // as a bar nor read as labelled, so it was never measured (S1).
+  unlisted_class: brokenPairs("period-bar", (id, text) => `<span id="${id}">${text}</span>`),
+  unlisted_class_label: brokenPairs("period-bar", (id, text) => `<label id="${id}">${text}</label>`),
+  // The same pairs in a bar the walk knows (`.toolbar`), their labels
+  // named only by aria-labelledby: found, but read as unlabelled (S1).
+  unnamed_labels: brokenPairs("toolbar", (id, text) => `<span id="${id}">${text}</span>`, "filter-chips"),
+  // A family on the component named only by a screen reader's label (S2).
+  sr_only_family: srOnlyBar(`<span class="control-bar__label sr-only" id="a">Konto</span>`),
+  sr_only_label: srOnlyBar(`<label class="sr-only" id="a">Konto</label>`),
+  // The component's own fold set 7 px too low: its line wraps while the
+  // bar is 761 to 766 px wide, just above the fold, between two of the
+  // sweep's 8 px steps (S3).
+  fold_crossing: `
+    <style>
+      .control-bar { container: control-bar / inline-size; }
+      .f .control-bar__controls { display: flex; flex-wrap: wrap; gap: 8px 0; }
+      .f .control-bar__group { display: inline-flex; gap: 6px; align-items: center; }
+      .f .one { width: 400px; } .f .two { width: 359px; margin-left: 8px; }
+      @container control-bar (max-width: 760px) {
+        .control-bar--fold-760 > .control-bar__controls { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 10px; }
+        .control-bar--fold-760 .control-bar__group { display: contents; }
+        .f .one, .f .two { width: auto; margin: 0; }
+      }
+    </style>
+    <div class="bar control-bar control-bar--fold-760 control-bar--floor-330 f"><div class="control-bar__controls">
+      <span class="control-bar__group one"><span class="control-bar__label" id="a">Konto</span>
+        <span class="filter-chips" role="group" aria-labelledby="a"><button class="filter-chip">Giro</button></span></span>
+      <span class="control-bar__group two"><label class="control-bar__label" for="k">Anlageklasse</label>
+        <select id="k"><option>Alle</option></select></span>
+    </div></div>`,
+  // Breaks only in a band of windows narrower than a step, at a tablet's
+  // 761 to 767 px and at 321 to 327 px, and only past 1440 px (S3).
+  band_761_767: viewportBand("(min-width: 761px) and (max-width: 767px)"),
+  band_321_327: viewportBand("(min-width: 321px) and (max-width: 327px)"),
+  wide_1441: viewportBand("(min-width: 1441px)")
+  // --- PR 2 closing act end ---
 };
 
 async function attack(browser) {
@@ -754,8 +1094,17 @@ async function attack(browser) {
     fixtures[name] = { widths: report.flatMap((r) => r.widths), errors: report.map((r) => r.error) };
     for (const r of report) console.error(r.error);
   }
+  // PR 2 closing act: the strays' own exception list, one that excuses the
+  // unlisted bar, one without a reason and one that excuses nothing.
+  const strays = new Strays([
+    { selector: ".excused", reason: "a probe that excuses the bar it wraps" },
+    { selector: ".no-reason" },
+    { selector: ".nowhere", reason: "an entry that matches no control" }
+  ]);
+  await draw(page, "<!doctype html><html><head><style>" + FIXTURE_CSS + "</style></head><body><div class='excused'>" + FIXTURES.unlisted_class + "</div></body></html>");
+  await walkBars(page, "excused", new Set(), null, strays);
   await leave(context);
-  return { errors: [], fixtures };
+  return { errors: [], fixtures, strays: strays.errors() };
 }
 // --- L3 end ---
 
@@ -983,13 +1332,13 @@ function sentences(text) {
 }
 
 // Validates a list of exceptions: each needs a selector and a reason.
-function invalidExceptions(exceptions) {
+function invalidExceptions(exceptions, what = "open prose") {
   return exceptions
     .map((x, i) => {
       if (!x || typeof x.selector !== "string" || x.selector.trim() === "")
-        return "open prose: exception " + i + " names no selector";
+        return what + ": exception " + i + " names no selector";
       if (typeof x.reason !== "string" || x.reason.trim().split(/\s+/).length < 3)
-        return "open prose: the exception " + x.selector + " gives no reason";
+        return what + ": the exception " + x.selector + " gives no reason";
       return null;
     })
     .filter(Boolean);
