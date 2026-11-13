@@ -6,6 +6,8 @@ defmodule Portfolixir.Derived.SecurityBasisTest do
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Derived.BlastRadius
   alias Portfolixir.Derived.DataVersion
+  alias Portfolixir.Knowledge.Events
+  alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
 
@@ -216,8 +218,8 @@ defmodule Portfolixir.Derived.SecurityBasisTest do
     # under its own basis, so a halving write is security data; every other
     # event kind stays knowledge that feeds no figure.
     test "a halving event resolves to its security, any other event to none" do
-      halving = %Portfolixir.Knowledge.SecurityEvent{kind: :halving, security_id: 7}
-      earnings = %Portfolixir.Knowledge.SecurityEvent{kind: :earnings, security_id: 7}
+      halving = %SecurityEvent{kind: :halving, security_id: 7}
+      earnings = %SecurityEvent{kind: :earnings, security_id: 7}
 
       assert BlastRadius.securities_for_write("security_event", halving) == [7]
       assert BlastRadius.securities_for_write("security_event", earnings) == []
@@ -232,7 +234,7 @@ defmodule Portfolixir.Derived.SecurityBasisTest do
       before = version(security)
 
       {:ok, _event} =
-        Portfolixir.Knowledge.Events.put_chain_halving(
+        Events.put_chain_halving(
           Actor.system_job("chain_read"),
           security.id,
           :bitcoin,
