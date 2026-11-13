@@ -21,7 +21,9 @@ describe("the halving chain binding", () => {
   //   "litecoin" or null unchanged.
   // - Any other value ("zcash", a number) is refused before any request.
   // - The schema names the three chains and null, and its description says
-  //   that unbinding or rebinding deletes its halving events, counted.
+  //   that unbinding or rebinding deletes its halving events, counted, and
+  //   what binding does: on bitcoin the app reads the chain every 6 hours
+  //   (chains.refresh at once), on the others the caller writes them.
   // - securities.list's fields enum offers halving_chain.
   it("forwards a registered chain or null and refuses any other", async () => {
     const { client, requests } = createRecordingClient({ data: { id: 7 } });
@@ -45,6 +47,11 @@ describe("the halving chain binding", () => {
     assert.deepEqual(properties.halving_chain.enum, ["bitcoin", "bitcoin_cash", "litecoin", null]);
     assert.match(properties.halving_chain.description, /deletes its halving events/);
     assert.match(properties.halving_chain.description, /halving_events_deleted/);
+    // The closing act's order lens on Lane H (finding 3): the description
+    // says what a binding does, so an agent knows who writes the halvings.
+    assert.match(properties.halving_chain.description, /on bitcoin the app writes them every 6 h/);
+    assert.match(properties.halving_chain.description, /now: chains\.refresh/);
+    assert.match(properties.halving_chain.description, /on the others you do \(events\.create\)/);
 
     const fields = (tool("portfolixir.securities.list")?.inputSchema as any).properties.fields.items.enum;
     assert.ok(fields.includes("halving_chain"));

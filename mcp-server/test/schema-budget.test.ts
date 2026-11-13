@@ -669,8 +669,25 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
       book: 2_814,
       full: 2_814
     }
-  }
+  },
   // --- S29 H6 end ---
+  // --- S29 H closing act begin ---
+  {
+    since: "2026-11-13",
+    why:
+      "Sprint 29, Lane H's closing act (the order lens's finding 3): securities.update's " +
+      "halving_chain now says who writes the halvings (on bitcoin the app every 6 h, on the " +
+      "others the caller), 112 bytes more in book and full, paid for by tightening " +
+      "events.list's row fields and events.stale's wording; chains.list and chains.refresh " +
+      "are tightened too and now measure 637 and 902 bytes, 68 and 51 fewer than H6's row " +
+      "credited them; securities.create's and securities.update's control-character clause " +
+      "loses its article (\"has control characters\"), and each ceiling is lowered to the " +
+      "figure measured: read 122,071, book 201,275 and full 237,333",
+    read: 122_071,
+    book: 201_275,
+    full: 237_333
+  }
+  // --- S29 H closing act end ---
 ];
 
 describe("the schema budget", () => {
