@@ -207,7 +207,7 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
   #   tab or comparison a page links in place.
   # - Every `.control-bar` on those pages is found and measured, and so is
   #   every other bar of controls with a visible label, a label set in CSS
-  #   included; the seven bars on the component today are among them.
+  #   included; the eight bars on the component today are among them.
   # - At every width from 1440 to 320 px (steps of 8, and 390), once a bar
   #   has more than one row, the first control of every row and of every
   #   labelled group start on one edge (±1 px); every labelled control sits
@@ -241,8 +241,11 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
 
     found = MapSet.new(result["bars"])
 
+    # crash-bar: the Crashes section on Wealth › Risk (Sprint 29 C6), on
+    # the component since Lane L's integration, on the review seed's
+    # manual window (step 23).
     for bar <- ~w(stack-bar journal-chips hindsight-compare securities-filter-chips
-                  transaction-chips prediction-filters drift-filter) do
+                  transaction-chips prediction-filters drift-filter crash-bar) do
       assert bar in found, "the walk did not find the bar #{bar}:\n" <> output
     end
 

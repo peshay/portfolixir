@@ -843,6 +843,14 @@ const PROSE_EXCEPTIONS = [
       "a registered basis line: facts joined by „·“ (depots, where fees and taxes count, income left out), each a parameter of the figures (UX-DR11), none a method",
     limit: { sentences: 1, words: 30 }
   },
+  // Sprint 29 C6, integrated with Lane L: the review seed's crash window
+  // (step 23) shows the Crashes list and this line under it.
+  {
+    selector: "[data-role='crash-unanswered']",
+    reason:
+      "a count line: the securities the list answers and, joined by „·“, how many lack an answer for each of at most three reasons (ADR-0058's answers counted), with „anzeigen“; figures, none a method",
+    limit: { sentences: 1, words: 45 }
+  },
   {
     selector: "form .hint",
     reason: "a form field's help: what the field takes, beside it (DESIGN.md I1 leaves a form's field help in place)",

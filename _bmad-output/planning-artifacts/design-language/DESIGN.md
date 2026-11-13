@@ -9912,8 +9912,8 @@ between the markers `control-bar begin` and `control-bar end` in
   apply, B wins.
 - **The fold and the floor are named widths**, each a class on the bar with
   one container query (a container query cannot read a variable): the fold
-  560, 760 (the default), 840 or 960 px, or always (a chip row whose families
-  never fit one line, board 06 ③ and ④); the floor 330 (the default) or
+  560, 760 (the default), 840, 900 or 960 px, or always (a chip row whose
+  families never fit one line, board 06 ③ and ④); the floor 330 (the default) or
   560 px, or always. A bar picks the width at which its groups measured no
   longer fit; a new width is one more rule, which sets the layout's
   variables on the controls.
@@ -9933,10 +9933,15 @@ family of several lines keeps its label on its first line.
 | Transaktionen, the chip row (board 06 ④) | `live/transaction_management_live.ex` | always, 330 | Konto, Typ, Geändert seit; the phone's filter sheet unchanged |
 | Prognosen, author and model | `live/predictions_live.ex` | always, 330 | Autor, Modell (when a model is recorded) |
 | Allokation, the drift filter | `live/portfolio_live.ex` | always, 330 | „Abweichung ab“, beside „Alles ausklappen“ |
+| Risiko, Crashes (Sprint 29 C6, on the component since Lane L's integration) | `live/risk/crash_section.ex` | 900, 330 (the walk measured the line wrapping up to an 877 px bar, the window's select at its 19.5rem cap; one line at a 1200 px window, a 924 px bar) | Fenster (select), Liste, Wertpapiere |
 
 The review seed records two predictions, one an agent's with a model, so
 the walk reaches Prognosen' bar; the drift filter shows on the seed's plan
-once „Daten als Tabelle“ is open. `test/browser/control_bar.js` measures
+once „Daten als Tabelle“ is open; its manual crash window „Synthetic dip“
+(step 23) shows the Crashes bar. The crash benchmark's form in the crash
+windows' disclosure (board 02 ④) is one labelled select with its buttons
+under it, not a bar, and is registered as such in
+`test/invariants/control_bar_labelled_controls_test.exs`. `test/browser/control_bar.js` measures
 each bar at 390 and 1200 px in German and English.
 
 ## Amendment 2026-11-09 — The version at the menu's foot *(Sprint 28 V2, idea I27, FR-55; board `mockups/ux-design-2026-11-08-sprint28/04-version`; plan D-6, D-7; issue 1429)*
@@ -10482,9 +10487,9 @@ screen and the API answer alike for the same window, list and universe.
    `data-role="crash-no-benchmark"`) while no crash benchmark is chosen or
    it is no longer available, with „Crash-Benchmark wählen“, which opens
    the disclosure on the benchmark form.
-3. **The bar** (`div.stack-bar.crash-bar`), built as DESIGN.md's
-   "Labelled controls start on one edge" on the stacked chart's
-   `stack-bar` until the shared component of issue 1435 takes it over:
+3. **The bar** (`div.control-bar.crash-bar`), DESIGN.md's "Labelled
+   controls start on one edge" as the shared
+   `PortfolixirWeb.ControlBar.bar/1` of issue 1435 (fold 900, floor 330):
    **Fenster**, a native select (P2 A; flip „Crash-Fenster als Chips“) whose
    options read „Name · TT.MM.JJJJ–TT.MM.JJJJ“, „Ohne Namen · seit … ·
    läuft“ for the ongoing window, and „· manuell“ after a manual one, newest

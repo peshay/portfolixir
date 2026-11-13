@@ -8,8 +8,8 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   Top to bottom:
 
     * one bar of labelled controls (DESIGN.md, "Labelled controls start on
-      one edge", built on the stacked chart's `stack-bar` until the shared
-      component lands): **Fenster**, a select of every window newest first
+      one edge", the shared `PortfolixirWeb.ControlBar.bar/1` of issue
+      1435): **Fenster**, a select of every window newest first
       (P2), then **Liste** (Verlierer · Gewinner · Erholer) and
       **Wertpapiere** (Im Depot · Ganzer Katalog);
     * the window line: its name, its kind, its dates, the crash benchmark's
@@ -51,6 +51,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.BenchmarkChoices
+  alias PortfolixirWeb.ControlBar
   alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveEventGuard
@@ -478,51 +479,53 @@ defmodule PortfolixirWeb.Risk.CrashSection do
 
   # The bar of labelled controls (DESIGN.md, "Labelled controls start on
   # one edge"): the window's select first (P2), then the list and the
-  # universe, on the stacked chart's `stack-bar` so the shared component of
-  # issue 1435 can take it over.
+  # universe, on the shared `PortfolixirWeb.ControlBar.bar/1` (issue 1435):
+  # one line while it fits, the label column from 900 px of the bar, labels
+  # above at 330 px. The fold is the Lane L walk's measure: with the
+  # window's select at its 19.5rem cap the line wraps up to an 877 px bar
+  # (German), and the bar is 924 px at a 1200 px window, one line there.
   defp bar(assigns) do
     ~H"""
-    <div class="stack-bar crash-bar" data-role="crash-bar">
-      <div class="stack-bar__controls">
-        <form id="crash-window-form" class="stack-bar__tree" phx-change="crash_window" phx-target={@myself}>
-          <label for="crash-window"><%= pgettext("crash", "Window") %></label>
-          <select id="crash-window" name="crash">
-            <option :for={window <- @windows} value={window.key} selected={window.key == @window.key}>
-              <%= option_label(window) %>
-            </option>
-          </select>
-        </form>
-        <span class="stack-bar__group">
-          <span class="stack-bar__label" id="crash-list-label"><%= pgettext("crash", "List") %></span>
-          <div class="segmented-control" data-role="crash-list" role="group" aria-labelledby="crash-list-label">
+    <ControlBar.bar class="crash-bar" fold={900} data-role="crash-bar">
+      <:group
+        label={pgettext("crash", "Window")}
+        for="crash-window"
+        form={[id: "crash-window-form", "phx-change": "crash_window", "phx-target": @myself]}
+      >
+        <select id="crash-window" name="crash">
+          <option :for={window <- @windows} value={window.key} selected={window.key == @window.key}>
+            <%= option_label(window) %>
+          </option>
+        </select>
+      </:group>
+      <:group label={pgettext("crash", "List")} label_id="crash-list-label">
+        <div class="segmented-control" data-role="crash-list" role="group" aria-labelledby="crash-list-label">
+          <.link
+            :for={{list, label} <- lists()}
+            patch={@paths.lists[list]}
+            class={["segmented-control__option", @list == list && "is-active"]}
+            data-list={list}
+            aria-current={if @list == list, do: "true"}
+          >
+            <%= label %>
+          </.link>
+        </div>
+      </:group>
+      <:group label={gettext("Securities")} label_id="crash-universe-label">
+        <div class="segmented-control" data-role="crash-universe" role="group" aria-labelledby="crash-universe-label">
+          <%= for {universe, label} <- universes() do %>
             <.link
-              :for={{list, label} <- lists()}
-              patch={@paths.lists[list]}
-              class={["segmented-control__option", @list == list && "is-active"]}
-              data-list={list}
-              aria-current={if @list == list, do: "true"}
+              patch={@paths.universes[universe]}
+              class={["segmented-control__option", @universe == universe && "is-active"]}
+              data-universe={universe}
+              aria-current={if @universe == universe, do: "true"}
             >
               <%= label %>
             </.link>
-          </div>
-        </span>
-        <span class="stack-bar__group">
-          <span class="stack-bar__label" id="crash-universe-label"><%= gettext("Securities") %></span>
-          <div class="segmented-control" data-role="crash-universe" role="group" aria-labelledby="crash-universe-label">
-            <%= for {universe, label} <- universes() do %>
-              <.link
-                patch={@paths.universes[universe]}
-                class={["segmented-control__option", @universe == universe && "is-active"]}
-                data-universe={universe}
-                aria-current={if @universe == universe, do: "true"}
-              >
-                <%= label %>
-              </.link>
-            <% end %>
-          </div>
-        </span>
-      </div>
-    </div>
+          <% end %>
+        </div>
+      </:group>
+    </ControlBar.bar>
     """
   end
 

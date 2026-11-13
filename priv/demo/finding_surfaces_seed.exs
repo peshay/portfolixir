@@ -2214,4 +2214,23 @@ if Portfolixir.Predictions.list_predictions() == [] do
   IO.puts("Sprint 29 L2: two open predictions, one an agent's with a model")
 end
 
+# 23. A crash window (issue 1435, Sprint 29 L3 with C6; board
+#     ux-design-2026-11-12-sprint29/06-control-bar): Wealth › Risk's
+#     Crashes section shows its bar of labelled controls (Fenster, Liste,
+#     Wertpapiere) only once a window exists, and the seed chose no crash
+#     benchmark and drew no window, so the walk never reached that bar. One
+#     manual window, SYNTHETIC: named „Synthetic dip“, from 40 days ago to
+#     its low 20 days ago. Written only while no manual window exists, so a
+#     re-run adds nothing.
+if Portfolixir.Crashes.list_windows().manual == [] do
+  {:ok, _window} =
+    Portfolixir.Crashes.create_manual_window(owner, %{
+      "name" => "Synthetic dip",
+      "start" => Date.to_iso8601(Date.add(today, -40)),
+      "trough" => Date.to_iso8601(Date.add(today, -20))
+    })
+
+  IO.puts("Sprint 29 L3: one manual crash window")
+end
+
 IO.puts("review seed done (timber position: #{timber_state})")

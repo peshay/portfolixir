@@ -195,6 +195,16 @@ defmodule Portfolixir.Invariants.ControlBarLabelledControlsTest do
       file: "live/portfolio_accounts_live.ex",
       match: ~s(id={"liquidity-role-form-),
       reason: @single
+    },
+    # Sprint 29 C6 (board 02 ④), integrated with L4: the crash benchmark
+    # chosen in place, in the crash windows' disclosure.
+    %{
+      file: "live/risk/crash_section.ex",
+      match: ~s(id="crash-benchmark-form"),
+      reason:
+        @single <>
+          " (the crash benchmark's form in the crash windows' disclosure: the select, then " <>
+          "„Speichern“ and „Abbrechen“ and its notes under it)"
     }
   ]
 
