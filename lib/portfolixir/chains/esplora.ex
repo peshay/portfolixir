@@ -155,6 +155,30 @@ defmodule Portfolixir.Chains.Esplora do
 
   def check_own_url(_url), do: {:error, {:url_not_allowed, :scheme}}
 
+  @doc """
+  The hosts the reads ask, in the order they ask them, and whether they are
+  the operator's own URL (Sprint 29 H7): `%{own?: false, hosts:
+  ["mempool.space", "blockstream.info"]}` from the config, or `%{own?: true,
+  hosts: [its host]}` while `PORTFOLIXIR_BITCOIN_ESPLORA_URL` replaces both.
+  The chart's health line names a host that is not the first one the
+  fallback (ADR-0059 §8). Reads the config only; resolves and asks nothing.
+  """
+  @spec hosts() :: %{own?: boolean(), hosts: [String.t() | nil]}
+  def hosts do
+    config = config()
+
+    case Keyword.get(config, :own_url) do
+      nil ->
+        %{
+          own?: false,
+          hosts: for({_source, base} <- Keyword.fetch!(config, :sources), do: host(base(base)))
+        }
+
+      url ->
+        %{own?: true, hosts: [host(base(url))]}
+    end
+  end
+
   # -- sources -----------------------------------------------------------------
 
   defp sources do
