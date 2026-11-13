@@ -38,6 +38,14 @@ body { margin: 0; background: var(--color-bg); color: var(--color-text); font-fa
 .cy-edge__top { fill: var(--color-positive); } .cy-edge__low { fill: none; stroke: var(--color-danger); stroke-width: 1.5; }
 .cy-edge__label { fill: var(--color-text); paint-order: stroke; stroke: var(--color-bg); stroke-width: 3px; } .cy-edge__label.is-muted { fill: var(--color-text-muted); }
 .cy-edge__note { fill: var(--color-text-muted); font-family: var(--font-sans); font-size: 11px; }
+.cy-prose { margin: 0 0 14px; }
+.cy-prose__tag { display: block; margin: 0 0 3px; font: 600 11px var(--font-mono); color: var(--color-danger); }
+.cy-prose__tag.is-ok { color: var(--color-positive); }
+.cy-prose .detail-tab-hint { font-size: 12px; color: var(--color-text-muted); margin: 0; }
+.cy-prose .metric-tooltip--section { position: relative; bottom: auto; right: auto; margin-left: 4px; vertical-align: -3px; }
+.cy-prose .metric-tooltip--section summary { display: inline-flex; }
+.cy-prose .metric-tooltip--section p { right: auto; left: -24rem; }
+.cy-prose.is-open { padding-bottom: 150px; }
 .cy-bar .metric-tooltip--inline { position: relative; bottom: auto; right: auto; }
 .cy-bar .metric-tooltip p { width: 30rem; max-width: 80vw; }
 .cy-bar.is-phone .cy-bar__row { gap: 6px 8px; }
