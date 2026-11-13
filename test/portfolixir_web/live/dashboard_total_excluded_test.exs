@@ -296,6 +296,8 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
   # - The quotes cell's sub-line reads "%{count} gehaltene veraltet".
   # - The data-quality line reads "%{count} gehaltene Wertpapiere ohne Kurs
   #   seit 7 Tagen (im Katalog n)".
+  # - The parenthesis wraps with its clause, never inside it ("(im Katalog"
+  #   and "47)" on two lines at 390 px; board 04 ④, PR 2's closing act).
   test "the stale count says it counts the held, in the cell and on the line",
        %{conn: conn} do
     world = world()
@@ -320,6 +322,8 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
              "2 gehaltene Wertpapiere ohne Kurs seit 7 Tagen"
 
     assert doc |> Floki.find(~s([data-catalog-of="dq-quotes"])) |> text() == "(im Katalog 3)"
+
+    assert File.read!("priv/static/app.css") =~ ~r/\n\.dq-catalog \{[^}]*white-space:\s*nowrap;/
   end
 
   # User story (#1081, board 01 "found while drawing" 3):

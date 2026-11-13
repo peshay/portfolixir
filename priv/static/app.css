@@ -1527,9 +1527,12 @@ li + li {
 }
 /* Issue 1417 (board ux-design-2026-11-12-sprint29/04 ② A): the Overview's
    catalogue count after a held one, "(im Katalog 26)", in the muted voice;
-   its link takes that ink too, so the held count stays the clause's figure. */
+   its link takes that ink too, so the held count stays the clause's figure.
+   The parenthesis wraps with its clause, never inside it (board 04 ④; PR
+   2's closing act: at 390 px "(im Katalog" and "47)" fell on two lines). */
 .dq-catalog {
   color: var(--color-text-muted);
+  white-space: nowrap;
 }
 .dq-catalog a {
   color: inherit;
