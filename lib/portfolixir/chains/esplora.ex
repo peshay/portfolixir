@@ -37,7 +37,8 @@ defmodule Portfolixir.Chains.Esplora do
       not more than 6 below the last stored tip (`tip_behind`), not below
       the fourth halving's height 840,000 (`tip_too_low`), and not above the
       height ten-minute spacing gives for the time since the genesis block,
-      times 1.1 (`tip_ahead`);
+      times 1.1, nor, once a tip is stored, above that tip + the seconds
+      since its block's time / 600 × 1.1 + 36 (`tip_ahead`);
     * a hash has exactly 64 hex characters (`invalid_hash`), so a hash
       placed in a path is one segment of hex and nothing else;
     * a block has an `id`, an integer `height` and an integer `timestamp`
@@ -83,12 +84,21 @@ defmodule Portfolixir.Chains.Esplora do
   # chain ran 4.4 % ahead of that spacing at the fourth halving; 10 % is
   # more than twice that lead, so only a forged tip passes it.
   @tip_ceiling_factor {11, 10}
+  # The tip's bound from the stored one (ADR-0059 §7, precision of
+  # 2026-11-13, the closing act's security lens): at most the last stored
+  # tip + the seconds since its block's time / 600 × 1.1 + 36. The genesis
+  # ceiling alone let a forged tip far ahead of the chain through (some
+  # 55,000 blocks in November 2026, past the fifth halving's height from
+  # late February 2027). 36 blocks (six hours at the target) cover a stored
+  # block time up to two hours ahead of the clock (12 blocks) and a burst of
+  # blocks within a short span.
+  @tip_slack 36
   @target_spacing Registry.target_spacing(@chain)
   @max_bytes 64 * 1024
   @deadline_ms 10_000
   @user_agent "portfolixir/0.1 (+https://github.com/portfolixir)"
   @accept "text/plain, application/json"
-  @read_options [:last_tip, :genesis_due?, :now]
+  @read_options [:last_tip, :last_tip_at, :genesis_due?, :now]
 
   @type source :: :mempool | :blockstream | :own
   @type block :: %{height: non_neg_integer(), hash: String.t(), timestamp: integer()}
@@ -115,9 +125,11 @@ defmodule Portfolixir.Chains.Esplora do
   the sources that failed before it. `{:error, failures}` lists each
   source's failure, in order.
 
-  Options: `:last_tip` (the last stored tip, for `tip_behind`; none by
-  default; anything but a non-negative integer or `nil` raises, so a wrong
-  type cannot turn the check off), `:genesis_due?` (a function of the source's host, true when the
+  Options: `:last_tip` (the last stored tip, for `tip_behind` and the
+  bound from the stored tip; none by default; anything but a non-negative
+  integer or `nil` raises, so a wrong type cannot turn the check off),
+  `:last_tip_at` (the stored tip's block time, a `DateTime` or `nil`; with
+  `:last_tip`, it bounds the tip from above, `tip_ahead`), `:genesis_due?` (a function of the source's host, true when the
   day's genesis check is due; always due by default), `:now` (the server's
   clock for the timestamp bound; `DateTime.utc_now/0` by default). Any
   other option raises: no caller hands this module a URL, a host or a
@@ -128,6 +140,7 @@ defmodule Portfolixir.Chains.Esplora do
   def read(heights_for, opts \\ []) when is_function(heights_for, 1) do
     opts = Keyword.validate!(opts, @read_options)
     validate_last_tip!(Keyword.get(opts, :last_tip))
+    validate_last_tip_at!(Keyword.get(opts, :last_tip_at))
 
     case sources() do
       {:ok, sources} -> first_answer(sources, heights_for, opts, [])
@@ -234,7 +247,7 @@ defmodule Portfolixir.Chains.Esplora do
 
     now = now(opts)
 
-    with {:ok, tip} <- tip(req, base, Keyword.get(opts, :last_tip), now),
+    with {:ok, tip} <- tip(req, base, last(opts), now),
          :ok <- if(genesis?, do: genesis(req, base), else: :ok),
          {:ok, heights} <- heights(heights_for, tip),
          {:ok, blocks} <- blocks(req, base, heights, now),
@@ -251,22 +264,35 @@ defmodule Portfolixir.Chains.Esplora do
     end
   end
 
-  defp tip(req, base, last_tip, now) do
+  defp last(opts), do: {Keyword.get(opts, :last_tip), Keyword.get(opts, :last_tip_at)}
+
+  defp tip(req, base, {last_tip, _at} = last, now) do
     with {:ok, body} <- get(req, base <> "/blocks/tip/height"),
          {:ok, tip} <- parse_height(body) do
       cond do
         is_integer(last_tip) and tip < last_tip - @max_tip_lag -> {:error, "tip_behind"}
         tip < @min_tip -> {:error, "tip_too_low"}
-        tip > tip_ceiling(now) -> {:error, "tip_ahead"}
+        tip > tip_ceiling(last, now) -> {:error, "tip_ahead"}
         true -> {:ok, tip}
       end
     end
   end
 
-  defp tip_ceiling(now) do
-    {numerator, denominator} = @tip_ceiling_factor
+  # The genesis ceiling, and once a tip is stored the bound from it: the
+  # lower of the two. The seconds since the stored block's time count from
+  # 0, as a block's time may lie up to two hours after the clock.
+  defp tip_ceiling({last_tip, %DateTime{} = last_at}, now) when is_integer(last_tip) do
+    elapsed = max(DateTime.diff(now, last_at, :second), 0)
+    min(genesis_ceiling(now), last_tip + ahead(elapsed) + @tip_slack)
+  end
 
-    div((DateTime.to_unix(now) - @genesis_time) * numerator, @target_spacing * denominator)
+  defp tip_ceiling(_no_stored_tip, now), do: genesis_ceiling(now)
+
+  defp genesis_ceiling(now), do: ahead(DateTime.to_unix(now) - @genesis_time)
+
+  defp ahead(seconds) do
+    {numerator, denominator} = @tip_ceiling_factor
+    div(seconds * numerator, @target_spacing * denominator)
   end
 
   defp genesis(req, base) do
@@ -366,6 +392,12 @@ defmodule Portfolixir.Chains.Esplora do
   defp validate_last_tip!(tip),
     do:
       raise(ArgumentError, "last_tip must be a non-negative integer or nil, got: #{inspect(tip)}")
+
+  defp validate_last_tip_at!(nil), do: :ok
+  defp validate_last_tip_at!(%DateTime{}), do: :ok
+
+  defp validate_last_tip_at!(at),
+    do: raise(ArgumentError, "last_tip_at must be a DateTime or nil, got: #{inspect(at)}")
 
   # A result that is not a list of integers is the caller's bug and raises.
   # An integer outside 0..tip follows from the tip, which is the source's

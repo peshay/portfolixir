@@ -1613,7 +1613,8 @@ last 2,016 blocks to the same at the ten-minute target, rewritten at most
 once a day. Every answer is checked before anything is written (the tip not
 more than 6 below the last stored one, `tip_behind`; the genesis block once
 a day, `wrong_chain`; the tip between the fourth halving and ten-minute
-spacing since genesis × 1.1, `tip_too_low` and `tip_ahead`; the blocks
+spacing since genesis × 1.1, and once a tip is stored not above it + the
+time since its block / 600 × 1.1 + 36, `tip_too_low` and `tip_ahead`; the blocks
 echoing what was asked, in time order, `blocks_out_of_order`). A refused own
 URL fails with `url_not_allowed` and its reason (`url_not_allowed:scheme`,
 `url_not_allowed:private_address` and the like) and asks no host. When

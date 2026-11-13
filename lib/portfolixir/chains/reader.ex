@@ -13,9 +13,10 @@ defmodule Portfolixir.Chains.Reader do
   **What is asked** (§3): the tip, then the hash and block of every halving
   *k* × the chain's interval at or below the tip that is not yet stored as
   confirmed on every bound security, of the tip and of tip − 2,016. **A
-  confirmed halving is never read again** (§5). The stored tip is handed to
-  the adapter, so a source more than 6 blocks behind it is refused, and the
-  genesis check is due once a day per source (§7).
+  confirmed halving is never read again** (§5). The stored tip and its
+  block's time are handed to the adapter, so a source more than 6 blocks
+  behind it, or further ahead of it than the time since its block allows,
+  is refused, and the genesis check is due once a day per source (§7).
 
   **What is written**, for every security bound to the chain, through
   `Portfolixir.Knowledge.Events.put_chain_halving/6` under the system job
@@ -160,6 +161,7 @@ defmodule Portfolixir.Chains.Reader do
     reading =
       read.(heights_for,
         last_tip: state && state.tip_height,
+        last_tip_at: state && state.tip_at,
         genesis_due?: &genesis_due?(state, today, &1),
         now: now
       )

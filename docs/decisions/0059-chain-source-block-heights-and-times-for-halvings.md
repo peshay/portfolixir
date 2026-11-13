@@ -337,6 +337,34 @@ refusal fails that source, and the fallback is asked as for any other:
 
 The caller's last stored tip must be a non-negative integer or nothing; a
 value of another type raises rather than turning `tip_behind` off.
+
+**Precision of 2026-11-13: the tip is bounded by the stored one too.** The
+closing act's security lens on Lane H (Sprint 29) found the genesis ceiling
+too wide to protect anything on its own. It grows at 1.1 times the target
+rate from 2009 on, while the chain runs a few per cent ahead of the target,
+so the room between the real tip and the ceiling is the 10 % margin over
+seventeen years: some 55,000 blocks in November 2026, and growing by about
+14 blocks a day. One lying answer below it was stored as the tip, and then
+every honest source read as `tip_behind` for as long as the chain needed to
+catch up, about a year; and from **27 February 2027**, when the ceiling
+passes 1,050,005, a forged tip with echoing blocks confirmed the **fifth
+halving** some fourteen months before it happens. *Why the genesis
+ceiling's protection lapses before the fifth halving:* its margin is
+measured from genesis, not from what the app last read, so it widens with
+the chain's age and reaches the next halving's height long before the
+chain does. **The rule:** once a tip is stored, the tip is also at most
+the stored tip + the seconds since the stored tip's block time / 600 ×
+1.1 + **36**, otherwise `tip_ahead`; the genesis ceiling stays for a first
+run, and the lower of the two applies. The seconds count from 0 when the
+stored block's time lies after the clock. *Why 36:* a block's time may run
+two hours ahead of the clock (12 blocks at the target), and blocks come in
+bursts over a short span; six hours at the target cover both. A tip
+refused by the bound is never stored, so the stored tip never moves past
+it, and an honest tip refused after a long pause is read again once the
+bound has grown. *What it leaves open:* a source that lies by less than
+the bound, for at most hours of blocks, still locks the honest sources out
+until the chain catches up, and after a long pause the bound is as wide as
+10 % of the pause.
 **To flip:** "Tip-Untergrenze ab Genesis" (the floor becomes 2,016, which
 refuses only a tip that makes the run's heights negative); the ceiling's
 factor, a number by comment. The order check has no flip: the answer it
@@ -543,5 +571,6 @@ owner's wish of 2026-11-10 for the chain as the source.
 | Run interval and staleness | every 6 hours; stale after 24 hours | numbers by comment |
 | The tip's floor (§7, precision) | the fourth halving, 840,000 | "Tip-Untergrenze ab Genesis" |
 | The tip's ceiling (§7, precision) | ten-minute spacing since genesis × 1.1 | a number by comment |
+| The tip's bound from the stored tip (§7, precision of 2026-11-13) | the stored tip + its age / 600 × 1.1 + 36 | numbers by comment |
 | The operator's own URL | https, public address, replaces both defaults | none here; a private address needs the URL-policy record of §14 |
 | Further chain data (fees, mempool, prices) | not read | none: a new record |
