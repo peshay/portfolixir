@@ -47,6 +47,9 @@ defmodule Portfolixir.Catalog.SecurityCycles do
   # Older than any stored quote: the read takes the whole history.
   @series_floor ~D[1900-01-01]
 
+  # The stored event's basis, carried by `next_halving` alone.
+  @window_basis [:note, :checked_at, :source_url]
+
   @as_of_refusal "is unknown: the cycles read takes no as_of. It reads today's stored " <>
                    "closes only, because what a past cycle's band would have said, computed " <>
                    "from that cycle's data, is a replay of the band rule: level (d) of the " <>
@@ -238,10 +241,28 @@ defmodule Portfolixir.Catalog.SecurityCycles do
       currency_code: security.currency_code,
       chain: chain,
       chain_source: security.halving_chain && Chains.source_health(security.halving_chain),
-      halvings: Enum.map(halvings, &Map.put(&1, :chain, chain)),
-      next_halving: result && result.next_halving,
+      halvings: Enum.map(halvings, &(&1 |> Map.drop(@window_basis) |> Map.put(:chain, chain))),
+      next_halving: next_halving(security, halvings, result),
       computation_basis: computation_basis(security, result)
     }
+  end
+
+  # ADR-0059 §6: the next halving's window with its basis in full — the
+  # stored event's note, day of reading and source link, and the chain
+  # source's current inputs (`Chains.next_halving_inputs/1`, nil for a chain
+  # without a source). The closing act's analytics lens on Lane H.
+  defp next_halving(_security, _halvings, nil), do: nil
+  defp next_halving(_security, _halvings, %{next_halving: nil}), do: nil
+
+  defp next_halving(%Security{} = security, halvings, %{next_halving: next}) do
+    event = Enum.find(halvings, &(&1.height == next.height and not &1.confirmed))
+
+    next
+    |> Map.merge(Map.take(event || %{}, @window_basis))
+    |> Map.put_new(:note, nil)
+    |> Map.put_new(:checked_at, nil)
+    |> Map.put_new(:source_url, nil)
+    |> Map.put(:inputs, Chains.next_halving_inputs(security.halving_chain))
   end
 
   defp series(%Security{} = security) do
@@ -260,7 +281,10 @@ defmodule Portfolixir.Catalog.SecurityCycles do
         date_end: e.date_end,
         timing: e.timing,
         confirmed: e.confirmed,
-        source_quality: e.source_quality
+        source_quality: e.source_quality,
+        note: e.note,
+        checked_at: e.checked_at,
+        source_url: e.source_url
       }
     )
     |> Repo.all()
@@ -291,6 +315,14 @@ defmodule Portfolixir.Catalog.SecurityCycles do
         "the security's halving events on its bound chain (ADR-0059): windows are formed " <>
           "from the confirmed ones in height order; the first unconfirmed one above them is " <>
           "the next halving. Halving dates are UTC dates (ADR-0059 §5)",
+      next_halving:
+        "the next halving's window as stored (ADR-0059 §6): date to date_end, with the " <>
+          "event's own note (its basis in one line: the tip, its time, the block 2,016 " <>
+          "below, the mean block time, both ends), checked_at (the day it was written) " <>
+          "and source_url; and inputs, the chain source's current inputs (tip_height, " <>
+          "tip_at, tip_2016_at, period_blocks, mean_block_seconds), null for a chain " <>
+          "without a source or before its first run. The window is written at most once " <>
+          "a day, so inputs can be newer than the note",
       window: "halving_to_halving_v1",
       window_rule:
         "a window runs from one confirmed halving's date up to the next one's, excluding " <>

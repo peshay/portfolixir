@@ -1693,7 +1693,13 @@ one value, `aligned`. `data` carries:
   `height`, `chain`, `date`, `date_end`, `timing`, `confirmed` and
   `source_quality`.
 - `next_halving` — the first unconfirmed halving above the confirmed ones:
-  `height`, `date` and `date_end` (the window of its estimate), or `null`.
+  `height`, `date` and `date_end` (the window of its estimate), its basis
+  as stored — `note` (one line: the tip, its time, the block 2,016 below,
+  the mean block time, both ends), `checked_at` (the day it was written)
+  and `source_url` — and `inputs`, the chain source's current inputs as
+  `next_halving_inputs` in `GET /api/v1/chains` states them (`null` for a
+  chain without a source or before its first run; written at most once a
+  day, the window can be older than them); or `null`.
 - `cycles` — one window per pair of confirmed halvings, oldest first, and
   the open one since the last: `start`, `end` (`null` for the open window),
   `start_height`, `end_height`, `kind` (`complete`, `partial` when it starts

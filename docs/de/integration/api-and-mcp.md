@@ -1840,8 +1840,14 @@ einen Parameter, `include`, mit einem Wert, `aligned`. `data` trägt:
   `height`, `chain`, `date`, `date_end`, `timing`, `confirmed` und
   `source_quality`.
 - `next_halving` — das erste unbestätigte Halving über den bestätigten:
-  `height`, `date` und `date_end` (das Fenster seiner Schätzung), oder
-  `null`.
+  `height`, `date` und `date_end` (das Fenster seiner Schätzung), seine
+  Grundlage, wie gespeichert — `note` (eine Zeile: der Tip, seine Zeit, der
+  Block 2.016 darunter, die mittlere Blockzeit, beide Enden), `checked_at`
+  (der Tag, an dem es geschrieben wurde) und `source_url` — und `inputs`, die
+  aktuellen Eingaben der Kettenquelle, wie `next_halving_inputs` in
+  `GET /api/v1/chains` sie angibt (`null` für eine Kette ohne Quelle oder vor
+  ihrem ersten Lauf; höchstens einmal am Tag geschrieben, kann das Fenster
+  älter sein als sie); oder `null`.
 - `cycles` — ein Fenster je Paar bestätigter Halvings, das älteste zuerst,
   und das offene seit dem letzten: `start`, `end` (`null` für das offene
   Fenster), `start_height`, `end_height`, `kind` (`complete`, `partial`,

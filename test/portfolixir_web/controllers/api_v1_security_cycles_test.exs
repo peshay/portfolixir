@@ -143,7 +143,11 @@ defmodule PortfolixirWeb.ApiV1SecurityCyclesTest do
     assert data["next_halving"] == %{
              "height" => 4_200_000,
              "date" => "2021-01-05",
-             "date_end" => nil
+             "date_end" => nil,
+             "note" => nil,
+             "checked_at" => nil,
+             "source_url" => nil,
+             "inputs" => nil
            }
 
     [first | _] = data["cycles"]

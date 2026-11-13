@@ -86,6 +86,19 @@ defmodule Portfolixir.Chains do
   end
 
   @doc """
+  The inputs of `chain`'s next halving estimate (ADR-0059 §6) as `list/1`
+  states them: the tip, its block's time, the time 2,016 blocks below and
+  their mean in seconds; `nil` for a chain without a source or before its
+  first successful run. The cycles read carries them in `next_halving`
+  (ADR-0059 §6: the basis "in full by ADR-0060's read").
+  """
+  @spec next_halving_inputs(Registry.chain()) :: map() | nil
+  def next_halving_inputs(chain) do
+    {:ok, chain} = Registry.fetch(chain)
+    if Registry.has_source?(chain), do: chain |> Reader.state() |> inputs()
+  end
+
+  @doc """
   The hosts `chain`'s source asks, in order, and whether they are the
   operator's own URL (`Portfolixir.Chains.Esplora.hosts/0`); `nil` for a
   chain without a source. The chart's health line reads it to name a
