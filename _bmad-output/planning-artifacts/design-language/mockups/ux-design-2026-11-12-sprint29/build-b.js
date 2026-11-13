@@ -628,6 +628,57 @@ const bondStrip = (hint) => `<section class="bond-strip"><div class="bond-strip_
 B6.bondBefore = proseFrame('06s-anleihe-heute', bondStrip('<p class="detail-tab-hint" data-role="bond-basis">Kupon und Kurs in Prozent vom Nennwert: Ein Stück im Bestand ist ein Hundertstel des Nominals, darum ist der Kurs zugleich der Preis je Stück. Laufende Rendite = Kupon ÷ Kurs. Restlaufzeit in Kalendertagen ab heute, das Jahr zu 365 Tagen. Rendite bis Fälligkeit linear angenähert: (Kupon + (100 − Kurs) ÷ Restlaufzeit in Jahren) ÷ Kurs, ohne Zinseszins. Ohne Stückzinsen, Gebühren und Steuern. Berichtet, nicht bewertet.</p>'), 'Heute: 6 Sätze, 65 Wörter');
 B6.bondAfter = proseFrame('06t-anleihe-neu', bondStrip(`<div class="detail-tab-hint mock-new" data-role="bond-basis">Kupon und Kurs in Prozent vom Nennwert, Restlaufzeit ab heute, ohne Stückzinsen, Gebühren und Steuern.${sectionInfo(BOND_INFO, true)}</div>`), 'Neu: 1 Satz, 15 Wörter; ⓘ geöffnet', true);
 const PROSE_LEAD = '<p><strong>Was entschieden ist (DESIGN.md, Amendment 2026-11-02, I1; Plan Sprint 29, L5):</strong> die Methodensätze eines Abschnitts (wie eine Zahl entsteht, was ein Begriff bedeutet, was ein Bedienelement tut) stehen in seinem ⓘ; die Basis (Ansicht, Zeitraum, Währung, Stand, die Menge der Zeilen) bleibt sichtbar. Die Schwelle aus dem Inventar (§3): ein freier Absatz ist höchstens ein Satz mit höchstens 25 Wörtern. Der Rundgang (L3) prüft das auf jeder Seite, deutsch und englisch; Ausnahmen nur mit Grund: Leerzustände (der Zustand und wo man handelt), Fehlermeldungen (der Fehler und seine Abhilfe), eine Namensliste, die Beschriftung einer Zahl.</p><p><strong>Was dieses Board zeigt:</strong> die sechs Absätze über der Schwelle, heute und neu. Der Text bleibt; nur sein Platz ändert sich. Die Anleihe (⑩) schlug das Inventar als Ausnahme bis zu einer eigenen Story vor; der Plan holt sie in L5. Gestrichelt: neu. Jedes ⓘ ist im Frame unter seiner Zeile geöffnet gezeichnet; in der App öffnet es als Popover.</p>';
+// ⑪ to ⑬ — PR 2's closing act (the plan's D-8 item 3): two folds Lane L
+// set without a frame, and where a section's ⓘ opens. The bars are the
+// component's own markup (`ControlBar.bar/1`), drawn by app.css's container
+// queries at the bar widths named; each frame pins the values it compares
+// in its own style, so a later app.css does not redraw the "before".
+const cbar = (cls, fold, floor, groups, extra = '') => `<div class="control-bar control-bar--fold-${fold} control-bar--floor-${floor} ${cls}${extra}"><div class="control-bar__controls">${groups}</div></div>`;
+const cgroup = (label, id, control, forId) => `<span class="control-bar__group">${forId ? `<label class="control-bar__label" for="${forId}" id="${id}">${label}</label>` : `<span class="control-bar__label" id="${id}">${label}</span>`}${control}</span>`;
+const cseg = (id, options, active) => `<nav class="segmented-control" aria-labelledby="${id}">${options.map((o) => `<a class="segmented-control__option${o === active ? ' is-active' : ''}" href="#">${o}</a>`).join('')}</nav>`;
+// ⑪ „Nach dem Verkauf“, its comparison with a benchmark: the line needs
+// about 790 px (the walk measured it wrapping up to a 793 px bar).
+const hsBar = (fold, extra = '') => cbar('hs-compare-bar', fold, 560,
+  cgroup('Vergleich', 'hs-c', cseg('hs-c', ['Ohne', 'Fester Zins', 'Wertpapier', 'Anschlusskauf'], 'Wertpapier')) +
+  `<form class="control-bar__group control-bar__group--bare"><span class="hs-compare-bar__field"><label for="hs-b" class="visually-hidden">Benchmark</label><select id="hs-b"><optgroup label="Benchmarks"><option>Welt-Aktien ETF thesaurierend · Benchmark · zuletzt 112,40 EUR</option></optgroup></select></span></form>`, extra);
+const HS_FOLD_W = 870; // a 790 px bar in its section
+B6.hsFoldBefore = sized(writeFrame('06u-vergleich-falz-760', pad(HS_FOLD_W, `<section class="hs-section workspace-section">${hsBar(760)}</section>`), { width: HS_FOLD_W }), 'Falz 760: eine Zeile, die umbricht (790 px Leiste)');
+B6.hsFoldAfter = sized(writeFrame('06v-vergleich-falz-840', pad(HS_FOLD_W, `<section class="hs-section workspace-section">${hsBar(840, ' mock-new')}</section>`), { width: HS_FOLD_W }), 'Falz 840: Labelspalte (A)');
+// ⑫ Vermögen › Risiko, the Crashes bar: the window's select at its cap,
+// the line about 880 px; at 1200 px the bar is 924 px.
+const crashOption = 'Synthetic dip · 04.10.2026–24.10.2026 · manuell';
+const crashBar = (fold, cap, extra = '') => cbar('crash-bar', fold, 330,
+  `<form class="control-bar__group"><label class="control-bar__label" for="cw">Fenster</label><select id="cw" style="max-width: ${cap}"><option>${crashOption}</option></select></form>` +
+  cgroup('Liste', 'cl', cseg('cl', ['Verlierer', 'Gewinner', 'Erholer'], 'Verlierer')) +
+  cgroup('Wertpapiere', 'cu', cseg('cu', ['Im Depot', 'Ganzer Katalog'], 'Im Depot')), extra);
+const CR_FOLD_W = 954; // an 870 px bar in its section
+const CR_LINE_W = 1008; // the 924 px bar at a 1200 px window
+const crashFrame = (name, w, html, tag) => sized(writeFrame(name, pad(w, `<section class="crash-section workspace-section">${html}</section>`), { width: w }), tag);
+B6.crashFoldBefore = crashFrame('06w-crashes-falz-760', CR_FOLD_W, crashBar(760, '19.5rem'), 'Falz 760: eine Zeile, die umbricht (870 px Leiste)');
+B6.crashFoldAfter = crashFrame('06x-crashes-falz-900', CR_FOLD_W, crashBar(900, '19.5rem', ' mock-new'), 'Falz 900: Labelspalte (A)');
+B6.crashCapBefore = crashFrame('06y-crashes-1200-19-5rem', CR_LINE_W, crashBar(900, '19.5rem'), '1200 px heute: Auswahl bis 19,5rem, „… · manue“');
+B6.crashCapAfter = crashFrame('06z-crashes-1200-20-5rem', CR_LINE_W, crashBar(900, '20.5rem', ' mock-new'), '1200 px neu: bis 20,5rem, „… · manuell“');
+// ⑬ a section's ⓘ on its basis line, opened: today above its line, over
+// the sentence it belongs to; new under it (`data-place="below"`), above
+// only where the window has no room below. `--tip-shift` is what the
+// app's placement sets to keep the panel 1 rem inside a 390 px screen.
+const INFO_W = 390;
+const infoLine = (place) => `<section class="workspace-section"><header class="section-head"><h2>Positionen</h2></header><div class="summary-basis" data-role="positions-basis">${POS_ROWS}<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section${place ? ' mock-new' : ''}" open${place ? ` data-place="${place}"` : ''} style="--tip-shift: -152px"><summary aria-label="Zu diesem Abschnitt">ⓘ</summary><p role="tooltip">${POS_SUM}</p></details></div>${crop('Die Tabelle der Positionen, unverändert.')}</section>`;
+B6.infoBefore = sized(writeFrame('06za-info-oben', pad(INFO_W, `<div style="height: 72px"></div>${infoLine(null)}`), { width: INFO_W }), 'Heute, 390 px: über der eigenen Zeile');
+B6.infoAfter = sized(writeFrame('06zb-info-unten', pad(INFO_W, `<div style="height: 72px"></div>${infoLine('below')}<div style="height: 48px"></div>`), { width: INFO_W }), 'Neu: unter der Zeile');
+// ⑭ Vermögen, the stacked chart's bar at a 332 px bar (a 364 px window),
+// German: its label column and its level control need 334 px. A frame
+// pins the floor it shows in its own style (the floor class names the
+// width; the rule is drawn here as app.css draws its 330).
+const STACK_W = 372; // a 332 px bar
+const FLOOR_340 = `@container control-bar (max-width: 340px) { .control-bar--floor-340 > .control-bar__controls { --control-bar-display: grid; --control-bar-columns: minmax(0, 1fr); --control-bar-gap: var(--space-1); --control-bar-width: 100%; --control-bar-group: contents; --control-bar-label-margin: 0; --control-bar-select-width: auto; --control-bar-control-margin: 6px; } }`;
+const stackBar14 = (floor, extra = '') => cbar('', 760, floor,
+  cgroup('Ebene', 'sl', cseg('sl', ['Gesamt', 'Kategorien', 'Wertpapiere'], 'Kategorien')) +
+  `<form class="control-bar__group"><label class="control-bar__label" for="sc">Klassifizierung</label><select id="sc"><option>Strategien</option></select></form>` +
+  cgroup('Sortieren', 'ss', cseg('ss', ['Größe', 'Veränderung'], 'Größe')), extra);
+B6.stackFloorBefore = sized(writeFrame('06zc-stapel-boden-330', pad(STACK_W, stackBar14(330)), { width: STACK_W, css: FLOOR_340 }), 'Boden 330: Labelspalte, 2 px über die Leiste');
+B6.stackFloorAfter = sized(writeFrame('06zd-stapel-boden-340', pad(STACK_W, stackBar14(340, ' mock-new')), { width: STACK_W, css: FLOOR_340 }), 'Boden 340: Labels darüber (B)');
+const CLOSING_LEAD = '<p><strong>Nachgetragen im Abschlussakt von PR 2 (Plan Sprint 29, D-8 Punkt 3):</strong> zwei Falze, die Lane L aus der Messung des Rundgangs gesetzt hat, ohne Frame, und wohin das ⓘ einer Basiszeile öffnet. Die Leisten sind das Markup der Komponente, gezeichnet von den Container-Abfragen in app.css bei der genannten Leistenbreite.</p>';
 board('06-control-bar.html', 'Sprint 29 — Board 06: beschriftete Bedienelemente beginnen an einer Kante (#1435)', 1100,
   `<div class="mock-pickbar"><p><strong>Was entschieden ist (DESIGN.md, Amendment 2026-11-08, Board 07 ④ von Sprint 28, Wahl A; Amendment D-A5):</strong> eine Leiste beschrifteter Bedienelemente (ein Label neben einem Segmentschalter, einer Auswahl oder einer Chip-Familie) ist eine Komponente. Solange sie passt, eine Zeile; bricht sie um, eine Labelspalte so breit wie das längste Label und jedes Feld an derselben Kante (A); passt auch das nicht, jedes Label über seinem Feld (B). Die Leiste des gestapelten Charts ist der erste Nutzer und hält die Regel schon (390 px: alle drei Felder bei 100 px).</p><p><strong>Was dieses Board zeigt und vorschlägt:</strong> die Leisten, die die Regel heute brechen, gemessen an der Review-Instanz bei 390 und 1200 px (<code>capture-b-inventory.js</code>; das Inventar steht in <code>06-control-bar-inventory.md</code>), vorher wie ausgeliefert und nachher in der gemeinsamen Komponente. Vorgeschlagen: eine Chip-Familie ist ein Feld und bricht in ihrer Spalte um; jede Familie trägt ihr Label, auch „Bestand“ und „Datenqualität“, die heute nur das Filterblatt nennt; das Journal wird eine Leiste statt zwei. Gestrichelt: neu.</p></div>`,
   [
@@ -641,6 +692,10 @@ board('06-control-bar.html', 'Sprint 29 — Board 06: beschriftete Bedienelement
     { title: '⑧ Wertpapier › Prognosen', note: 'Heute zwei Sätze; der zweite („Keine wird geändert oder gelöscht.“) ist die Regel, die die erste Zeile des ⓘ schon vollständig sagt. Neu: er entfällt aus der Zeile, wie im Tab Research.', frames: [B6.predBefore, B6.predAfter], recommended: true },
     { title: '⑨ Transaktionen, die Zeile unter der Summe', note: 'Heute ein Satz mit 37 Wörtern Methode. Neu: die Menge (was der Filter auswählt) und die Währung (je Währung, nicht umgerechnet) bleiben; die Richtung je Art und der Verkauf, dessen Kosten den Erlös übersteigen, gehen ins ⓘ.', frames: [B6.txSumBefore, B6.txSumAfter], recommended: true },
     { title: '⑩ Wertpapier › Übersicht, die Anleihe', note: 'Heute sechs Sätze, 65 Wörter, der längste freie Absatz der App. Neu: die Basis in einer Zeile (in Prozent vom Nennwert, ab heute, ohne Stückzinsen, Gebühren und Steuern); jede Formel und „Berichtet, nicht bewertet.“ als eigene Zeile im ⓘ.', frames: [B6.bondBefore, B6.bondAfter], recommended: true },
+    { lead: CLOSING_LEAD, title: '⑪ „Nach dem Verkauf“ mit Wertpapier: Falz 840', note: 'Mit einer Benchmark braucht die Zeile etwa 790 px (gemessen: Umbruch bis 793 px Leiste). Mit dem Standardfalz 760 bleibt sie darüber eine Zeile und bricht um: die Auswahl rutscht unter „Vergleich“ an die linke Kante, der Schalter beginnt hinter dem Label, zwei Kanten. Gebaut: Falz 840, darunter die Labelspalte (A), darüber eine Zeile; der Boden 560 (B) bleibt.', frames: [B6.hsFoldBefore, B6.hsFoldAfter], decided: true },
+    { title: '⑫ Vermögen › Risiko, Crashes: Falz 900 und die Breite der Auswahl', note: 'Mit der Auswahl des Fensters an ihrer Obergrenze braucht die Zeile etwa 880 px (gemessen: Umbruch bis 877 px Leiste, deutsch). Gebaut: Falz 900, darunter die Labelspalte (A). Bei 1200 px ist die Leiste 924 px, eine Zeile; dort schnitt die Obergrenze 19,5rem den Namen eines manuellen Fensters ab („… · manue“, 319 px nötig). Neu: 20,5rem; die Zeile bleibt unter 924 px.', frames: [B6.crashFoldBefore, B6.crashFoldAfter, B6.crashCapBefore, B6.crashCapAfter], recommended: true },
+    { title: '⑬ Das ⓘ einer Basiszeile öffnet unter ihr', note: 'Heute öffnet das ⓘ der sechs Zeilen aus ⑤ bis ⑩ nach oben, wie jedes ⓘ, und legt sich über den Satz, zu dem es gehört (390 px; Nachrichten auch bei 1200 px über die Tab-Leiste). Neu, wie ⑤ bis ⑩ es zeichnen: ein ⓘ in einer Basiszeile (.summary-basis, .detail-tab-hint) öffnet darunter, nach oben nur, wenn unten kein Platz ist. Jedes andere ⓘ bleibt, wie es ist.', frames: [B6.infoBefore, B6.infoAfter], recommended: true },
+    { title: '⑭ Vermögen, die Leiste des gestapelten Charts: Boden 340', note: 'Der breitere Rundgang des Abschlussakts (jede Breite, an der eine Leiste ihren Falz oder Boden kreuzt, ±1 px) fand bei 363 und 364 px Fenster (331 und 332 px Leiste, deutsch) die Ebene 2 px über der Leiste: „Klassifizierung“ und „Gesamt · Kategorien · Wertpapiere“ brauchen in der Labelspalte 334 px. Neu: Boden 340 für diese Leiste, darunter jedes Label über seinem Feld (B); bei 390 px bleibt die Labelspalte (A), bei 320 px B wie bisher.', frames: [B6.stackFloorBefore, B6.stackFloorAfter], recommended: true },
   ]);
 
 console.log('wrote frames/03* to 06* and boards 03 to 06');
