@@ -38,6 +38,7 @@ defmodule Portfolixir.Chains do
 
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Chains.ChainRead
+  alias Portfolixir.Chains.Esplora
   alias Portfolixir.Chains.Reader
   alias Portfolixir.Chains.Registry
   alias Portfolixir.Repo
@@ -77,6 +78,18 @@ defmodule Portfolixir.Chains do
     if Registry.has_source?(chain),
       do: chain |> Reader.state() |> health(now) |> Map.merge(%{chain: name, has_source: true}),
       else: %{chain: name, has_source: false}
+  end
+
+  @doc """
+  The hosts `chain`'s source asks, in order, and whether they are the
+  operator's own URL (`Portfolixir.Chains.Esplora.hosts/0`); `nil` for a
+  chain without a source. The chart's health line reads it to name a
+  fallback and a refused own URL (Sprint 29 H7, ADR-0059 §8).
+  """
+  @spec source_hosts(Registry.chain()) :: %{own?: boolean(), hosts: [String.t() | nil]} | nil
+  def source_hosts(chain) do
+    {:ok, chain} = Registry.fetch(chain)
+    if Registry.has_source?(chain), do: Esplora.hosts()
   end
 
   @doc """

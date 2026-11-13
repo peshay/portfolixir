@@ -61,6 +61,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias PortfolixirWeb.Components.CycleChart
   alias PortfolixirWeb.EventTypeLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.PrivacyMode
@@ -90,6 +91,11 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   attr(:notes, :list, default: [])
   attr(:show_notes?, :boolean, default: false)
   # --- S28 N9 end ---
+  # --- S29 H7 begin ---
+  # The halving cycles on the time axis (ADR-0060 §11 „Zeitachse“):
+  # `%{payload: the cycles read, lines: the three switches}`, or nil.
+  attr(:cycles, :map, default: nil)
+  # --- S29 H7 end ---
   attr(:currency_code, :string, default: "")
   # nil resolves to the localized "Price chart" at render time — a compile-time
   # attr default cannot go through gettext with the caller's locale.
@@ -156,6 +162,21 @@ defmodule PortfolixirWeb.Components.SecurityChart do
         <% else %>
           <%= render_axes(assigns) %>
 
+          <%!-- S29 H7: the cycles behind the price line, clipped to the
+               plot (ADR-0060 §11; board 01, A). --%>
+          <%= if @cycles do %>
+            <defs>
+              <clipPath id={"#{@chart_id}-plot"}>
+                <rect x={@plot_left} y={@plot_top} width={@plot_right - @plot_left} height={@plot_bottom - @plot_top} />
+              </clipPath>
+            </defs>
+            <CycleChart.timeline_back
+              cycles={@cycles}
+              scale={cycle_scale(@geometry, {@plot_left, @plot_top, @plot_right, @plot_bottom})}
+              clip={"#{@chart_id}-plot"}
+            />
+          <% end %>
+
           <line
             :if={@zero_line? and zero_in_range?(@geometry)}
             class="chart-zeroline"
@@ -212,6 +233,15 @@ defmodule PortfolixirWeb.Components.SecurityChart do
               </g>
             <% end %>
           <% end %>
+
+          <%!-- S29 H7: the segments, the tops' and lows' marks and the
+               labels, in front of the line and the pins. --%>
+          <CycleChart.timeline_front
+            :if={@cycles}
+            cycles={@cycles}
+            scale={cycle_scale(@geometry, {@plot_left, @plot_top, @plot_right, @plot_bottom})}
+            clip={"#{@chart_id}-plot"}
+          />
 
           <%!-- J5 A (board 05, rule ③): the labels follow the series, so on
                a narrow chart, where the values sit inside the plot, their
@@ -572,11 +602,43 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     end)
   end
 
-  defp range_extending_values(%{overlays_extend_range?: true, overlays: overlays}) do
+  defp range_extending_values(assigns),
+    do: overlay_values(assigns) ++ cycle_values(assigns)
+
+  defp overlay_values(%{overlays_extend_range?: true, overlays: overlays}) do
     for overlay <- overlays, point <- overlay.points, is_number(point.value), do: point.value
   end
 
-  defp range_extending_values(_assigns), do: []
+  defp overlay_values(_assigns), do: []
+
+  # --- S29 H7 begin ---
+  # The bands and the shown cones' parts that meet the axis widen the value
+  # range, so a band above or below every close stays on the plot.
+  defp cycle_values(%{cycles: %{} = cycles, quotes: quotes}) do
+    case Enum.filter(quotes, &valid_quote?/1) do
+      [] -> []
+      valid -> CycleChart.timeline_values(cycles, hd(valid).date, List.last(valid).date)
+    end
+  end
+
+  defp cycle_values(_assigns), do: []
+
+  # The chart's own placement of a date and a price (its log or percent
+  # transform), for the cycle layers.
+  defp cycle_scale(geometry, {x0, y0, x1, y1} = _plot) do
+    %{
+      x0: x0,
+      y0: y0,
+      x1: x1,
+      y1: y1,
+      first: geometry.first_date,
+      last: geometry.last_date,
+      x: fn date -> x0 + (x1 - x0) * x_fraction_for_date(date, geometry) end,
+      y: fn value -> y1 - (y1 - y0) * normalized_overlay_y(chart_float(value), geometry) end
+    }
+  end
+
+  # --- S29 H7 end ---
 
   defp pad_range(min, max) when min == max do
     pad = if min == 0.0, do: 1.0, else: abs(min) * 0.05

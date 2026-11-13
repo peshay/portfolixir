@@ -16,10 +16,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Catalog.SecurityCycles
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Catalog.SecurityFields.Field
   alias Portfolixir.Catalog.SecurityMetrics
   alias Portfolixir.Catalog.SecurityWithMetrics
+  alias Portfolixir.Chains
   alias Portfolixir.Classifications
   alias Portfolixir.Clock
   alias Portfolixir.Input.BoundedDate
@@ -46,6 +48,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.ChangedSince
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.ColumnPicker
+  alias PortfolixirWeb.Components.CycleChart
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.ControlBar
   alias PortfolixirWeb.EventTypeLabel
@@ -158,6 +161,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
      # (a picture, here). Both toggles stay, so a reader can turn them off.
      |> assign(:detail_ma, %{30 => false, 50 => true, 200 => true})
      |> assign(:detail_cost_basis?, false)
+     # --- S29 H7 begin ---
+     # The halving cycles (ADR-0060 §11): the read of the selected security
+     # when it is bound to a chain, the toggle (off), the mode and the three
+     # line switches („Top ↔ Tief“ on, ADR-0060 §6).
+     |> assign(:detail_cycles, nil)
+     |> assign(:detail_chain_hosts, nil)
+     |> assign(:detail_cycles_on?, false)
+     |> assign(:detail_cycles_mode, "timeline")
+     |> assign(:detail_cycle_lines, CycleChart.default_lines())
+     # --- S29 H7 end ---
      |> assign(:detail_quotes, [])
      # T-9 (Sprint 17 V2, G3-A): the selected security's manual quotes over
      # its whole history, whether the sync can refill a released day, the
@@ -1363,6 +1376,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   MA<%= window %>
                 </button>
               <% end %>
+              <%!-- S29 H7 (ADR-0060 §11; board 07 ③, Q3 A): „Zyklen“ only
+                   where the security has the cycle view. --%>
+              <button
+                :if={CycleChart.view?(@detail_cycles)}
+                type="button"
+                id="toggle-cycles"
+                phx-click="toggle_detail_cycles"
+                class={["chart-toggle", @detail_cycles_on? && "is-active"]}
+                aria-pressed={to_string(@detail_cycles_on?)}
+              >
+                <%= gettext("Cycles") %>
+              </button>
               <button
                 type="button"
                 id="toggle-cost-basis"
@@ -1401,6 +1426,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </div>
           </div>
 
+          <% cycles? = @detail_cycles_on? and CycleChart.view?(@detail_cycles) %>
+          <CycleChart.bar
+            :if={cycles?}
+            mode={@detail_cycles_mode}
+            lines={@detail_cycle_lines}
+            payload={@detail_cycles}
+            hosts={@detail_chain_hosts}
+          />
+
           <% chart_overlays =
             build_chart_overlays(
               @detail_quotes,
@@ -1419,6 +1453,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             show_transactions?={@detail_show_transactions?}
             notes={chart_notes(@detail_notes)}
             show_notes?={@detail_show_notes?}
+            cycles={cycles? && %{payload: @detail_cycles, lines: @detail_cycle_lines}}
             currency_code={@selected_security.currency_code}
           />
           <%!-- #824: the overlays are named where they are drawn. Two of
@@ -6072,6 +6107,30 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, update(socket, :detail_show_notes?, &(!&1))}
   end
 
+  # --- S29 H7 begin ---
+  # ADR-0060 §11: „Zyklen“, its two modes and its three line switches. A
+  # mode or a line is taken only by its listed name; anything else changes
+  # nothing.
+  def handle_event("toggle_detail_cycles", _params, socket) do
+    {:noreply, update(socket, :detail_cycles_on?, &(!&1))}
+  end
+
+  def handle_event("set_detail_cycles_mode", %{"mode" => mode}, socket)
+      when mode in ["timeline", "aligned"] do
+    {:noreply, assign(socket, :detail_cycles_mode, mode)}
+  end
+
+  def handle_event("set_detail_cycles_mode", _params, socket), do: {:noreply, socket}
+
+  def handle_event("toggle_detail_cycle_line", %{"line" => line}, socket) do
+    if line in CycleChart.lines(),
+      do:
+        {:noreply, update(socket, :detail_cycle_lines, &Map.update!(&1, line, fn on -> !on end))},
+      else: {:noreply, socket}
+  end
+
+  # --- S29 H7 end ---
+
   def handle_event("dismiss_result", _params, socket) do
     {:noreply, assign(socket, :action_result, nil)}
   end
@@ -6810,6 +6869,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
     socket
     |> assign(:selected_security, nil)
     |> assign(:detail_fullscreen?, false)
+    |> assign(:detail_cycles, nil)
+    |> assign(:detail_chain_hosts, nil)
     |> assign(:detail_quotes, [])
     |> assign(:detail_manual, nil)
     |> assign(:detail_sync_adapter?, false)
@@ -6944,7 +7005,26 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> load_research_log()
     |> load_predictions()
     |> load_stories()
+    |> load_cycles()
   end
+
+  # --- S29 H7 begin ---
+  # ADR-0060 §11: the cycles read of a security bound to a chain, the
+  # aligned windows included (the mode switches without a reload), through
+  # the context the API reads; a security bound to none reads nothing.
+  defp load_cycles(%{assigns: %{selected_security: %Security{halving_chain: nil}}} = socket),
+    do: assign(socket, detail_cycles: nil, detail_chain_hosts: nil)
+
+  defp load_cycles(%{assigns: %{selected_security: %Security{} = security}} = socket) do
+    {:ok, payload} = SecurityCycles.for_security(security.id, include: :aligned)
+
+    assign(socket,
+      detail_cycles: payload,
+      detail_chain_hosts: Chains.source_hosts(security.halving_chain)
+    )
+  end
+
+  # --- S29 H7 end ---
 
   # Sprint 26 V1 (ADR-0055 §5): the security's predictions with their
   # resolution at read — the read `GET /api/v1/predictions?security_id=`

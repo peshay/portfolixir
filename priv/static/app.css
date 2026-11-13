@@ -13888,3 +13888,196 @@ dialog.merge-dialog {
   }
 }
 /* --- S29 C6 end --- */
+
+/* --- S29 H7 begin: the halving cycles on the security chart (ADR-0060 §11,
+   ADR-0059 §8; idea boards I12 01 to 03 as adopted, board 07) --- */
+/* The cycle bar under the chart's toolbar: „Zyklen“ with its two modes,
+   „Strecken“ with the three line switches, the chain source's health line
+   on its own line under them. */
+.cycle-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+}
+.cycle-bar__group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.cycle-bar__label {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.cycle-bar__switches {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cycle-health {
+  display: flex;
+  flex: 1 0 100%;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+.cycle-health__dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-text-muted);
+}
+.cycle-health--current .cycle-health__dot {
+  border-color: var(--color-positive);
+  background: var(--color-positive);
+}
+.cycle-health--stale .cycle-health__dot,
+.cycle-health--failed .cycle-health__dot {
+  border-color: var(--color-warning);
+  background: var(--color-warning);
+}
+.cycle-health--refused .cycle-health__dot {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+}
+.cycle-health--stale .cycle-health__text,
+.cycle-health--refused .cycle-health__text {
+  color: var(--color-text);
+}
+/* Board 07 ⑧: at 390 px each label starts its own line, its controls under
+   it, and the switches wrap. */
+@media (max-width: 560px) {
+  .cycle-bar__group {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* The time axis: halvings as vertical lines in the warning hue (the next
+   one dashed, an estimate), the bands neutral with „beide Wege“ darker, an
+   outline where cones show its parts or its parts disagree, a dashed edge
+   where one price way stands alone. */
+.security-chart .cycle-halving {
+  stroke: var(--color-warning);
+  stroke-width: 1.2;
+}
+.security-chart .cycle-halving.is-estimate {
+  stroke-dasharray: 4 3;
+}
+.security-chart .cycle-band {
+  fill: var(--color-text-muted);
+  fill-opacity: 0.16;
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+}
+.security-chart .cycle-band.is-outline {
+  fill-opacity: 0.04;
+  stroke-dasharray: 4 3;
+}
+.security-chart .cycle-band.is-single {
+  stroke-dasharray: 3 3;
+}
+.security-chart .cycle-band__agree {
+  fill: var(--color-text-muted);
+  fill-opacity: 0.32;
+  stroke: none;
+}
+.security-chart .cycle-band__part {
+  fill: var(--color-text-muted);
+  fill-opacity: 0.26;
+  stroke: var(--color-text-muted);
+  stroke-width: 0.8;
+}
+/* The cones: Top ↔ Tief neutral, Top – Top the gain hue, Tief – Tief the
+   loss hue (board 03); two dashed edges, the area between them faint. */
+.security-chart .cycle-cone {
+  stroke: var(--color-text-muted);
+  fill: var(--color-text-muted);
+}
+.security-chart .cycle-cone--top_top {
+  stroke: var(--color-positive);
+  fill: var(--color-positive);
+}
+.security-chart .cycle-cone--low_low {
+  stroke: var(--color-danger);
+  fill: var(--color-danger);
+}
+.security-chart .cycle-cone__area {
+  fill-opacity: 0.1;
+  stroke: none;
+}
+.security-chart .cycle-cone__edge {
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+.security-chart .cycle-cone__part {
+  fill-opacity: 0.18;
+  stroke-width: 1;
+}
+.security-chart .cycle-segment {
+  stroke: var(--color-text-muted);
+  stroke-width: 1.2;
+}
+.security-chart .cycle-segment--top_top {
+  stroke: var(--color-positive);
+  stroke-dasharray: 5 3;
+}
+.security-chart .cycle-segment--low_low {
+  stroke: var(--color-danger);
+  stroke-dasharray: 2 3;
+}
+/* A top's mark over it and a low's under it, each pointing at its close;
+   the halo is the frame's colour, as the trades' is. */
+.security-chart .cycle-top,
+.security-chart .cycle-low {
+  stroke: var(--color-bg);
+  stroke-width: 1.5;
+}
+.security-chart .cycle-top {
+  fill: var(--color-positive);
+}
+.security-chart .cycle-low {
+  fill: var(--color-danger);
+}
+.security-chart .cycle-top.is-provisional {
+  fill-opacity: 0.55;
+}
+.security-chart .cycle-low.is-so-far {
+  fill: var(--color-bg);
+  stroke: var(--color-danger);
+}
+/* The labels: 9 CSS px at every chart width (--chart-upx, as the axis
+   labels are), over a halo in the frame's colour. */
+.security-chart .cycle-label {
+  fill: var(--color-text);
+  font-size: calc(9px * var(--chart-upx, 1));
+  paint-order: stroke;
+  stroke: var(--color-bg);
+  stroke-width: calc(3px * var(--chart-upx, 1));
+  stroke-linejoin: round;
+}
+.security-chart .cycle-label--halving {
+  fill: var(--color-warning);
+  font-weight: 600;
+}
+.security-chart .cycle-label--segment,
+.security-chart .cycle-label--band {
+  fill: var(--color-text-muted);
+}
+@media (max-width: 560px) {
+  .security-chart .cycle-label--segment,
+  .security-chart .cycle-label--halving {
+    display: none;
+  }
+}
+/* --- S29 H7 end --- */
