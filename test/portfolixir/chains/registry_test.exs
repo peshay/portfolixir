@@ -37,6 +37,13 @@ defmodule Portfolixir.Chains.RegistryTest do
 
     assert Registry.genesis_hash(:litecoin) == nil
 
+    # ADR-0059 §7, precision of 2026-11-13: the last halving it knows as
+    # confirmed, block 840,000 of 2024-04-20 00:09:27 UTC (timestamp
+    # 1,713,571,767), bounds a first run.
+    assert Registry.known_halving(:bitcoin) == %{height: 840_000, time: ~U[2024-04-20 00:09:27Z]}
+    assert DateTime.to_unix(Registry.known_halving(:bitcoin).time) == 1_713_571_767
+    assert Registry.known_halving(:litecoin) == nil
+
     for name <- ["zcash", "ethereum", "Bitcoin", " bitcoin", "", "dogecoin"] do
       assert Registry.fetch(name) == :error, name
     end

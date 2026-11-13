@@ -37,8 +37,9 @@ defmodule Portfolixir.Chains.Esplora do
       not more than 6 below the last stored tip (`tip_behind`), not below
       the fourth halving's height 840,000 (`tip_too_low`), and not above the
       height ten-minute spacing gives for the time since the genesis block,
-      times 1.1, nor, once a tip is stored, above that tip + the seconds
-      since its block's time / 600 × 1.1 + 36 (`tip_ahead`);
+      times 1.1, nor above that tip + the seconds since its block's time /
+      600 × 1.1 + 36, where "that tip" is the last stored one or, before any
+      is stored, the fourth halving's block of the registry (`tip_ahead`);
     * a hash has exactly 64 hex characters (`invalid_hash`), so a hash
       placed in a path is one segment of hex and nothing else;
     * a block has an `id`, an integer `height` and an integer `timestamp`
@@ -286,7 +287,16 @@ defmodule Portfolixir.Chains.Esplora do
     min(genesis_ceiling(now), last_tip + ahead(elapsed) + @tip_slack)
   end
 
-  defp tip_ceiling(_no_stored_tip, now), do: genesis_ceiling(now)
+  # With no stored tip (a first run, or a first successful one), the lower of
+  # the genesis ceiling and the same bound anchored at the last halving the
+  # registry knows (ADR-0059 §7, precision of 2026-11-13, the re-check): the
+  # genesis ceiling's margin widens with the chain's age and passes the fifth
+  # halving's height from late February 2027.
+  defp tip_ceiling(_no_stored_tip, now) do
+    %{height: height, time: time} = Registry.known_halving(@chain)
+    elapsed = max(DateTime.diff(now, time, :second), 0)
+    min(genesis_ceiling(now), height + ahead(elapsed) + @tip_slack)
+  end
 
   defp genesis_ceiling(now), do: ahead(DateTime.to_unix(now) - @genesis_time)
 

@@ -229,6 +229,8 @@ structured fields, and the journal names the system writer (§10).
   a block at the tip can still be replaced by a short reorganisation, and
   six blocks is the depth that block explorers and exchanges conventionally
   treat as final.
+  A halving above the fourth also needs a stored tip from an earlier
+  successful run (§7, precision of 2026-11-13, the re-check).
 - **A confirmed halving is never re-read.** Its block is buried, and a
   later answer that disagrees with it is the source's error, not the
   chain's (§7). ADR-0048's staleness read leaves confirmed `halving` events
@@ -379,7 +381,42 @@ it, and an honest tip refused after a long pause is read again once the
 bound has grown. *What it leaves open:* a source that lies by less than
 the bound, for at most hours of blocks, still locks the honest sources out
 until the chain catches up, and after a long pause the bound is as wide as
-10 % of the pause.
+10 % of the pause. A first run had no bound but the genesis ceiling; the
+next precision closes that.
+
+**Precision of 2026-11-13 (the re-check): a first run is bounded from the
+fourth halving, and cannot confirm a halving alone.** The re-check of the
+bound above found the first run still open. With no stored tip only the
+genesis ceiling applied, and a run that fails stores no tip, so "first
+run" is every install's first *successful* read, whenever it happens; from
+27 February 2027 one forged first answer with echoing blocks still
+confirmed the fifth halving. **The rule, in two parts:** (a) with no stored
+tip, the tip is also at most the fourth halving's height + the seconds
+since its block's time / 600 × 1.1 + 36, otherwise `tip_ahead`. The
+fourth halving, block 840,000 mined at 00:09:27 UTC on 2024-04-20
+(timestamp 1,713,571,767), is a public fact of the chain like the genesis
+hash, and the registry holds it with that source (§2). The lower of this
+bound and the genesis ceiling applies, which from 2024 on is this one, about
+44,700 blocks lower. (b) A halving above the highest one the registry knows
+as confirmed (840,000) is written as **confirmed** only by a run whose
+stored tip came from an earlier successful run. A first run writes it with
+the block's date, unconfirmed and `unverified`, as for fewer than six
+confirmations (§5); the next run, bounded by the stored tip, reads it again
+and confirms it. *Why both:* (a) alone still lets a forged first tip
+through from the time the real fifth halving is near (in April 2028 the
+anchored bound is some 21,000 blocks above 1,050,000), and (b) alone would
+let a first answer far ahead store a tip that the stored-tip rule then
+builds on. Together, a single lying first answer can confirm nothing, and
+the four halvings the registry knows are still confirmed by an honest first
+run. *What it leaves open:* a source that lies on the first run *and*
+again on the next one, consistently and within both bounds, still confirms
+a halving that has not happened; a lying first run still locks the honest
+sources out as the bound from the stored tip describes, until the chain
+catches up. The remedy for both is the one §13 item 3 names: an own
+instance, or "Halving von zwei Quellen bestätigen". **To flip:**
+"Erstlauf bestätigt Halving" (a first run confirms any halving with six
+confirmations again; part (a) stays, as it only refuses what the chain
+cannot have reached); the anchor's factor and slack, numbers by comment.
 **To flip:** "Tip-Untergrenze ab Genesis" (the floor becomes 2,016, which
 refuses only a tip that makes the run's heights negative); the ceiling's
 factor, a number by comment. The order check has no flip: the answer it
@@ -510,7 +547,10 @@ sentence.
    the same as a provider that serves false quotes (ADR-0005), and the
    remedy is the same: an own instance, or the flip "Halving von zwei
    Quellen bestätigen". A false *height* cannot land, because the height is
-   the constant and the block must echo it.
+   the constant and the block must echo it. Since the re-check of
+   2026-11-13 (§7), a halving above the fourth is confirmed only by a run
+   with a stored tip from an earlier one, so a single answer lands it
+   unconfirmed at most.
 4. *Can a source on the wrong chain write anything?* No. The genesis check
    refuses it (§7).
 5. *Can a reorganisation move a confirmed halving?* Only one deeper than six
@@ -593,5 +633,6 @@ owner's wish of 2026-11-10 for the chain as the source.
 | The tip's floor (§7, precision) | the fourth halving, 840,000 | "Tip-Untergrenze ab Genesis" |
 | The tip's ceiling (§7, precision) | ten-minute spacing since genesis × 1.1 | a number by comment |
 | The tip's bound from the stored tip (§7, precision of 2026-11-13) | the stored tip + its age / 600 × 1.1 + 36 | numbers by comment |
+| A first run's bound and its confirmations (§7, precision of 2026-11-13, the re-check) | the fourth halving + its age / 600 × 1.1 + 36; a halving above 840,000 confirmed only with a stored tip from an earlier run | "Erstlauf bestätigt Halving"; numbers by comment |
 | The operator's own URL | https, public address, replaces both defaults | none here; a private address needs the URL-policy record of §14 |
 | Further chain data (fees, mempool, prices) | not read | none: a new record |

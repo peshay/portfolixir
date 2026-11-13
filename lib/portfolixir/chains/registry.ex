@@ -9,6 +9,11 @@ defmodule Portfolixir.Chains.Registry do
   | `bitcoin_cash` | 210,000 | 600 | none |
   | `litecoin` | 840,000 | 150 | none |
 
+  For Bitcoin the registry also holds two public facts of the chain itself:
+  the genesis block's hash and the last halving it knows as confirmed (the
+  fourth, block 840,000, mined 2024-04-20 00:09:27 UTC; `known_halving/1`),
+  which bound a first run's answer (ADR-0059 §7).
+
   The constants are the subsidy halving interval and the target block
   spacing as each chain's reference client states them in its consensus
   parameters (Bitcoin Core's `nSubsidyHalvingInterval` and its ten-minute
@@ -39,10 +44,26 @@ defmodule Portfolixir.Chains.Registry do
   # daily check compares a source's answer with.
   @bitcoin_genesis "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
 
+  # The last halving of Bitcoin the registry knows as confirmed (ADR-0059 §7,
+  # precision of 2026-11-13, the re-check): the fourth, block 840,000, whose
+  # header timestamp is 1,713,571,767 (2024-04-20 00:09:27 UTC), a public
+  # fact of the chain as every block explorer shows it, like the genesis
+  # hash. A first run's tip is bounded from it, and a halving above it is
+  # confirmed only by a run that has a stored tip from an earlier one.
+  @bitcoin_known_halving %{height: 840_000, time: ~U[2024-04-20 00:09:27Z]}
+
   @chains [
-    {:bitcoin, %{halving_interval: 210_000, target_spacing: 600, genesis_hash: @bitcoin_genesis}},
-    {:bitcoin_cash, %{halving_interval: 210_000, target_spacing: 600, genesis_hash: nil}},
-    {:litecoin, %{halving_interval: 840_000, target_spacing: 150, genesis_hash: nil}}
+    {:bitcoin,
+     %{
+       halving_interval: 210_000,
+       target_spacing: 600,
+       genesis_hash: @bitcoin_genesis,
+       known_halving: @bitcoin_known_halving
+     }},
+    {:bitcoin_cash,
+     %{halving_interval: 210_000, target_spacing: 600, genesis_hash: nil, known_halving: nil}},
+    {:litecoin,
+     %{halving_interval: 840_000, target_spacing: 150, genesis_hash: nil, known_halving: nil}}
   ]
 
   @constants Map.new(@chains)
@@ -81,6 +102,14 @@ defmodule Portfolixir.Chains.Registry do
   @doc "The genesis block hash of a chain with a source, `nil` otherwise."
   @spec genesis_hash(chain()) :: String.t() | nil
   def genesis_hash(chain) when chain in @atoms, do: @constants[chain].genesis_hash
+
+  @doc """
+  The highest halving of `chain` the registry knows as confirmed, its
+  height and its block's time, or `nil` for a chain without a source.
+  Bitcoin's is the fourth, block 840,000 of 2024-04-20 00:09:27 UTC.
+  """
+  @spec known_halving(chain()) :: %{height: pos_integer(), time: DateTime.t()} | nil
+  def known_halving(chain) when chain in @atoms, do: @constants[chain].known_halving
 
   @doc """
   Whether the app reads `chain` itself (ADR-0059 §3). On such a chain the

@@ -1748,6 +1748,9 @@ und nur, solange ein Wertpapier an Bitcoin gebunden ist (ADR-0059 §10). Für
 jedes gebundene Wertpapier schreibt er jedes vergangene Halving, bestätigt,
 sobald es sechs Bestätigungen hat: `confirmed: true`, `timing: exact`,
 `source_quality: primary`, das UTC-Datum des Blocks, nie wieder gelesen.
+Ein Halving nach dem vierten (840.000) bestätigt nur ein Lauf, der einen
+gespeicherten Tip aus einem früheren erfolgreichen Lauf hat; der erste
+erfolgreiche Lauf schreibt es unbestätigt.
 Das nächste Halving ist ein unbestätigter Termin mit `timing: window` von
 der Zeit des Tips plus den restlichen Blöcken bei der mittleren Blockzeit
 der letzten 2.016 Blöcke bis zu demselben beim Zehn-Minuten-Ziel, höchstens
@@ -1755,8 +1758,9 @@ einmal am Tag neu geschrieben. Jede Antwort wird geprüft, bevor etwas
 geschrieben wird (der Tip nicht mehr als 6 unter dem zuletzt gespeicherten,
 `tip_behind`; der Genesis-Block einmal am Tag, `wrong_chain`; der Tip
 zwischen dem vierten Halving und dem Zehn-Minuten-Abstand seit Genesis ×
-1,1, und sobald ein Tip gespeichert ist, nicht über ihm + der Zeit seit
-seinem Block / 600 × 1,1 + 36, `tip_too_low` und `tip_ahead`; die Blöcke geben zurück, was gefragt
+1,1, und nicht über dem gespeicherten Tip, vor dem ersten dem Block des
+vierten Halvings, + der Zeit seit seinem Block / 600 × 1,1 + 36,
+`tip_too_low` und `tip_ahead`; die Blöcke geben zurück, was gefragt
 war, in zeitlicher Ordnung, `blocks_out_of_order`). Eine abgelehnte eigene
 URL scheitert mit `url_not_allowed` und ihrem Grund
 (`url_not_allowed:scheme`, `url_not_allowed:private_address` und
