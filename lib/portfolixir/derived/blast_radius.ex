@@ -161,7 +161,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   #
   # The one list that answers `[]` is `@feeds_no_security_data`: journaled
   # resource types classified, one by one, as writing nothing a security's own
-  # series reads. It is an explicit enumeration, not a default — a new resource
+  # series reads (`security_event` except a halving, resolved above it). It is an explicit enumeration, not a default — a new resource
   # type is absent from it and so widens.
   @feeds_no_security_data ~w(
     allowance_order bucket cash_account cash_account_bucket_assignment category
@@ -202,6 +202,17 @@ defmodule Portfolixir.Derived.BlastRadius do
   def securities_for_write("security_quotes", %{__struct__: QuoteWrite, security_id: id})
       when is_integer(id),
       do: securities_for_quote(id)
+
+  # A halving (ADR-0059, ADR-0060 §10) is security data: the cycles read
+  # (`security_cycles`) reads the security's halving events under its own
+  # basis, so a halving write resolves to its security. Every other event
+  # kind is knowledge that no figure reads (the list below). The closing
+  # act's lens on Lane H found halving writes leaving the basis alone; the
+  # read is at `:none`, so nothing served was stale, but a lifetime moved off
+  # `:none` would have been.
+  def securities_for_write("security_event", %SecurityEvent{kind: :halving, security_id: id})
+      when is_integer(id),
+      do: [id]
 
   def securities_for_write(resource_type, _record)
       when resource_type in @feeds_no_security_data,

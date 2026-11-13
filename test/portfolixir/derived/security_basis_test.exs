@@ -211,6 +211,47 @@ defmodule Portfolixir.Derived.SecurityBasisTest do
       assert BlastRadius.securities_for_write("transaction", deposit) == []
     end
 
+    # The closing act's lens on Lane H (H5, S3): the cycles read
+    # (`security_cycles`, ADR-0060 §10) reads the security's halving events
+    # under its own basis, so a halving write is security data; every other
+    # event kind stays knowledge that feeds no figure.
+    test "a halving event resolves to its security, any other event to none" do
+      halving = %Portfolixir.Knowledge.SecurityEvent{kind: :halving, security_id: 7}
+      earnings = %Portfolixir.Knowledge.SecurityEvent{kind: :earnings, security_id: 7}
+
+      assert BlastRadius.securities_for_write("security_event", halving) == [7]
+      assert BlastRadius.securities_for_write("security_event", earnings) == []
+    end
+
+    test "a halving the chain reader writes bumps its security's basis" do
+      security = security!("Halving AG")
+
+      {:ok, security} =
+        Catalog.update_security(Actor.owner_ui(), security, %{halving_chain: :bitcoin})
+
+      before = version(security)
+
+      {:ok, _event} =
+        Portfolixir.Knowledge.Events.put_chain_halving(
+          Actor.system_job("chain_read"),
+          security.id,
+          :bitcoin,
+          1_050_000,
+          %{
+            date: ~D[2028-04-10],
+            date_end: ~D[2028-04-20],
+            timing: :window,
+            confirmed: false,
+            source_quality: :unverified,
+            checked_at: ~D[2026-11-13],
+            machine_generated: false
+          },
+          today: ~D[2026-11-13]
+        )
+
+      assert version(security) > before
+    end
+
     test "a quote resolves to its own security" do
       assert BlastRadius.securities_for_quote(7) == [7]
       assert BlastRadius.securities_for_quote(nil) == :all
