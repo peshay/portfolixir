@@ -29,10 +29,11 @@ Then import the file through the Imports view (drag & drop, map everything as
 ### The seeds make no outbound calls
 
 `mix run` boots the application, and the dev configuration starts logo
-discovery and the quote and FX sync: on its own, a seed run would send a logo
-lookup and a quote backfill for every demo security to the public providers.
-Every seed command below therefore sets `PORTFOLIXIR_BACKGROUND_FETCH=off`,
-which leaves all three off from boot, so a seed run makes **no outbound
+discovery, the quote and FX sync, the news feeds' fetch and the chain read:
+on its own, a seed run would send a logo lookup and a quote backfill for
+every demo security to the public providers. Every seed command below
+therefore sets `PORTFOLIXIR_BACKGROUND_FETCH=off`, which leaves all of them
+off from boot, so a seed run makes **no outbound
 calls** and the seeded data does not depend on any provider being reachable
 (#963). `finding_surfaces_seed.exs` refuses to run without it. A server
 started on the seeded database (`mix phx.server`) fetches as usual; give it the

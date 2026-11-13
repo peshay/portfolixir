@@ -1696,7 +1696,13 @@ ein Teil immer gleich dem ist, was sein Lesezugriff antwortet.
     `newest_primary`, die neueste primäre Story des Wertpapiers, gleich wie
     alt (`id`, `title` auf 50 Zeichen gekürzt, `at`; `null` ohne eine). Etwa
     50 Token; der Begleiter antwortet das Dossier als kompaktes JSON, wie
-    die News-Lesezugriffe.
+    die News-Lesezugriffe;
+  - `cycles` (ADR-0060 §11) — für ein Wertpapier mit der Ansicht der
+    Halving-Zyklen `low` und `top`, das Analogband des nächsten Tiefs und
+    des nächsten Tops als je ein Array, `[Fenster von, Fenster bis, Kurs
+    von, Kurs bis, state, n]`, etwa 40 Token; keine Prognose, und `null`
+    ohne die Ansicht (siehe
+    [Halving-Zyklen und die Kettenquelle](#halving-zyklen-und-die-kettenquelle-fr-58-adr-0059-adr-0060)).
 
 Bewusst ausgelassen: Kurse, Trades, Lots und Transaktionen, jeweils eine lange
 Reihe mit eigenem geblättertem Lesezugriff, und die Abweichung, die je
@@ -1709,33 +1715,303 @@ Teil außer `targets`, dessen Ansicht die Klassifizierungsseite ist.
 
 ### Halving-Zyklen und die Kettenquelle (FR-58, ADR-0059, ADR-0060)
 
-Ein Wertpapier, das an eine Blockchain gebunden ist (`halving_chain`), hat
-seine Halvings als Kalendertermine und ab zwei bestätigten Halvings eine
-Zyklen-Lesung. Die Halvings von Bitcoin werden aus der Kette selbst gelesen;
-Bitcoin Cash und Litecoin haben keine Quelle und werden von Hand erfasst.
+Ein Wertpapier, das an eine Blockchain gebunden ist, hat seine Halvings als
+Kalendertermine der Art `halving` (siehe
+[Wertpapier-Termine](#wertpapier-termine-adr-0048) oben) und ab zwei
+bestätigten Halvings eine Zyklen-Lesung: die Fenster zwischen seinen
+Halvings, Top und Tief jedes Fensters, die Abstände dazwischen und das
+nächste Tief und das nächste Top als **ein Analogband**. Die Bindung ist das
+Feld `halving_chain` von `PATCH /api/v1/securities/:id` (oben):
+`"bitcoin"`, `"bitcoin_cash"`, `"litecoin"` oder `null`. Nichts bindet ein
+Wertpapier von selbst. Eine gelöste oder geänderte Bindung löscht die
+Halving-Termine des Wertpapiers im selben Schreibzugriff, jeden mit einer
+Journal-Löschung, und der `PATCH` antwortet `halving_events_deleted` neben
+`data`.
 
-- `GET /api/v1/chains` — die registrierten Ketten (`bitcoin`, `bitcoin_cash`,
-  `litecoin`) mit `halving_interval`, `target_spacing_seconds`, `has_source`
-  und `bound_securities`; für Bitcoin außerdem `health` (`source_host`,
-  `last_tried_at`, `last_ok_at`, `last_error`, `stale` nach 24 Stunden ohne
-  erfolgreichen Lauf), `next_halving_inputs` (der Tip, seine Zeit, die Zeit
-  2.016 Blöcke darunter und `mean_block_seconds` als Dezimal-String) und
-  `refresh.available_at`. Nimmt keinen Parameter.
-- `POST /api/v1/chains/:chain/refresh` — liest die Quelle der Kette sofort
-  und antwortet ihren Eintrag mit `run` (`ok`, `unbound` oder `failed`).
-  Höchstens einmal je 10 Minuten und Kette, geplante Läufe mitgezählt: früher
-  antwortet `429` mit `errors.retry_after` und dem Header `Retry-After`; eine
-  Kette ohne Quelle antwortet `422` mit `errors.code` `no_source`.
-- `GET /api/v1/securities/:security_id/cycles` — die Halvings,
-  `chain_source`, die Fenster mit ihren Hochs und Tiefs, die sechs Abstände
-  mit `n`, Minimum und Maximum und die `projection`: das Analogband des
-  nächsten Tiefs und des nächsten Hochs, `not_a_forecast: true`, mit seinen
-  Teilen, `agree` und `state`; `computation_basis` nennt jede Regel.
-  `include=aligned` ergänzt je Fenster seine Schlusskurse, indexiert auf den
-  Schlusskurs am Halving-Tag. Es gibt kein `as_of`: dieser und jeder andere
-  Parameter antworten `422` mit seinem Namen. Dezimalzahlen sind Strings.
+**Die Ketten** sind Protokollkonstanten im Code (ADR-0059 §2), nie
+erkannt: `bitcoin` und `bitcoin_cash` halbieren alle 210.000 Blöcke bei
+einem Ziel von 600 Sekunden, `litecoin` alle 840.000 Blöcke bei 150
+Sekunden; Halving *k* ist der Block bei *k* × dem Intervall. **Nur Bitcoin
+hat eine Quelle.** Die App liest seine Tip-Höhe und die Zeitstempel
+einzelner Blöcke über die nur lesende Esplora-REST-API: zuerst
+`mempool.space`, `blockstream.info` nur, wenn die erste ausfällt, oder die
+eigene Instanz des Betreibers aus `PORTFOLIXIR_BITCOIN_ESPLORA_URL`, die
+beide ersetzt und keinen Ersatz hat (https, kein Benutzername, keine Query,
+kein Fragment, ein Host, der nur auf öffentliche Adressen auflöst; siehe
+[Home-Deployment](../home-deployment.html)). Sonst wird nichts aus einem
+Block gelesen: keine Transaktionen, Gebühren, Mempool, Adressen oder Kurse.
+Die Halvings von Bitcoin Cash und Litecoin schreibt man von Hand oder ein
+Agent über die Termin-Routen.
 
-Das Dossier trägt die beiden Bänder als seine `cycles`-Zeile.
+**Der Leser** läuft alle 6 Stunden dort, wo die Kurssynchronisierung läuft,
+und nur, solange ein Wertpapier an Bitcoin gebunden ist (ADR-0059 §10). Für
+jedes gebundene Wertpapier schreibt er jedes vergangene Halving, bestätigt,
+sobald es sechs Bestätigungen hat: `confirmed: true`, `timing: exact`,
+`source_quality: primary`, das UTC-Datum des Blocks, nie wieder gelesen.
+Das nächste Halving ist ein unbestätigter Termin mit `timing: window` von
+der Zeit des Tips plus den restlichen Blöcken bei der mittleren Blockzeit
+der letzten 2.016 Blöcke bis zu demselben beim Zehn-Minuten-Ziel, höchstens
+einmal am Tag neu geschrieben. Jede Antwort wird geprüft, bevor etwas
+geschrieben wird (der Tip nicht mehr als 6 unter dem zuletzt gespeicherten,
+`tip_behind`; der Genesis-Block einmal am Tag, `wrong_chain`; der Tip
+zwischen dem vierten Halving und dem Zehn-Minuten-Abstand seit Genesis ×
+1,1, `tip_too_low` und `tip_ahead`; die Blöcke geben zurück, was gefragt
+war, in zeitlicher Ordnung, `blocks_out_of_order`). Eine abgelehnte eigene
+URL scheitert mit `url_not_allowed` und ihrem Grund
+(`url_not_allowed:scheme`, `url_not_allowed:private_address` und
+dergleichen) und fragt keinen Host. Scheitern alle Quellen, hält der Lauf
+`last_error` fest und ändert nichts Gespeichertes: Die letzte Schätzung
+bleibt mit dem Datum ihrer Lesung stehen.
+
+Jede Route verlangt das Bearer-Token: Ohne gültiges antwortet sie `401` wie
+jede Route unter `/api/v1`. Jede Route ist geschlossen: Ein Parameter oder
+ein Body-Feld, das sie nicht nimmt, antwortet `422` mit seinem Namen, bevor
+etwas läuft. Zeiten sind ISO 8601 in UTC, Daten ISO 8601, Dezimalzahlen
+Strings.
+
+**`GET /api/v1/chains`**
+
+Nimmt keinen Parameter. `data` listet die registrierten Ketten in der
+Reihenfolge der Registry, jede mit:
+
+- `chain` (`bitcoin`, `bitcoin_cash`, `litecoin`), `halving_interval` in
+  Blöcken, `target_spacing_seconds`, `has_source` und `bound_securities`,
+  der Zahl der daran gebundenen Wertpapiere.
+- `health` — für eine Kette mit Quelle: `source_host` (der Host, der zuletzt
+  geantwortet hat), `last_tried_at`, `last_ok_at`, `last_error` (`null`
+  oder jeder gescheiterte Host mit seinem Code, `"mempool.space: timeout;
+  blockstream.info: http_503"`) und `stale`, `true`, wenn die Kette seit
+  24 Stunden keinen erfolgreichen Lauf hatte. Eine tote Quelle ist binnen
+  eines Tages sichtbar tot. `null` für eine Kette ohne Quelle.
+- `next_halving_inputs` — die Eingaben der Schätzung des nächsten Halvings:
+  `tip_height`, `tip_at` (die Zeit des Tip-Blocks), `tip_2016_at` (die Zeit
+  des Blocks 2.016 darunter), `period_blocks` (2016) und
+  `mean_block_seconds` (ihr Mittel als Dezimal-String). `null` vor dem
+  ersten erfolgreichen Lauf und für eine Kette ohne Quelle.
+- `refresh` — `interval_seconds` (600) und `available_at`, zehn Minuten nach
+  dem letzten Versuch, der erste Zeitpunkt, zu dem ein Lesen auf Abruf
+  erlaubt ist (ein schon vergangener, wenn es jetzt erlaubt ist; `null` vor
+  dem ersten Versuch). `null` für eine Kette ohne Quelle.
+
+**`POST /api/v1/chains/:chain/refresh`**
+
+Ein Lauf des Lesers jetzt, wie der geplante ihn macht, beantwortet, wenn er
+endet. Nimmt keinen Parameter und kein Body-Feld. `data` ist der Eintrag der
+Kette aus `GET /api/v1/chains` mit `run`, dessen `status` sagt, wie er
+lief: `ok` mit `host` (der Host, der geantwortet hat), `tip` (der gelesene
+Tip) und `securities` (die gebundenen Wertpapiere, für die er geschrieben
+hat); `unbound` (kein Wertpapier gebunden: kein Host wird gefragt und keine
+Wartezeit beginnt); oder `failed` mit `error`, dem gespeicherten
+`last_error`. Auch ein gescheiterter Lauf ist ein `200`: Die Gesundheit
+sagt, was geschah.
+
+- **Höchstens einmal je 10 Minuten und Kette**, gezählt ab dem letzten
+  Versuch jedes Laufs, die geplanten mitgezählt: früher antwortet `429` mit
+  `errors.retry_after`, den verbleibenden Sekunden, demselben Wert im Header
+  `Retry-After` und einem `errors.detail`. Kein Host wird gefragt. Warten Sie
+  die genannte Zeit ab; nicht in einer Schleife wiederholen.
+- Eine Kette ohne Quelle antwortet `422` mit `errors.code` `no_source`,
+  `errors.chain` und `errors.detail`: `bitcoin_cash` und `litecoin`.
+- Ein Name, den die Registry nicht kennt, antwortet `404`.
+
+**`GET /api/v1/securities/:security_id/cycles`**
+
+Bei jedem Lesen aus den gespeicherten Schlusskursen und Halving-Terminen des
+Wertpapiers berechnet, nie gespeichert (ADR-0060 §10). Die Lesung nimmt
+einen Parameter, `include`, mit einem Wert, `aligned`. `data` trägt:
+
+- `security_id`, `security_name`, `currency_code` und `chain` (die
+  gebundene Kette, `null` ohne Bindung).
+- `reason` — `null`, wo die Ansicht existiert, sonst warum nicht:
+  `no_halving_chain` (an keine Kette gebunden), `too_few_halvings` (weniger
+  als zwei bestätigte Halvings) oder `no_closes` (kein gespeicherter
+  Schlusskurs in irgendeinem Fenster). Ohne Ansicht ist `cycles` `[]`,
+  `intervals` `null`, und `projection` trägt kein Band.
+- `chain_source` — die Gesundheit der gebundenen Kette: `chain`,
+  `has_source` und für eine Kette mit Quelle `source_host`,
+  `last_tried_at`, `last_ok_at`, `last_error` und `stale`, wie in
+  `GET /api/v1/chains`. `null` ohne Bindung.
+- `halvings` — die Halving-Termine des Wertpapiers nach Höhe, jeder mit
+  `height`, `chain`, `date`, `date_end`, `timing`, `confirmed` und
+  `source_quality`.
+- `next_halving` — das erste unbestätigte Halving über den bestätigten:
+  `height`, `date` und `date_end` (das Fenster seiner Schätzung), oder
+  `null`.
+- `cycles` — ein Fenster je Paar bestätigter Halvings, das älteste zuerst,
+  und das offene seit dem letzten: `start`, `end` (`null` für das offene
+  Fenster), `start_height`, `end_height`, `kind` (`complete`, `partial`,
+  wenn es mehr als 7 Tage vor dem ersten gespeicherten Schlusskurs beginnt,
+  `open` oder `no_closes`), `final` (`false` für das offene Fenster),
+  `partial`, `closes` (wie viele), `first_close`, `last_close`,
+  `max_gap_days` (die meisten Kalendertage zwischen zwei aufeinander
+  folgenden Schlusskursen; ein Tag ohne Schlusskurs wird übersprungen, nie
+  aufgefüllt) und `max_drawdown`. **Top und Tief des Fensters sind Gipfel
+  und Tal seines maximalen Drawdowns**, nicht sein höchster und tiefster
+  Schlusskurs (bei gleich hohen Schlusskursen der späteste Gipfel, bei
+  gleichen Drawdowns das früheste Tal): `top` (`date`, `close`, `final`,
+  `anchor`) mit `top_reason` (`before_first_close` für ein unvollständiges
+  Fenster, das kein Top hat; `no_decline`; `no_closes`), `low` (`date`,
+  `close`, `final`, `partial`) mit `low_reason` (`window_open`,
+  `no_decline`, `no_closes`) und für das offene Fenster `low_so_far`
+  (`date`, `close`, `partial`) statt eines Tiefs. Das Top des offenen
+  Fensters ist `final: false` und ein `anchor`, sobald ein Schlusskurs
+  danach mindestens 20 % darunter lag; bis dahin ist `anchor_reason`
+  `no_top_yet`. Ein höheres Top, das tiefer fällt, ersetzt es.
+- `intervals` — die sechs Beziehungen, jede ein Schlüssel:
+  `halving_to_top`, `top_to_low`, `low_to_top`, `top_to_top`, `low_to_low`
+  und `low_to_next_halving`. Jede hat `n` (ihre Beobachtungen), `days`
+  (`min`, `max`), `change` (`min`, `max`; nur `top_to_low`,
+  `low / top − 1`), `factor` (`min`, `max`; `low_to_top`, `top_to_top`,
+  `low_to_low`, der spätere Schlusskurs durch den früheren), `reason`
+  (`no_top_yet`, solange das offene Top nicht verankert ist) und
+  `observations`, jede mit `from` und `to` (`event`, `date`, `close`,
+  `window_start`), `days`, ihrem `change` oder `factor` und `provisional`
+  (ein Ende ist nicht endgültig) und `partial` (ein Ende ist das Tief des
+  unvollständigen Fensters). Das ist Stufe (b) der Leiter: Nichts wird
+  gemittelt und nichts angepasst.
+- `projection` — `kind` `analog_band`, `not_a_forecast` `true`,
+  `next_low`, `next_top` und `cones`; unten beschrieben.
+- `computation_basis` — jede Regel, die die Lesung angewandt hat, im
+  Payload, wie die Leiter es von jeder Kennzahl und jedem Analogband
+  verlangt: `series` (die eigenen splitbereinigten Schlusskurse des
+  Wertpapiers in seiner eigenen Währung, nie umgerechnet, nur positive
+  Schlusskurse, `first_close`, `last_close`, Lücken übersprungen),
+  `halvings`, `window` (`halving_to_halving_v1`: Der Schlusskurs eines
+  Halving-Tages gehört zum Fenster, das dort beginnt; Halving-Daten sind
+  UTC-Daten), `window_rule`, `partial_days` (7), `window_kinds`,
+  `extremes` (`max_drawdown_v1`) mit `extremes_rule`, `anchor_threshold`
+  (`"0.20"`) mit `anchor_rule`, `counts` (`cycles_complete`,
+  `cycles_partial`, `cycle_open`), `intervals`, `projection` (ihr `kind`,
+  `not_a_forecast`, `events`, `time_rule`, `price_rule` mit ihren Texten,
+  `price_fallback`, `float_island`, `minimum_data`, `band`, `agree`,
+  `state`, `cones` und `not_computed`) und `ladder`; mit `include=aligned`
+  auch `aligned`.
+
+**Was das Band ist.** Für jedes kommende Ereignis, `next_low` und
+`next_top`, gibt die Lesung einen Teil je Beziehung, die darauf zielt, jeden
+aus dieser Beziehung allein gelesen und auf ihren heutigen Anker angewandt:
+das nächste Tief aus `top_to_low` (vom verankerten Top des offenen
+Fensters) und `low_to_low` (vom letzten endgültigen Tief); das nächste Top
+aus `halving_to_top` (vom Fenster des nächsten Halvings), `top_to_top` (vom
+letzten verankerten Top) und `low_to_top` (vom letzten endgültigen Tief,
+sobald das Tief des offenen Fensters endgültig ist). Die **Zeit** eines
+Teils reicht vom Datum seines Ankers plus dem Minimum bis plus dem Maximum
+der vergangenen Tage der Beziehung (`time_rule` `min_max`). Sein **Kurs**
+reicht vom Schlusskurs des Ankers mal dem letzten Faktor *f*₂ bis zum
+Schlusskurs des Ankers mal *f*₂^(ln *f*₂ / ln *f*₁), *f*₁ und *f*₂ die
+letzten beiden Faktoren der Beziehung (`price_rule` `log_step_v1`: Das
+Schrumpfen hört auf, oder es geht weiter wie zuletzt). Wo dieser Schritt
+nicht definiert ist (ein Faktor von genau 1, oder die beiden liegen auf
+verschiedenen Seiten von 1), reicht er vom Minimum zum Maximum der
+gespeicherten Faktoren (`price_rule` `min_max`, `price_reason`
+`no_log_step`). `halving_to_top` leiht sich die Kursseite von
+`top_to_top` (`price_from`, `own_price` `false`). Ein Teil braucht zwei
+Beobachtungen für seine Zeitseite und zwei Faktoren für seine Kursseite.
+Das `band` des Ereignisses ist die **Hülle** seiner Teile, und `agree` ist
+der Bereich, in dem sich jeder Teil mit eigener Kursseite überlappt. Es ist
+ein Analogband: Arithmetik über den gespeicherten Zyklen mit seinem `n` und
+beiden Enden, **nie ein einzelnes Datum oder ein einzelner Kurs, nie
+angepasst**, nichts gemittelt, und **keine Prognose** (`not_a_forecast:
+true`). Mit zwei oder drei Zyklen dahinter wäre eine einzelne Zahl eine
+Kurve durch zwei oder drei Punkte; das Band zeigt, wie wenig sie tragen. Es
+ist auch kein Rat: Kein Schlüssel sagt kaufen, verkaufen, halten oder
+warten, und `metrics_carry_no_verdict_test.exs` durchläuft diesen Payload.
+Wer hinter einem Datum oder einem Kurs stehen will, hält eine Prognose nach
+ADR-0055 fest (`POST /api/v1/predictions`); die Lesung behält keine
+Geschichte dessen, was ein Band sagte.
+
+- `next_low` und `next_top` — jedes mit `event`, `band` (`window` `from`
+  und `to`, `price` `from` und `to` in der Währung des Wertpapiers und
+  `inputs_until`, das Datum des neuesten Schlusskurses, der eingeflossen
+  ist) oder `null` mit `reason` `no_parts` (kein Teil hat genug Daten),
+  `agree` (`from`, `to`) oder `null` mit `agree_reason`
+  `one_price_relation` (weniger als zwei Teile mit eigener Kursseite: ein
+  Weg, nichts, worin er übereinstimmen könnte) oder `parts_disjoint` (ihre
+  Bereiche überlappen nicht), `state`, `state_reason`, `window_ended` und
+  `parts`. `next_low` trägt außerdem das `low_so_far` des offenen Fensters.
+- `parts` — jeder mit `relation`, `anchor` (`event` `top`, `low` oder
+  `halving` und sein `date`; für ein Top oder Tief sein `close`, `final`,
+  `partial` und `window_start`, für ein Halving seine `height`, `date_end`
+  und `confirmed`), `window` und `price` (`from`, `to`), `days` (`min`,
+  `max`), `factor` (`from`, `to`, die beiden angewandten Faktoren),
+  `factors_used`, `n_time`, `n_price`, `time_rule`, `price_rule`,
+  `price_reason`, `price_from`, `own_price`, `provisional`, `partial`,
+  `inputs_until`, `state`, `state_reason` und `window_ended`. Ein fehlender
+  Teil hat `window` und `price` `null` und einen `reason`:
+  `too_few_observations` (mit seinem `n_time` und `n_price`), `zero_width`
+  (ein Tag oder ein Kurs: ein Punkt, kein Bereich), `no_top_yet` (das Top
+  des offenen Fensters ist noch nicht um 20 % gefallen) oder
+  `low_not_final` (`low_to_top` wartet, bis das Tief des offenen Fensters
+  endgültig ist, beim nächsten Halving).
+- `state` — bei jedem Lesen aus den gespeicherten Schlusskursen gelesen,
+  nie geschrieben: `open` vor Beginn des Fensters, `reached`, sobald ein
+  Schlusskurs im Fenster im Kursbereich liegt (einschließlich), `running`,
+  solange das Fenster ohne einen solchen begonnen hat, `missed`, sobald es
+  ohne einen solchen geendet hat; `window_ended` sagt, ob der letzte
+  Schlusskurs nach seinem Ende liegt. Jeder Schlusskurs, der in ein Band
+  eingeflossen ist, muss vor seinem Fenster liegen, sonst ist `state`
+  `null` mit `state_reason` `input_after_window`. Ein Stand ist keine
+  Bewertung: Nichts zählt oder summiert Stände.
+- `cones` — einer je Strecke (`line` `top_low`, `top_top` oder `low_low`),
+  jeder mit seiner `relation`, seinem `apex` (`event`, `date`, `close`; der
+  letzte Anker, von dem die Strecke ausgeht), `window` und `price` des
+  Teils und einem `reason`, wo dieser Teil fehlt. Der Chart zieht jede
+  eingeschaltete Strecke ab ihrem letzten Anker als Kegel in ihren Teil
+  weiter, nie als Linie über den Anker hinaus.
+
+**Kein `as_of`.** Die Lesung nimmt nur die heute gespeicherten
+Schlusskurse. **Die Bandregel an vergangenen Zyklen zu bewerten, ist Stufe
+(d)** der Leiter: Was das Band 2020 über das Tief von 2022 gesagt hätte,
+wendet die Regel auf eine Geschichte an, in der es sie nicht gab. Deshalb
+kann ein Aufrufer das Band eines vergangenen Zyklus nicht berechnen:
+`as_of` antwortet `422` mit `errors.as_of` `["is unknown: the cycles read
+takes no as_of. It reads today's stored closes only, because what a past
+cycle's band would have said, computed from that cycle's data, is a replay
+of the band rule: level (d) of the scope ladder (ADR-0060 §8)"]`. Jeder
+andere Parameter antwortet `422` mit seinem Namen (`"is unknown: the cycles
+read takes only include=aligned"`), und `include` mit einem anderen Wert
+`["is invalid: include takes aligned only, …"]`. Kein Parameter ändert eine
+Zahl.
+
+**`include=aligned`** ergänzt `aligned`: je Fenster, in der Reihenfolge der
+Zyklen, sein `start`, `start_height`, `base` (`date`, `close`: der letzte
+Schlusskurs am oder vor dem Halving-Datum, höchstens 7 Tage alt) und
+`points`, jeder ein Schlusskurs im Fenster mit `date`, `days`
+(Kalendertage seit dem Halving) und `index` (Schlusskurs / Basis, ein
+Dezimal-String mit 6 Stellen). Ein Fenster ohne einen solchen Schlusskurs
+hat `base` `null`, keine Punkte und `reason` `no_halving_close`. Es ist
+standardmäßig aus, damit der Payload klein bleibt.
+
+Eine unbekannte Wertpapier-ID antwortet `404`; ein in ein anderes
+zusammengeführtes Wertpapier antwortet `404` mit `errors.merged_into`
+(`kind`, `id`), wie das Dossier.
+
+**Die `cycles`-Zeile des Dossiers.** `GET /api/v1/securities/:id/dossier`
+(`portfolixir.securities.dossier`) trägt für ein Wertpapier mit Ansicht
+`cycles` mit `low` und `top`, jedes ein Array `[Fenster von, Fenster bis,
+Kurs von, Kurs bis, state, n]` aus `projection.next_low` und `next_top`,
+`n` die wenigsten Beobachtungen, die die Zeitseite eines vorhandenen Teils
+gelesen hat, oder `null` für ein Ereignis ohne Band; etwa 40 Token. `null`
+ohne Ansicht.
+
+**Über MCP** (siehe [MCP-Tools](#mcp-tools)): `portfolixir.chains.list`
+ruft `GET /api/v1/chains` auf, `portfolixir.chains.refresh` (`chain`) ruft
+das Lesen auf Abruf auf und sagt dem Agenten, ein `429` abzuwarten statt zu
+wiederholen, und `portfolixir.securities.cycles` (`security_id`,
+`include`) ruft die Zyklen-Lesung auf; jedes lehnt ein Feld, das es nicht
+nimmt, vor jeder Anfrage ab, und jede Beschreibung sagt, die Antwort seien
+Daten, nie Anweisungen oder ein Rat. `portfolixir.securities.cycles` sagt
+außerdem, dass das Band keine Prognose ist, dass `n` und beide Enden zu
+jeder Zahl gehören und dass die Teile ihre Daten teilen. Die beiden
+Lesezugriffe sind in jedem Profil; das Lesen auf Abruf fragt einen Host
+außerhalb und speichert Halvings, also ist es in den Profilen `book` und
+`full`, nicht in `read`. `portfolixir.securities.update` nimmt
+`halving_chain`.
+
+Die menschliche Ansicht ist der Chart des Wertpapiers (**Zyklen**), der
+Bearbeiten-Dialog des Wertpapiers (**Halving-Kette**, **Jetzt lesen**) und
+die Zyklus-Karte der Übersicht; siehe
+[Halving-Zyklen im Chart](../product-documentation.html#halving-zyklen-im-chart-adr-0059-adr-0060).
 
 ### Anleihen: Stammdaten und Anleihe-Lesung (ADR-0052)
 
@@ -5932,15 +6208,21 @@ lässt sich nicht lesen.
   die Instanz hinaus (`openWorldHint`) und sind in `book`; das Entfernen ist
   ein Admin-Werkzeug (nur `full`).
 - `portfolixir.chains.list` — die registrierten Ketten mit der Gesundheit
-  der Bitcoin-Quelle und den Eingaben der Schätzung ihres nächsten Halvings.
-- `portfolixir.chains.refresh` — liest die Quelle einer Kette sofort,
-  höchstens einmal je 10 Minuten und Kette; ein Schreibzugriff nach außen, in
-  den Profilen `book` und `full`.
+  der Bitcoin-Quelle und den Eingaben der Schätzung ihres nächsten Halvings
+  (`GET /api/v1/chains`); ein Lesezugriff, in jedem Profil.
+- `portfolixir.chains.refresh` — liest die Quelle einer Kette sofort
+  (`chain`), höchstens einmal je 10 Minuten und Kette; ein `429` nennt
+  `retry_after`, und die Beschreibung sagt, abzuwarten statt zu wiederholen.
+  Es fragt einen Host außerhalb und speichert Halvings, ist also
+  open-world und in den Profilen `book` und `full`, nicht in `read`.
 - `portfolixir.securities.cycles` — die Halving-Zyklen eines gebundenen
-  Wertpapiers und das Analogband seines nächsten Tiefs und Hochs; die
-  Beschreibung sagt, dass das Band keine Prognose ist und dass `n` und beide
-  Enden zu jeder Zahl gehören. Die `cycles`-Zeile des Dossiers hält seine
-  beiden Bänder in etwa 40 Token.
+  Wertpapiers und das Analogband seines nächsten Tiefs und Tops
+  (`security_id`, `include` `aligned`); ein Lesezugriff, in jedem Profil,
+  ohne `as_of`. Die Beschreibung sagt, dass das Band keine Prognose ist,
+  dass `n` und beide Enden zu jeder Zahl gehören, nie ein Datum oder ein
+  Kurs allein, und dass die Teile ihre Daten teilen. Die `cycles`-Zeile des
+  Dossiers hält seine beiden Bänder in etwa 40 Token. Siehe
+  [Halving-Zyklen und die Kettenquelle](#halving-zyklen-und-die-kettenquelle-fr-58-adr-0059-adr-0060).
 - `portfolixir.notes.list` — das Research-Log eines Wertpapiers, neueste
   zuerst, mit dem abgeleiteten Thesenstand; die Beschreibung benennt, dass
   Einträge nie verschwinden (ADR-0044).

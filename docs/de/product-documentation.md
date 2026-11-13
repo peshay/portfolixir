@@ -537,6 +537,188 @@ Die Zahlen stehen über den **eigenen** splitbereinigten Schlusskursen in der
 erzeugt keine Renditebeobachtung. **Der Block berichtet, er bewertet nicht** —
 es gibt kein Signal, kein Rating und keine Empfehlung darin.
 
+### Halving-Zyklen im Chart (ADR-0059, ADR-0060)
+
+Eine Münze, deren Blockbelohnung sich bei festen Blockhöhen halbiert —
+Bitcoin, Bitcoin Cash, Litecoin —, hat einen Zyklus von einem Halving zum
+nächsten. Sobald ein Wertpapier an seine Kette gebunden ist und zwei
+bestätigte Halvings hat, kann sein Chart diese Zyklen zeigen: Top und Tief
+jedes Zyklus, die Tage und die Veränderung dazwischen und wohin die
+gespeicherten Zyklen das nächste Tief und das nächste Top legen, als Band
+mit seinem n und beiden Enden.
+
+**Eine Kette binden.** Der Dialog **Bearbeiten** des Wertpapiers hat unter
+den Stammdaten die Auswahl **Halving-Kette**: **Keine**, Bitcoin, Bitcoin
+Cash oder Litecoin. Wählen Sie die Kette, für die das Wertpapier steht: das
+eigene Listing der Münze in USD oder EUR oder ein Produkt, das sie abbildet.
+Nichts bindet ein Wertpapier von selbst, denn ein börsengehandeltes
+Produkt, ein Wrapped Token und eine Münze mit „bit“ im Namen sehen alle wie
+Bitcoin aus. Mehrere Wertpapiere dürfen an eine Kette gebunden sein; jedes
+bekommt seine eigenen Halvings.
+
+- **Bitcoin** wird aus der Kette selbst gelesen. Nach dem Speichern der
+  Bindung schreibt das nächste Lesen (alle 6 Stunden oder **Jetzt lesen**)
+  die vergangenen Halvings als bestätigte Termine der Art **Halving** in den
+  Reiter **Termine**, jedes mit dem Datum seines Blocks in UTC, und das
+  nächste Halving als Schätzung: ein Fenster von „so schnell, wie die Blöcke
+  zuletzt kamen“ bis „bei den zehn Minuten je Block des Protokolls“, einmal
+  am Tag erneuert.
+- **Bitcoin Cash** und **Litecoin** werden nicht gelesen: Ihre Halvings
+  werden als Termine der Art **Halving** über die API geschrieben, von einem
+  Agenten oder von Ihnen (`POST /api/v1/securities/:security_id/events`),
+  und die App prüft jede Blockhöhe gegen das Intervall der Kette.
+
+Unter der Auswahl nennt das Formular, wie viele bestätigte Halvings das
+Wertpapier hat („1 von 2 bestätigten Halvings · Zyklen erscheinen im Chart
+ab dem zweiten“), und sobald eine Bitcoin-Bindung gespeichert ist, die
+Statuszeile der Kettenquelle mit **Jetzt lesen**.
+
+**Eine neue Bindung löscht.** Ein Halving-Termin ist eine Tatsache über das
+Wertpapier *als an diese Kette gebunden*. Wer für ein Wertpapier mit
+Halving-Terminen **Keine** oder eine andere Kette wählt, löscht seine
+Halving-Termine deshalb mit dem Speichern: Das Formular nennt, wie viele und
+welche („Ohne Halving-Kette werden 5 Halving-Ereignisse gelöscht. Sie
+gelten nur für dieses Wertpapier als Bitcoin: 4 bestätigte Halvings (2012,
+2016, 2020, 2024) · 1 Schätzung …“), sagt „Das Journal behält jede gelöschte
+Zeile. Die Zyklen verschwinden aus dem Chart.“, und die Schaltfläche wird
+zu **Speichern und 5 Ereignisse löschen**, sodass ein Klick bestätigt. Die
+Meldung nach dem Speichern wiederholt die Zahl. Wird dieselbe Kette wieder
+gebunden, schreibt das nächste Lesen die Halvings von Bitcoin neu.
+
+**Die Statuszeile der Kettenquelle** steht im Bearbeiten-Dialog und in der
+Zyklen-Leiste des Charts. Sie nennt den Host, der zuletzt geantwortet hat,
+und wie lange das her ist („Kettenquelle: mempool.space · gelesen vor
+2 Std.“), den Ersatz als solchen („blockstream.info (Ersatz)“), einen
+gescheiterten letzten Versuch mit seinem Grund und für eine Quelle, die
+seit 24 Stunden nicht geantwortet hat, „Kettenquelle seit 30 Std. ohne
+Antwort · zuletzt mempool.space, … · Halving-Schätzung von dann“, sodass
+eine ruhige Kette und eine tote Quelle verschieden aussehen. Für Bitcoin
+Cash und Litecoin lautet sie „Halvings von Hand · keine Kettenquelle für
+Litecoin“. **Jetzt lesen** liest die Kette sofort, statt auf das nächste
+geplante Lesen zu warten, und ist einmal je 10 Minuten und Kette möglich,
+die geplanten Lesungen mitgezählt: Bis dahin ist die Schaltfläche
+ausgegraut mit „vor weniger als 10 Min. gelesen · wieder in 7 Min.“. Ein
+Agent hat dasselbe Lesen (`portfolixir.chains.refresh`).
+
+**Ihre eigene Instanz.** Standardmäßig fragt die App `mempool.space` und
+`blockstream.info` nur, wenn die erste ausfällt. Setzen Sie
+`PORTFOLIXIR_BITCOIN_ESPLORA_URL` auf die Basis-URL Ihrer eigenen mempool-
+oder Esplora-Instanz (`https://node.example.com/api`), ersetzt sie beide,
+ohne Ersatz ([Home-Deployment](home-deployment.html)). Sie muss `https`
+verwenden, darf weder Benutzername, Passwort, Query noch Fragment tragen
+und muss einen Host nennen, der nur auf öffentliche Adressen auflöst. Sie
+wird beim Start der Anwendung gelesen und nie von der App oder ihren
+Seiten geschrieben. Eine URL, die diese Regeln verletzt, fragt keinen Host:
+Die Statuszeile lautet „Eigene Kettenquelle abgelehnt: node.example.com löst
+auf eine private Adresse auf · noch nichts gelesen“, und der
+Bearbeiten-Dialog ergänzt „Es werden keine Halvings geschrieben.“ mit den
+Regeln. **Eine Instanz im Heimnetz oder auf Loopback wird daher
+abgelehnt**: Die Adressregel schützt jede ausgehende Anfrage der App, und
+sie für eine Variable zu öffnen, bräuchte eine eigene Entscheidung. Die App
+liest nur die Höhe des Tips und die Zeiten einzelner Blöcke, nie
+Transaktionen, Gebühren, Adressen oder Kurse, und sie liest nichts, solange
+kein Wertpapier an Bitcoin gebunden ist.
+
+**Die Zyklen einschalten.** Im Chart-Tab erscheint neben den Schaltern des
+Charts ein Schalter **Zyklen**, wo die Ansicht existiert: Das Wertpapier ist
+gebunden, hat zwei bestätigte Halvings und gespeicherte Schlusskurse in
+einem Zyklus. Gedrückt zeigt er unter der Werkzeugleiste die Zyklen-Leiste
+mit zwei Modi:
+
+- **Zeitachse** zeichnet die Zyklen in den Kurschart: jedes Halving als
+  senkrechte Linie, das nächste als gestricheltes Fenster („Halving ≈ ‹von›
+  – ‹bis› (Schätzung)“), Top ▲ und Tief ▼ jedes Zyklus mit Datum und
+  Schlusskurs und die beiden Bänder. **Strecken** schaltet die Linien
+  dazwischen: **Top ↔ Tief** ist an, **Top – Top** und **Tief – Tief**
+  lassen sich dazuschalten. Jede Strecke trägt ihre Tage und ihre
+  Veränderung; eine Linie läuft nie über das letzte Top oder Tief hinaus,
+  sie geht von dort als Kegel in ihren Teil des Bandes weiter.
+- **Ausgerichtet** legt die Zyklen ab ihrem Halving übereinander, jeden auf
+  den Schlusskurs seines Halving-Tages indexiert, auf logarithmischer
+  Skala, den laufenden Zyklus kräftig gezeichnet, mit dem Band des nächsten
+  Tiefs in Zyklustagen.
+
+Solange die Zyklen an sind, kommt zu **1M** bis **Max** der Bereich
+**Zyklus** hinzu. Er reicht von drei Monaten vor dem letzten bestätigten
+Halving bis vier Monate nach dem späteren Ende der beiden Bänder, also über
+heute hinaus: Rechts der Linie **heute** hält die Achse nur das Fenster des
+nächsten Halvings, die Bänder und die Kegel hinein, und die Kurslinie wird
+nicht fortgesetzt.
+
+**Top und Tief eines Zyklus.** Zwischen zwei Halvings sind Top und Tief
+Gipfel und Tal des **maximalen Drawdowns** des Zyklus, das Hoch, von dem
+sein Fall begann, und wo der Fall endete, nicht sein höchster und tiefster
+Schlusskurs: 2020–2024 schloss eine Rally im März 2024 über dem Top vom
+November 2021, nach dem Tief des Zyklus, und der höchste Schlusskurs hätte
+sie gewählt. Das Top des laufenden Zyklus ist **vorläufig** und zählt als
+Anker, sobald ein Schlusskurs danach 20 % darunter lag; ein höheres Top,
+das tiefer fällt, ersetzt es. Sein Tief ist nur „bisher“, bis der Zyklus
+beim nächsten Halving schließt. Unter dem Chart zählt eine Zeile die
+Zyklen („Zyklen: 2 vollständig, 1 unvollständig, 1 offen · Kurse ab
+09/2014“): Gespeicherte Bitcoin-Kurse vom üblichen Kursanbieter beginnen im
+September 2014, deshalb ist der Zyklus 2012 unvollständig, mit seinem Tief
+und ohne Top. Die Abstandstabelle darunter nennt je Beziehung (**Halving →
+Top**, **Top → Tief**, **Tief → Top**, **Top → Top**, **Tief → Tief**,
+**Tief → nächstes Halving**) die Tage und die Veränderung oder den Faktor
+jedes Zyklus, ihr n und ihre Kennzeichen (vorläufig, aus dem
+unvollständigen Zyklus).
+
+**Das Band lesen.** Jedes kommende Ereignis, das **Nächstes Tief** und das
+**Nächstes Top**, hat ein Band. Es setzt sich aus Teilen zusammen, einem je
+Beziehung, die auf das Ereignis zielt (das nächste Tief vom Top davor und
+vom letzten Tief; das nächste Top vom nächsten Halving, vom letzten Top
+und, sobald das Tief des laufenden Zyklus endgültig ist, von diesem Tief).
+Die Zeit eines Teils reicht von seinem Ausgangspunkt plus dem kürzesten bis
+plus dem längsten solchen Abstand in den gespeicherten Zyklen. Sein Kurs
+reicht vom Faktor des letzten Zyklus („das Schrumpfen hört auf“) bis zu
+diesem Faktor, noch einmal im selben Maß geschrumpft („es geht weiter wie
+zuletzt“). Das Band ist die **Hülle** seiner Teile, und wo sich die
+Kursbereiche der Teile überlappen, schattiert der Chart **beide Wege**. Ein
+Teil braucht mindestens zwei vergangene Beobachtungen; mit nur einer wäre
+ein Band ein Punkt. Der aufklappbare Abschnitt **Bänder und ihre Teile**
+nennt jedes Band und jeden Teil mit seiner Herkunft, seinem n, seinem
+Zeitfenster, seinem Kursbereich, **Wo die Wege übereinstimmen** und seinem
+Stand, oder warum ein Teil fehlt („wartet, bis das Top des offenen Fensters
+verankert ist (ein Rückgang um 20 %)“). Ein Stand wird aus den
+gespeicherten Schlusskursen gelesen: **offen** vor Beginn des Fensters,
+**läuft**, solange es begonnen hat und kein Schlusskurs ins Band kam,
+**erreicht**, sobald einer kam, **verfehlt**, wenn das Fenster ohne einen
+endete.
+
+Das Band ist **keine Prognose**. Es ist Arithmetik über zwei oder drei
+gespeicherten Zyklen, angewandt auf die heutigen Ausgangspunkte, mit seinem
+n und beiden Enden: **nie ein einzelnes Datum oder ein einzelner Kurs**,
+nichts angepasst und nichts gemittelt. Bei so wenigen Zyklen wäre jede
+einzelne Zahl eine Kurve durch zwei oder drei Punkte; das Band zeigt, wie
+wenig sie tragen. Es gibt keinen Rat, und nichts auf dem Bildschirm sagt
+kaufen, verkaufen, halten oder warten. Wer hinter einem Datum stehen will,
+hält es als Prognose im Reiter **Prognosen** des Wertpapiers fest, wo sie
+bewertet wird. Was ein Band gestern sagte, wird nicht aufbewahrt, und die
+App berechnet nie, was ein Band in einem früheren Zyklus gesagt hätte: Das
+spielte die Regel auf einer Geschichte nach, in der es sie nicht gab
+(Stufe (d) der Leiter).
+
+**Die Zyklus-Karte in der Übersicht.** Jedes Wertpapier mit der Ansicht
+bekommt in der Übersicht eine Karte „‹Name›-Zyklus“ (zum Beispiel
+**Bitcoin-Zyklus**), nach Namen geordnet: **Nächstes Tief** und **Nächstes
+Top** mit ihren Zeitfenstern, Kursbereichen, Ständen und dem n ihrer Teile,
+unter dem Satz, dass der Bereich keine Prognose ist. **Im Chart öffnen**
+öffnet den Chart des Wertpapiers mit eingeschalteten Zyklen und dem Bereich
+**Zyklus** mit einem Klick.
+
+Der **Privatsphäre-Modus** verbirgt die Kurse, denn ein Kurs ist ein
+Betrag: Der Chart bleibt in seiner Prozentansicht wie jeder
+Wertpapier-Chart, die Beschriftung eines Tops oder Tiefs nennt seinen Monat
+und keinen Schlusskurs, die eines Bandes seine Art, Daten, Übereinstimmung
+und Stand, und die Kursbereiche im aufklappbaren Abschnitt und auf der
+Karte der Übersicht sind Balken. Tage, Veränderungen, Faktoren, n und Stände
+bleiben, und **Ausgerichtet** behält seine Indexachse.
+
+Dieselben Zyklen erreichen einen Agenten über API und MCP
+([API und MCP](integration/api-and-mcp.html#halving-zyklen-und-die-kettenquelle-fr-58-adr-0059-adr-0060)):
+`GET /api/v1/securities/:security_id/cycles` und
+`portfolixir.securities.cycles`, mit jeder Regel im Payload.
+
 ### Anleihen: Stammdaten und Kennzahlen (ADR-0052)
 
 Ein Wertpapier der Anlageklasse **Anleihe** oder **Staatsanleihe** — gesetzt
@@ -5322,6 +5504,12 @@ Positionen und Verhältnisse wie der Vermögensmultiplikator.
   Zeile und die Spalte, die zu korrigieren sind.
 - **Der Abschnitt „Crashes“** unter Risiko bleibt, wie er ist: Er hält nur
   Prozente, Daten und Tageszahlen.
+- **Die Halving-Zyklen** im Chart eines Wertpapiers behalten ihre Form: Die
+  Beschriftung eines Tops oder Tiefs nennt seinen Monat und keinen
+  Schlusskurs, die eines Bandes seine Art, Daten, Übereinstimmung und
+  Stand, und die Kurse der Bänder in **Bänder und ihre Teile** und auf der
+  Zyklus-Karte der Übersicht sind Balken; Tage, Veränderungen, Faktoren und
+  n bleiben, und **Ausgerichtet** behält seine Indexachse.
 - **Formulare behalten ihre Werte.** Ein Formular, das eine gespeicherte Zahl
   bearbeitet (die Buchungsleiste, eine Abrechnung, ein manueller Kurs),
   öffnet mit dem echten Wert, weil eine blind getippte Korrektur einen
