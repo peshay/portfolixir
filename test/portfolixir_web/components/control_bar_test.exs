@@ -112,8 +112,8 @@ defmodule PortfolixirWeb.Components.ControlBarTest do
   # floor.
   #
   # Acceptance criteria:
-  # - `fold` is one of 560, 760, 840, 900, 960 or `:always`; `floor` one of 330, 560
-  #   or `:always`; each becomes the class `control-bar--fold-<w>` /
+  # - `fold` is one of 560, 760, 840, 900, 960 or `:always`; `floor` one of 330,
+  #   340, 560 or `:always`; each becomes the class `control-bar--fold-<w>` /
   #   `control-bar--floor-<w>`.
   # - A width outside these lists is refused when the bar renders, so no bar
   #   carries a class without a rule.
@@ -130,6 +130,15 @@ defmodule PortfolixirWeb.Components.ControlBarTest do
       """)
 
     assert count(html, "div.control-bar.control-bar--fold-always.control-bar--floor-560") == 1
+
+    html =
+      rendered_to_string(~H"""
+      <ControlBar.bar floor={340}>
+        <:group label="Account">x</:group>
+      </ControlBar.bar>
+      """)
+
+    assert count(html, "div.control-bar.control-bar--floor-340") == 1
 
     assert_raise ArgumentError, ~r/fold/, fn ->
       rendered_to_string(~H"""
@@ -193,9 +202,11 @@ defmodule PortfolixirWeb.Components.ControlBarTest do
     assert rule(".control-bar--fold-always > .control-bar__controls") =~ column
     assert container_block(760) =~ column
 
-    for width <- [330, 560] do
+    for width <- [330, 340, 560] do
       assert container_block(width) =~ ".control-bar--floor-#{width} > .control-bar__controls"
     end
+
+    assert container_block(340) =~ above
 
     assert rule(".control-bar--floor-always > .control-bar__controls") =~ above
     assert container_block(330) =~ above

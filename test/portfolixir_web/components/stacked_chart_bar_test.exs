@@ -91,11 +91,13 @@ defmodule PortfolixirWeb.Components.StackedChartBarTest do
 
   # The deliberate changes, and only these: the bar's own classes become the
   # component's (the root takes its fold and floor, 760 and 330 px as the
-  # bar's container queries had them), the classification's form becomes a
+  # bar's container queries had them; the floor 340 px since PR 2's closing
+  # act, where the widened walk found the German label column and level
+  # control needing 334 px, board 06 ⑭), the classification's form becomes a
   # group of the component, and its label, styled before as
   # `.stack-bar__tree label`, carries the component's label class.
   @renames %{
-    "stack-bar" => ["control-bar", "control-bar--fold-760", "control-bar--floor-330"],
+    "stack-bar" => ["control-bar", "control-bar--fold-760", "control-bar--floor-340"],
     "stack-bar__controls" => ["control-bar__controls"],
     "stack-bar__group" => ["control-bar__group"],
     "stack-bar__label" => ["control-bar__label"],

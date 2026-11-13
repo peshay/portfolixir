@@ -21,7 +21,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
       (DESIGN.md, amendment of 2026-11-08), built as the shared
       `PortfolixirWeb.ControlBar.bar/1` (issue 1435): a container query
       turns it into a label column at 760 px of its width, or labels above
-      their controls at 330 px;
+      their controls at 340 px (PR 2's closing act, board 06 ⑭);
     * **the bands** (`figure/1`): `Portfolixir.Portfolios.Performance.Bands`'
       daily values, the first band of its order at the bottom, the largest
       by the chosen sort. A band's part below zero (an overdrawn cash
@@ -95,7 +95,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   """
   def bar(assigns) do
     ~H"""
-    <ControlBar.bar data-role="stack-bar">
+    <ControlBar.bar floor={340} data-role="stack-bar">
       <:head :if={@crumbs != []}>
         <nav class="stack-crumbs" data-role="stack-crumbs" aria-label={gettext("Stack")}>
           <%= for {{label, path}, index} <- Enum.with_index(@crumbs) do %>

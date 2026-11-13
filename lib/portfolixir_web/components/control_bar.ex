@@ -28,8 +28,10 @@ defmodule PortfolixirWeb.ControlBar do
   or 960 px, or
   `:always` for a
   bar whose groups never fit one line (the chip rows); `floor` 330 (the
-  default) or 560 px, or `:always` for a bar whose labels always stand
-  above. A new width is one more class and one more rule there.
+  default), 340 (the stacked chart's: its German label column and level
+  control need 334 px, as the walk measured in PR 2's closing act) or 560
+  px, or `:always` for a bar whose labels always stand above. A new width
+  is one more class and one more rule there.
 
   Each `:group` is a label and **one** control element, the slot's content
   (a field with its button, or a chip family, is one element around them;
@@ -48,14 +50,14 @@ defmodule PortfolixirWeb.ControlBar do
   use Phoenix.Component
 
   @folds [560, 760, 840, 900, 960, :always]
-  @floors [330, 560, :always]
+  @floors [330, 340, 560, :always]
 
   attr(:fold, :any,
     default: 760,
     doc: "560, 760, 840, 900, 960 or :always: where the label column starts"
   )
 
-  attr(:floor, :any, default: 330, doc: "330, 560 or :always: where every label moves above")
+  attr(:floor, :any, default: 330, doc: "330, 340, 560 or :always: where every label moves above")
   attr(:class, :any, default: nil)
   attr(:rest, :global)
 
