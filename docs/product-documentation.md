@@ -4474,7 +4474,9 @@ wrong. The Overview's data-quality line counts the held securities it names
 removable chip *Quote does not match bookings*; without the *Held* chip
 the list holds the sold ones too — the line's "(n in the catalog)" links
 there where the two differ (issue #1417) — and a sold one's page carries
-the same note as a held one's. Wealth → Holdings names each position of its
+the note too, saying that its comparison after the sale and its returns
+over the holding period are wrong, where a held one's says its value or
+cost is. Wealth → Holdings names each position of its
 scope with the booking and the quote of its day, linking to the security's
 **Quotes** tab. The agent reads the same set, with the booking each
 security contradicts, whether it is held, and the rule, over

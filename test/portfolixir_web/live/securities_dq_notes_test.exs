@@ -351,6 +351,9 @@ defmodule PortfolixirWeb.SecuritiesDqNotesTest do
   #   unrecorded 1:4 split, carries the implausible-quote note naming its
   #   sell ("Verkauf 03.06.2024 zu 420 EUR · Kurs 03.06.2024: 105 EUR, das
   #   0,25-Fache", 2 bookings).
+  # - Sold, it says what its quotes make wrong, its comparison after the
+  #   sale and its returns over the holding period, never "this position"
+  #   (PR 2 closing act), in German and in English.
   # - Retired, it carries none: the set leaves a retired security out unless
   #   it is held.
   test "a sold security the set names carries the implausible-quote note", %{conn: conn} do
@@ -367,9 +370,23 @@ defmodule PortfolixirWeb.SecuritiesDqNotesTest do
 
     {:ok, view, _html} = live(german(conn), "/securities/#{linden.id}")
 
-    assert text(view, ~s([data-role="implausible-quote-note"])) =~
+    note = text(view, ~s([data-role="implausible-quote-note"]))
+
+    assert note =~
              "Kurs passt nicht zu den Buchungen: 2 Buchungen, zuletzt: Verkauf 03.06.2024 zu " <>
                "420 EUR · Kurs 03.06.2024: 105 EUR, das 0,25-Fache"
+
+    assert note =~
+             "Der Vergleich nach dem Verkauf und die Renditen über die Haltedauer sind daher " <>
+               "falsch. Die Kursquelle prüfen (Ticker, Börse), dann die Buchung:"
+
+    refute note =~ "dieser Position"
+
+    {:ok, view, _html} = live(conn, "/securities/#{linden.id}")
+
+    assert text(view, ~s([data-role="implausible-quote-note"])) =~
+             "Its comparison after the sale and its returns over the holding period are " <>
+               "therefore wrong."
 
     {:ok, _} = Catalog.update_security(Actor.owner_ui(), linden, %{is_retired: true})
 

@@ -1742,9 +1742,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
       <%= ngettext("%{entry}", "%{count} bookings, the last: %{entry}", @implausible.bookings_outside,
         entry: implausible_entry(@implausible)
       ) %>
-      <%= gettext(
-        "(on a booking's day, below half or above twice the price per unit). The value or the cost of this position is therefore wrong. Check the quote source (ticker, exchange), then the booking:"
-      ) %>
+      <%!-- PR 2 closing act (#1414, D1): a sold security has no position
+           whose value or cost is wrong; what its quotes make wrong is the
+           comparison after its sale and its returns over its holding
+           period. --%>
+      <%= if @implausible[:held] == false do %>
+        <%= gettext(
+          "(on a booking's day, below half or above twice the price per unit). Its comparison after the sale and its returns over the holding period are therefore wrong. Check the quote source (ticker, exchange), then the booking:"
+        ) %>
+      <% else %>
+        <%= gettext(
+          "(on a booking's day, below half or above twice the price per unit). The value or the cost of this position is therefore wrong. Check the quote source (ticker, exchange), then the booking:"
+        ) %>
+      <% end %>
       <:actions>
         <.link patch={"/securities/#{@security.id}?tab=quotes"}><%= gettext("Quotes") %></.link>
         ·
