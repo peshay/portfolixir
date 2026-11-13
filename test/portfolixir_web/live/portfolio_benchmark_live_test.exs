@@ -248,6 +248,44 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
     assert has_element?(view, "[data-role='benchmark-picker']", "Fester Zins")
   end
 
+  # User story (#1416, the closing act's flaky picker walk on 651850e):
+  # As the operator opening „Benchmark…“ while Holdings still loads,
+  # I want the picker to stay open when the loads land,
+  # so that it does not fold shut under my click.
+  #
+  # Acceptance criteria:
+  # - The picker carries an id and the shell's `DisclosureState` hook:
+  #   LiveView removes every attribute the server did not render, `open`
+  #   included, and the hook restores it after each patch.
+  # - The hook reads the open state just before each patch, not only from
+  #   the `toggle` event, which the browser dispatches later in a task of
+  #   its own: a load that lands between the click and that event must not
+  #   fold the picker shut. (LiveViewTest does not run the client patch;
+  #   the hook's contract is pinned on its source, and the browser walk
+  #   `test/browser/benchmark_picker_layout.js` clicks the picker in the
+  #   same task as a load's patch and checks it is still open.)
+  test "the picker keeps its open state across a patch", %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    assert has_element?(
+             view,
+             "details#benchmark-picker[data-role='benchmark-picker'][phx-hook='DisclosureState']"
+           )
+
+    hook =
+      "lib/portfolixir_web/layout_view.ex"
+      |> File.read!()
+      |> String.split("Hooks.DisclosureState = ")
+      |> Enum.at(1, "")
+      |> String.split(~r/\n\s*Hooks\.\w+ = /)
+      |> hd()
+
+    assert hook =~ ~r/beforeUpdate: function \(\) \{\s*this\.open = this\.el\.open;/s
+  end
+
   # Closing-act finding (correctness hunter): a benchmark without a quote
   # covers no window, and the row said "from  — 1 earlier flow left out" with
   # a blank date. Nothing is covered, and the row says so.

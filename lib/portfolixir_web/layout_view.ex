@@ -1667,7 +1667,12 @@ defmodule PortfolixirWeb.LayoutView do
             // field, whether the operator opened it or the server did (a
             // refused fee opens it). The hook remembers the toggle and
             // restores it after each patch; no Esc handling, which belongs
-            // to the drawer the disclosure sits in.
+            // to the drawer the disclosure sits in. The browser dispatches
+            // `toggle` later, in a task of its own, so a patch that lands
+            // between a click and that event (Holdings' benchmark picker,
+            // opened while the page's loads ran; #1416's closing act) found
+            // the hook still holding "closed": it reads the state again just
+            // before each patch.
             Hooks.DisclosureState = {
               mounted: function () {
                 var self = this;
@@ -1676,6 +1681,9 @@ defmodule PortfolixirWeb.LayoutView do
                   self.open = self.el.open;
                 };
                 this.el.addEventListener("toggle", this.onToggle);
+              },
+              beforeUpdate: function () {
+                this.open = this.el.open;
               },
               updated: function () {
                 if (this.open && !this.el.open) this.el.setAttribute("open", "");
