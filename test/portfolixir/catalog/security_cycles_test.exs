@@ -6,8 +6,8 @@ defmodule Portfolixir.Catalog.SecurityCyclesTest do
   # Risk tier: analytics. The security, its halvings (heights k × Litecoin's
   # registered interval, written by hand as a chain without a source allows)
   # and its closes are synthetic. Every expected figure was recomputed
-  # independently with Python's `decimal` module at precision 28 and
-  # ROUND_HALF_UP at scale 6: the stored raw closes, the closes dated before
+  # independently with Python's `decimal` module at precision 34 (Elixir
+  # Decimal's default context) and ROUND_HALF_UP at scale 6: the stored raw closes, the closes dated before
   # the split's effective date divided by its ratio of 2, the maximum
   # drawdown by brute force over every pair with the tie rules, the days as
   # calendar days. The recomputation is quoted as "py:".
@@ -348,6 +348,12 @@ defmodule Portfolixir.Catalog.SecurityCyclesTest do
     assert basis.price_rule == "log_step_v1"
     assert basis.price_rule_text =~ "ln f₂ / ln f₁"
     assert basis.price_fallback =~ "no_log_step"
+    # The closing act's analytics lens on Lane H (finding 2): when low_to_top
+    # waits, and the step that rounds to 0, said as the engine does them.
+    assert basis.events =~
+             "low_not_final while the open window's top is anchored and its low is not final"
+
+    assert basis.price_fallback =~ "rounds to 0 at scale 6"
     assert basis.minimum_data =~ "too_few_observations"
     assert basis.minimum_data =~ "zero_width"
     assert basis.band =~ "hull"

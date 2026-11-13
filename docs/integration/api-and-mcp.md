@@ -1751,14 +1751,15 @@ relation alone and applied to its current anchor: the next low from
 `top_to_low` (from the open window's anchored top) and `low_to_low` (from
 the last final low); the next top from `halving_to_top` (from the next
 halving's window), `top_to_top` (from the last anchored top) and
-`low_to_top` (from the last final low, once the open window's low is final).
+`low_to_top` (from the last final low with no top after it; while the open
+window's top is anchored and its low is not final, it waits).
 A part's **time** runs from its anchor's date plus the minimum to plus the
 maximum of the relation's past days (`time_rule` `min_max`). Its **price**
 runs from the anchor's close times the last factor *f*₂ to the anchor's
 close times *f*₂^(ln *f*₂ / ln *f*₁), *f*₁ and *f*₂ the relation's last two
 factors (`price_rule` `log_step_v1`: the shrinking stops, or it goes on as
-last time). Where that step is undefined (a factor of exactly 1, or the two
-on either side of 1) it is the minimum to the maximum of the stored factors
+last time). Where that step is undefined (a factor of exactly 1, the two on
+either side of 1, or a step that rounds to 0 at scale 6) it is the minimum to the maximum of the stored factors
 (`price_rule` `min_max`, `price_reason` `no_log_step`). `halving_to_top`
 borrows `top_to_top`'s price side (`price_from`, `own_price` `false`). A
 part needs two observations for its time side and two factors for its price
@@ -1794,8 +1795,9 @@ a band said.
   absent part has `window` and `price` `null` and a `reason`:
   `too_few_observations` (with its `n_time` and `n_price`), `zero_width` (one
   day or one price: a point, not a range), `no_top_yet` (the open window's
-  top has not fallen 20 % yet) or `low_not_final` (`low_to_top` waits for the
-  open window's low to be final, at the next halving).
+  top has not fallen 20 % yet) or `low_not_final` (`low_to_top` waits while
+  the open window's top is anchored and its low is not final, until the next
+  halving).
 - `state` — read from the stored closes at every read, never written:
   `open` before the window starts, `reached` once a close inside the window
   lies within the price range (inclusive), `running` while the window has

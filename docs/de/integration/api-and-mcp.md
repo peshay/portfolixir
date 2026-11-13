@@ -1904,16 +1904,18 @@ aus dieser Beziehung allein gelesen und auf ihren heutigen Anker angewandt:
 das nächste Tief aus `top_to_low` (vom verankerten Top des offenen
 Fensters) und `low_to_low` (vom letzten endgültigen Tief); das nächste Top
 aus `halving_to_top` (vom Fenster des nächsten Halvings), `top_to_top` (vom
-letzten verankerten Top) und `low_to_top` (vom letzten endgültigen Tief,
-sobald das Tief des offenen Fensters endgültig ist). Die **Zeit** eines
+letzten verankerten Top) und `low_to_top` (vom letzten endgültigen Tief ohne
+Top danach; solange das Top des offenen Fensters verankert und sein Tief
+nicht endgültig ist, wartet er). Die **Zeit** eines
 Teils reicht vom Datum seines Ankers plus dem Minimum bis plus dem Maximum
 der vergangenen Tage der Beziehung (`time_rule` `min_max`). Sein **Kurs**
 reicht vom Schlusskurs des Ankers mal dem letzten Faktor *f*₂ bis zum
 Schlusskurs des Ankers mal *f*₂^(ln *f*₂ / ln *f*₁), *f*₁ und *f*₂ die
 letzten beiden Faktoren der Beziehung (`price_rule` `log_step_v1`: Das
 Schrumpfen hört auf, oder es geht weiter wie zuletzt). Wo dieser Schritt
-nicht definiert ist (ein Faktor von genau 1, oder die beiden liegen auf
-verschiedenen Seiten von 1), reicht er vom Minimum zum Maximum der
+nicht definiert ist (ein Faktor von genau 1, die beiden liegen auf
+verschiedenen Seiten von 1, oder ein Schritt, der bei 6 Stellen auf 0
+rundet), reicht er vom Minimum zum Maximum der
 gespeicherten Faktoren (`price_rule` `min_max`, `price_reason`
 `no_log_step`). `halving_to_top` leiht sich die Kursseite von
 `top_to_top` (`price_from`, `own_price` `false`). Ein Teil braucht zwei
@@ -1952,8 +1954,8 @@ Geschichte dessen, was ein Band sagte.
   `too_few_observations` (mit seinem `n_time` und `n_price`), `zero_width`
   (ein Tag oder ein Kurs: ein Punkt, kein Bereich), `no_top_yet` (das Top
   des offenen Fensters ist noch nicht um 20 % gefallen) oder
-  `low_not_final` (`low_to_top` wartet, bis das Tief des offenen Fensters
-  endgültig ist, beim nächsten Halving).
+  `low_not_final` (`low_to_top` wartet, solange das Top des offenen Fensters
+  verankert und sein Tief nicht endgültig ist, bis zum nächsten Halving).
 - `state` — bei jedem Lesen aus den gespeicherten Schlusskursen gelesen,
   nie geschrieben: `open` vor Beginn des Fensters, `reached`, sobald ein
   Schlusskurs im Fenster im Kursbereich liegt (einschließlich), `running`,

@@ -8,8 +8,9 @@ defmodule Portfolixir.Engines.CyclesTest do
   # the shapes reproduce the cycles ADR-0060 describes (a partial first
   # window, a late rally above the top inside one window, an open window),
   # never a real price. Every expected figure was recomputed independently
-  # with Python's `decimal` module at precision 28 (Elixir Decimal's default
-  # context) and ROUND_HALF_UP at scale 6, the maximum drawdown by brute force
+  # with Python's `decimal` module at precision 34 (Elixir Decimal's default
+  # context; the closing act's analytics lens re-ran it at 34, the build's
+  # first pass had used 28) and ROUND_HALF_UP at scale 6, the maximum drawdown by brute force
   # over every pair of closes, the tie rules applied to the brute-force
   # result, and the days as calendar days (`date - date`). The recomputation
   # is quoted beside each assertion as "py:".
