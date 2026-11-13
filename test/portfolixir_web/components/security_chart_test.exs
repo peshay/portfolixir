@@ -495,6 +495,17 @@ defmodule PortfolixirWeb.Components.SecurityChartTest do
         )
 
       assert y_labels(html) == ["-106.0%", "-73.0%", "-40.0%", "-7.0%", "+26.0%"]
+
+      # Sprint 29's closing act (board 07 ⑨ item 2): on a security's price
+      # chart the pad under a price of 0 stops at −100 %, a price axis never
+      # reads below 0; a value line keeps its pad.
+      priced =
+        render_chart(
+          default_assigns(quotes: series(["0", "5000", "5500", "6000"]), currency_code: "EUR")
+          |> Map.put(:price_axis?, true)
+        )
+
+      assert y_labels(priced) == ["-100.0%", "-68.5%", "-37.0%", "-5.5%", "+26.0%"]
       assert displays(html) == ["-100.0%", "0.0%", "+10.0%", "+20.0%"]
       refute html =~ ~r/(?<![\d.,])6,300(?![\d])/
     end

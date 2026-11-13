@@ -14123,9 +14123,21 @@ dialog.merge-dialog {
   font-size: 0.85rem;
   font-weight: 600;
 }
+/* Board 07 ⑨ item 5 (the closing act): in the bands table only the
+   figures keep to one line, so „Woher“ wraps and the table fits at
+   1200 px. */
 .cycle-intervals-table td,
-.cycle-bands-table td {
+.cycle-bands-table td.num {
   white-space: nowrap;
+}
+/* The wrapper's `min-width: max-content` would keep every cell on one
+   line; the bands table takes the frame's width instead, as the news table
+   does, and „Woher“ keeps room for its words. */
+.data-table-wrapper > .cycle-bands-table {
+  min-width: 0;
+}
+.cycle-bands-table td[data-role="origin"] {
+  min-width: 14rem;
 }
 .cycle-intervals-table .badge,
 .cycle-bands-table .badge {
@@ -14252,9 +14264,11 @@ dialog.merge-dialog {
   gap: var(--space-1) var(--space-3);
   min-width: 0;
 }
+/* Board 07 ⑨ item 4 (the closing act): the health line takes its own
+   width, so „Jetzt lesen“ follows its sentence instead of the bar's edge. */
 .cycle-bar__health .cycle-health,
 .halving-chain__health .cycle-health {
-  flex: 1 1 16rem;
+  flex: 0 1 auto;
   min-width: 0;
 }
 .cycle-read {
@@ -14266,6 +14280,15 @@ dialog.merge-dialog {
 .cycle-read__button {
   padding: 2px 10px;
   font-size: 0.8rem;
+}
+/* A disabled „Jetzt lesen“ reads as waiting: muted, on the muted surface;
+   later than `.button-ghost:hover` at its specificity, so no hover either
+   (board 07 ⑨ item 4). */
+.cycle-read__button:disabled {
+  background: var(--color-bg-muted);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
 }
 .cycle-read__wait {
   color: var(--color-text-muted);

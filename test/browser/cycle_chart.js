@@ -127,6 +127,21 @@ async function walk(browser, theme, viewport, privacy, errors) {
   await page.click("details[data-role='cycle-bands'] > summary");
   await page.waitForSelector("details[data-role='cycle-bands'][open] table", { state: "visible" });
   check(tag + " Bänder", await measure(page), viewport, privacy, errors);
+  // The closing act (board 07 ⑨): at 1200 px the bands table fits its
+  // frame, no column behind a scroll; under the chart the basis line ends
+  // „keine Prognose“ (the labels' anchors are pinned in
+  // security_cycle_design_test.exs).
+  const fit = await page.evaluate((panel) => {
+    const table = document.querySelector(panel + " table.cycle-bands-table");
+    const wrapper = table && table.closest(".data-table-wrapper");
+    const basis = document.querySelector(panel + " [data-role='cycle-basis']");
+    return {
+      excess: table && wrapper ? table.scrollWidth - wrapper.clientWidth : null,
+      basis: basis && basis.textContent.replace(/\s+/g, " ").trim()
+    };
+  }, PANEL);
+  if (viewport.width >= 1200 && fit.excess > 1) errors.push(tag + ": the bands table is " + fit.excess + " px wider than its frame");
+  if (!fit.basis || !/keine Prognose\.$/.test(fit.basis)) errors.push(tag + ": no basis line ending „keine Prognose“ under the chart");
   if (shots) await page.screenshot({ path: path.join(shots, tag.replace(/ /g, "-") + "-bands.png"), fullPage: true });
 
   await leave(context);

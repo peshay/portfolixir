@@ -362,6 +362,31 @@ defmodule PortfolixirWeb.Components.CycleChart do
   def chain_name(chain) when is_binary(chain), do: chain
   def chain_name(_none), do: "—"
 
+  # --- S29 closing act begin ---
+  @doc """
+  The basis sentence under the chart while the bands are drawn on the time
+  axis (board 07 ④, ⑤; ⑨ item 1): the series, the windows, the extremes,
+  the anchor and the band rule, ending „no forecast“; on the range
+  „Zyklus“ (`cycle_range?`) the range's own sentence first.
+  """
+  @spec basis_text(map(), boolean()) :: String.t()
+  def basis_text(payload, cycle_range?) do
+    basis =
+      gettext(
+        "Basis: stored daily closes in %{currency}, gaps skipped, never filled · windows from halving to halving (the close on a halving day belongs to the new window) · top and low = peak and trough of the largest decline in the window · an open top is an anchor from 20 % below it, a low only once the window closes · band: time min to max, price from the last factor to one log step further; hull of the parts, no average, no forecast.",
+        currency: payload.currency_code
+      )
+
+    if cycle_range?,
+      do:
+        gettext(
+          "Range „Cycle“: three months before the last confirmed halving to four months after the end of the later band; right of „today“ only the halving window and the bands."
+        ) <> " " <> basis,
+      else: basis
+  end
+
+  # --- S29 closing act end ---
+
   # --- S29 H8 begin ---
   @doc """
   The range „Zyklus“ of a cycles read with the view (ADR-0060 §11; board
@@ -568,11 +593,11 @@ defmodule PortfolixirWeb.Components.CycleChart do
         :for={m <- @marks.extreme_labels}
         class={["cycle-label", "cycle-label--#{m.kind}"]}
         data-date={Date.to_iso8601(m.date)}
-        x={m.x}
+        x={m.label_x}
         y={m.y}
-        text-anchor="middle"
+        text-anchor={m.anchor}
       >
-        <tspan :for={{line, index} <- Enum.with_index(m.lines)} x={m.x} dy={if index == 0, do: "0", else: "1.2em"}>
+        <tspan :for={{line, index} <- Enum.with_index(m.lines)} x={m.label_x} dy={if index == 0, do: "0", else: "1.2em"}>
           <%= line %>
         </tspan>
       </text>
@@ -850,11 +875,13 @@ defmodule PortfolixirWeb.Components.CycleChart do
     if within?(date, scale) do
       x = scale.x.(date)
       y = scale.y.(close)
+      lines = extreme_lines(kind, date, close, provisional?, so_far?, partial?, currency)
+      {label_x, anchor} = edge_anchor(x, scale.x0, scale.x1)
 
       {d, label_y} =
         case kind do
-          :top -> {triangle_down(x, y - 3), y - 16}
-          :low -> {triangle_up(x, y + 3), y + 22}
+          :top -> {triangle_down(x, y - 3), clamp(y - 16, scale.y0 + 22, scale.y1 - 4)}
+          :low -> {triangle_up(x, y + 3), low_label_y(y, length(lines), scale)}
         end
 
       %{
@@ -862,13 +889,40 @@ defmodule PortfolixirWeb.Components.CycleChart do
         date: date,
         d: d,
         x: coord(x),
-        y: coord(clamp(label_y, scale.y0 + 22, scale.y1 - 4)),
+        label_x: coord(label_x),
+        anchor: anchor,
+        y: coord(label_y),
         provisional?: provisional?,
         so_far?: so_far?,
-        lines: extreme_lines(kind, date, close, provisional?, so_far?, partial?, currency),
+        lines: lines,
         title: extreme_title(kind, date, close, currency)
       }
     end
+  end
+
+  # Board 07 ⑨ item 3 (the closing act's design lens): a label near the
+  # plot's right edge ends at the edge, one near its left edge starts at
+  # it, so no label is cut off; elsewhere it is centred on its marker.
+  @edge_room 70
+
+  defp edge_anchor(x, x0, x1) do
+    cond do
+      x > x1 - @edge_room -> {min(x + 6, x1 - 2), "end"}
+      x < x0 + @edge_room -> {max(x - 6, x0 + 2), "start"}
+      true -> {x, "middle"}
+    end
+  end
+
+  # A low's label stands under its marker; where its lines would run off
+  # the floor, above it, so it never covers the marker (board 07 ⑨ item 3).
+  @label_line 11
+
+  defp low_label_y(y, lines, scale) do
+    below = y + 22
+
+    if below + (lines - 1) * @label_line > scale.y1 - 4,
+      do: max(y - 6 - (lines - 1) * @label_line, scale.y0 + 10),
+      else: below
   end
 
   defp extreme_lines(kind, date, close, provisional?, so_far?, partial?, currency) do
@@ -1138,9 +1192,9 @@ defmodule PortfolixirWeb.Components.CycleChart do
           <text
             :for={m <- @g.marks}
             class={["cycle-label", "cycle-label--#{m.kind}"]}
-            x={m.x}
+            x={m.label_x}
             y={m.label_y}
-            text-anchor="middle"
+            text-anchor={m.anchor}
           >
             <%= m.text %>
           </text>
@@ -1235,7 +1289,7 @@ defmodule PortfolixirWeb.Components.CycleChart do
       base_y: coord(y.(1)),
       windows: windows,
       legend: aligned_legend(payload, windows),
-      marks: Enum.map(marks, &place_mark(&1, x, y)),
+      marks: marks |> Enum.map(&place_mark(&1, x, y)) |> separate_labels({x0, y0, x1, y1}),
       band: band && place_band(band, x, y, {x0, y0, x1, y1}),
       y_ticks: index_ticks(lmin, lmax) |> Enum.map(&%{y: coord(y.(&1)), text: index_text(&1)}),
       x_ticks:
@@ -1313,7 +1367,47 @@ defmodule PortfolixirWeb.Components.CycleChart do
         :low -> {triangle_up(mx, my + 3), my + 22}
       end
 
-    Map.merge(mark, %{x: coord(mx), d: d, label_y: coord(label_y)})
+    Map.merge(mark, %{mx: mx, ly: label_y, x: coord(mx), d: d})
+  end
+
+  # Board 07 ⑨ item 3: two windows' marks a day apart put their labels on
+  # top of each other. Taken from left to right, a label that would cover
+  # one already placed steps a line away from its marker (down for a low,
+  # up for a top) until it is clear; then each is anchored at the plot's
+  # edges as on the time axis.
+  @label_clear_x 90
+  @label_clear_y 12
+
+  defp separate_labels(marks, {x0, y0, x1, y1}) do
+    marks
+    |> Enum.with_index()
+    |> Enum.sort_by(fn {mark, _index} -> mark.mx end)
+    |> Enum.reduce([], fn {mark, index}, placed ->
+      [{%{mark | ly: clear_y(mark, Enum.map(placed, &elem(&1, 0)), y0, y1)}, index} | placed]
+    end)
+    |> Enum.sort_by(&elem(&1, 1))
+    |> Enum.map(fn {mark, _index} ->
+      {label_x, anchor} = edge_anchor(mark.mx, x0, x1)
+      Map.merge(mark, %{label_x: coord(label_x), anchor: anchor, label_y: coord(mark.ly)})
+    end)
+  end
+
+  defp clear_y(mark, placed, y0, y1, tries \\ 6)
+  defp clear_y(mark, _placed, _y0, _y1, 0), do: mark.ly
+
+  defp clear_y(mark, placed, y0, y1, tries) do
+    covered? =
+      Enum.any?(
+        placed,
+        &(abs(&1.mx - mark.mx) < @label_clear_x and abs(&1.ly - mark.ly) < @label_clear_y)
+      )
+
+    if covered? do
+      step = if mark.kind == :low, do: @label_clear_y, else: -@label_clear_y
+      clear_y(%{mark | ly: clamp(mark.ly + step, y0 + 10, y1 + 18)}, placed, y0, y1, tries - 1)
+    else
+      mark.ly
+    end
   end
 
   # The next low's band in the open window's days, indexed to its halving
@@ -1577,8 +1671,9 @@ defmodule PortfolixirWeb.Components.CycleChart do
                 <th scope="row"><%= relation_label(part.relation) %></th>
                 <td data-role="origin">
                   <%= part_origin(part) %>
-                  <span :if={part.partial} class="badge"><%= pgettext("halving cycles", "Part") %></span>
-                  <span :if={part.provisional} class="badge badge--derived"><%= pgettext("halving cycles", "provisional") %></span>
+                  <%!-- Board 07 ⑨ item 5: a part that is absent carries no badge. --%>
+                  <span :if={part.partial and is_nil(part.reason)} class="badge"><%= pgettext("halving cycles", "Part") %></span>
+                  <span :if={part.provisional and is_nil(part.reason)} class="badge badge--derived"><%= pgettext("halving cycles", "provisional") %></span>
                 </td>
                 <td class="num" data-role="window"><%= part.window && window_text(part.window) %></td>
                 <td class="num" data-role="price"><%= part.price && price_text(part.price, @payload.currency_code) %></td>

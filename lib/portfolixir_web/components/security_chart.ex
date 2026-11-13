@@ -85,6 +85,10 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   attr(:log_scale?, :boolean, default: false)
   attr(:percent_mode?, :boolean, default: false)
   attr(:value_mode, :atom, default: :absolute, values: [:absolute, :percent_values])
+  # Board 07 ⑨ item 2: a security's price chart, whose axis never reads
+  # below a price of 0. Off for a value line (Wealth's), whose own pad is
+  # pinned by its privacy-mode base (Sprint 28 S6).
+  attr(:price_axis?, :boolean, default: false)
   attr(:zero_line?, :boolean, default: false)
   attr(:show_transactions?, :boolean, default: true)
   # --- S28 N9 begin ---
@@ -126,7 +130,8 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       build_geometry(assigns.quotes, assigns.log_scale?,
         percent_mode?: assigns.percent_mode?,
         extra_values: range_extending_values(assigns),
-        axis: {assigns.axis_from, assigns.axis_to}
+        axis: {assigns.axis_from, assigns.axis_to},
+        price_axis?: assigns.price_axis? and assigns.value_mode == :absolute
       )
 
     plot_left = @padding_left
@@ -577,13 +582,15 @@ defmodule PortfolixirWeb.Components.SecurityChart do
         if rebase?, do: (value - base_close) / base_close * 100.0, else: value
       end)
 
-    {y_min, y_max} = Enum.min_max(raw_values ++ extra_values)
-    {y_min, y_max} = pad_range(y_min, y_max)
+    {raw_min, raw_max} = Enum.min_max(raw_values ++ extra_values)
+    {y_min, y_max} = pad_range(raw_min, raw_max)
 
     log_scale? = log_scale? and not percent_mode?
 
     {y_min, y_max} =
-      if log_scale?, do: {safe_log(y_min), safe_log(y_max)}, else: {y_min, y_max}
+      if log_scale?,
+        do: {safe_log(log_floor(y_min, raw_min)), safe_log(y_max)},
+        else: {axis_floor(y_min, raw_min, rebase?, Keyword.get(opts, :price_axis?, false)), y_max}
 
     %{
       quotes: indexed,
@@ -678,6 +685,25 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     pad = range * 0.05
     {min - pad, max + pad}
   end
+
+  # Board 07 ⑨ item 2 (the closing act's design lens): the pad under the
+  # lowest value never takes a price axis below 0, nor a percent axis
+  # below −100 %, a price of 0; values already below stay on the plot.
+  # A series already in percent (`:percent_values`) keeps its pad.
+  defp axis_floor(padded, _raw_min, _rebase?, false = _price_axis?), do: padded
+
+  defp axis_floor(padded, raw_min, true = _rebase?, true) when raw_min >= -100.0,
+    do: max(padded, -100.0)
+
+  defp axis_floor(padded, raw_min, false = _rebase?, true) when raw_min >= 0,
+    do: max(padded, 0.0)
+
+  defp axis_floor(padded, _raw_min, _rebase?, true), do: padded
+
+  # On the logarithmic scale the pad stays above 0: below a positive lowest
+  # value by a twentieth of it, where the linear pad would reach 0.
+  defp log_floor(padded, raw_min) when padded > 0 or raw_min <= 0, do: padded
+  defp log_floor(_padded, raw_min), do: raw_min * 0.95
 
   defp safe_log(value) when value > 0, do: :math.log10(value)
   defp safe_log(_), do: 0.0

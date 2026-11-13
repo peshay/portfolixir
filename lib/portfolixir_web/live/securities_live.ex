@@ -305,11 +305,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
     socket
     |> assign(:detail_cycles_on?, true)
     |> assign(:detail_range, @cycle_range)
+    |> cycle_log_scale(@cycle_range)
     |> assign(:detail_custom_range, nil)
     |> assign(:detail_range_error, nil)
   end
 
   defp open_cycles(socket, _params), do: socket
+
+  # Board 07 ⑤ and ⑨ item 2 (the closing act's design lens): „Zyklus“ is
+  # drawn on the logarithmic scale, as the low band is a tenth of the top's
+  # price; choosing it turns the scale on, and the toggle turns it off.
+  defp cycle_log_scale(socket, @cycle_range), do: assign(socket, :detail_log_scale?, true)
+  defp cycle_log_scale(socket, _range), do: socket
 
   defp cycles_shown?(assigns),
     do: assigns.detail_cycles_on? and CycleChart.view?(assigns.detail_cycles)
@@ -1511,6 +1518,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             axis_from={@detail_axis && elem(@detail_axis, 0)}
             axis_to={@detail_axis && elem(@detail_axis, 1)}
             currency_code={@selected_security.currency_code}
+            price_axis?={true}
           />
           <%!-- #824: the overlays are named where they are drawn. Two of
                them are on by default now, so "which dashed line is which"
@@ -1551,6 +1559,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <:line><%= gettext("Stored quotes are never modified (see the Quotes tab).") %></:line>
             </AppShell.section_info>
           </div>
+
+          <%!-- The closing act (board 07 ④, ⑤, ⑨ item 1): the basis under
+               the chart while the bands are drawn on the time axis. --%>
+          <p
+            :if={cycles? and @detail_cycles_mode == "timeline"}
+            class="detail-tab-hint"
+            data-role="cycle-basis"
+          >
+            <%= CycleChart.basis_text(
+              @detail_cycles,
+              @detail_range == @cycle_range and is_nil(@detail_custom_range)
+            ) %>
+          </p>
 
           <%!-- S29 H7 (ADR-0060 §11, §12; board 07 ④, ⑤): under the chart,
                the count line with the interval table, and the disclosure of
@@ -2034,6 +2055,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 show_notes?={@show_notes?}
                 currency_code={@security.currency_code}
                 aria_label={gettext("Price history")}
+                price_axis?={true}
               />
               <%!-- S28 N9 (board 01, marker A): the small chart has no
                    toolbar; its one toggle is the notes'. --%>
@@ -6059,6 +6081,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
        |> assign(:detail_range, range)
        |> assign(:detail_custom_range, nil)
        |> assign(:detail_range_error, nil)
+       |> cycle_log_scale(range)
        |> load_detail_data()}
     else
       {:noreply, socket}
