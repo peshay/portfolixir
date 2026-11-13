@@ -224,7 +224,9 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
   # - dq-implausible-quote is a problem note after the other problem notes
   #   (after dq-two-scales, whose bond it leaves out; the problems lead the
   #   block since I1, #1351), reading as the board
-  #   draws it: the sentence, linking to /securities?dq=implausible_quote,
+  #   draws it: the sentence, linking to
+  #   /securities?dq=implausible_quote&holding=held (the held positions it
+  #   counts, since #1414 widened the set to sold ones; PR 2 closing act),
   #   then "Arbolia Inc. (Verkauf 03.04.2026 zu 61,4 USD · Kurs 02.04.2026:
   #   618,9 USD, das 10,08-Fache)" and "Wrenfield Gardens AG (Kauf
   #   12.05.2026 zu 48,2 EUR · Kurs 12.05.2026: 4,87 EUR, das 0,10-Fache)".
@@ -264,7 +266,7 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
 
     assert has_element?(
              wealth,
-             ~s([data-role="dq-implausible-quote"].data-note--problem a[href="/securities?dq=implausible_quote"])
+             ~s([data-role="dq-implausible-quote"].data-note--problem a[href="/securities?dq=implausible_quote&holding=held"])
            )
 
     for security <- [arbolia, wrenfield] do

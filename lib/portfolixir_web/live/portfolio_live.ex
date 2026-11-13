@@ -3856,7 +3856,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           severity={:problem}
           data-role="dq-implausible-quote"
         >
-          <a href="/securities?dq=implausible_quote">
+          <a href="/securities?dq=implausible_quote&holding=held">
             <%= ngettext(
               "One held position is valued at quotes that do not match its own bookings (on a booking's day, below half or above twice the price per unit), so its value or its cost is wrong. Check its quote source (ticker, exchange), then the booking:",
               "%{count} held positions are valued at quotes that do not match their own bookings (on a booking's day, below half or above twice the price per unit), so their value or their cost is wrong. Check their quote sources (ticker, exchange), then the bookings:",
