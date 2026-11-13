@@ -488,6 +488,168 @@ instrument. A day without a stored close produces no return observation, so
 nothing is carried forward and then differenced. **The block reports; it does
 not evaluate** — there is no signal, rating or recommendation anywhere in it.
 
+### Halving cycles on the chart (ADR-0059, ADR-0060)
+
+A coin whose block reward halves at fixed block heights — Bitcoin, Bitcoin
+Cash, Litecoin — has a cycle from one halving to the next. Once a security
+is bound to its chain and has two confirmed halvings, its chart can show
+those cycles: each cycle's top and low, the days and the change between
+them, and where the stored cycles put the next low and the next top, as a
+band with its n and both ends.
+
+**Binding a chain.** The security's **Edit** dialog has a **Halving chain**
+choice below the master data: **None**, Bitcoin, Bitcoin Cash or Litecoin.
+Choose the chain the security stands for: the coin's own listing in USD or
+EUR, or a product that tracks it. Nothing binds a security by itself,
+because an exchange-traded product, a wrapped token and a coin with "bit" in
+its name all look like Bitcoin. Several securities may be bound to one
+chain; each gets its own halvings.
+
+- **Bitcoin** is read from the chain itself. After the binding is saved,
+  the next read (every 6 hours, or **Read now**) writes the past halvings
+  as confirmed events of the kind **Halving** on the **Dates** tab, each
+  with its block's date in UTC, and the next halving as an estimate: a
+  window from "as fast as the blocks came lately" to "at the protocol's ten
+  minutes a block", refreshed once a day.
+- **Bitcoin Cash** and **Litecoin** are not read: their halvings are written
+  as events of the kind **Halving** through the API, by an agent or by you
+  (`POST /api/v1/securities/:security_id/events`), and the app checks each
+  block height against the chain's interval.
+
+Below the choice the form says how many confirmed halvings the security
+has ("1 of 2 confirmed halvings · cycles appear in the chart from the
+second"), and once a Bitcoin binding is saved, the chain source's health
+line with **Read now**.
+
+**Rebinding deletes.** A halving event is a fact about the security *as
+bound to that chain*. Choosing **None** or another chain for a security that
+has halving events therefore deletes its halving events with the save: the
+form names how many and which ("Without a halving chain, 5 halving events
+are deleted. They hold for this security only as bound to Bitcoin: 4
+confirmed halvings (2012, 2016, 2020, 2024) · 1 estimate …"), says "The
+journal keeps every deleted row. The cycles disappear from the chart.", and
+the button becomes **Save and delete 5 events**, so one click confirms it.
+The note after the save repeats the count. Binding the same chain again
+lets the next read write Bitcoin's halvings anew.
+
+**The chain source's health line** stands in the edit dialog and in the
+chart's cycle bar. It names the host that last answered and how long ago
+("Chain source: mempool.space · read 2 h ago"), the fallback as such
+("blockstream.info (fallback)"), a failed last attempt with its reason, and
+for a source that has not answered for 24 hours "Chain source without an
+answer for 30 h · last mempool.space, … · halving estimate from then", so a
+quiet chain and a dead source look different. For Bitcoin Cash and Litecoin
+it reads "Halvings entered by hand · no chain source for Litecoin".
+**Read now** reads the chain at once instead of waiting for the next
+scheduled read, and is offered once per 10 minutes per chain, the
+scheduled reads counted: until then it is greyed out with "read less than
+10 minutes ago · again in 7 min". An agent has the same read
+(`portfolixir.chains.refresh`).
+
+**Your own instance.** By default the app asks `mempool.space`, and
+`blockstream.info` only when the first fails. Set
+`PORTFOLIXIR_BITCOIN_ESPLORA_URL` to the base URL of your own mempool or
+Esplora instance (`https://node.example.com/api`) and it replaces both, with
+no fallback ([Home Deployment](home-deployment.html)). It must use `https`,
+carry no user name, password, query or fragment, and name a host that
+resolves to public addresses only. It is read when the application starts
+and never written by the app or its screens. A URL that fails these rules
+asks no host: the health line reads "Own chain source refused:
+node.example.com resolves to a private address · nothing read yet", and the
+edit dialog adds "No halvings are written." with the rules. **An instance on
+your home network or on loopback is therefore refused**: the address rule
+guards every outbound request of the app, and opening it for one variable
+would need its own decision. The app reads only the tip's height and the
+times of single blocks, never transactions, fees, addresses or prices, and
+it reads nothing while no security is bound to Bitcoin.
+
+**Turning the cycles on.** On the **Chart** tab, a **Cycles** toggle
+appears beside the chart's toggles where the view exists: the security is
+bound, has two confirmed halvings and stored closes inside a cycle.
+Pressed, it shows the cycle bar under the toolbar, with two modes:
+
+- **Timeline** draws the cycles on the price chart: each halving as a
+  vertical line, the next one as a dashed window ("Halving ≈ ‹from› –
+  ‹to› (estimate)"), each cycle's top ▲ and low ▼ with its date and
+  close, and the two bands. **Segments** switches the lines between them:
+  **Top ↔ low** is on, **Top – top** and **Low – low** can be added. Each
+  segment carries its days and its change; a line never runs past the last
+  top or low, it continues from there as a cone into its part of the band.
+- **Aligned** lays the cycles over each other from their halving, each
+  indexed to its halving day's close on a log scale, the running cycle
+  drawn strong, with the next low's band in cycle days.
+
+While cycles are on, a range **Cycle** joins **1M** to **Max**. It runs from
+three months before the last confirmed halving to four months after the
+later end of the two bands, so it reaches past today: right of the
+**today** line the axis holds only the next halving's window, the bands and
+the cones into them, and the price line is not continued.
+
+**A cycle's top and low.** Between two halvings, the top and the low are
+the peak and the trough of the cycle's **maximum drawdown**, the high from
+which its fall began and where the fall ended, not its highest and lowest
+close: in 2020–2024 a rally in March 2024 closed above the November 2021
+top, after the cycle's low, and the highest close would have picked it. The
+running cycle's top is **provisional** and counts as an anchor once a close
+after it has been 20 % below it; a higher top that falls further replaces
+it. Its low is only "so far" until the cycle closes at the next halving.
+Under the chart a line counts the cycles ("Cycles: 2 complete, 1 partial,
+1 open · closes from 09/2014"): stored Bitcoin closes from the usual quote
+provider begin in September 2014, so the 2012 cycle is partial, with its
+low and no top. The interval table below lists, per relation (**Halving →
+top**, **Top → low**, **Low → top**, **Top → top**, **Low → low**, **Low →
+next halving**), each cycle's days and change or factor, its n and its
+marks (provisional, from the partial cycle).
+
+**Reading the band.** Each coming event, the **Next low** and the **Next
+top**, has one band. It is put together from parts, one per relation that
+aims at the event (the next low from the top before it and from the last
+low; the next top from the next halving, from the last top and, once the
+running cycle's low is final, from that low). A part's time runs from its
+starting point plus the shortest to plus the longest such interval in the
+stored cycles. Its price runs from the last cycle's factor ("the shrinking
+stops") to that factor shrunk once more at the same rate ("it goes on as
+last time"). The band is the **hull** of its parts, and where the parts'
+price ranges overlap, the chart shades **both ways**. A part needs at least
+two past observations; with only one, a band would be a point. The
+disclosure **Bands and their parts** lists each band and each part with
+where it is read from, its n, its window, its price range, **Where the ways
+agree** and its state, or why a part is missing ("waits until the open
+window's top anchors (a fall of 20 %)"). A state is read from the stored
+closes: **open** before the window starts, **running** while it has started
+and no close has entered the band, **reached** once one has, **missed** when
+the window ended without one.
+
+The band is **not a forecast**. It is arithmetic on two or three stored
+cycles, applied to today's starting points, with its n and both ends shown:
+**never a single date or price**, nothing fitted and nothing averaged.
+With so few cycles, any single figure would be a curve through two or three
+points; the band shows how little they support. It gives no advice, and
+nothing on the screen says buy, sell, hold or wait. Whoever wants to stand
+behind one date records it as a prediction on the security's **Predictions**
+tab, where it is scored. What a band said yesterday is not kept, and the
+app never computes what a band would have said in an earlier cycle: that
+would replay the rule on a history it was not there for (level (d) of the
+scope ladder).
+
+**The cycle card on the Overview.** Every security with the view gets a
+card "‹Name› cycle" (for example **Bitcoin cycle**) on the Overview, ordered
+by name: the **Next low** and the **Next top** with their windows, price
+ranges, states and their parts' n, under the sentence that the range is
+not a forecast. **Open in chart** opens the security's chart with cycles on
+and the range **Cycle** in one click.
+
+**Privacy mode** hides the prices, because a price is an amount: the chart stays in its percent view
+as every security chart does, a top's or a low's label names its month and
+no close, a band's label its kind, dates, agreement and state, and the price
+ranges in the disclosure and on the Overview card are bars. Days, changes,
+factors, n and states stay, and **Aligned** keeps its index axis.
+
+The same cycles reach an agent over the API and MCP
+([API and MCP](integration/api-and-mcp.html#halving-cycles-and-the-chain-source-fr-58-adr-0059-adr-0060)):
+`GET /api/v1/securities/:security_id/cycles` and
+`portfolixir.securities.cycles`, with every rule in the payload.
+
 ### Bonds: master data and key metrics (ADR-0052)
 
 A security whose asset class is **Bond** or **Government bond** — set, or
@@ -4814,6 +4976,11 @@ multiplier.
   warning still names the row and the column to fix.
 - **Risk's Crashes section** stays as it is: it holds percentages, dates
   and day counts only.
+- **The halving cycles** on a security's chart keep their shape: a top's
+  or a low's label names its month and no close, a band's label its kind,
+  dates, agreement and state, and the band prices in **Bands and their
+  parts** and on the Overview's cycle card are bars; days, changes, factors
+  and n stay, and **Aligned** keeps its index axis.
 - **Forms keep their values.** A form that edits a stored figure (the
   booking drawer, a statement, a manual quote) opens with the real value,
   because a correction typed blind could book a wrong amount.

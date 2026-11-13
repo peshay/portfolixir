@@ -1561,7 +1561,12 @@ computation basis or note, so a part always equals what its read answers.
     newest prompt version (`null` without one), and `newest_primary`, the
     security's newest primary story at any age (`id`, `title` cut at 50
     characters, `at`; `null` without one). About 50 tokens; the companion
-    answers the dossier as compact JSON, as it answers the news reads.
+    answers the dossier as compact JSON, as it answers the news reads;
+  - `cycles` (ADR-0060 §11) — for a security with the halving-cycles view,
+    `low` and `top`, the next low's and the next top's analog band as one
+    array each, `[window from, window to, price from, price to, state, n]`,
+    about 40 tokens; not a forecast, and `null` without the view (see
+    [Halving cycles and the chain source](#halving-cycles-and-the-chain-source-fr-58-adr-0059-adr-0060)).
 
 Left out on purpose: quotes, trades, lots and transactions, each a long series
 with its own paged read, and drift, which needs a classification and a
@@ -1573,32 +1578,273 @@ every part but `targets`, whose view is the Classifications page.
 
 ### Halving cycles and the chain source (FR-58, ADR-0059, ADR-0060)
 
-A security bound to a block chain (`halving_chain`) has its halvings as
-calendar events and, from two confirmed halvings on, a cycles read. Bitcoin's
-halvings are read from the chain itself; Bitcoin Cash and Litecoin have no
-source and are written by hand.
+A security bound to a block chain has its halvings as calendar events of the
+kind `halving` (see [Security events](#security-events-adr-0048) above) and,
+from two confirmed halvings on, a cycles read: the windows between its
+halvings, each window's top and low, the intervals between them, and the
+next low and the next top as **an analog band**. The binding is the field
+`halving_chain` of `PATCH /api/v1/securities/:id` (above): `"bitcoin"`,
+`"bitcoin_cash"`, `"litecoin"` or `null`. Nothing binds a security by
+itself. Unbinding or rebinding deletes the security's halving events in the
+same write, one journaled delete each, and the `PATCH` answers
+`halving_events_deleted` beside `data`.
 
-- `GET /api/v1/chains` — the registered chains (`bitcoin`, `bitcoin_cash`,
-  `litecoin`) with `halving_interval`, `target_spacing_seconds`, `has_source`
-  and `bound_securities`; for Bitcoin also `health` (`source_host`,
-  `last_tried_at`, `last_ok_at`, `last_error`, `stale` after 24 hours without
-  a successful run), `next_halving_inputs` (the tip, its time, the time 2,016
-  blocks below and `mean_block_seconds`, a decimal string) and
-  `refresh.available_at`. Takes no parameter.
-- `POST /api/v1/chains/:chain/refresh` — reads the chain's source now and
-  answers its entry with `run` (`ok`, `unbound` or `failed`). At most once per
-  10 minutes per chain, scheduled runs counted: sooner answers `429` with
-  `errors.retry_after` and the `Retry-After` header; a chain without a source
-  answers `422` with `errors.code` `no_source`.
-- `GET /api/v1/securities/:security_id/cycles` — the halvings,
-  `chain_source`, the windows with their tops and lows, the six intervals with
-  `n`, minimum and maximum, and the `projection`: the next low's and the next
-  top's analog band, `not_a_forecast: true`, with its parts, `agree` and
-  `state`; `computation_basis` states every rule. `include=aligned` adds each
-  window's closes indexed to its halving day's close. There is no `as_of`: it
-  and every other parameter answer `422` naming it. Decimals are strings.
+**The chains** are protocol constants in code (ADR-0059 §2), never detected:
+`bitcoin` and `bitcoin_cash` halve every 210,000 blocks at a 600-second
+target, `litecoin` every 840,000 blocks at 150 seconds; halving *k* is the
+block at *k* × the interval. **Only Bitcoin has a source.** The app reads
+its tip height and the timestamps of single blocks over the read-only
+Esplora REST API: `mempool.space` first, `blockstream.info` only when the
+first fails, or the operator's own instance from
+`PORTFOLIXIR_BITCOIN_ESPLORA_URL`, which replaces both and has no fallback
+(https, no user name, query or fragment, a host that resolves to public
+addresses only; see [Home Deployment](../home-deployment.html)). Nothing else
+in a block is read: no transactions, fees, mempool, addresses or prices.
+The halvings of Bitcoin Cash and Litecoin are written by hand or by an
+agent through the event routes.
 
-The dossier carries the two bands as its `cycles` line.
+**The reader** runs every 6 hours where the quote sync runs, and only while
+a security is bound to Bitcoin (ADR-0059 §10). For each bound security it
+writes each past halving, confirmed once it has six confirmations:
+`confirmed: true`, `timing: exact`, `source_quality: primary`, the UTC date
+of the block, never read again. The next halving is one unconfirmed event with `timing: window`
+from the tip's time plus the remaining blocks at the mean block time of the
+last 2,016 blocks to the same at the ten-minute target, rewritten at most
+once a day. Every answer is checked before anything is written (the tip not
+more than 6 below the last stored one, `tip_behind`; the genesis block once
+a day, `wrong_chain`; the tip between the fourth halving and ten-minute
+spacing since genesis × 1.1, `tip_too_low` and `tip_ahead`; the blocks
+echoing what was asked, in time order, `blocks_out_of_order`). A refused own
+URL fails with `url_not_allowed` and its reason (`url_not_allowed:scheme`,
+`url_not_allowed:private_address` and the like) and asks no host. When
+every source fails, the run records `last_error` and changes nothing
+stored: the last estimate stands with its date of reading.
+
+Every route takes the bearer token: without a valid one it answers `401`
+like every route under `/api/v1`. Every route is closed: a parameter or a
+body field it does not take answers `422` naming it, before anything runs.
+Times are ISO 8601 UTC, dates ISO 8601, decimals strings.
+
+**`GET /api/v1/chains`**
+
+Takes no parameter. `data` lists the registered chains in the registry's
+order, each with:
+
+- `chain` (`bitcoin`, `bitcoin_cash`, `litecoin`), `halving_interval` in
+  blocks, `target_spacing_seconds`, `has_source` and `bound_securities`, the
+  number of securities bound to it.
+- `health` — for a chain with a source: `source_host` (the host that last
+  answered), `last_tried_at`, `last_ok_at`, `last_error` (`null`, or each
+  failing host with its code, `"mempool.space: timeout; blockstream.info:
+  http_503"`) and `stale`, `true` when the chain has had no successful run
+  for 24 hours. A dead source is visibly dead within a day. `null` for a
+  chain without a source.
+- `next_halving_inputs` — the inputs of the next halving's estimate:
+  `tip_height`, `tip_at` (the tip block's time), `tip_2016_at` (the time of
+  the block 2,016 below), `period_blocks` (2016) and `mean_block_seconds`
+  (their mean, a decimal string). `null` before the first successful run
+  and for a chain without a source.
+- `refresh` — `interval_seconds` (600) and `available_at`, ten minutes after
+  the last try, the first moment an on-demand read is allowed (a time already
+  past when it is allowed now; `null` before the first try). `null` for a
+  chain without a source.
+
+**`POST /api/v1/chains/:chain/refresh`**
+
+One run of the reader now, as the scheduled run makes it, answered when it
+ends. Takes no parameter and no body field. `data` is the chain's entry of
+`GET /api/v1/chains` with `run`, whose `status` says how it went: `ok`
+with `host` (the host that answered), `tip` (the tip it read) and
+`securities` (the bound securities it wrote for); `unbound` (no security is
+bound: no host is asked and no wait starts); or `failed` with `error`, the
+stored `last_error`. A failed run is still a `200`: the health says what
+happened.
+
+- **At most once per 10 minutes per chain**, counted from the last try of
+  any run, the scheduled ones included: sooner answers `429` with
+  `errors.retry_after`, the seconds left, the same in the `Retry-After`
+  header, and an `errors.detail`. No host is asked. Wait for the time it
+  names; do not retry in a loop.
+- A chain without a source answers `422` with `errors.code` `no_source`,
+  `errors.chain` and `errors.detail`: `bitcoin_cash` and `litecoin`.
+- A name the registry does not hold answers `404`.
+
+**`GET /api/v1/securities/:security_id/cycles`**
+
+Computed at every read from the security's stored closes and its halving
+events, never stored (ADR-0060 §10). It takes one parameter, `include`, and
+one value, `aligned`. `data` carries:
+
+- `security_id`, `security_name`, `currency_code` and `chain` (the bound
+  chain, `null` when unbound).
+- `reason` — `null` where the view exists, else why not: `no_halving_chain`
+  (bound to no chain), `too_few_halvings` (fewer than two confirmed
+  halvings) or `no_closes` (no stored close inside any window). Without the
+  view, `cycles` is `[]`, `intervals` `null` and `projection` carries no
+  band.
+- `chain_source` — the bound chain's health: `chain`, `has_source` and, for
+  a chain with a source, `source_host`, `last_tried_at`, `last_ok_at`,
+  `last_error` and `stale`, as in `GET /api/v1/chains`. `null` when unbound.
+- `halvings` — the security's halving events in height order, each with
+  `height`, `chain`, `date`, `date_end`, `timing`, `confirmed` and
+  `source_quality`.
+- `next_halving` — the first unconfirmed halving above the confirmed ones:
+  `height`, `date` and `date_end` (the window of its estimate), or `null`.
+- `cycles` — one window per pair of confirmed halvings, oldest first, and
+  the open one since the last: `start`, `end` (`null` for the open window),
+  `start_height`, `end_height`, `kind` (`complete`, `partial` when it starts
+  more than 7 days before the first stored close, `open`, or `no_closes`),
+  `final` (`false` for the open window), `partial`, `closes` (how many),
+  `first_close`, `last_close`, `max_gap_days` (the most calendar days
+  between two consecutive closes; a day without a close is skipped, never
+  filled) and `max_drawdown`. The window's **top and low are the peak and
+  the trough of its maximum drawdown**, not its highest and lowest close
+  (among equal highest closes the latest peak, among equal drawdowns the
+  earliest trough): `top` (`date`, `close`, `final`, `anchor`) with
+  `top_reason` (`before_first_close` for a partial window, which has no top;
+  `no_decline`; `no_closes`), `low` (`date`, `close`, `final`, `partial`)
+  with `low_reason` (`window_open`, `no_decline`, `no_closes`), and for the
+  open window `low_so_far` (`date`, `close`, `partial`) in place of a low.
+  The open window's top is `final: false` and an `anchor` once a close after
+  it has been at least 20 % below it; until then `anchor_reason` is
+  `no_top_yet`. A higher top that falls further replaces it.
+- `intervals` — the six relations, each a key: `halving_to_top`,
+  `top_to_low`, `low_to_top`, `top_to_top`, `low_to_low` and
+  `low_to_next_halving`. Each has `n` (its observations), `days` (`min`,
+  `max`), `change` (`min`, `max`; `top_to_low` only, `low / top − 1`),
+  `factor` (`min`, `max`; `low_to_top`, `top_to_top`, `low_to_low`, the later
+  close over the earlier), `reason` (`no_top_yet` while the open top is not
+  anchored) and `observations`, each with `from` and `to` (`event`, `date`,
+  `close`, `window_start`), `days`, its `change` or `factor`, and
+  `provisional` (an end is not final) and `partial` (an end is the partial
+  window's low). This is ladder level (b): nothing is averaged and nothing is
+  fitted.
+- `projection` — `kind` `analog_band`, `not_a_forecast` `true`, `next_low`,
+  `next_top` and `cones`; described below.
+- `computation_basis` — every rule the read applied, in the payload, as the
+  scope ladder asks of every metric and every analog band: `series` (the
+  security's own split-adjusted closes in its own currency, never converted,
+  positive closes only, `first_close`, `last_close`, gaps skipped),
+  `halvings`, `window` (`halving_to_halving_v1`: the close dated on a
+  halving day belongs to the window that starts there; halving dates are UTC
+  dates), `window_rule`, `partial_days` (7), `window_kinds`, `extremes`
+  (`max_drawdown_v1`) with `extremes_rule`, `anchor_threshold` (`"0.20"`)
+  with `anchor_rule`, `counts` (`cycles_complete`, `cycles_partial`,
+  `cycle_open`), `intervals`, `projection` (its `kind`, `not_a_forecast`,
+  `events`, `time_rule`, `price_rule` with their texts, `price_fallback`,
+  `float_island`, `minimum_data`, `band`, `agree`, `state`, `cones` and
+  `not_computed`) and `ladder`; with `include=aligned` also `aligned`.
+
+**What the band is.** For each coming event, `next_low` and `next_top`,
+the read gives one part per relation that aims at it, each read from that
+relation alone and applied to its current anchor: the next low from
+`top_to_low` (from the open window's anchored top) and `low_to_low` (from
+the last final low); the next top from `halving_to_top` (from the next
+halving's window), `top_to_top` (from the last anchored top) and
+`low_to_top` (from the last final low, once the open window's low is final).
+A part's **time** runs from its anchor's date plus the minimum to plus the
+maximum of the relation's past days (`time_rule` `min_max`). Its **price**
+runs from the anchor's close times the last factor *f*₂ to the anchor's
+close times *f*₂^(ln *f*₂ / ln *f*₁), *f*₁ and *f*₂ the relation's last two
+factors (`price_rule` `log_step_v1`: the shrinking stops, or it goes on as
+last time). Where that step is undefined (a factor of exactly 1, or the two
+on either side of 1) it is the minimum to the maximum of the stored factors
+(`price_rule` `min_max`, `price_reason` `no_log_step`). `halving_to_top`
+borrows `top_to_top`'s price side (`price_from`, `own_price` `false`). A
+part needs two observations for its time side and two factors for its price
+side. The event's `band` is the **hull** of its parts, and `agree` is where
+every part with a price side of its own overlaps. It is an analog band:
+arithmetic on the stored cycles with its `n` and both ends shown, **never a
+single date or price, never fitted**, nothing averaged, and **not a
+forecast** (`not_a_forecast: true`). With two or three cycles behind it, a
+single figure would be a curve through two or three points; the band shows
+how little they support. It is no advice either: no key says buy, sell,
+hold or wait, and `metrics_carry_no_verdict_test.exs` walks this payload. A
+caller who wants to stand behind one date or price records an ADR-0055
+prediction (`POST /api/v1/predictions`); the read keeps no history of what
+a band said.
+
+- `next_low` and `next_top` — each with `event`, `band` (`window` `from` and
+  `to`, `price` `from` and `to` in the security's currency, and
+  `inputs_until`, the date of the latest close that went into it) or `null`
+  with `reason` `no_parts` (no part has enough data), `agree` (`from`, `to`)
+  or `null` with `agree_reason` `one_price_relation` (fewer than two parts
+  with a price side of their own: one way, nothing to agree) or
+  `parts_disjoint` (their ranges do not overlap), `state`, `state_reason`,
+  `window_ended` and `parts`. `next_low` also carries the open window's
+  `low_so_far`.
+- `parts` — each with `relation`, `anchor` (`event` `top`, `low` or
+  `halving` and its `date`; for a top or a low its `close`, `final`,
+  `partial` and `window_start`, for a halving its `height`, `date_end` and
+  `confirmed`), `window` and `price`
+  (`from`, `to`), `days` (`min`, `max`), `factor` (`from`, `to`, the two
+  factors applied), `factors_used`, `n_time`, `n_price`, `time_rule`,
+  `price_rule`, `price_reason`, `price_from`, `own_price`, `provisional`,
+  `partial`, `inputs_until`, `state`, `state_reason` and `window_ended`. An
+  absent part has `window` and `price` `null` and a `reason`:
+  `too_few_observations` (with its `n_time` and `n_price`), `zero_width` (one
+  day or one price: a point, not a range), `no_top_yet` (the open window's
+  top has not fallen 20 % yet) or `low_not_final` (`low_to_top` waits for the
+  open window's low to be final, at the next halving).
+- `state` — read from the stored closes at every read, never written:
+  `open` before the window starts, `reached` once a close inside the window
+  lies within the price range (inclusive), `running` while the window has
+  started without one, `missed` once it has ended without one; `window_ended`
+  says whether the last close is past its end. Every close that went into a
+  band must predate its window, or `state` is `null` with `state_reason`
+  `input_after_window`. A state is not a score: nothing counts or aggregates
+  states.
+- `cones` — one per line (`line` `top_low`, `top_top` or `low_low`), each
+  with its `relation`, its `apex` (`event`, `date`, `close`; the last anchor
+  the line starts from), the part's `window` and `price`, and a `reason`
+  where that part is absent. The chart draws each switched-on line on from
+  its last anchor as a cone into its part, never as a line past the anchor.
+
+**No `as_of`.** The read takes today's stored closes only. **Scoring the
+band rule on past cycles is level (d)** of the scope ladder: what the band
+would have said in 2020 about the 2022 low applies the rule to a history
+in which it was not there. So a caller cannot compute a past cycle's band:
+`as_of` answers `422` with `errors.as_of` `["is unknown: the cycles read
+takes no as_of. It reads today's stored closes only, because what a past
+cycle's band would have said, computed from that cycle's data, is a replay
+of the band rule: level (d) of the scope ladder (ADR-0060 §8)"]`. Every
+other parameter answers `422` naming it (`"is unknown: the cycles read takes
+only include=aligned"`), and `include` with any other value `["is invalid:
+include takes aligned only, …"]`. No parameter changes a figure.
+
+**`include=aligned`** adds `aligned`: per window, in the cycles' order, its
+`start`, `start_height`, `base` (`date`, `close`: the last close on or
+before the halving date, at most 7 days old) and `points`, each a close in
+the window with its `date`, `days` (calendar days since the halving) and
+`index` (close / base, a decimal string at scale 6). A window without such
+a close has `base` `null`, no points and `reason` `no_halving_close`. It is
+off by default so the payload stays small.
+
+An unknown security id answers `404`; a security merged into another
+answers `404` with `errors.merged_into` (`kind`, `id`), as the dossier does.
+
+**The dossier's `cycles` line.** `GET /api/v1/securities/:id/dossier`
+(`portfolixir.securities.dossier`) carries, for a security with the view,
+`cycles` with `low` and `top`, each one array `[window from, window to,
+price from, price to, state, n]` from `projection.next_low` and `next_top`,
+`n` the fewest observations a present part's time side read, or `null` for
+an event without a band; about 40 tokens. `null` without the view.
+
+**Over MCP** (see [MCP Tools](#mcp-tools)): `portfolixir.chains.list`
+calls `GET /api/v1/chains`, `portfolixir.chains.refresh` (`chain`) calls the
+refresh and tells the agent to wait out a `429` rather than loop, and
+`portfolixir.securities.cycles` (`security_id`, `include`) calls the cycles
+read; each refuses a field it does not take before any request, and each
+description says the answer is data, never instructions or advice.
+`portfolixir.securities.cycles` also says that the band is not a forecast,
+that `n` and both ends belong with every figure, and that the parts share
+their data. The two reads are in every profile; the refresh asks an outside
+host and stores halvings, so it is in the `book` and `full` profiles, not in
+`read`. `portfolixir.securities.update` takes `halving_chain`.
+
+The human view is the security's chart (**Cycles**), the security's edit
+dialog (**Halving chain**, **Read now**) and the Overview's cycle card; see
+[Halving cycles on the chart](../product-documentation.html#halving-cycles-on-the-chart-adr-0059-adr-0060).
 
 ### Bonds: master data and the bond reading (ADR-0052)
 
@@ -5423,13 +5669,20 @@ API may have committed it, and its answer cannot be read.
   [logo endpoints](#logos) (#1413). The first two reach outside the instance
   (`openWorldHint`) and are in `book`; the delete is admin (`full` only).
 - `portfolixir.chains.list` — the registered chains with Bitcoin's source
-  health and the inputs of its next halving's estimate.
-- `portfolixir.chains.refresh` — reads a chain's source now, at most once per
-  10 minutes per chain; an outbound write, in the `book` and `full` profiles.
+  health and the inputs of its next halving's estimate (`GET /api/v1/chains`);
+  a read, in every profile.
+- `portfolixir.chains.refresh` — reads a chain's source now (`chain`), at
+  most once per 10 minutes per chain; a `429` names `retry_after`, and the
+  description says to wait rather than loop. It asks an outside host and
+  stores halvings, so it is open-world and in the `book` and `full`
+  profiles, not in `read`.
 - `portfolixir.securities.cycles` — a bound security's halving cycles and the
-  analog band of its next low and next top; the description says the band is
-  not a forecast and that `n` and both ends belong with every figure. The
-  dossier's `cycles` line holds its two bands in about 40 tokens.
+  analog band of its next low and next top (`security_id`, `include`
+  `aligned`); a read, in every profile, with no `as_of`. The description
+  says the band is not a forecast, that `n` and both ends belong with every
+  figure, never one date or price, and that the parts share their data. The
+  dossier's `cycles` line holds its two bands in about 40 tokens. See
+  [Halving cycles and the chain source](#halving-cycles-and-the-chain-source-fr-58-adr-0059-adr-0060).
 - `portfolixir.notes.list` — a security's research log newest first with the
   derived thesis state; the description states that entries never vanish
   (ADR-0044).
