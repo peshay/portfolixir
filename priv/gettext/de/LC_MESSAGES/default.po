@@ -18033,11 +18033,6 @@ msgid_plural "Bound to %{chain}, %{count} halving events are deleted"
 msgstr[0] "Mit der Kette %{chain} wird %{count} Halving-Ereignis gelöscht"
 msgstr[1] "Mit der Kette %{chain} werden %{count} Halving-Ereignisse gelöscht"
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:711
-#, elixir-autogen, elixir-format
-msgid "For %{chain} the app reads no chain: halvings are entered by hand as an event „Halving“, or by an agent over the API. The app checks the block height against the chain's interval (%{interval} blocks)."
-msgstr "Für %{chain} liest die App keine Kette: Halvings werden von Hand als Ereignis „Halving“ eingetragen, oder von einem Agenten über die API. Die App prüft die Blockhöhe gegen das Intervall der Kette (%{interval} Blöcke)."
-
 #: lib/portfolixir_web/field_label.ex:82
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:592
 #, elixir-autogen, elixir-format
@@ -18102,3 +18097,8 @@ msgstr "vor weniger als 10 Min. gelesen · wieder in %{minutes} Min."
 #, elixir-autogen, elixir-format
 msgid "the next ≈ %{when}"
 msgstr "das nächste ≈ %{when}"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:711
+#, elixir-autogen, elixir-format
+msgid "For %{chain} the app reads no chain: halvings are written through the API as events of kind halving, by an agent or by you. The app checks the block height against the chain's interval (%{interval} blocks)."
+msgstr "Für %{chain} liest die App keine Kette: Halvings werden über die API als Ereignisse der Art halving geschrieben, von einem Agenten oder von Ihnen. Die App prüft die Blockhöhe gegen das Intervall der Kette (%{interval} Blöcke)."

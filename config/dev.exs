@@ -71,9 +71,10 @@ config :portfolixir, PortfolixirWeb.Endpoint,
 
 config :portfolixir, PortfolixirWeb.HostGuard, hosts: dev_hosts
 
-# Logo discovery and the quote and FX sync fetch from public hosts by
-# themselves, at boot and after every new security.
-# PORTFOLIXIR_BACKGROUND_FETCH=off leaves all three off from boot, for a run
+# Logo discovery, the quote and FX sync, and the news feeds' fetch and the
+# chain reader (both run where the quote sync runs) fetch from public hosts
+# by themselves, at boot, on their schedules and after every new security.
+# PORTFOLIXIR_BACKGROUND_FETCH=off leaves all of them off from boot, for a run
 # that must send nothing out: every documented demo seed command sets it, so
 # a seeded review database does not vary with provider availability and no
 # demo name leaves the machine (#963). Unset, dev keeps the full live

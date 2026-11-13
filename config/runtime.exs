@@ -70,8 +70,10 @@ if config_env() == :prod do
 
   # PORTFOLIXIR_BACKGROUND_FETCH=off leaves logo discovery and the scheduled
   # quote and FX sync off from boot, as it does in development (#963), so the
-  # release calls out only when someone asks it to (#1026). Unset, the release
-  # keeps all three as config/prod.exs sets them. It only turns off.
+  # release calls out only when someone asks it to (#1026); the news feeds'
+  # fetch and the chain reader run where the quote sync runs, so they stay off
+  # too. Unset, the release keeps all of them as config/prod.exs sets them. It
+  # only turns off.
   unless Portfolixir.RuntimeConfig.background_fetch?() do
     config :portfolixir, :enable_logo_discovery, false
     config :portfolixir, Portfolixir.Catalog.QuoteSync, enabled?: false

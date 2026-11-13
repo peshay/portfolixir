@@ -18023,11 +18023,6 @@ msgid_plural "Bound to %{chain}, %{count} halving events are deleted"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:711
-#, elixir-autogen, elixir-format
-msgid "For %{chain} the app reads no chain: halvings are entered by hand as an event „Halving“, or by an agent over the API. The app checks the block height against the chain's interval (%{interval} blocks)."
-msgstr ""
-
 #: lib/portfolixir_web/field_label.ex:82
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:592
 #, elixir-autogen, elixir-format
@@ -18091,4 +18086,9 @@ msgstr ""
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:737
 #, elixir-autogen, elixir-format
 msgid "the next ≈ %{when}"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:711
+#, elixir-autogen, elixir-format
+msgid "For %{chain} the app reads no chain: halvings are written through the API as events of kind halving, by an agent or by you. The app checks the block height against the chain's interval (%{interval} blocks)."
 msgstr ""
