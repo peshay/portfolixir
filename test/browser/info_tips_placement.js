@@ -15,7 +15,7 @@
 "use strict";
 
 const { launchChromium } = require("./launch");
-const { visit, leave } = require("./settle");
+const { settle, visit, leave } = require("./settle");
 
 const args = JSON.parse(process.argv[2]);
 const base = args.base_url;
@@ -120,7 +120,11 @@ async function basisLine(browser) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await ready(page, "/portfolio");
   await page.waitForSelector(tip);
+  // The page's figures land after it connects and move the line: placed
+  // once they have.
+  await settle(page);
   await page.evaluate((s) => document.querySelector(s).scrollIntoView({ block: "center" }), tip);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
   const open = await openAndMeasure(page, tip);
   const line = await lineOf(page);
   check(
@@ -130,8 +134,11 @@ async function basisLine(browser) {
   assertInside("Wealth's positions ⓘ at 390", open);
   await page.click(tip + " > summary");
 
-  // No room under the line: the window scrolled to end 12 px under it.
-  await page.evaluate((y) => window.scrollTo(0, y), Math.round(line.docBottom + 12 - 844));
+  // No room under the line: from the page's top, a window that ends 12 px
+  // under it (scrolling there depends on how long the page below is).
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.setViewportSize({ width: 390, height: Math.round(line.docBottom + 12) });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
   const above = await openAndMeasure(page, tip);
   const lineNow = await lineOf(page);
   check(
