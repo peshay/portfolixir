@@ -2005,7 +2005,11 @@ zusammengeführtes Wertpapier antwortet `404` mit `errors.merged_into`
 Kurs von, Kurs bis, state, n]` aus `projection.next_low` und `next_top`,
 `n` die wenigsten Beobachtungen, die die Zeitseite eines vorhandenen Teils
 gelesen hat, oder `null` für ein Ereignis ohne Band; etwa 40 Token. `null`
-ohne Ansicht.
+ohne Ansicht. Ihre Grundlage ist `parts.cycles` in derselben Antwort: der
+Lesezugriff, aus dem sie stammt, ein Analog-Band und keine Prognose, die
+splitbereinigten Schlusskurse in der eigenen Währung des Wertpapiers, Zeit
+`min_max` und Kurs `log_step_v1`, und dass die `computation_basis` des
+Lesezugriffs jede Regel angibt.
 
 **Über MCP** (siehe [MCP-Tools](#mcp-tools)): `portfolixir.chains.list`
 ruft `GET /api/v1/chains` auf, `portfolixir.chains.refresh` (`chain`) ruft

@@ -289,6 +289,14 @@ defmodule PortfolixirWeb.ApiV1SecurityCyclesTest do
 
     assert dossier["parts"]["cycles"] =~ "portfolixir.securities.cycles"
 
+    # The closing act's analytics lens on Lane H (finding 3): the line's
+    # basis travels in the payload, in parts.cycles (ADR-0060 §11,
+    # precision of 2026-11-13), not in the line's 40 tokens.
+    basis = dossier["parts"]["cycles"]
+    assert basis =~ "own currency"
+    assert basis =~ "time min_max, price log_step_v1"
+    assert basis =~ "its computation_basis states every rule"
+
     %{"data" => cycles} =
       conn |> get("/api/v1/securities/#{coin.id}/cycles") |> json_response(200)
 

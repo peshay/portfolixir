@@ -1840,7 +1840,11 @@ answers `404` with `errors.merged_into` (`kind`, `id`), as the dossier does.
 `cycles` with `low` and `top`, each one array `[window from, window to,
 price from, price to, state, n]` from `projection.next_low` and `next_top`,
 `n` the fewest observations a present part's time side read, or `null` for
-an event without a band; about 40 tokens. `null` without the view.
+an event without a band; about 40 tokens. `null` without the view. Its
+basis is `parts.cycles` in the same answer: the read it comes from, an
+analog band and not a forecast, the split-adjusted closes in the
+security's own currency, time `min_max` and price `log_step_v1`, and that
+the read's `computation_basis` states every rule.
 
 **Over MCP** (see [MCP Tools](#mcp-tools)): `portfolixir.chains.list`
 calls `GET /api/v1/chains`, `portfolixir.chains.refresh` (`chain`) calls the

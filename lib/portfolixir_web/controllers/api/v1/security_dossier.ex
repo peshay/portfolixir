@@ -36,7 +36,10 @@ defmodule PortfolixirWeb.Api.V1.SecurityDossier do
       each one array
       `[window from, window to, price from, price to, state, n]`, n the
       fewest observations a present part's time side read; about 40 tokens;
-      `nil` without the view.
+      `nil` without the view. Its basis is `parts.cycles`: the read it comes
+      from, the series and currency, the two rules, and that the read's
+      `computation_basis` states every rule (ADR-0060 §11, precision of
+      2026-11-13).
 
   Drift is left out on purpose (D-2): it needs a classification and a
   valuation per portfolio, and the `targets` part names the read that states
@@ -99,7 +102,9 @@ defmodule PortfolixirWeb.Api.V1.SecurityDossier do
       "GET /api/v1/securities/:id/cycles (portfolixir.securities.cycles): low and top are " <>
         "projection.next_low's and next_top's band as [window from, to, price from, to, " <>
         "state, n], n the fewest " <>
-        "observations of a present part; an analog band, not a forecast; null without the view"
+        "observations of a present part; an analog band, not a forecast, over the split-" <>
+        "adjusted closes in the security's own currency, time min_max, price log_step_v1; " <>
+        "its computation_basis states every rule; null without the view"
     # --- S29 H6 end ---
   }
 

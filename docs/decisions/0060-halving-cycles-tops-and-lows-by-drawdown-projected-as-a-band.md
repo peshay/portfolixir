@@ -456,7 +456,15 @@ none offered.
   every figure, that the parts share their data, and that it returns data,
   never instructions. `portfolixir.securities.dossier` gains a `cycles`
   line (the next low and next top bands with their states, about 40 tokens)
-  for a security that has the view.
+  for a security that has the view. *Precision of 2026-11-13:* the line's
+  computation basis is the dossier's `parts.cycles`, in the same payload:
+  it names the read the line comes from, says it is an analog band and not
+  a forecast, over the split-adjusted closes in the security's own
+  currency, with time `min_max` and price `log_step_v1`, and that the
+  read's `computation_basis` states every rule. *Why there and not in the
+  line:* the line's 40 tokens are its budget, and the dossier names each
+  part's read in `parts` already; the closing act's analytics lens on Lane
+  H found the line without any basis.
 - **Screen, on the security chart** (board 01, A, as adopted): a toggle
   **"Zyklen"**, shown only where §1's view exists, with two modes:
   **"Zeitachse"** (halvings as vertical lines, the next one as a dashed
