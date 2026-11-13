@@ -359,7 +359,8 @@ describe("the companion's published tool surface", () => {
   //   idempotentHint and openWorldHint, none left unset.
   // - The hints follow the HTTP method the tool routes to: GET reads, POST
   //   adds, PUT, PATCH and DELETE overwrite or remove; the only exceptions are
-  //   named (two POST-routed computations read; three provider calls are open-world).
+  //   named (two POST-routed computations read; six tools that reach past the
+  //   instance, OPEN_WORLD's, are open-world).
   // - The append-only writes are non-destructive and their descriptions state
   //   that what they add is permanent; a new policy-rule version, which
   //   closes and replaces versions, is destructive and not idempotent (H13).

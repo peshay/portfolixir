@@ -111,7 +111,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "the calling token: portfolixir.securities.logo_put (PUT " <>
               "/api/v1/securities/:security_id/logo with {logo: {url}}; its schema takes an " <>
               "https url, and the API takes https and a public address only, as before), " <>
-              "portfolixir.securities.logo_discover (POST .../logo/discover) and " <>
+              "portfolixir.securities.logo_discover (POST .../logo/discover; a locked logo, or a " <>
+              "security no discovery source covers, answers result no_source) and " <>
               "portfolixir.securities.logo_delete (DELETE .../logo). The two that make the " <>
               "server fetch carry openWorldHint; put and discover are in the book and full " <>
               "profiles, and the delete, which deletes the stored image, is admin: the full " <>

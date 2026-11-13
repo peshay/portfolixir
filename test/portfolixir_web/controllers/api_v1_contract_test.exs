@@ -158,6 +158,11 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     refute Enum.any?(newest["endpoints"], &(&1 =~ "/logo")), "D3 adds no endpoint"
     assert newest["summary"] =~ "https and a public address only"
     assert newest["summary"] =~ "the full profile alone"
+    # PR 2 closing act: discover answers no_source for a locked logo and for
+    # a security no discovery source covers, as the companion says.
+    assert newest["summary"] =~
+             "a locked logo, or a security no discovery source covers, answers result no_source"
+
     # --- S29 D3 end ---
 
     # Sprint 28's sprint PR (version 28), found by version from Sprint 29 on.
