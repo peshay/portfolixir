@@ -150,6 +150,13 @@ defmodule Portfolixir.News.SchedulerTest do
                "#{class}, item at +#{offset} min: visible at #{visible_at}, after #{deadline}"
 
         assert [%{first_seen_at: ^visible_at}] = items(feed)
+
+        # Closing act (flaky): each tick fetches this case's feed alone. The
+        # feeds of the cases before it fell due again with it, and their
+        # fetch tasks queued on this test's one sandbox connection; one that
+        # held it past the queue's poll (a lock another test held, or load)
+        # had the others dropped, each logging `fetch_failed`.
+        Repo.update_all(from(f in Feed, where: f.id == ^feed.id), set: [enabled: false])
       end
     end
   end

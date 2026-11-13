@@ -426,16 +426,22 @@ defmodule Portfolixir.News.IngestTest do
     # under a unique domain, held uncommitted until a test's sandbox rolls
     # back, so an async test rating the same domain waited for this one to
     # end (and this one for it), and failed under load.
+    # Closing act (flaky): its own also against every fetch. A rating holds
+    # its domain's tier lock exclusive until the test ends (N1, E1), and a
+    # fetch storing an item of that domain waits for it on its test's one
+    # connection; `newsroom.example.com`, rated here once, is the fixtures'
+    # host, so the scheduler test's fetch stalled on it, and a second fetch
+    # task of that test was dropped from the connection's queue.
     test "a blocked domain's items are dropped and counted, the rest rated" do
       rate!("spam.ingest.example.net", :blocked)
-      rate!("newsroom.example.com", :primary)
+      rate!("newsroom.ingest.example.com", :primary)
       rate!("wire.ingest.example.com", :secondary)
       feed = feed!(%{class: "aggregator", url: "https://search.example.com/rss?q=t"})
 
       batch = [
         agg(1, "Item from a blocked domain", "spam.ingest.example.net"),
         agg(2, "Item from a blocked subdomain", "eu.spam.ingest.example.net"),
-        agg(3, "Item naming a primary domain", "newsroom.example.com"),
+        agg(3, "Item naming a primary domain", "newsroom.ingest.example.com"),
         agg(4, "Item from a secondary domain", "wire.ingest.example.com"),
         agg(5, "Item from an unrated domain", "blog.example.org")
       ]
@@ -443,7 +449,7 @@ defmodule Portfolixir.News.IngestTest do
       assert {:ok, %{stored: 3, dropped_blocked: 2}} = Ingest.ingest(feed, batch, @now)
 
       assert Enum.map(items(feed), &{&1.domain, &1.tier}) == [
-               {"newsroom.example.com", :secondary},
+               {"newsroom.ingest.example.com", :secondary},
                {"wire.ingest.example.com", :secondary},
                {"blog.example.org", :awareness}
              ]
@@ -452,14 +458,17 @@ defmodule Portfolixir.News.IngestTest do
     end
 
     test "an issuer item is primary on any unblocked domain, and dropped on a blocked one" do
-      rate!("newsroom.example.com", :awareness)
+      rate!("newsroom.ingest.example.com", :awareness)
       rate!("mirror.example.net", :blocked)
       feed = feed!(%{class: "issuer", security_id: security!().id})
 
-      batch = [parsed(1), parsed(2, %{link: "https://mirror.example.net/news/2"})]
+      batch = [
+        parsed(1, %{link: "https://newsroom.ingest.example.com/news/1"}),
+        parsed(2, %{link: "https://mirror.example.net/news/2"})
+      ]
 
       assert {:ok, %{stored: 1, dropped_blocked: 1}} = Ingest.ingest(feed, batch, @now)
-      assert [%{tier: :primary, domain: "newsroom.example.com"}] = items(feed)
+      assert [%{tier: :primary, domain: "newsroom.ingest.example.com"}] = items(feed)
     end
   end
 

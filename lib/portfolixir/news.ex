@@ -283,8 +283,19 @@ defmodule Portfolixir.News do
   defp item_id(id) when is_integer(id), do: id
 
   # The matcher's advisory lock (ORD5), distinct from the app's others: every
-  # match and re-match runs under it, one at a time.
+  # match and re-match runs under it, one at a time. Of the two-key form: the
+  # second key is 0, one lock for the whole database, unless the transaction
+  # has set `portfolixir.matcher_lock_scope`, which only the test sandbox does.
+  # A sandboxed test never commits, so it held the one lock until it ended,
+  # and every other async test that matched an item, re-rated one or changed
+  # a news identity waited for it, on the one connection its tasks share
+  # (closing act, flaky; as #1018 found for the ISIN lock).
   @matcher_lock 727_227_006
+  @matcher_lock_sql """
+  SELECT pg_advisory_xact_lock($1,
+    coalesce(nullif(current_setting('portfolixir.matcher_lock_scope', true), '')::integer, 0))
+    /* news matcher */
+  """
 
   # --- S29 N1 begin ---
   @doc """
@@ -297,14 +308,14 @@ defmodule Portfolixir.News do
   """
   @spec lock_matcher() :: :ok
   def lock_matcher do
-    Repo.query!("SELECT pg_advisory_xact_lock($1)", [@matcher_lock])
+    Repo.query!(@matcher_lock_sql, [@matcher_lock])
     :ok
   end
 
   # --- S29 N1 end ---
 
   defp assign_locked(ids, now) do
-    Repo.query!("SELECT pg_advisory_xact_lock($1)", [@matcher_lock])
+    Repo.query!(@matcher_lock_sql, [@matcher_lock])
 
     items =
       Repo.all(
@@ -964,7 +975,7 @@ defmodule Portfolixir.News do
   end
 
   defp lock_for_assign(read, held) do
-    Repo.query!("SELECT pg_advisory_xact_lock($1)", [@matcher_lock])
+    Repo.query!(@matcher_lock_sql, [@matcher_lock])
     :ok = lock_scope_of(read)
 
     case lock_item(read.id) do

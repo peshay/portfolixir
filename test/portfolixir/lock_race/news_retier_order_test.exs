@@ -159,7 +159,9 @@ defmodule Portfolixir.LockRace.NewsRetierOrderTest do
     end
   end
 
-  defp matcher_lock?(%{query: "SELECT pg_advisory_xact_lock($1)"}), do: true
+  defp matcher_lock?(%{query: query}) when is_binary(query),
+    do: String.contains?(query, "/* news matcher */")
+
   defp matcher_lock?(_metadata), do: false
 
   # User story (ADR-0056 E1, "a fetch storing items while a rating is

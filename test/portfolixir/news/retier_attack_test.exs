@@ -367,7 +367,8 @@ defmodule Portfolixir.News.RetierAttackTest do
           handler,
           [:portfolixir, :repo, :query],
           fn _event, _measurements, metadata, _config ->
-            if self() == test and metadata[:query] == "SELECT pg_advisory_xact_lock($1)" do
+            if self() == test and is_binary(metadata[:query]) and
+                 String.contains?(metadata[:query], "/* news matcher */") do
               case Agent.get_and_update(agent, fn
                      {[lang | rest], seen} -> {lang, {rest, seen + 1}}
                      {[], seen} -> {nil, {[], seen + 1}}
