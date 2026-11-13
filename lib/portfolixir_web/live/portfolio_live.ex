@@ -2259,8 +2259,17 @@ defmodule PortfolixirWeb.PortfolioLive do
                    request — a plain GET form the BenchmarkScope plug
                    remembers in the session and a cookie, like the active
                    view. Up to two, the same disclosure the custom range
-                   uses ({components.period-control}). --%>
-              <details class="period-disclosure" data-role="benchmark-picker">
+                   uses ({components.period-control}). LiveView removes
+                   every attribute the server did not render, `open`
+                   included, so a picker opened while the page's loads ran
+                   folded shut when they landed; the shell's
+                   `DisclosureState` hook restores it after each patch. --%>
+              <details
+                id="benchmark-picker"
+                class="period-disclosure"
+                data-role="benchmark-picker"
+                phx-hook="DisclosureState"
+              >
                 <summary class="disclosure-summary">
                   <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
                   <%= gettext("Benchmark…") %>

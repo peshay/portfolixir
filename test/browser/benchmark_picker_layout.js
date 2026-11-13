@@ -8,13 +8,26 @@
 // between a label and its own options, so a label starts its group instead
 // of reading as the last line of the group before it.
 //
+// The picker is opened while the page's loads are still in flight, by a
+// click on its summary that lands the moment the first load arrives, in
+// the same task, just before LiveView applies it: the walk holds the
+// LiveView's messages after its join at the socket, arms the click, then
+// lets them land. LiveView removes every attribute the server did not
+// render, `open` included. CI's browser job caught it on 651850e as a
+// timeout, when the walk's own open raced the loads on a slow runner: a
+// picker without a hook folded shut when they landed, and one whose hook
+// learnt the open state only from the `toggle` event (dispatched later, in
+// a task of its own) folded shut when a load landed between the click and
+// that event. Holding the loads and placing the click makes the case
+// happen on every run instead of on a slow one.
+//
 // Prints one JSON object on stdout: {"ok": true} or {"ok": false, "error":
 // "...", "seen": {...}}; the exit status is 0 either way unless the browser
 // itself fails.
 "use strict";
 
 const { launchChromium } = require("./launch");
-const { visit, leave } = require("./settle");
+const { settle, visit, leave } = require("./settle");
 
 const args = JSON.parse(process.argv[2]);
 
@@ -70,6 +83,54 @@ function check(seen, width) {
   return errors;
 }
 
+// Holds every message the page's LiveView gets after its join reply until
+// `release()`, in order, so the walk acts on a connected page whose loads
+// have not landed. The Phoenix heartbeat ("phoenix" topic) passes; a load
+// that reaches the socket after `release()` passes at once.
+async function holdLoads(page) {
+  const held = [];
+  let joined = false;
+  let holding = true;
+  let toPage = null;
+  await page.routeWebSocket(/\/live\/websocket/, (ws) => {
+    toPage = ws;
+    const server = ws.connectToServer();
+    server.onMessage((message) => {
+      let topic = null;
+      let event = null;
+      if (typeof message === "string") [, , topic, event] = JSON.parse(message);
+      if (holding && joined && topic !== "phoenix") return held.push(message);
+      if (event === "phx_reply" && typeof topic === "string" && topic.startsWith("lv:")) joined = true;
+      ws.send(message);
+    });
+  });
+  return {
+    release() {
+      holding = false;
+      for (const message of held.splice(0)) toPage.send(message);
+    }
+  };
+}
+
+// Runs in the page: the next LiveView message that carries a load (a
+// `diff`) first clicks the picker's summary, then reaches LiveView, so the
+// picker opens and the load's patch lands in one task, before the click's
+// `toggle` event. Phoenix's transport hands each message to
+// `socket.onConnMessage`, looked up at each call.
+function clickBeforeNextLoad() {
+  const socket = window.liveSocket.socket;
+  const receive = socket.onConnMessage;
+  socket.onConnMessage = function (event) {
+    const [, , topic, kind] = typeof event.data === "string" ? JSON.parse(event.data) : [];
+    if (typeof topic === "string" && topic.startsWith("lv:") && kind === "diff") {
+      socket.onConnMessage = receive;
+      document.querySelector("[data-role=benchmark-picker] > summary").click();
+      window.__pickerClicked = true;
+    }
+    return receive.call(this, event);
+  };
+}
+
 async function run(browser) {
   const errors = [];
   const seenAll = {};
@@ -82,16 +143,25 @@ async function run(browser) {
       locale: "de-DE"
     });
     const page = await context.newPage();
+    const loads = await holdLoads(page);
     await visit(page, args.url);
     await page.waitForSelector("[data-phx-main].phx-connected");
-    await page.evaluate(() => {
-      const picker = document.querySelector("[data-role=benchmark-picker]");
-      if (picker) picker.open = true;
-    });
-    await page.waitForSelector("[data-role=benchmark-groups]", { state: "visible" });
-    const seen = await measure(page);
-    seenAll[width] = seen;
-    errors.push(...check(seen, width));
+    await page.evaluate(clickBeforeNextLoad);
+    loads.release();
+    const settled = await settle(page);
+    const { open, clicked } = await page.$eval("[data-role=benchmark-picker]", (picker) => ({
+      open: picker.open,
+      clicked: window.__pickerClicked === true
+    }));
+    if (!clicked) errors.push(width + " px: no load landed as the picker opened, so the case is not measured");
+    if (!settled.settled) errors.push(width + " px: the page did not settle (" + settled.pending.join(", ") + ")");
+    if (!open) {
+      errors.push(width + " px: the picker closed when the page's loads landed");
+    } else {
+      const seen = await measure(page);
+      seenAll[width] = seen;
+      errors.push(...check(seen, width));
+    }
     await leave(context);
   }
   return { errors, seen: seenAll };
