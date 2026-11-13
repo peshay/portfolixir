@@ -61,6 +61,9 @@ defmodule PortfolixirWeb.Browser.CrashSectionLayoutTest do
   #   stays one line at 1200 px; the rebounders' six columns fit the
   #   section; the windows table's actions are inside it; and at 390 px
   #   the dashed lines never cross the name line of a two-line row.
+  # - PR 2's closing act (board 06 ⑫): a manual window of a short name, as
+  #   the review seed's „Synthetic dip · … · manuell“, reads whole in the
+  #   select at 1200 px.
   test "the Crashes section at 1200 and 390 px", %{base_url: base_url} do
     world = base_world()
     index = create_security!(name: "Synthetic Crash Index", ticker: "SCI")
@@ -95,6 +98,13 @@ defmodule PortfolixirWeb.Browser.CrashSectionLayoutTest do
         "name" => "Synthetic war leg drawn by hand over a long stretch of the bear market",
         "start" => "2022-02-23",
         "trough" => "2022-03-07"
+      })
+
+    {:ok, _short} =
+      Crashes.create_manual_window(Actor.owner_ui(), %{
+        "name" => "Synthetic dip",
+        "start" => "2022-08-15",
+        "trough" => "2022-08-29"
       })
 
     deposit!(world, "10000", ~D[2021-05-04])

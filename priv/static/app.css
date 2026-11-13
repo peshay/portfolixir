@@ -13462,10 +13462,12 @@ dialog.merge-dialog {
    select's own content when the bar sizes its controls, so the select's
    form took the longest option's width and the bar wrapped (the closing
    act; board 01 ① P2). Under 560 px the select may take the section's
-   width (below). */
+   width (below). 20.5rem since PR 2's closing act (board 06 ⑫): at 19.5rem
+   a manual window of a short name lost its kind („… · manue“, 325 px
+   needed); the line stays one line at 1200 px. */
 .crash-bar select {
   width: auto;
-  max-width: 19.5rem;
+  max-width: 20.5rem;
 }
 .crash-window {
   display: flex;

@@ -483,7 +483,8 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   # one line while it fits, the label column from 900 px of the bar, labels
   # above at 330 px. The fold is the Lane L walk's measure: with the
   # window's select at its 19.5rem cap the line wraps up to an 877 px bar
-  # (German), and the bar is 924 px at a 1200 px window, one line there.
+  # (German), 16 px more at its 20.5rem cap since PR 2's closing act (board
+  # 06 ⑫), and the bar is 924 px at a 1200 px window, one line there.
   defp bar(assigns) do
     ~H"""
     <ControlBar.bar class="crash-bar" fold={900} data-role="crash-bar">

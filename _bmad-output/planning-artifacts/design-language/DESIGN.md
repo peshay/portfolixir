@@ -9934,7 +9934,7 @@ family of several lines keeps its label on its first line.
 | Transaktionen, the chip row (board 06 ④) | `live/transaction_management_live.ex` | always, 330 | Konto, Typ, Geändert seit; the phone's filter sheet unchanged |
 | Prognosen, author and model | `live/predictions_live.ex` | always, 330 | Autor, Modell (when a model is recorded) |
 | Allokation, the drift filter | `live/portfolio_live.ex` | always, 330 | „Abweichung ab“, beside „Alles ausklappen“ |
-| Risiko, Crashes (Sprint 29 C6, on the component since Lane L's integration) | `live/risk/crash_section.ex` | 900, 330 (the walk measured the line wrapping up to an 877 px bar, the window's select at its 19.5rem cap; one line at a 1200 px window, a 924 px bar) | Fenster (select), Liste, Wertpapiere |
+| Risiko, Crashes (Sprint 29 C6, on the component since Lane L's integration) | `live/risk/crash_section.ex` | 900, 330 (the walk measured the line wrapping up to an 877 px bar, the window's select at its 19.5rem cap, 16 px more at its 20.5rem cap since PR 2's closing act; one line at a 1200 px window, a 924 px bar) | Fenster (select), Liste, Wertpapiere |
 
 The review seed records two predictions, one an agent's with a model, so
 the walk reaches Prognosen' bar; the drift filter shows on the seed's plan
@@ -10563,8 +10563,9 @@ under the figure — and the rebounders' days a third line with their label;
 the column heads leave the layout (kept for screen readers); the axis
 stays under the bars, and the zero and dashed lines stay on the bar's
 line, never across the name above it. The window's select may take the
-section's width here; at full width it is capped at 19.5rem, so the bar
-stays one line. „Im Depot ansehen“ joins the line's flow.
+section's width here; at full width it is capped at 20.5rem (19.5rem
+until PR 2's closing act, which cut a short manual window's kind, board
+06 ⑫), so the bar stays one line. „Im Depot ansehen“ joins the line's flow.
 
 ### The privacy mode
 

@@ -24,7 +24,8 @@ defmodule PortfolixirWeb.ControlBar do
   query in `app.css` (a container query cannot read a variable): `fold`
   560, 760 (the default, the stacked chart's), 840 (the sale's comparison,
   whose line the walk measured wrapping up to 793 px), 900 (the Crashes
-  bar, whose line with its select at its 19.5rem cap wraps up to 877 px)
+  bar, whose line with its select at its 19.5rem cap wraps up to 877 px,
+  16 px more at 20.5rem)
   or 960 px, or
   `:always` for a
   bar whose groups never fit one line (the chip rows); `floor` 330 (the
