@@ -87,5 +87,30 @@ p.mock-note { margin: 0 0 12px; max-width: 130ch; font-size: 13px; color: var(--
   <p class="mock-note">Heute sechs Sätze, 65 Wörter, der längste freie Absatz der App. Neu: die Basis in einer Zeile (in Prozent vom Nennwert, ab heute, ohne Stückzinsen, Gebühren und Steuern); jede Formel und „Berichtet, nicht bewertet.“ als eigene Zeile im ⓘ.</p>
   <div class="mock-row"><figure class="mock-fig"><span class="mock-tag">Heute: 6 Sätze, 65 Wörter</span><div class="mock-frame"><iframe src="frames/06s-anleihe-heute.html" width="520" height="216" title="06s-anleihe-heute.html"></iframe></div></figure><figure class="mock-fig"><span class="mock-tag">Neu: 1 Satz, 15 Wörter; ⓘ geöffnet</span><div class="mock-frame"><iframe src="frames/06t-anleihe-neu.html" width="520" height="300" title="06t-anleihe-neu.html"></iframe></div></figure></div>
 </section>
+
+<section class="mock-board">
+  <div class="mock-pickbar"><p><strong>Nachgetragen im Abschlussakt von PR 2 (Plan Sprint 29, D-8 Punkt 3):</strong> zwei Falze, die Lane L aus der Messung des Rundgangs gesetzt hat, ohne Frame, und wohin das ⓘ einer Basiszeile öffnet. Die Leisten sind das Markup der Komponente, gezeichnet von den Container-Abfragen in app.css bei der genannten Leistenbreite.</p></div>
+  <h2>⑪ „Nach dem Verkauf“ mit Wertpapier: Falz 840 <small>entschieden</small></h2>
+  <p class="mock-note">Mit einer Benchmark braucht die Zeile etwa 790 px (gemessen: Umbruch bis 793 px Leiste). Mit dem Standardfalz 760 bleibt sie darüber eine Zeile und bricht um: die Auswahl rutscht unter „Vergleich“ an die linke Kante, der Schalter beginnt hinter dem Label, zwei Kanten. Gebaut: Falz 840, darunter die Labelspalte (A), darüber eine Zeile; der Boden 560 (B) bleibt.</p>
+  <div class="mock-row"><figure class="mock-fig"><span class="mock-tag">Falz 760: eine Zeile, die umbricht (790 px Leiste)</span><div class="mock-frame"><iframe src="frames/06u-vergleich-falz-760.html" width="870" height="160" title="06u-vergleich-falz-760.html"></iframe></div></figure><figure class="mock-fig"><span class="mock-tag">Falz 840: Labelspalte (A)</span><div class="mock-frame"><iframe src="frames/06v-vergleich-falz-840.html" width="870" height="160" title="06v-vergleich-falz-840.html"></iframe></div></figure></div>
+</section>
+
+<section class="mock-board">
+  <h2>⑫ Vermögen › Risiko, Crashes: Falz 900 und die Breite der Auswahl <small>empfohlen</small></h2>
+  <p class="mock-note">Mit der Auswahl des Fensters an ihrer Obergrenze braucht die Zeile etwa 880 px (gemessen: Umbruch bis 877 px Leiste, deutsch). Gebaut: Falz 900, darunter die Labelspalte (A). Bei 1200 px ist die Leiste 924 px, eine Zeile; dort schnitt die Obergrenze 19,5rem den Namen eines manuellen Fensters ab („… · manue“, 319 px nötig). Neu: 20,5rem; die Zeile bleibt unter 924 px.</p>
+  <div class="mock-row"><figure class="mock-fig"><span class="mock-tag">Falz 760: eine Zeile, die umbricht (870 px Leiste)</span><div class="mock-frame"><iframe src="frames/06w-crashes-falz-760.html" width="954" height="150" title="06w-crashes-falz-760.html"></iframe></div></figure><figure class="mock-fig"><span class="mock-tag">Falz 900: Labelspalte (A)</span><div class="mock-frame"><iframe src="frames/06x-crashes-falz-900.html" width="954" height="189" title="06x-crashes-falz-900.html"></iframe></div></figure><figure class="mock-fig"><span class="mock-tag">1200 px heute: Auswahl bis 19,5rem, „… · manue“</span><div class="mock-frame"><iframe src="frames/06y-crashes-1200-19-5rem.html" width="1008" height="112" title="06y-crashes-1200-19-5rem.html"></iframe></div></figure><figure class="mock-fig"><span class="mock-tag">1200 px neu: bis 20,5rem, „… · manuell“</span><div class="mock-frame"><iframe src="frames/06z-crashes-1200-20-5rem.html" width="1008" height="112" title="06z-crashes-1200-20-5rem.html"></iframe></div></figure></div>
+</section>
+
+<section class="mock-board">
+  <h2>⑬ Das ⓘ einer Basiszeile öffnet unter ihr <small>empfohlen</small></h2>
+  <p class="mock-note">Heute öffnet das ⓘ der sechs Zeilen aus ⑤ bis ⑩ nach oben, wie jedes ⓘ, und legt sich über den Satz, zu dem es gehört (390 px; Nachrichten auch bei 1200 px über die Tab-Leiste). Neu, wie ⑤ bis ⑩ es zeichnen: ein ⓘ in einer Basiszeile (.summary-basis, .detail-tab-hint) öffnet darunter, nach oben nur, wenn unten kein Platz ist. Jedes andere ⓘ bleibt, wie es ist.</p>
+  <div class="mock-row"><figure class="mock-fig"><span class="mock-tag">Heute, 390 px: über der eigenen Zeile</span><div class="mock-frame"><iframe src="frames/06za-info-oben.html" width="390" height="295" title="06za-info-oben.html"></iframe></div></figure><figure class="mock-fig"><span class="mock-tag">Neu: unter der Zeile</span><div class="mock-frame"><iframe src="frames/06zb-info-unten.html" width="390" height="344" title="06zb-info-unten.html"></iframe></div></figure></div>
+</section>
+
+<section class="mock-board">
+  <h2>⑭ Vermögen, die Leiste des gestapelten Charts: Boden 340 <small>empfohlen</small></h2>
+  <p class="mock-note">Der breitere Rundgang des Abschlussakts (jede Breite, an der eine Leiste ihren Falz oder Boden kreuzt, ±1 px) fand bei 363 und 364 px Fenster (331 und 332 px Leiste, deutsch) die Ebene 2 px über der Leiste: „Klassifizierung“ und „Gesamt · Kategorien · Wertpapiere“ brauchen in der Labelspalte 334 px. Neu: Boden 340 für diese Leiste, darunter jedes Label über seinem Feld (B); bei 390 px bleibt die Labelspalte (A), bei 320 px B wie bisher.</p>
+  <div class="mock-row"><figure class="mock-fig"><span class="mock-tag">Boden 330: Labelspalte, 2 px über die Leiste</span><div class="mock-frame"><iframe src="frames/06zc-stapel-boden-330.html" width="372" height="143" title="06zc-stapel-boden-330.html"></iframe></div></figure><figure class="mock-fig"><span class="mock-tag">Boden 340: Labels darüber (B)</span><div class="mock-frame"><iframe src="frames/06zd-stapel-boden-340.html" width="372" height="218" title="06zd-stapel-boden-340.html"></iframe></div></figure></div>
+</section>
 </body>
 </html>
