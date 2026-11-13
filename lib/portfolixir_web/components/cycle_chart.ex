@@ -300,9 +300,10 @@ defmodule PortfolixirWeb.Components.CycleChart do
 
   # A refused URL fails the run with `url_not_allowed:<reason>` before any
   # request (ADR-0059 §3, `Portfolixir.Chains.Esplora`); the state row keeps
-  # it as "host: url_not_allowed:reason".
+  # it as "host: url_not_allowed:reason". Anchored on ": url_not_allowed:",
+  # since an IPv6 literal's host has colons of its own ("::1").
   defp refusal(error) when is_binary(error) do
-    case Regex.run(~r/(?:^|; )([^\s:;]+): url_not_allowed:([a-z_]+)/, error) do
+    case Regex.run(~r/(?:^|; )([^\s;]+): url_not_allowed:([a-z_]+)/, error) do
       [_all, host, reason] -> {host, refusal_reason(reason)}
       nil -> nil
     end
