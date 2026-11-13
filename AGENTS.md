@@ -355,5 +355,8 @@ deps.audit` read a live advisory database, so a gate can turn red with nobody
 pushing: that is a new advisory, not a regression. The browser tests need
 `npm ci --prefix test/browser` and that Playwright's Chromium (`npx --prefix
 test/browser playwright install chromium`); a machine with a Chromium of its
-own names it in `PLAYWRIGHT_CHROMIUM_EXECUTABLE`. Install the hooks with
+own names it in `PLAYWRIGHT_CHROMIUM_EXECUTABLE`. They also need the fonts
+Inter and DejaVu Sans, which the layout walks measure every bar in
+(`fonts-inter fonts-dejavu-core` on Debian or Ubuntu, as CI installs them;
+`test/browser/fonts.js` fails a walk without them). Install the hooks with
 `pre-commit install --install-hooks`.
