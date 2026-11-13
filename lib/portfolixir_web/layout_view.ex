@@ -1562,6 +1562,14 @@ defmodule PortfolixirWeb.LayoutView do
                   }
                 });
               },
+              // The browser dispatches `toggle` later, in a task of its
+              // own, so a patch that lands between a click and that event
+              // (a load landing as the operator opens the popover) found
+              // the hook still holding "closed": it reads the state again
+              // just before each patch, as DisclosureState does.
+              beforeUpdate: function () {
+                this.open = this.el.open;
+              },
               updated: function () {
                 if (this.open && !this.el.open) this.el.setAttribute("open", "");
               },

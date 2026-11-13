@@ -19,7 +19,9 @@
 // learnt the open state only from the `toggle` event (dispatched later, in
 // a task of its own) folded shut when a load landed between the click and
 // that event. Holding the loads and placing the click makes the case
-// happen on every run instead of on a slow one.
+// happen on every run instead of on a slow one. The custom range's popover
+// beside the picker ("Custom range…", the PopoverDisclosure hook) is
+// opened under the same race once, at 1200 px.
 //
 // Prints one JSON object on stdout: {"ok": true} or {"ok": false, "error":
 // "...", "seen": {...}}; the exit status is 0 either way unless the browser
@@ -113,57 +115,73 @@ async function holdLoads(page) {
 }
 
 // Runs in the page: the next LiveView message that carries a load (a
-// `diff`) first clicks the picker's summary, then reaches LiveView, so the
-// picker opens and the load's patch lands in one task, before the click's
-// `toggle` event. Phoenix's transport hands each message to
-// `socket.onConnMessage`, looked up at each call.
-function clickBeforeNextLoad() {
+// `diff`) first clicks the summary of the disclosure `selector` names,
+// then reaches LiveView, so the disclosure opens and the load's patch
+// lands in one task, before the click's `toggle` event. Phoenix's
+// transport hands each message to `socket.onConnMessage`, looked up at
+// each call.
+function clickBeforeNextLoad(selector) {
   const socket = window.liveSocket.socket;
   const receive = socket.onConnMessage;
   socket.onConnMessage = function (event) {
     const [, , topic, kind] = typeof event.data === "string" ? JSON.parse(event.data) : [];
     if (typeof topic === "string" && topic.startsWith("lv:") && kind === "diff") {
       socket.onConnMessage = receive;
-      document.querySelector("[data-role=benchmark-picker] > summary").click();
-      window.__pickerClicked = true;
+      document.querySelector(selector + " > summary").click();
+      window.__disclosureClicked = true;
     }
     return receive.call(this, event);
   };
+}
+
+// Opens Holdings at `width` with the disclosure `selector` names clicked
+// as the first load lands, waits until the page settles, and answers the
+// page, its context and the errors so far; `open` says whether the
+// disclosure is still open.
+async function openWhileLoading(browser, width, selector, name) {
+  const phone = width < 600;
+  const context = await browser.newContext({
+    viewport: { width, height: phone ? 844 : 900 },
+    hasTouch: phone,
+    isMobile: phone,
+    locale: "de-DE"
+  });
+  const page = await context.newPage();
+  const loads = await holdLoads(page);
+  await visit(page, args.url);
+  await page.waitForSelector("[data-phx-main].phx-connected");
+  await page.evaluate(clickBeforeNextLoad, selector);
+  loads.release();
+  const settled = await settle(page);
+  const { open, clicked } = await page.$eval(selector, (disclosure) => ({
+    open: disclosure.open,
+    clicked: window.__disclosureClicked === true
+  }));
+  const errors = [];
+  if (!clicked) errors.push(width + " px: no load landed as " + name + " opened, so the case is not measured");
+  if (!settled.settled) errors.push(width + " px: the page did not settle (" + settled.pending.join(", ") + ")");
+  if (!open) errors.push(width + " px: " + name + " closed when the page's loads landed");
+  return { context, page, open, errors };
 }
 
 async function run(browser) {
   const errors = [];
   const seenAll = {};
   for (const width of [1200, 390]) {
-    const phone = width < 600;
-    const context = await browser.newContext({
-      viewport: { width, height: phone ? 844 : 900 },
-      hasTouch: phone,
-      isMobile: phone,
-      locale: "de-DE"
-    });
-    const page = await context.newPage();
-    const loads = await holdLoads(page);
-    await visit(page, args.url);
-    await page.waitForSelector("[data-phx-main].phx-connected");
-    await page.evaluate(clickBeforeNextLoad);
-    loads.release();
-    const settled = await settle(page);
-    const { open, clicked } = await page.$eval("[data-role=benchmark-picker]", (picker) => ({
-      open: picker.open,
-      clicked: window.__pickerClicked === true
-    }));
-    if (!clicked) errors.push(width + " px: no load landed as the picker opened, so the case is not measured");
-    if (!settled.settled) errors.push(width + " px: the page did not settle (" + settled.pending.join(", ") + ")");
-    if (!open) {
-      errors.push(width + " px: the picker closed when the page's loads landed");
-    } else {
-      const seen = await measure(page);
+    const opened = await openWhileLoading(browser, width, "[data-role=benchmark-picker]", "the picker");
+    errors.push(...opened.errors);
+    if (opened.open) {
+      const seen = await measure(opened.page);
       seenAll[width] = seen;
       errors.push(...check(seen, width));
     }
-    await leave(context);
+    await leave(opened.context);
   }
+  // The custom range's popover beside it (PopoverDisclosure) under the
+  // same race; one width, since only the hook is checked.
+  const range = await openWhileLoading(browser, 1200, "#period-custom", "the custom range's popover");
+  errors.push(...range.errors);
+  await leave(range.context);
   return { errors, seen: seenAll };
 }
 
