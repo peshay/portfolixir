@@ -85,6 +85,9 @@ defmodule PortfolixirWeb.Components.CycleChart do
   attr(:payload, :map, required: true)
   attr(:hosts, :map, default: nil)
   attr(:now, :any, default: nil)
+  # S29 H8: „Jetzt lesen“ for a chain with a source, `%{wait: seconds,
+  # busy?: boolean}`; nil for a chain the app does not read.
+  attr(:read, :map, default: nil)
 
   @doc "The cycle bar (board 07 ③, ⑧): the mode, the line switches, the health line."
   def bar(assigns) do
@@ -122,15 +125,63 @@ defmodule PortfolixirWeb.Components.CycleChart do
           </button>
         </div>
       </div>
-      <.health
-        source={@payload.chain_source}
-        chain={@payload.chain}
-        hosts={@hosts}
-        now={@now || DateTime.utc_now()}
-      />
+      <div class="cycle-bar__health">
+        <.health
+          source={@payload.chain_source}
+          chain={@payload.chain}
+          hosts={@hosts}
+          now={@now || DateTime.utc_now()}
+        />
+        <.read_now :if={@read} wait={@read.wait} busy?={@read.busy?} />
+      </div>
     </div>
     """
   end
+
+  # --- S29 H8 begin ---
+  attr(:wait, :integer, default: 0, doc: "seconds until the chain may be read again")
+  attr(:busy?, :boolean, default: false)
+  attr(:target, :any, default: nil, doc: "the component that handles the click, if any")
+
+  @doc """
+  „Jetzt lesen“ (ADR-0059 §11; board 07 Q5): one on-demand read of the
+  chain (`Portfolixir.Chains.refresh/2`), beside the health line in the
+  cycle bar and in the edit form. While the chain waits for its ten
+  minutes the button is disabled and says when it may read again; while a
+  read runs it says so. The event is `read_chain_now`.
+  """
+  def read_now(assigns) do
+    assigns = assign(assigns, :minutes, div(assigns.wait + 59, 60))
+
+    ~H"""
+    <span class="cycle-read" data-role="chain-read">
+      <button
+        type="button"
+        class="button-ghost cycle-read__button"
+        data-role="chain-read-now"
+        phx-click="read_chain_now"
+        phx-target={@target}
+        disabled={@busy? or @wait > 0}
+      >
+        <%= if @busy?, do: gettext("Reading…"), else: gettext("Read now") %>
+      </button>
+      <span :if={@wait > 0 and not @busy?} class="cycle-read__wait" data-role="chain-read-wait">
+        <%= gettext("read less than 10 minutes ago · again in %{minutes} min", minutes: @minutes) %>
+      </span>
+    </span>
+    """
+  end
+
+  @doc """
+  Whether the chain source's last error is a refused URL (ADR-0059 §3,
+  `url_not_allowed`): the edit form then says that no halving is written
+  and what an own URL must be (board 07 ①, Q4 A).
+  """
+  @spec refused?(map() | nil) :: boolean()
+  def refused?(%{} = source), do: refusal(source[:last_error]) != nil
+  def refused?(_none), do: false
+
+  # --- S29 H8 end ---
 
   defp line_label("top_low"), do: gettext("Top ↔ low")
   defp line_label("top_top"), do: gettext("Top – top")
@@ -490,7 +541,7 @@ defmodule PortfolixirWeb.Components.CycleChart do
         class="cycle-label cycle-label--today"
         x={@marks.today_label.x}
         y={@marks.today_label.y}
-        text-anchor="end"
+        text-anchor="middle"
       >
         <%= pgettext("halving cycles", "today") %>
       </text>
@@ -860,10 +911,15 @@ defmodule PortfolixirWeb.Components.CycleChart do
       else: what <> " · " <> Format.date(date) <> " · " <> price(close, currency)
   end
 
+  # „heute“ on the time axis' own row, under its line, where the first and
+  # the last date leave it room.
   defp today_label(scale) do
-    case today_mark(scale) do
-      nil -> nil
-      today -> %{x: coord(today.x_value - 3), y: coord(scale.y1 - 4)}
+    with %{x_value: x} <- today_mark(scale),
+         fraction = (x - scale.x0) / max(scale.x1 - scale.x0, 1),
+         true <- fraction > 0.12 and fraction < 0.88 do
+      %{x: coord(x), y: coord(scale.y1 + 22)}
+    else
+      _none -> nil
     end
   end
 

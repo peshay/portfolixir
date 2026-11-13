@@ -113,6 +113,27 @@ defmodule Portfolixir.Chains do
     end
   end
 
+  # --- S29 H8 begin ---
+  @doc """
+  The seconds until `chain` (a registry name or atom) may be read on demand
+  at `now`, by the same rule `refresh/2` refuses with: 0 when it is due, and
+  for a chain without a source or a name the registry does not hold. The
+  screen's „Jetzt lesen“ shows it as its wait (ADR-0059 §11; board 07 Q5).
+  """
+  @spec refresh_wait(term(), DateTime.t()) :: non_neg_integer()
+  def refresh_wait(name, %DateTime{} = now \\ DateTime.utc_now()) do
+    with {:ok, chain} <- fetch(name),
+         :ok <- source(chain),
+         {:error, {:too_soon, seconds}} <-
+           due(Reader.state(chain), DateTime.truncate(now, :second)) do
+      seconds
+    else
+      _due_or_none -> 0
+    end
+  end
+
+  # --- S29 H8 end ---
+
   defp fetch(name) do
     case Registry.fetch(name) do
       {:ok, chain} -> {:ok, chain}

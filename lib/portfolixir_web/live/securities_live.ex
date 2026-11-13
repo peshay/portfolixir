@@ -2,6 +2,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   use PortfolixirWeb, :live_view
 
   require Logger
+  require PortfolixirWeb.CappedAsync
 
   alias Plug.Conn.Query
   alias Portfolixir.Actor
@@ -177,6 +178,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      # S29 H8: the axis' own ends on the range „Zyklus“, nil on every other.
      |> assign(:detail_axis, nil)
      |> assign(:cycle_range, @cycle_range)
+     |> assign(:detail_chain_read, nil)
      |> assign(:detail_quotes, [])
      # T-9 (Sprint 17 V2, G3-A): the selected security's manual quotes over
      # its whole history, whether the sync can refill a released day, the
@@ -1480,6 +1482,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             lines={@detail_cycle_lines}
             payload={@detail_cycles}
             hosts={@detail_chain_hosts}
+            read={@detail_chain_read}
           />
 
           <% chart_overlays =
@@ -6199,6 +6202,24 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   def handle_event("set_detail_cycles_mode", _params, socket), do: {:noreply, socket}
 
+  # S29 H8 (ADR-0059 §11; board 07 Q5): „Jetzt lesen“ in the cycle bar, one
+  # on-demand read of the selected security's chain, outside the page's
+  # process (it asks a host). Its answer reloads the cycles, so the health
+  # line shows the result; a read sooner than ten minutes shows the wait.
+  def handle_event("read_chain_now", _params, socket) do
+    case socket.assigns do
+      %{selected_security: %Security{halving_chain: chain}, detail_chain_read: %{busy?: false}}
+      when not is_nil(chain) ->
+        {:noreply,
+         socket
+         |> update(:detail_chain_read, &%{&1 | busy?: true})
+         |> CappedAsync.start_async(:chain_read, fn -> Chains.refresh(chain) end)}
+
+      _no_read ->
+        {:noreply, socket}
+    end
+  end
+
   def handle_event("toggle_detail_cycle_line", %{"line" => line}, socket) do
     if line in CycleChart.lines(),
       do:
@@ -6831,6 +6852,30 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> load_securities()}
   end
 
+  # S29 H8 (ADR-0059 §4): a save that unbound or rebound the security says
+  # how many halving events it deleted with it.
+  def handle_info({:dialog, _id, {:updated, security, deleted}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:dialog_open?, false)
+     |> assign(:editing_security, nil)
+     |> put_action_result(
+       :note,
+       stored_result(
+         gettext("Updated %{name}", name: StoredText.slot(:name)) <>
+           " · " <>
+           ngettext(
+             "%{count} halving event deleted",
+             "%{count} halving events deleted",
+             deleted
+           ),
+         security.name
+       )
+     )
+     |> load_securities()
+     |> refresh_selected(security)}
+  end
+
   def handle_info({:dialog, _id, {:updated, security}}, socket) do
     {:noreply,
      socket
@@ -7092,6 +7137,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   # --- S29 H8 begin ---
+  @impl true
+  def handle_async(:chain_read, {:ok, {:error, {:too_soon, seconds}}}, socket),
+    do: {:noreply, assign(socket, :detail_chain_read, %{wait: seconds, busy?: false})}
+
+  def handle_async(:chain_read, {:ok, _answer}, socket), do: {:noreply, load_detail_data(socket)}
+
+  def handle_async(:chain_read, {:exit, _reason}, socket),
+    do: {:noreply, update(socket, :detail_chain_read, &(&1 && %{&1 | busy?: false}))}
+
   # ADR-0060 §11: without the view there is no „Zyklen“ and no „Zyklus“:
   # the toggle goes off and the range returns to the default.
   defp keep_cycle_range(socket) do
@@ -7124,15 +7178,23 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # aligned windows included (the mode switches without a reload), through
   # the context the API reads; a security bound to none reads nothing.
   defp load_cycles(%{assigns: %{selected_security: %Security{halving_chain: nil}}} = socket),
-    do: assign(socket, detail_cycles: nil, detail_chain_hosts: nil)
+    do: assign(socket, detail_cycles: nil, detail_chain_hosts: nil, detail_chain_read: nil)
 
   defp load_cycles(%{assigns: %{selected_security: %Security{} = security}} = socket) do
     {:ok, payload} = SecurityCycles.for_security(security.id, include: :aligned)
 
     assign(socket,
       detail_cycles: payload,
-      detail_chain_hosts: Chains.source_hosts(security.halving_chain)
+      detail_chain_hosts: Chains.source_hosts(security.halving_chain),
+      detail_chain_read: chain_read(security.halving_chain)
     )
+  end
+
+  # S29 H8 (ADR-0059 §11, board 07 Q5): „Jetzt lesen“ for a chain the app
+  # reads, with the seconds it still waits; nil for one it does not.
+  defp chain_read(chain) do
+    if Chains.source_hosts(chain),
+      do: %{wait: Chains.refresh_wait(chain), busy?: false}
   end
 
   # --- S29 H7 end ---

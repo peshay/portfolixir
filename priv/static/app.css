@@ -14209,4 +14209,66 @@ dialog.merge-dialog {
     padding-left: calc(8rem + var(--space-3));
   }
 }
+/* „Halving-Kette“ in the edit dialog (board 07 ①, ②): its own block below
+   the master data, the select at a field's width, the help and the count
+   as quiet lines, the health line with „Jetzt lesen“ at its end, and the
+   question before halving events are deleted as the dialog's warning. */
+.halving-chain-fieldset {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+.halving-chain-fieldset > label {
+  max-width: 22rem;
+}
+.halving-chain-fieldset .form-help {
+  margin: 0;
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+.halving-chain-fieldset .form-help[data-role="halving-chain-refused"] {
+  color: var(--color-text);
+}
+.halving-chain__warning ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+.halving-chain__warning p {
+  margin: 0;
+}
+/* The health line and „Jetzt lesen“ on one line, the button at its end;
+   on a phone the line wraps and the button follows it. */
+.cycle-bar__health,
+.halving-chain__health {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+}
+.cycle-bar__health .cycle-health,
+.halving-chain__health .cycle-health {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.cycle-read {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+}
+.cycle-read__button {
+  padding: 2px 10px;
+  font-size: 0.8rem;
+}
+.cycle-read__wait {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
 /* --- S29 H8 end --- */
