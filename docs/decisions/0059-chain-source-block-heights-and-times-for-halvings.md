@@ -203,7 +203,10 @@ which only a write turns into a binding).
   the answer. The screen asks first when there are any. *Why:* a halving
   event is a fact about the security *as bound to that chain*, so without
   the binding it is a wrong fact. The journal keeps every deleted row.
-- A merged-away security cannot be bound (422 naming `merged_into`).
+- A merged-away security cannot be bound (404 naming `merged_into`).
+  *Precision of 2026-11-13:* this said 422. The build answers 404 with
+  `merged_into`, as every write to a merged-away id answers (ADR-0050 §12),
+  and the record follows it: a merged-away security is gone, not invalid.
 
 ### 5. Past halvings: read from the chain, confirmed, `primary`
 
@@ -275,7 +278,12 @@ alone, and the top band's time from that one day).
 - When the tip reaches *H*, the same row becomes §5's unconfirmed block
   date and then the confirmed fact, and the reader creates the estimate for
   *H* + 210,000. A bound security therefore always has exactly one
-  unconfirmed `halving` event.
+  unconfirmed `halving` event, **except for about 50 minutes per halving**
+  (precision of 2026-11-13): from the run that reads a tip at *H* until
+  the tip is at *H* + 5, the halving at *H* is §5's unconfirmed block date
+  and the estimate for *H* + 210,000 already exists, so there are two. The
+  next halving is the first unconfirmed one above the confirmed ones
+  (ADR-0060's read), which is *H* until it is confirmed.
 - **Why the estimate is stored, though ADR-0004 stores nothing derived:**
   its inputs are acquired data that nothing else in the app keeps, so it
   cannot be recomputed from the ledger or the stored series at read. It
