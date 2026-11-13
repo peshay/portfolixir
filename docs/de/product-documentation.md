@@ -4947,7 +4947,9 @@ Wertpapiere, deren Kurse nicht zu ihren Buchungen passen"), und verlinkt auf
 *Kurs passt nicht zu Buchungen* stehen; ohne den Chip *Im Bestand* hält
 die Liste auch die verkauften — dorthin verlinkt das „(im Katalog n)" der
 Zeile, wo beide Zahlen abweichen (Issue #1417) —, und die Seite eines
-verkauften trägt denselben Hinweis wie die eines gehaltenen. Vermögen → Bestände nennt jede
+verkauften trägt den Hinweis ebenso: Er sagt, dass der Vergleich nach dem
+Verkauf und die Renditen über die Haltedauer falsch sind, wo der eines
+gehaltenen Wert oder Einstand nennt. Vermögen → Bestände nennt jede
 Position seines Bereichs mit der Buchung und dem Kurs ihres Tages und
 verlinkt auf den Tab **Kurse** des Wertpapiers. Der Agent liest dieselbe
 Menge, mit der Buchung, der jedes Wertpapier widerspricht, ob es gehalten
