@@ -8132,6 +8132,11 @@ page lands.
   render, so an observer puts the measured placement back while the panel
   is open. Measured at 390 px on the review seed: Cash flow's Trades and
   Flows panels open below and end at x = 374, 16 px inside the screen.
+  *Amended in Sprint 29's PR 2 closing act (board
+  ux-design-2026-11-12-sprint29/06 ⑬):* a section's ⓘ on its basis line
+  (`.summary-basis`, `.detail-tab-hint`) opens **below** its line, so it
+  never covers the sentence it belongs to, and above only where the window
+  (or the box that clips it) has no room below.
 - **⑧ Escape closes an ⓘ** (#1342, no picture): one capture listener on
   the document answers Escape whose target is inside an open
   `details.metric-tooltip`. It closes that ⓘ and returns the focus to its

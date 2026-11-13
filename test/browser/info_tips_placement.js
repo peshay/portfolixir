@@ -106,6 +106,41 @@ async function headingNearTop(browser, path, tip, viewport, label) {
   await leave(page);
 }
 
+// PR 2's closing act (board ux-design-2026-11-12-sprint29/06 ⑬): a
+// section's ⓘ on its basis line (Wealth's positions at 390 px) opens under
+// its line, so it never covers the sentence it explains; where the window
+// has no room under the line, it opens above, as every other ⓘ does.
+async function basisLine(browser) {
+  const tip = "[data-role='positions-basis'] details.metric-tooltip";
+  const lineOf = (page) =>
+    page.evaluate((s) => {
+      const r = document.querySelector(s).closest(".summary-basis").getBoundingClientRect();
+      return { top: r.top, bottom: r.bottom, docBottom: r.bottom + window.scrollY };
+    }, tip);
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await ready(page, "/portfolio");
+  await page.waitForSelector(tip);
+  await page.evaluate((s) => document.querySelector(s).scrollIntoView({ block: "center" }), tip);
+  const open = await openAndMeasure(page, tip);
+  const line = await lineOf(page);
+  check(
+    open.place === "below" && open.panel.top >= line.bottom - 0.5,
+    "Wealth's positions ⓘ at 390: the panel does not open under its line " + JSON.stringify({ open, line })
+  );
+  assertInside("Wealth's positions ⓘ at 390", open);
+  await page.click(tip + " > summary");
+
+  // No room under the line: the window scrolled to end 12 px under it.
+  await page.evaluate((y) => window.scrollTo(0, y), Math.round(line.docBottom + 12 - 844));
+  const above = await openAndMeasure(page, tip);
+  const lineNow = await lineOf(page);
+  check(
+    above.place !== "below" && above.panel.bottom <= lineNow.bottom + 0.5,
+    "Wealth's positions ⓘ without room below: the panel does not open above " + JSON.stringify({ above, lineNow })
+  );
+  await leave(page);
+}
+
 // Every case runs, so a failure names each box an ⓘ leaves.
 (async () => {
   const browser = await launchChromium();
@@ -126,7 +161,8 @@ async function headingNearTop(browser, path, tip, viewport, label) {
         "#policy-rules .section-title details.metric-tooltip",
         { width: 390, height: 844 },
         "Risk's Own rules ⓘ at 390"
-      )
+      ),
+    () => basisLine(browser)
   ];
   const errors = [];
   try {

@@ -1408,7 +1408,8 @@ defmodule PortfolixirWeb.LayoutView do
             // listener on the document, not one hook per ⓘ, so the ~30 call
             // sites need no id. A panel opens upward (the stylesheet's
             // default) unless its top would be above its box (below), then
-            // below (`data-place="below"`); `--tip-shift` moves it so both
+            // below (`data-place="below"`); a section's ⓘ on its basis line
+            // the other way round (below, then upward); `--tip-shift` moves it so both
             // edges stay 1 rem inside the box's width — Cash flow's
             // facet panels started above the page top and ran to x = 586 on
             // a 390 px phone. `toggle` does not bubble, so the listener
@@ -1428,7 +1429,7 @@ defmodule PortfolixirWeb.LayoutView do
             // one.
             var infoTipBox = function (tip) {
               var root = document.documentElement;
-              var box = { top: 0, left: 0, right: root.clientWidth };
+              var box = { top: 0, left: 0, right: root.clientWidth, bottom: root.clientHeight };
               for (var el = tip.parentElement; el && el !== document.body && el !== root; el = el.parentElement) {
                 var style = window.getComputedStyle(el);
                 if (style.overflowX !== "visible" || style.overflowY !== "visible") {
@@ -1436,6 +1437,7 @@ defmodule PortfolixirWeb.LayoutView do
                   box.top = Math.max(box.top, clip.top);
                   box.left = Math.max(box.left, clip.left);
                   box.right = Math.min(box.right, clip.right);
+                  box.bottom = Math.min(box.bottom, clip.bottom);
                 }
               }
               var bar = tip.closest("dialog") ? null : document.querySelector(".topbar");
@@ -1451,10 +1453,28 @@ defmodule PortfolixirWeb.LayoutView do
               if (!panel || !tip.open) return;
               var edge = 16;
               var box = infoTipBox(tip);
-              var rect = panel.getBoundingClientRect();
-              if (rect.top < box.top) {
+              var rect;
+              // A section's ⓘ on its basis line (PR 2's closing act, board
+              // ux-design-2026-11-12-sprint29/06 ⑬) opens under the line,
+              // so it never covers the sentence it belongs to; above it
+              // only where the box has no room below and room above.
+              if (tip.matches(".metric-tooltip--section") && tip.closest(".summary-basis, .detail-tab-hint")) {
                 tip.setAttribute("data-place", "below");
                 rect = panel.getBoundingClientRect();
+                if (rect.bottom > box.bottom) {
+                  tip.removeAttribute("data-place");
+                  rect = panel.getBoundingClientRect();
+                  if (rect.top < box.top) {
+                    tip.setAttribute("data-place", "below");
+                    rect = panel.getBoundingClientRect();
+                  }
+                }
+              } else {
+                rect = panel.getBoundingClientRect();
+                if (rect.top < box.top) {
+                  tip.setAttribute("data-place", "below");
+                  rect = panel.getBoundingClientRect();
+                }
               }
               var shift = 0;
               if (rect.right > box.right - edge) shift = box.right - edge - rect.right;
