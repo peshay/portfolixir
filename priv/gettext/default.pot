@@ -18090,7 +18090,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:711
 #, elixir-autogen, elixir-format
-msgid "For %{chain} the app reads no chain: halvings are written through the API as events of kind halving, by an agent or by you. The app checks the block height against the chain's interval (%{interval} blocks)."
+msgid "For %{chain} the app reads no chain: halvings are written through the API as events of kind halving, by an agent or by hand. The app checks the block height against the chain's interval (%{interval} blocks)."
 msgstr ""
 
 #: lib/portfolixir_web/components/cycle_chart.ex:375

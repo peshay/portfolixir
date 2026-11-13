@@ -18100,8 +18100,8 @@ msgstr "das nächste ≈ %{when}"
 
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:711
 #, elixir-autogen, elixir-format
-msgid "For %{chain} the app reads no chain: halvings are written through the API as events of kind halving, by an agent or by you. The app checks the block height against the chain's interval (%{interval} blocks)."
-msgstr "Für %{chain} liest die App keine Kette: Halvings werden über die API als Ereignisse der Art halving geschrieben, von einem Agenten oder von Ihnen. Die App prüft die Blockhöhe gegen das Intervall der Kette (%{interval} Blöcke)."
+msgid "For %{chain} the app reads no chain: halvings are written through the API as events of kind halving, by an agent or by hand. The app checks the block height against the chain's interval (%{interval} blocks)."
+msgstr "Für %{chain} liest die App keine Kette: Halvings werden über die API als Ereignisse der Art halving geschrieben, von einem Agenten oder von Hand. Die App prüft die Blockhöhe gegen das Intervall der Kette (%{interval} Blöcke)."
 
 #: lib/portfolixir_web/components/cycle_chart.ex:375
 #, elixir-autogen, elixir-format

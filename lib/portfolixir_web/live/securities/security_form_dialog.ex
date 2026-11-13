@@ -709,7 +709,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
             ),
           else:
             gettext(
-              "For %{chain} the app reads no chain: halvings are written through the API as events of kind halving, by an agent or by you. The app checks the block height against the chain's interval (%{interval} blocks).",
+              "For %{chain} the app reads no chain: halvings are written through the API as events of kind halving, by an agent or by hand. The app checks the block height against the chain's interval (%{interval} blocks).",
               chain: CycleChart.chain_name(known),
               interval:
                 known |> Registry.halving_interval() |> Decimal.new() |> Format.plain_decimal(0)
