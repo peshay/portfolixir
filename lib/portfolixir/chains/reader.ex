@@ -26,7 +26,8 @@ defmodule Portfolixir.Chains.Reader do
     * **a past halving** (§5): `timing: exact`, the **UTC date** of the
       block's timestamp, `source_url` `{base}/block/{hash}` of the source
       that answered (`https://{host}/block/{hash}` for the operator's own
-      URL, whose path is never stored), `checked_at` the day it was read, `machine_generated:
+      URL, with its port unless 443 and an IPv6 host bracketed, whose path
+      is never stored), `checked_at` the day it was read, `machine_generated:
       false`; **confirmed and `primary`** once the tip is at least its height
       + 5 (six confirmations) and, for a halving above the last one the
       registry knows (`Registry.known_halving/1`), the run started from a
@@ -365,11 +366,18 @@ defmodule Portfolixir.Chains.Reader do
   # The operator's own URL may carry a key in its path (an instance behind a
   # path-token proxy), so its link names the host alone and never the path
   # (ADR-0059 §3, §5, precision of 2026-11-13, the closing act's security
-  # lens): the path would land in every halving and its journal entry.
-  defp block_url(%{source: :own, host: host}, block),
-    do: "https://" <> host <> "/block/" <> block.hash
+  # lens): the path would land in every halving and its journal entry. The
+  # port stays, as the instance's page lives there, and an IPv6 literal host
+  # is bracketed, so the link is a URL (the re-check).
+  defp block_url(%{source: :own, host: host, base: base}, block),
+    do: "https://" <> authority(host, URI.parse(base).port) <> "/block/" <> block.hash
 
   defp block_url(reading, block), do: reading.base <> "/block/" <> block.hash
+
+  defp authority(host, port) do
+    host = if String.contains?(host, ":"), do: "[" <> host <> "]", else: host
+    if port in [nil, 443], do: host, else: host <> ":" <> Integer.to_string(port)
+  end
 
   # The block's timestamp is UTC; no time zone conversion is ever applied (§5).
   defp utc_date(unix), do: unix |> DateTime.from_unix!() |> DateTime.to_date()

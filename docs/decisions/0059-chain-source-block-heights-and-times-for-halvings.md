@@ -164,7 +164,9 @@ REST API that mempool.space and blockstream.info both serve:
   that takes a key in the path, and §5's link `{base}/block/{hash}` put
   that path into every halving's `source_url` and its journal entry (the
   closing act's security lens on Lane H). A halving read from the own URL
-  therefore links to `https://{host}/block/{hash}`, the host alone; the
+  therefore links to `https://{host}/block/{hash}`, the host alone (with
+  its port when it is not 443, and an IPv6 literal in brackets, so the
+  link reaches the instance and is a URL: the re-check of 2026-11-13); the
   public sources keep their base.
 - **Order:** the primary first, the fallback only when the primary fails
   (§7). The fallback is never asked to confirm what the primary said. *Why:*

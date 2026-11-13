@@ -16,6 +16,7 @@ defmodule Portfolixir.Chains.ReaderOwnUrlTest do
   alias Portfolixir.Catalog
   alias Portfolixir.Chains
   alias Portfolixir.Chains.Esplora
+  alias Portfolixir.Chains.Reader
   alias Portfolixir.Journal.Entry, as: JournalEntry
   alias Portfolixir.Knowledge.SecurityEvent
 
@@ -114,5 +115,66 @@ defmodule Portfolixir.Chains.ReaderOwnUrlTest do
       )
 
     assert event.source_url == "https://mempool.space/api/block/" <> hash(210_000)
+  end
+
+  # The closing act's re-check (S3): the own source's link kept the host
+  # alone, so an instance on another port linked to a page that is not its
+  # own, and an IPv6 literal host made a link that is no URL.
+  #
+  # Acceptance criteria (ADR-0059 §3, §5):
+  # - A port other than 443 stays in the link; 443 is left out.
+  # - An IPv6 literal host is bracketed.
+  # - The path is never in the link.
+  describe "the own source's link" do
+    defp own_reading(base, host) do
+      fn heights_for, _opts ->
+        heights = heights_for.(@tip)
+
+        {:ok,
+         %{
+           source: :own,
+           host: host,
+           base: base,
+           tip: @tip,
+           blocks:
+             Map.new(heights, &{&1, %{height: &1, hash: hash(&1), timestamp: timestamp(&1)}}),
+           genesis_checked: true,
+           attempts: []
+         }}
+      end
+    end
+
+    defp link_of(security, height) do
+      Repo.one!(
+        from(e in SecurityEvent,
+          where: e.security_id == ^security.id and e.chain_height == ^height,
+          select: e.source_url
+        )
+      )
+    end
+
+    test "keeps the port and brackets an IPv6 literal, never the path" do
+      cases = [
+        {"https://node.example.com:8443/#{@secret}/api", "node.example.com",
+         "https://node.example.com:8443/block/"},
+        {"https://node.example.com:443/#{@secret}/api", "node.example.com",
+         "https://node.example.com/block/"},
+        {"https://[2a00:1450:4001:80b::200e]/#{@secret}/api", "2a00:1450:4001:80b::200e",
+         "https://[2a00:1450:4001:80b::200e]/block/"},
+        {"https://[2a00:1450:4001:80b::200e]:8443/#{@secret}/api", "2a00:1450:4001:80b::200e",
+         "https://[2a00:1450:4001:80b::200e]:8443/block/"}
+      ]
+
+      # A fresh security for each case: the earlier ones keep their rows (a
+      # confirmed halving and the day's estimate are not written again).
+      for {base, host, prefix} <- cases do
+        security = bound!()
+        read = own_reading(base, host)
+        assert {:ok, _summary} = Reader.run(:bitcoin, read: read, now: @now)
+
+        assert link_of(security, 210_000) == prefix <> hash(210_000)
+        assert link_of(security, 1_050_000) == prefix <> hash(@tip)
+      end
+    end
   end
 end
