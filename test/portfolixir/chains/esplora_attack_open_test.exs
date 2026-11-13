@@ -121,15 +121,18 @@ defmodule Portfolixir.Chains.EsploraAttackOpenTest do
     end
 
     # The ceiling at 2026-11-12 12:00 UTC: (now − genesis time) / 600 × 1.1,
-    # rounded down: 563,478,295 s / 600 × 1.1 = 1,033,043.5.
+    # rounded down: 563,478,295 s / 600 × 1.1 = 1,033,043.5. It binds where
+    # the other bound is wider: here a stored tip whose block time is the
+    # genesis block's (a first run's lower ceiling, anchored at the fourth
+    # halving, is pinned in esplora_attack_forged_tip_test.exs).
     test "the tip's ceiling is the clock's ten-minute height times 1.1" do
+      opts = [last_tip: 840_000, last_tip_at: DateTime.from_unix!(genesis_time())] ++ no_genesis()
       serve(%{"mempool.space" => {:chain, 1_033_043}})
 
-      assert {:ok, %{source: :mempool, tip: 1_033_043}} =
-               Esplora.read(fn _ -> [] end, no_genesis())
+      assert {:ok, %{source: :mempool, tip: 1_033_043}} = Esplora.read(fn _ -> [] end, opts)
 
       serve(%{"mempool.space" => {:chain, 1_033_044}, "blockstream.info" => {:chain, @tip}})
-      assert {:ok, reading} = Esplora.read(fn _ -> [] end, no_genesis())
+      assert {:ok, reading} = Esplora.read(fn _ -> [] end, opts)
       assert primary_code(reading) == "tip_ahead"
     end
 

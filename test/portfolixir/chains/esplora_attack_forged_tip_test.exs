@@ -44,6 +44,15 @@ defmodule Portfolixir.Chains.EsploraAttackForgedTipTest do
   defp genesis_ceiling(now),
     do: div((DateTime.to_unix(now) - @genesis_time) * 11, 600 * 10)
 
+  # The fourth halving's block, 840,000, mined 2024-04-20 00:09:27 UTC.
+  @fourth_halving_time 1_713_571_767
+
+  # The first run's ceiling (ADR-0059 §7, precision of 2026-11-13, the
+  # re-check): the fourth halving + the seconds since its block / 600 × 1.1
+  # + 36, below the genesis ceiling from 2024 on.
+  defp first_run_ceiling(now),
+    do: 840_000 + div((DateTime.to_unix(now) - @fourth_halving_time) * 11, 600 * 10) + 36
+
   # A forged chain: tip `tip`, every block echoes its height and hash, the
   # tip's time is `now - 60`, tip - 2016 two weeks earlier, everything in
   # bounds and in order; the real genesis hash at 0, synthetic halvings.
@@ -154,7 +163,7 @@ defmodule Portfolixir.Chains.EsploraAttackForgedTipTest do
   # User story (ADR-0059 §7):
   # As the adapter's caller,
   # I want the tip bounded by the stored tip, its block's time and the
-  # clock, with the genesis ceiling kept for a first run,
+  # clock, with a first run bounded from the fourth halving,
   # so that the bound holds from the first answer on.
   #
   # Acceptance criteria:
@@ -163,7 +172,8 @@ defmodule Portfolixir.Chains.EsploraAttackForgedTipTest do
   #   `tip_ahead`.
   # - A stored tip's time after the clock counts no elapsed time: the
   #   bound is the last tip + 36.
-  # - Without a last tip the genesis ceiling alone bounds the tip.
+  # - Without a last tip the lower of the genesis ceiling and the one
+  #   anchored at the fourth halving's block time bounds the tip.
   # - A last tip's time that is not a `DateTime` raises.
   describe "the bound from the stored tip" do
     @now ~U[2026-11-12 12:00:00Z]
@@ -194,8 +204,9 @@ defmodule Portfolixir.Chains.EsploraAttackForgedTipTest do
                read_at(@tip + 37, last_tip: @tip, last_tip_at: last_at)
     end
 
-    test "without a last tip the genesis ceiling alone bounds the tip" do
-      ceiling = genesis_ceiling(@now)
+    test "without a last tip the ceiling anchored at the fourth halving bounds the tip" do
+      ceiling = first_run_ceiling(@now)
+      assert ceiling < genesis_ceiling(@now)
       serve(%{"mempool.space" => forged(ceiling, @now)})
 
       assert {:ok, %{tip: ^ceiling}} =
@@ -211,6 +222,85 @@ defmodule Portfolixir.Chains.EsploraAttackForgedTipTest do
       assert_raise ArgumentError, fn ->
         Esplora.read(fn t -> [t] end, last_tip: @tip, last_tip_at: "2026-11-12", now: @now)
       end
+    end
+  end
+
+  # User story (ADR-0059 §5, §7, precision of 2026-11-13, the re-check):
+  # As the operator whose instance reads the chain for the first time, or
+  # for the first time successfully,
+  # I want a first answer bounded by what the protocol already fixed, and
+  # a halving the registry does not know confirmed only by a later run,
+  # so that a single lying first answer can never confirm a halving.
+  #
+  # Acceptance criteria:
+  # - With no stored tip, a forged tip of 1,050,010 in March 2027 (below
+  #   the genesis ceiling by then) is refused with `tip_ahead`, and nothing
+  #   is written.
+  # - With no stored tip, in April 2028 (the fifth halving's real
+  #   neighbourhood) a forged tip of 1,050,010 passes the ceiling; the
+  #   halving at 1,050,000 lands unconfirmed and `unverified`, the four
+  #   known halvings confirmed. A later run, bounded by the stored tip,
+  #   that reads it again confirms it.
+  # - An honest first run still confirms the four known halvings.
+  describe "a first run" do
+    test "a forged tip in March 2027 is refused by the ceiling anchored at the fourth halving" do
+      security = bound!()
+      at = ~U[2027-03-15 12:00:00Z]
+      forged_tip = 1_050_010
+      assert forged_tip <= genesis_ceiling(at)
+      assert forged_tip > first_run_ceiling(at)
+
+      serve(%{"mempool.space" => forged(forged_tip, at), "blockstream.info" => {:status, 503}})
+
+      {result, _log} = with_log(fn -> Chains.refresh("bitcoin", now: at) end)
+      assert {:ok, %{run: %{status: :failed, error: error}}} = result
+      assert error == "mempool.space: tip_ahead; blockstream.info: http_503"
+
+      assert Repo.all(from(e in SecurityEvent, where: e.security_id == ^security.id)) == []
+      assert Repo.get_by!(ChainRead, chain: "bitcoin").tip_height == nil
+    end
+
+    test "a forged tip in April 2028 lands the fifth halving unconfirmed until a later run" do
+      security = bound!()
+      at = ~U[2028-04-20 12:00:00Z]
+      forged_tip = 1_050_010
+      assert forged_tip <= first_run_ceiling(at)
+
+      serve(%{"mempool.space" => forged(forged_tip, at)})
+      assert {:ok, %{run: %{status: :ok, tip: ^forged_tip}}} = Chains.refresh("bitcoin", now: at)
+
+      fifth = halving(security, 1_050_000)
+      assert {fifth.confirmed, fifth.source_quality} == {false, :unverified}
+      assert fifth.date == ~D[2028-04-20]
+
+      for height <- [210_000, 420_000, 630_000, 840_000] do
+        known = halving(security, height)
+        assert {known.confirmed, known.source_quality} == {true, :primary}
+      end
+
+      later = DateTime.add(at, 6 * 3600)
+      serve(%{"mempool.space" => forged(forged_tip + 30, later)})
+
+      assert {:ok, %{run: %{status: :ok, tip: tip}}} = Chains.refresh("bitcoin", now: later)
+      assert tip == forged_tip + 30
+
+      fifth = halving(security, 1_050_000)
+      assert {fifth.confirmed, fifth.source_quality} == {true, :primary}
+    end
+
+    test "an honest first run still confirms the four known halvings" do
+      security = bound!()
+      serve(%{"mempool.space" => {:chain, @honest}})
+
+      assert {:ok, %{run: %{status: :ok, tip: @honest}}} =
+               Chains.refresh("bitcoin", now: ~U[2026-11-13 12:00:00Z])
+
+      for height <- [210_000, 420_000, 630_000, 840_000] do
+        known = halving(security, height)
+        assert {known.confirmed, known.source_quality, known.timing} == {true, :primary, :exact}
+      end
+
+      assert halving(security, 1_050_000).timing == :window
     end
   end
 end

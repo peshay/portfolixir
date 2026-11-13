@@ -28,8 +28,11 @@ defmodule Portfolixir.Chains.Reader do
       that answered (`https://{host}/block/{hash}` for the operator's own
       URL, whose path is never stored), `checked_at` the day it was read, `machine_generated:
       false`; **confirmed and `primary`** once the tip is at least its height
-      + 5 (six confirmations), otherwise unconfirmed and `unverified`. A row
-      stored as confirmed is never written again;
+      + 5 (six confirmations) and, for a halving above the last one the
+      registry knows (`Registry.known_halving/1`), the run started from a
+      stored tip of an earlier successful run (§7, precision of 2026-11-13,
+      the re-check); otherwise unconfirmed and `unverified`. A row stored
+      as confirmed is never written again;
     * **the next halving** (§6), the first *k* × the interval above the tip:
       an unconfirmed `window`, `unverified`, between the tip's timestamp +
       the remaining blocks × the mean block time of the last 2,016 blocks
@@ -169,6 +172,11 @@ defmodule Portfolixir.Chains.Reader do
 
     case reading do
       {:ok, reading} ->
+        # A stored tip at the run's start came from an earlier successful
+        # run: only then may a halving above the registry's known one be
+        # confirmed (ADR-0059 §5, §7, precision of 2026-11-13, the re-check).
+        reading = Map.put(reading, :earlier_tip?, is_integer(state && state.tip_height))
+
         case store(chain, reading, now, today) do
           {:ok, summary} ->
             {:ok, summary}
@@ -273,11 +281,21 @@ defmodule Portfolixir.Chains.Reader do
         height > 0 and rem(height, interval) == 0,
         security_id <- securities,
         not match?(%SecurityEvent{confirmed: true}, stored[{security_id, height}]),
-        do: {security_id, height, block_attrs(reading, block, today)}
+        do: {security_id, height, block_attrs(chain, reading, block, today)}
   end
 
-  defp block_attrs(reading, block, today) do
-    confirmed? = reading.tip >= block.height + @confirmation_depth
+  # Six confirmations, and for a halving above the last one the registry
+  # knows as confirmed, a stored tip from an earlier successful run: a
+  # single lying first answer, below the first run's ceiling, can then
+  # never confirm a halving; it stays unconfirmed until a later run, bounded
+  # by the stored tip, reads it again (ADR-0059 §7, precision of 2026-11-13,
+  # the re-check).
+  defp block_attrs(chain, reading, block, today) do
+    known = Registry.known_halving(chain)
+
+    confirmed? =
+      reading.tip >= block.height + @confirmation_depth and
+        (reading.earlier_tip? or (known != nil and block.height <= known.height))
 
     %{
       date: utc_date(block.timestamp),

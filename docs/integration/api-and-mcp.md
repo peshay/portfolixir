@@ -1607,14 +1607,17 @@ agent through the event routes.
 a security is bound to Bitcoin (ADR-0059 §10). For each bound security it
 writes each past halving, confirmed once it has six confirmations:
 `confirmed: true`, `timing: exact`, `source_quality: primary`, the UTC date
-of the block, never read again. The next halving is one unconfirmed event with `timing: window`
+of the block, never read again. A halving after the fourth (840,000) is
+confirmed only by a run that has a stored tip from an earlier successful
+one; the first successful run writes it unconfirmed. The next halving is one unconfirmed event with `timing: window`
 from the tip's time plus the remaining blocks at the mean block time of the
 last 2,016 blocks to the same at the ten-minute target, rewritten at most
 once a day. Every answer is checked before anything is written (the tip not
 more than 6 below the last stored one, `tip_behind`; the genesis block once
 a day, `wrong_chain`; the tip between the fourth halving and ten-minute
-spacing since genesis × 1.1, and once a tip is stored not above it + the
-time since its block / 600 × 1.1 + 36, `tip_too_low` and `tip_ahead`; the blocks
+spacing since genesis × 1.1, and not above the stored tip, or before any
+is stored the fourth halving's block, + the time since its block / 600 ×
+1.1 + 36, `tip_too_low` and `tip_ahead`; the blocks
 echoing what was asked, in time order, `blocks_out_of_order`). A refused own
 URL fails with `url_not_allowed` and its reason (`url_not_allowed:scheme`,
 `url_not_allowed:private_address` and the like) and asks no host. When
