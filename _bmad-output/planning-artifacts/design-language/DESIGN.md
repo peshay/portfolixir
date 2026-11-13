@@ -9621,7 +9621,8 @@ and the MCP tools answer, for the section's period and the page's view.
    from one edge (`test/browser/closing_act_layout_test.exs`). *Amended
    2026-11-12 (issue 1435, Sprint 29 L1):* the bar is the shared control
    bar (`PortfolixirWeb.ControlBar.bar/1`, its anatomy under the amendment
-   of 2026-11-08), fold 760 and floor 330, the container `control-bar`; it
+   of 2026-11-08), fold 760 and floor 330 (340 since PR 2's closing act,
+   board 06 ⑭), the container `control-bar`; it
    renders the same elements and lands every label and control on the same
    pixel as before (`stacked_chart_bar_test.exs`,
    `test/browser/control_bar_test.exs`). *Amended
@@ -9906,15 +9907,15 @@ between the markers `control-bar begin` and `control-bar end` in
   wide: one column, every label above its control, both at the bar's left
   edge, 4 px from label to control and 6 px under the control. **B applies
   where the label column and the widest control together do not fit the
-  bar's own width**: the stacked chart's bar below 330 px; a bar whose
+  bar's own width**: the stacked chart's bar below 340 px; a bar whose
   control is full width on the phone (the sale comparison's segmented
   control, board 06 ②) at a wider floor. Where the fold and the floor both
   apply, B wins.
 - **The fold and the floor are named widths**, each a class on the bar with
   one container query (a container query cannot read a variable): the fold
   560, 760 (the default), 840, 900 or 960 px, or always (a chip row whose
-  families never fit one line, board 06 ③ and ④); the floor 330 (the default) or
-  560 px, or always. A bar picks the width at which its groups measured no
+  families never fit one line, board 06 ③ and ④); the floor 330 (the default),
+  340 or 560 px, or always. A bar picks the width at which its groups measured no
   longer fit; a new width is one more rule, which sets the layout's
   variables on the controls.
 
@@ -9926,7 +9927,7 @@ family of several lines keeps its label on its first line.
 
 | Bar | File | Fold, floor | Groups |
 |---|---|---|---|
-| The stacked chart's bar | `live/portfolio/stacked_chart.ex` | 760, 330 | Ebene, Klassifizierung, Sortieren |
+| The stacked chart's bar | `live/portfolio/stacked_chart.ex` | 760, 340 (the floor moved from 330 by PR 2's closing act, whose walk found the German label column and level control needing 334 px; board 06 ⑭) | Ebene, Klassifizierung, Sortieren |
 | The journal (board 06 ①) | `live/journal_live.ex` | always, 330 | Akteur, Vorgang (chips), Art (select, its label now visible), Seit (field), the scenarios checkbox in the control column; one bar where there were two, the form around it |
 | „Nach dem Verkauf“, Vergleich (board 06 ②) | `live/sale_hindsight_section.ex` | 840, 560 (the fold moved from 760 by L3's walk, which measured the line wrapping the benchmark select under the comparison up to a 793 px bar) | Vergleich (segmented), „Fester Zins % p. a.“ (field and Anwenden) or the benchmark select (label hidden) in the control column; labels above below 560 px, where the full-width comparison does not fit beside a label column |
 | Wertpapiere, the chip row (board 06 ③) | `live/securities_live.ex` | always, 330 | Bestand, Datenqualität (both named now), Währung, Anlageklasse, Geändert seit, „Weitere Filter“ in the control column; the phone's filter sheet unchanged |

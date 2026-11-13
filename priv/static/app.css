@@ -6676,6 +6676,20 @@ details[open] > .disclosure-summary .disclosure-chevron {
     --control-bar-control-margin: 6px;
   }
 }
+/* The stacked chart's floor (PR 2's closing act, board 06 ⑭): its German
+   label column and level control need 334 px. */
+@container control-bar (max-width: 340px) {
+  .control-bar--floor-340 > .control-bar__controls {
+    --control-bar-display: grid;
+    --control-bar-columns: minmax(0, 1fr);
+    --control-bar-gap: var(--space-1);
+    --control-bar-width: 100%;
+    --control-bar-group: contents;
+    --control-bar-label-margin: 0;
+    --control-bar-select-width: auto;
+    --control-bar-control-margin: 6px;
+  }
+}
 @container control-bar (max-width: 560px) {
   .control-bar--floor-560 > .control-bar__controls {
     --control-bar-display: grid;
