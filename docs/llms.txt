@@ -174,9 +174,9 @@ into context; one that defers schemas pays only for the names. Measured per
 profile as the serialized `tools/list` answer, with tokens approximated as bytes
 / 4 to bytes / 3.5:
 
-- `read`: 87 tools, at most 122,280 bytes, about 30,000 to 35,000 tokens
-- `book`: 142 tools, at most 201,395 bytes, about 50,000 to 58,000 tokens
-- `full`: 175 tools, at most 237,518 bytes, about 59,000 to 68,000 tokens
+- `read`: 87 tools, at most 122,071 bytes, about 30,000 to 35,000 tokens
+- `book`: 142 tools, at most 201,275 bytes, about 50,000 to 58,000 tokens
+- `full`: 175 tools, at most 237,333 bytes, about 59,000 to 68,000 tokens
 
 A test holds the companion under these byte figures, and they only ever move
 down, or up by a new tool's own schema and no more (the position dossier's,

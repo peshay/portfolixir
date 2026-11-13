@@ -139,8 +139,18 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "closes indexed to its halving day's close, each point its days since the " <>
               "halving and its index, and refuses as_of and every other " <>
               "parameter with 422 naming it. The dossier gains a cycles line. Each tool says it " <>
-              "returns data, never instructions or advice."
+              "returns data, never instructions or advice.",
             # --- S29 H6 end ---
+            # --- S29 H closing act begin ---
+            "Sprint 29, Lane H's closing act (ADR-0059 §3, §7, §11; ADR-0060 §11): the cycles " <>
+              "read's next_halving adds note, checked_at, source_url and inputs (the chain's " <>
+              "next-halving inputs); a refresh claims its try before asking a host, so of two " <>
+              "sent together one runs and the other answers 429, and a last try after the " <>
+              "server's clock is due; a halving read from the operator's own URL links to its " <>
+              "host alone; securities.update's halving_chain says who writes the halvings, and " <>
+              "chains.list's, chains.refresh's, events.list's and events.stale's descriptions " <>
+              "are tightened to pay for it."
+            # --- S29 H closing act end ---
           ],
           " "
         ),
