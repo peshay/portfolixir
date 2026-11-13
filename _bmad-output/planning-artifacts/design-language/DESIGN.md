@@ -9937,7 +9937,7 @@ family of several lines keeps its label on its first line.
 | „Nach dem Verkauf“, Vergleich (board 06 ②) | `live/sale_hindsight_section.ex` | 840, 560 (the fold moved from 760 by L3's walk, which measured the line wrapping the benchmark select under the comparison up to a 793 px bar) | Vergleich (segmented), „Fester Zins % p. a.“ (field and Anwenden) or the benchmark select (label hidden) in the control column; labels above below 560 px, where the full-width comparison does not fit beside a label column |
 | Wertpapiere, the chip row (board 06 ③) | `live/securities_live.ex` | always, 330 | Bestand, Datenqualität (both named now), Währung, Anlageklasse, Geändert seit, „Weitere Filter“ in the control column; the phone's filter sheet unchanged |
 | Transaktionen, the chip row (board 06 ④) | `live/transaction_management_live.ex` | always, 330 | Konto, Typ, Geändert seit; the phone's filter sheet unchanged |
-| Prognosen, author and model | `live/predictions_live.ex` | always, 330 | Autor, Modell (when a model is recorded) |
+| Prognosen, author and model | `live/predictions_live.ex` | always, 330 | Urheber, Modell (when a model is recorded) |
 | Allokation, the drift filter | `live/portfolio_live.ex` | always, 330 | „Abweichung ab“, beside „Alles ausklappen“ |
 | Risiko, Crashes (Sprint 29 C6, on the component since Lane L's integration) | `live/risk/crash_section.ex` | 900, 330 (the walk measured the line wrapping up to an 877 px bar, the window's select at its 19.5rem cap, 16 px more at its 20.5rem cap since PR 2's closing act; one line at a 1200 px window, a 924 px bar) | Fenster (select), Liste, Wertpapiere |
 
