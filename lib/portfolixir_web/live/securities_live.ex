@@ -1560,18 +1560,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </AppShell.section_info>
           </div>
 
-          <%!-- The closing act (board 07 ④, ⑤, ⑨ item 1): the basis under
-               the chart while the bands are drawn on the time axis. --%>
-          <p
+          <%!-- The closing act (board 07 ④, ⑤, ⑨ item 1, ⑩): the basis under
+               the chart while the bands are drawn on the time axis, the
+               method behind its ⓘ. --%>
+          <CycleChart.basis
             :if={cycles? and @detail_cycles_mode == "timeline"}
-            class="detail-tab-hint"
-            data-role="cycle-basis"
-          >
-            <%= CycleChart.basis_text(
-              @detail_cycles,
-              @detail_range == @cycle_range and is_nil(@detail_custom_range)
-            ) %>
-          </p>
+            payload={@detail_cycles}
+            cycle_range?={@detail_range == @cycle_range and is_nil(@detail_custom_range)}
+          />
 
           <%!-- S29 H7 (ADR-0060 §11, §12; board 07 ④, ⑤): under the chart,
                the count line with the interval table, and the disclosure of

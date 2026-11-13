@@ -10877,3 +10877,30 @@ and the question in both themes at 1200 and 390 px.
    to one line, so „Woher“ wraps and the table fits its 954 px frame; a
    part that is absent (it has a reason) carries no „Teil“ or „vorläufig“
    badge.
+
+## Amendment 2026-11-13 — Lane H's open prose on I1's rule *(Sprint 29's sprint PR, L5's walk on Lane H's screens; board `mockups/ux-design-2026-11-12-sprint29/07` ⑩, drawn before the fix)*
+
+Each of Lane H's three free paragraphs keeps one visible sentence of at
+most 25 words, its method behind the section ⓘ at the line's end
+(`AppShell.section_info`, opening under its line as every basis line's ⓘ
+does), so L5's walk passes them:
+
+1. **The basis under the chart** (`div.detail-tab-hint[data-role=
+   cycle-basis]`, `CycleChart.basis/1`, replacing item 1's sentence):
+   „Rechenbasis: gespeicherte Tagesschlusskurse in ‹Währung›, Fenster von
+   Halving zu Halving, Bänder aus den Abständen und Faktoren der
+   gespeicherten Zyklen: keine Prognose.“; behind its ⓘ, on „Zyklus“ the
+   range's sentence first, then the gaps and the halving day's close, the
+   extremes and their anchors, and the band's rule („Hülle der Teile, kein
+   Mittelwert“).
+2. **„Bänder und ihre Teile“** (`[data-role=cycle-bands-basis]`): „Jedes
+   Band: der Bereich, den Abstände und Faktoren der gespeicherten Zyklen
+   von den aktuellen Ankern aus ergeben, mit n und beiden Enden: keine
+   Prognose.“, „Nie ein einzelnes Datum …“ behind its ⓘ.
+3. **„Ausgerichtet“'s line** (`[data-role=cycle-aligned-basis]`): the two
+   axes; which close is the halving day's and that a window without one is
+   left out behind its ⓘ.
+
+The review seed's coin bound to Litecoin (step 24) brings the chart, the
+bands and the card onto the review instance, and the walk opens its chart
+as the card does (`?tab=chart&cycles=1`).

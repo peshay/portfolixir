@@ -168,9 +168,12 @@ async function walk(browser, theme, viewport, privacy, errors) {
       const table = document.querySelector(panel + " table.cycle-bands-table");
       const wrapper = table && table.closest(".data-table-wrapper");
       const basis = document.querySelector(panel + " [data-role='cycle-basis']");
+      // Board 07 ⑩: the visible sentence, the method behind its ⓘ left out.
+      const line = basis && basis.cloneNode(true);
+      if (line) line.querySelectorAll("details").forEach((d) => d.remove());
       return {
         excess: table && wrapper ? table.scrollWidth - wrapper.clientWidth : null,
-        basis: basis && basis.textContent.replace(/\s+/g, " ").trim()
+        basis: line && line.textContent.replace(/\s+/g, " ").trim()
       };
     }, PANEL);
     const where = tag + " " + font.name;

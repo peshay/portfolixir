@@ -586,9 +586,11 @@ later end of the two bands, so it reaches past today: right of the
 the cones into them, and the price line is not continued. Choosing
 **Cycle** turns the **Log scale** on, since the low band lies at a fraction
 of the top's price; the toggle turns it off again. While the bands are
-drawn on the timeline, a line under the chart states their basis (the
-stored closes in the security's currency, the windows, how a top and a low
-are chosen and anchored, the band's rule) and ends "no forecast".
+drawn on the timeline, a line under the chart states their basis in one
+sentence (the stored closes in the security's currency, the windows, where
+the bands come from) ending "not a forecast"; its ⓘ holds the method: on
+**Cycle** the range's dates, the gaps, how a top and a low are chosen and
+anchored, and the band's rule.
 
 **A cycle's top and low.** Between two halvings, the top and the low are
 the peak and the trough of the cycle's **maximum drawdown**, the high from

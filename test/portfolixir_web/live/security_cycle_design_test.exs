@@ -44,43 +44,63 @@ defmodule PortfolixirWeb.SecurityCycleDesignTest do
     y |> Float.parse() |> elem(0)
   end
 
-  # User story (board 07 ④, ⑤ and ⑨ item 1; DESIGN.md H7 item 3):
+  # User story (board 07 ④, ⑤, ⑨ item 1 and ⑩; DESIGN.md H7 item 3 and
+  # I1):
   # As the operator reading the bands on the chart,
-  # I want the basis under the chart while the bands are drawn, ending in
-  # „no forecast“,
+  # I want the basis under the chart while the bands are drawn, one
+  # sentence ending „not a forecast“ with the method behind its ⓘ,
   # so that the sentence is there where the bands are, not in a closed
-  # disclosure.
+  # disclosure, and the screen shows its basis, not a paragraph of method.
   #
   # Acceptance criteria:
-  # - With cycles on, on the time axis, a hint under the chart names the
-  #   basis and ends „no average, no forecast.“; on „Zyklus“ it starts with
-  #   the range's own sentence. None with cycles off or in „Aligned“, which
-  #   has its own.
-  # - The German page says „keine Prognose“ and „Bereich „Zyklus““.
+  # - With cycles on, on the time axis, a line under the chart names the
+  #   basis in one visible sentence of at most 25 words ending „not a
+  #   forecast.“; its ⓘ holds the gaps, the extremes and the band's rule
+  #   („the hull of the parts, no average“), and on „Zyklus“ first the
+  #   range's own sentence. None with cycles off or in „Aligned“, which has
+  #   its own.
+  # - The German line ends „keine Prognose.“, its ⓘ starts with „Bereich
+  #   „Zyklus““.
   test "the basis sentence stands under the chart while the bands are drawn", %{conn: conn} do
     coin = synthetic_cycle_coin!()
     view = open_max(conn, coin)
     refute has_element?(view, "[data-role='cycle-basis']")
 
     cycles_on(view)
-    [basis] = nodes(view, "[data-role='cycle-basis']")
-    assert text(basis) =~ "stored daily closes in USD"
-    assert text(basis) =~ "hull of the parts, no average, no forecast."
-    refute text(basis) =~ "Range"
+    {line, tip} = basis_line(view)
+    assert line =~ ~r/^Basis: stored daily closes in USD, .* not a forecast\.$/
+    assert words(line) <= 25
+    assert tip =~ "the hull of the parts, no average."
+    refute tip =~ "Range"
 
     view |> element("button[phx-value-range='CYCLE']") |> render_click()
-    [basis] = nodes(view, "[data-role='cycle-basis']")
-    assert text(basis) =~ ~r/^Range „Cycle“: three months before the last confirmed halving/
+    {line, tip} = basis_line(view)
+    assert line =~ ~r/not a forecast\.$/
+    assert tip =~ ~r/^Range „Cycle“: three months before the last confirmed halving/
 
     view |> element("#cycle-mode-aligned") |> render_click()
     refute has_element?(view, "[data-role='cycle-basis']")
 
     german = put_preference_cookie(conn, "portfolixir_locale", "de")
     {:ok, view, _html} = live(german, chart_path(coin) <> "&cycles=1")
-    [basis] = nodes(view, "[data-role='cycle-basis']")
-    assert text(basis) =~ "Bereich „Zyklus“"
-    assert text(basis) =~ "keine Prognose."
+    {line, tip} = basis_line(view)
+    assert line =~ ~r/keine Prognose\.$/
+    assert words(line) <= 25
+    assert tip =~ ~r/^Bereich „Zyklus“/
   end
+
+  # The basis line's visible sentence (its text before the ⓘ) and the
+  # method behind its ⓘ.
+  defp basis_line(view) do
+    [basis] = nodes(view, "[data-role='cycle-basis']")
+    [tip] = nodes(view, "[data-role='cycle-basis'] details.metric-tooltip p")
+    [line | _] = basis |> text() |> String.split("ⓘ")
+    {String.trim(line), text(tip)}
+  end
+
+  # Words as L5's walk counts them (test/browser/control_bar.js).
+  defp words(text),
+    do: text |> String.split() |> Enum.count(&Regex.match?(~r/[\p{L}\p{N}]/u, &1))
 
   # User story (board 07 ⑤ and ⑨ item 2):
   # As the operator choosing „Zyklus“,
