@@ -17306,7 +17306,9 @@ msgstr[1] ""
 #: lib/portfolixir_web/live/dashboard_live.ex:652
 #, elixir-autogen, elixir-format
 msgid "%{count} in the catalog"
-msgstr ""
+msgid_plural "%{count} in the catalog"
+msgstr[0] ""
+msgstr[1] ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:1372
 #, elixir-autogen, elixir-format

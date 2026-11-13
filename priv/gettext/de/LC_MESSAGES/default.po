@@ -17316,7 +17316,9 @@ msgstr[1] "%{count} gehaltene veraltet"
 #: lib/portfolixir_web/live/dashboard_live.ex:652
 #, elixir-autogen, elixir-format
 msgid "%{count} in the catalog"
-msgstr "im Katalog %{count}"
+msgid_plural "%{count} in the catalog"
+msgstr[0] "im Katalog %{count}"
+msgstr[1] "im Katalog %{count}"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:1372
 #, elixir-autogen, elixir-format
