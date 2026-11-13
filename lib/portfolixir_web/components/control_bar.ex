@@ -21,18 +21,20 @@ defmodule PortfolixirWeb.ControlBar do
       Where the fold and the floor both apply, B wins.
 
   `fold` and `floor` are named widths, each a class with its own container
-  query in `app.css` (a container query cannot read a variable): `fold`
-  560, 760 (the default, the stacked chart's), 840 (the sale's comparison,
-  whose line the walk measured wrapping up to 793 px), 900 (the Crashes
-  bar, whose line with its select at its 19.5rem cap wraps up to 877 px,
-  16 px more at 20.5rem)
-  or 960 px, or
-  `:always` for a
-  bar whose groups never fit one line (the chip rows); `floor` 330 (the
-  default), 340 (the stacked chart's: its German label column and level
-  control need 334 px, as the walk measured in PR 2's closing act) or 560
-  px, or `:always` for a bar whose labels always stand above. A new width
-  is one more class and one more rule there.
+  query in `app.css` (a container query cannot read a variable). Each is
+  chosen from the bar's widths measured in Inter, the app's font, and in
+  DejaVu Sans, the widest common fallback a device without Inter draws in
+  (the walk measures both, `test/browser/fonts.js`), at least 16 px above
+  the wider: `fold` 560, 760 (the default), 780 (the stacked chart's, its
+  German line 704 px in Inter, 753 px in DejaVu Sans), 860 (the sale's
+  comparison, its English line with a benchmark 798 and 834 px), 900 (the
+  Crashes bar, its German line 770 and 805 px with the window's group at
+  its narrowest, 16rem) or 960 px, or `:always` for a bar whose
+  groups never fit one line (the chip rows); `floor` 330 (the default),
+  380 (the stacked chart's: its German label column and level control
+  need 333 px in Inter, 357 px in DejaVu Sans) or 560 px, or `:always` for
+  a bar whose labels always stand above. A new width is one more class and
+  one more rule there.
 
   Each `:group` is a label and **one** control element, the slot's content
   (a field with its button, or a chip family, is one element around them;
@@ -50,15 +52,15 @@ defmodule PortfolixirWeb.ControlBar do
   """
   use Phoenix.Component
 
-  @folds [560, 760, 840, 900, 960, :always]
-  @floors [330, 340, 560, :always]
+  @folds [560, 760, 780, 860, 900, 960, :always]
+  @floors [330, 380, 560, :always]
 
   attr(:fold, :any,
     default: 760,
-    doc: "560, 760, 840, 900, 960 or :always: where the label column starts"
+    doc: "560, 760, 780, 860, 900, 960 or :always: where the label column starts"
   )
 
-  attr(:floor, :any, default: 330, doc: "330, 340, 560 or :always: where every label moves above")
+  attr(:floor, :any, default: 330, doc: "330, 380, 560 or :always: where every label moves above")
   attr(:class, :any, default: nil)
   attr(:rest, :global)
 
