@@ -9627,7 +9627,8 @@ and the MCP tools answer, for the section's period and the page's view.
    2026-11-12 (issue 1435, Sprint 29 L1):* the bar is the shared control
    bar (`PortfolixirWeb.ControlBar.bar/1`, its anatomy under the amendment
    of 2026-11-08), fold 760 and floor 330 (340 since PR 2's closing act,
-   board 06 ⑭), the container `control-bar`; it
+   board 06 ⑭; fold 780 and floor 380 since its measure in the fallback
+   font, board 06 ⑮), the container `control-bar`; it
    renders the same elements and lands every label and control on the same
    pixel as before (`stacked_chart_bar_test.exs`,
    `test/browser/control_bar_test.exs`). *Amended
@@ -9912,17 +9913,26 @@ between the markers `control-bar begin` and `control-bar end` in
   wide: one column, every label above its control, both at the bar's left
   edge, 4 px from label to control and 6 px under the control. **B applies
   where the label column and the widest control together do not fit the
-  bar's own width**: the stacked chart's bar below 340 px; a bar whose
+  bar's own width**: the stacked chart's bar below 380 px; a bar whose
   control is full width on the phone (the sale comparison's segmented
   control, board 06 ②) at a wider floor. Where the fold and the floor both
   apply, B wins.
 - **The fold and the floor are named widths**, each a class on the bar with
   one container query (a container query cannot read a variable): the fold
-  560, 760 (the default), 840, 900 or 960 px, or always (a chip row whose
+  560, 760 (the default), 780, 860, 900 or 960 px, or always (a chip row whose
   families never fit one line, board 06 ③ and ④); the floor 330 (the default),
-  340 or 560 px, or always. A bar picks the width at which its groups measured no
+  380 or 560 px, or always. A bar picks the width at which its groups measured no
   longer fit; a new width is one more rule, which sets the layout's
   variables on the controls.
+- **Measured in every font** *(PR 2's closing act, board 06 ⑮)*: the app
+  ships no web font, so `--font-sans` draws Inter where it is installed
+  and the device's own sans elsewhere; CI's runner drew DejaVu Sans, the
+  widest of the common ones, and broke the folds and floors measured in
+  Inter alone. A fold or a floor is at least **16 px above the wider** of
+  the bar's widths in Inter and in DejaVu Sans, and
+  `test/browser/control_bar.js`, `crash_section_layout.js` and
+  `closing_act_layout.js` measure every bar in both (`test/browser/fonts.js`;
+  CI's browser job installs Inter), failing where either is missing.
 
 A chip family in a group is one control: its chips wrap inside the control
 column, and the family's label shares its first chip's baseline, so a
@@ -9932,14 +9942,14 @@ family of several lines keeps its label on its first line.
 
 | Bar | File | Fold, floor | Groups |
 |---|---|---|---|
-| The stacked chart's bar | `live/portfolio/stacked_chart.ex` | 760, 340 (the floor moved from 330 by PR 2's closing act, whose walk found the German label column and level control needing 334 px; board 06 ⑭) | Ebene, Klassifizierung, Sortieren |
+| The stacked chart's bar | `live/portfolio/stacked_chart.ex` | 780, 380 (the floor moved from 330 to 340 by PR 2's closing act, whose walk found the German label column and level control needing 334 px, board 06 ⑭; then to 380 and the fold from 760 to 780, measured in both fonts: the German label column 333 px in Inter and 357 px in DejaVu Sans, the German line 704 and 753 px, board 06 ⑮; at a 390 px window, a 358 px bar, the labels stand above) | Ebene, Klassifizierung, Sortieren |
 | The journal (board 06 ①) | `live/journal_live.ex` | always, 330 | Akteur, Vorgang (chips), Art (select, its label now visible), Seit (field), the scenarios checkbox in the control column; one bar where there were two, the form around it |
-| „Nach dem Verkauf“, Vergleich (board 06 ②) | `live/sale_hindsight_section.ex` | 840, 560 (the fold moved from 760 by L3's walk, which measured the line wrapping the benchmark select under the comparison up to a 793 px bar) | Vergleich (segmented), „Fester Zins % p. a.“ (field and Anwenden) or the benchmark select (label hidden) in the control column; labels above below 560 px, where the full-width comparison does not fit beside a label column |
+| „Nach dem Verkauf“, Vergleich (board 06 ②) | `live/sale_hindsight_section.ex` | 860, 560 (the fold moved from 760 to 840 by L3's walk, which measured the line wrapping the benchmark select under the comparison up to a 793 px bar; then to 860, the English line with a benchmark 798 px in Inter and 834 px in DejaVu Sans, board 06 ⑮) | Vergleich (segmented), „Fester Zins % p. a.“ (field and Anwenden) or the benchmark select (label hidden) in the control column; labels above below 560 px, where the full-width comparison does not fit beside a label column |
 | Wertpapiere, the chip row (board 06 ③) | `live/securities_live.ex` | always, 330 | Bestand, Datenqualität (both named now), Währung, Anlageklasse, Geändert seit, „Weitere Filter“ in the control column; the phone's filter sheet unchanged |
 | Transaktionen, the chip row (board 06 ④) | `live/transaction_management_live.ex` | always, 330 | Konto, Typ, Geändert seit; the phone's filter sheet unchanged |
 | Prognosen, author and model | `live/predictions_live.ex` | always, 330 | Urheber, Modell (when a model is recorded) |
 | Allokation, the drift filter | `live/portfolio_live.ex` | always, 330 | „Abweichung ab“, beside „Alles ausklappen“ |
-| Risiko, Crashes (Sprint 29 C6, on the component since Lane L's integration) | `live/risk/crash_section.ex` | 900, 330 (the walk measured the line wrapping up to an 877 px bar, the window's select at its 19.5rem cap, 16 px more at its 20.5rem cap since PR 2's closing act; one line at a 1200 px window, a 924 px bar) | Fenster (select), Liste, Wertpapiere |
+| Risiko, Crashes (Sprint 29 C6, on the component since Lane L's integration) | `live/risk/crash_section.ex` | 900, 330 (the walk measured the line wrapping up to an 877 px bar, the window's select at its 19.5rem cap, 16 px more at its 20.5rem cap since PR 2's closing act; one line at a 1200 px window, a 924 px bar. In DejaVu Sans that line needs 939 px, so on the line the window's group takes the room the line leaves, from 16rem up to its own width: the German line needs 770 px in Inter and 805 px in DejaVu Sans, board 06 ⑮) | Fenster (select), Liste, Wertpapiere |
 
 The review seed records two predictions, one an agent's with a model, so
 the walk reaches Prognosen' bar; the drift filter shows on the seed's plan
@@ -10570,7 +10580,11 @@ stays under the bars, and the zero and dashed lines stay on the bar's
 line, never across the name above it. The window's select may take the
 section's width here; at full width it is capped at 20.5rem (19.5rem
 until PR 2's closing act, which cut a short manual window's kind, board
-06 ⑫), so the bar stays one line. „Im Depot ansehen“ joins the line's flow.
+06 ⑫), so the bar stays one line. On the one line the window's group
+takes the room the line leaves, from 16rem up to its own width (board 06
+⑮): in a font wider than Inter, such as DejaVu Sans, a 1200 px window
+cuts a short manual window's name in the closed select instead of
+wrapping the bar onto two edges. „Im Depot ansehen“ joins the line's flow.
 
 ### The privacy mode
 
