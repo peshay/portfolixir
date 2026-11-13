@@ -101,4 +101,30 @@ defmodule PortfolixirWeb.CustomRangePopoverTest do
     assert has_element?(view, ~s([data-role="custom-range-chip"]), "2026-01-01")
     assert_push_event(view, "close-popover", %{id: "detail-period-custom"})
   end
+
+  # User story (Sprint 29 closing act, the finding of #1416's flaky picker
+  # walk):
+  # As the operator opening "Custom range…" while the page still loads,
+  # I want the popover to stay open when a load lands,
+  # so that it does not fold shut under my click.
+  #
+  # Acceptance criteria:
+  # - The PopoverDisclosure hook reads the open state just before each
+  #   patch, not only from the `toggle` event, which the browser dispatches
+  #   later in a task of its own: a patch that lands between the click and
+  #   that event must not close the popover. (LiveViewTest runs no client
+  #   patch; the contract is pinned on the hook's source, and the browser
+  #   walk `test/browser/benchmark_picker_layout.js` clicks the trigger in
+  #   the same task as a load's patch and checks it is still open.)
+  test "the popover hook reads its open state before each patch" do
+    hook =
+      "lib/portfolixir_web/layout_view.ex"
+      |> File.read!()
+      |> String.split("Hooks.PopoverDisclosure = ")
+      |> Enum.at(1, "")
+      |> String.split(~r/\n\s*Hooks\.\w+ = /)
+      |> hd()
+
+    assert hook =~ ~r/beforeUpdate: function \(\) \{\s*this\.open = this\.el\.open;/s
+  end
 end
