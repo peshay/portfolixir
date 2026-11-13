@@ -7624,7 +7624,7 @@ msgid_plural "Show the retired rules (%{count})"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1698
+#: lib/portfolixir_web/components/cycle_chart.ex:1777
 #: lib/portfolixir_web/live/predictions_live.ex:553
 #: lib/portfolixir_web/live/risk_live.ex:576
 #, elixir-autogen, elixir-format
@@ -17434,7 +17434,7 @@ msgid_plural "halvings of the source are dropped — the target holds them or is
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:858
+#: lib/portfolixir_web/components/cycle_chart.ex:864
 #, elixir-autogen, elixir-format
 msgid "%{days} d"
 msgstr ""
@@ -17491,12 +17491,12 @@ msgstr ""
 msgid "Cycles"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1017
+#: lib/portfolixir_web/components/cycle_chart.ex:1097
 #, elixir-autogen, elixir-format
 msgid "Halving %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1027
+#: lib/portfolixir_web/components/cycle_chart.ex:1107
 #, elixir-autogen, elixir-format
 msgid "Halving ≈ %{date} (estimate)"
 msgstr ""
@@ -17506,7 +17506,7 @@ msgstr ""
 msgid "Halvings entered by hand · no chain source for %{chain}"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1071
+#: lib/portfolixir_web/components/cycle_chart.ex:1150
 #, elixir-autogen, elixir-format
 msgid "Low band"
 msgstr ""
@@ -17526,7 +17526,7 @@ msgstr ""
 msgid "Segments"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1072
+#: lib/portfolixir_web/components/cycle_chart.ex:1151
 #, elixir-autogen, elixir-format
 msgid "Top band"
 msgstr ""
@@ -17541,19 +17541,19 @@ msgstr ""
 msgid "Top ↔ low"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:981
+#: lib/portfolixir_web/components/cycle_chart.ex:987
 #, elixir-autogen, elixir-format
 msgid "anchored · provisional"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1091
-#: lib/portfolixir_web/components/cycle_chart.ex:1808
+#: lib/portfolixir_web/components/cycle_chart.ex:1170
+#: lib/portfolixir_web/components/cycle_chart.ex:1887
 #, elixir-autogen, elixir-format
 msgid "both ways"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1092
-#: lib/portfolixir_web/components/cycle_chart.ex:1809
+#: lib/portfolixir_web/components/cycle_chart.ex:1171
+#: lib/portfolixir_web/components/cycle_chart.ex:1888
 #, elixir-autogen, elixir-format
 msgid "both ways %{range}"
 msgstr ""
@@ -17588,7 +17588,7 @@ msgstr ""
 msgid "last attempt failed: %{error}"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:982
+#: lib/portfolixir_web/components/cycle_chart.ex:988
 #, elixir-autogen, elixir-format
 msgid "low of the partial cycle"
 msgstr ""
@@ -17603,7 +17603,7 @@ msgstr ""
 msgid "no answer in time"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1110
+#: lib/portfolixir_web/components/cycle_chart.ex:1189
 #, elixir-autogen, elixir-format
 msgid "no state: an input lies after its window"
 msgstr ""
@@ -17623,7 +17623,7 @@ msgstr ""
 msgid "on %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1096
+#: lib/portfolixir_web/components/cycle_chart.ex:1175
 #, elixir-autogen, elixir-format
 msgid "one price way, no „both ways“"
 msgstr ""
@@ -17633,12 +17633,12 @@ msgstr ""
 msgid "resolves to a private address"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:966
+#: lib/portfolixir_web/components/cycle_chart.ex:972
 #, elixir-autogen, elixir-format
 msgid "so far %{price} · %{month}"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:963
+#: lib/portfolixir_web/components/cycle_chart.ex:969
 #, elixir-autogen, elixir-format
 msgid "so far · %{month}"
 msgstr ""
@@ -17648,12 +17648,12 @@ msgstr ""
 msgid "the source lags behind"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1099
+#: lib/portfolixir_web/components/cycle_chart.ex:1178
 #, elixir-autogen, elixir-format
 msgid "the ways disagree: no way leads in between"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1123
+#: lib/portfolixir_web/components/cycle_chart.ex:1202
 #, elixir-autogen, elixir-format
 msgid "window over"
 msgstr ""
@@ -17669,7 +17669,7 @@ msgctxt "halving cycles"
 msgid "Aligned"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:993
+#: lib/portfolixir_web/components/cycle_chart.ex:999
 #, elixir-autogen, elixir-format
 msgctxt "halving cycles"
 msgid "Low"
@@ -17681,275 +17681,275 @@ msgctxt "halving cycles"
 msgid "Timeline"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:992
+#: lib/portfolixir_web/components/cycle_chart.ex:998
 #, elixir-autogen, elixir-format
 msgctxt "halving cycles"
 msgid "Top"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1120
+#: lib/portfolixir_web/components/cycle_chart.ex:1199
 #, elixir-autogen, elixir-format
 msgctxt "halving cycles"
 msgid "missed"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1117
-#: lib/portfolixir_web/components/cycle_chart.ex:1576
+#: lib/portfolixir_web/components/cycle_chart.ex:1196
+#: lib/portfolixir_web/components/cycle_chart.ex:1655
 #, elixir-autogen, elixir-format
 msgctxt "halving cycles"
 msgid "open"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:980
-#: lib/portfolixir_web/components/cycle_chart.ex:1594
-#: lib/portfolixir_web/components/cycle_chart.ex:1720
+#: lib/portfolixir_web/components/cycle_chart.ex:986
+#: lib/portfolixir_web/components/cycle_chart.ex:1673
+#: lib/portfolixir_web/components/cycle_chart.ex:1799
 #, elixir-autogen, elixir-format
 msgctxt "halving cycles"
 msgid "provisional"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1119
+#: lib/portfolixir_web/components/cycle_chart.ex:1198
 #, elixir-autogen, elixir-format
 msgctxt "halving cycles"
 msgid "reached"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1118
+#: lib/portfolixir_web/components/cycle_chart.ex:1197
 #, elixir-autogen, elixir-format
 msgctxt "halving cycles"
 msgid "running"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1646
+#: lib/portfolixir_web/components/cycle_chart.ex:1725
 #, elixir-autogen, elixir-format
 msgid "%{count} from the partial cycle"
 msgid_plural "%{count} from the partial cycle"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1644
+#: lib/portfolixir_web/components/cycle_chart.ex:1723
 #, elixir-autogen, elixir-format
 msgid "%{count} provisional"
 msgid_plural "%{count} provisional"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1513
+#: lib/portfolixir_web/components/cycle_chart.ex:1592
 #, elixir-autogen, elixir-format
 msgid "%{year} (partial)"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1510
+#: lib/portfolixir_web/components/cycle_chart.ex:1589
 #, elixir-autogen, elixir-format
 msgid "%{year} (running)"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1507
+#: lib/portfolixir_web/components/cycle_chart.ex:1586
 #, elixir-autogen, elixir-format
 msgid "%{year}: no close on its halving day"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1693
+#: lib/portfolixir_web/components/cycle_chart.ex:1772
 #, elixir-autogen, elixir-format
 msgid "Band · part"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1677
+#: lib/portfolixir_web/components/cycle_chart.ex:1756
 #, elixir-autogen, elixir-format
 msgid "Bands and their parts"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1616
+#: lib/portfolixir_web/components/cycle_chart.ex:1695
 #, elixir-autogen, elixir-format
 msgid "Cycles: %{complete} complete, %{partial} partial, %{open} open · closes from %{month}"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1654
+#: lib/portfolixir_web/components/cycle_chart.ex:1733
 #, elixir-autogen, elixir-format
 msgid "Halving → top"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1493
+#: lib/portfolixir_web/components/cycle_chart.ex:1572
 #, elixir-autogen, elixir-format
 msgid "Low band, days %{from}–%{to}"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1375
+#: lib/portfolixir_web/components/cycle_chart.ex:1454
 #, elixir-autogen, elixir-format
 msgid "Low day %{days}"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1388
+#: lib/portfolixir_web/components/cycle_chart.ex:1467
 #, elixir-autogen, elixir-format
 msgid "Low so far, day %{days} (provisional)"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1658
+#: lib/portfolixir_web/components/cycle_chart.ex:1737
 #, elixir-autogen, elixir-format
 msgid "Low → low"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1659
+#: lib/portfolixir_web/components/cycle_chart.ex:1738
 #, elixir-autogen, elixir-format
 msgid "Low → next halving"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1656
+#: lib/portfolixir_web/components/cycle_chart.ex:1735
 #, elixir-autogen, elixir-format
 msgid "Low → top"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1579
+#: lib/portfolixir_web/components/cycle_chart.ex:1658
 #, elixir-autogen, elixir-format
 msgid "Marks"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1791
+#: lib/portfolixir_web/components/cycle_chart.ex:1870
 #, elixir-autogen, elixir-format
 msgid "Next low"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1792
+#: lib/portfolixir_web/components/cycle_chart.ex:1871
 #, elixir-autogen, elixir-format
 msgid "Next top"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1694
+#: lib/portfolixir_web/components/cycle_chart.ex:1773
 #, elixir-autogen, elixir-format
 msgid "Read from"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1572
+#: lib/portfolixir_web/components/cycle_chart.ex:1651
 #, elixir-autogen, elixir-format
 msgid "Segment · from cycle"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1151
+#: lib/portfolixir_web/components/cycle_chart.ex:1230
 #, elixir-autogen, elixir-format
 msgid "The cycles laid over each other from their halving"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1356
+#: lib/portfolixir_web/components/cycle_chart.ex:1435
 #, elixir-autogen, elixir-format
 msgid "Top day %{days}"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1655
+#: lib/portfolixir_web/components/cycle_chart.ex:1734
 #, elixir-autogen, elixir-format
 msgid "Top → low"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1657
+#: lib/portfolixir_web/components/cycle_chart.ex:1736
 #, elixir-autogen, elixir-format
 msgid "Top → top"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1697
+#: lib/portfolixir_web/components/cycle_chart.ex:1776
 #, elixir-autogen, elixir-format
 msgid "Where the ways agree"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1860
+#: lib/portfolixir_web/components/cycle_chart.ex:1939
 #, elixir-autogen, elixir-format
 msgid "a point, not a range: no part"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1337
+#: lib/portfolixir_web/components/cycle_chart.ex:1416
 #, elixir-autogen, elixir-format
 msgid "day %{days}"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1844
+#: lib/portfolixir_web/components/cycle_chart.ex:1923
 #, elixir-autogen, elixir-format
 msgid "from the halving window"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1842
+#: lib/portfolixir_web/components/cycle_chart.ex:1921
 #, elixir-autogen, elixir-format
 msgid "from the low of %{month}"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1839
+#: lib/portfolixir_web/components/cycle_chart.ex:1918
 #, elixir-autogen, elixir-format
 msgid "from the top of %{month}"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1795
+#: lib/portfolixir_web/components/cycle_chart.ex:1874
 #, elixir-autogen, elixir-format
 msgid "hull of the parts"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1861
+#: lib/portfolixir_web/components/cycle_chart.ex:1940
 #, elixir-autogen, elixir-format
 msgid "no part has enough data"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1832
+#: lib/portfolixir_web/components/cycle_chart.ex:1911
 #, elixir-autogen, elixir-format
 msgid "price from the minimum to the maximum: no log step"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1823
+#: lib/portfolixir_web/components/cycle_chart.ex:1902
 #, elixir-autogen, elixir-format
 msgid "time n = %{time}, price from %{relation}"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1828
+#: lib/portfolixir_web/components/cycle_chart.ex:1907
 #, elixir-autogen, elixir-format
 msgid "time n = %{time}, price n = %{price}"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1849
+#: lib/portfolixir_web/components/cycle_chart.ex:1928
 #, elixir-autogen, elixir-format
 msgid "too few observations (time n = %{time}, price n = %{price})"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1855
+#: lib/portfolixir_web/components/cycle_chart.ex:1934
 #, elixir-autogen, elixir-format
 msgid "waits until the open window's top anchors (a fall of 20 %)"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1858
+#: lib/portfolixir_web/components/cycle_chart.ex:1937
 #, elixir-autogen, elixir-format
 msgid "waits until the running cycle's low is final (at the next halving)"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1575
-#: lib/portfolixir_web/components/cycle_chart.ex:1593
-#: lib/portfolixir_web/components/cycle_chart.ex:1719
+#: lib/portfolixir_web/components/cycle_chart.ex:1654
+#: lib/portfolixir_web/components/cycle_chart.ex:1672
+#: lib/portfolixir_web/components/cycle_chart.ex:1798
 #, elixir-autogen, elixir-format
 msgctxt "halving cycles"
 msgid "Part"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1696
+#: lib/portfolixir_web/components/cycle_chart.ex:1775
 #, elixir-autogen, elixir-format
 msgctxt "halving cycles"
 msgid "Price"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1695
+#: lib/portfolixir_web/components/cycle_chart.ex:1774
 #, elixir-autogen, elixir-format
 msgctxt "halving cycles"
 msgid "Window"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1755
+#: lib/portfolixir_web/components/cycle_chart.ex:1834
 #, elixir-autogen, elixir-format
 msgid "%{name} cycle"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1021
+#: lib/portfolixir_web/components/cycle_chart.ex:1101
 #, elixir-autogen, elixir-format
 msgid "Halving ≈ %{from} – %{to} (estimate)"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1757
+#: lib/portfolixir_web/components/cycle_chart.ex:1836
 #, elixir-autogen, elixir-format
 msgid "Open in chart →"
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1774
+#: lib/portfolixir_web/components/cycle_chart.ex:1853
 #, elixir-autogen, elixir-format
 msgid "The range the stored cycles give from the current anchors, with its n and both ends: not a forecast."
 msgstr ""
@@ -18098,7 +18098,7 @@ msgstr ""
 msgid "Basis: stored daily closes in %{currency}, windows from halving to halving, bands from the stored cycles' intervals and factors: not a forecast."
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1682
+#: lib/portfolixir_web/components/cycle_chart.ex:1761
 #, elixir-autogen, elixir-format
 msgid "Each band: the range the stored cycles' intervals and factors give from the current anchors, with n and both ends: not a forecast."
 msgstr ""
@@ -18108,12 +18108,12 @@ msgstr ""
 msgid "Gaps in the closes are skipped, never filled; the close on a halving day belongs to the new window."
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1686
+#: lib/portfolixir_web/components/cycle_chart.ex:1765
 #, elixir-autogen, elixir-format
 msgid "Never a single date or price, nothing fitted, nothing averaged."
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1259
+#: lib/portfolixir_web/components/cycle_chart.ex:1338
 #, elixir-autogen, elixir-format
 msgid "The halving day's close is the last close on or before that day; a window without such a close is left out."
 msgstr ""
@@ -18123,7 +18123,7 @@ msgstr ""
 msgid "Top and low: the peak and the trough of the largest decline in the window; an open top is an anchor from 20 % below it, a low only once the window closes."
 msgstr ""
 
-#: lib/portfolixir_web/components/cycle_chart.ex:1256
+#: lib/portfolixir_web/components/cycle_chart.ex:1335
 #, elixir-autogen, elixir-format
 msgid "x: calendar days since the halving · y: close ÷ the halving day's close, on a log scale"
 msgstr ""

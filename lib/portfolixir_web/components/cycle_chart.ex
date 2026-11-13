@@ -607,6 +607,7 @@ defmodule PortfolixirWeb.Components.CycleChart do
         class={["cycle-label", "cycle-label--halving", h.estimate? && "is-estimate"]}
         x={h.x}
         y={h.y}
+        text-anchor={h.anchor}
       >
         <%= h.text %>
       </text>
@@ -792,19 +793,24 @@ defmodule PortfolixirWeb.Components.CycleChart do
     segments = segments(payload, lines, scale)
     extremes = extremes(payload, scale)
 
+    segment_labels =
+      for s <- segments, s.label_visible?, do: Map.take(s, [:line, :text]) |> Map.merge(s.label)
+
+    band_labels = Enum.flat_map(events(payload), &band_label(&1, payload, scale))
+
+    taken =
+      Enum.map(band_labels, &label_box(&1.x, &1.y, &1.anchor, &1.lines)) ++
+        Enum.map(extremes, &label_box(&1.label_x, &1.y, &1.anchor, &1.lines)) ++
+        Enum.map(segment_labels, &label_box(&1.x, &1.y, "middle", [&1.text]))
+
     %{
       segments: segments,
-      segment_labels:
-        for(
-          s <- segments,
-          s.label_visible?,
-          do: Map.take(s, [:line, :text]) |> Map.merge(s.label)
-        ),
+      segment_labels: segment_labels,
       extremes: extremes,
       extreme_labels: extremes,
-      halving_labels: halving_labels(payload, scale),
+      halving_labels: halving_labels(payload, scale, taken),
       today_label: today_label(scale),
-      band_labels: Enum.flat_map(events(payload), &band_label(&1, payload, scale))
+      band_labels: band_labels
     }
   end
 
@@ -1009,26 +1015,99 @@ defmodule PortfolixirWeb.Components.CycleChart do
     end
   end
 
-  defp halving_labels(payload, scale) do
-    for h <- halving_marks(payload, scale) do
-      text =
-        cond do
-          not h.estimate? ->
-            gettext("Halving %{date}", date: Format.date(h.date))
+  defp halving_labels(payload, scale, taken) do
+    {estimates, confirmed} =
+      payload
+      |> halving_marks(scale)
+      |> Enum.map(&halving_label/1)
+      |> Enum.split_with(& &1.estimate?)
 
-          # S29 H8: the window the chain reader stores (ADR-0059 §6).
-          match?(%Date{}, h[:date_end]) ->
-            gettext("Halving ≈ %{from} – %{to} (estimate)",
-              from: Format.date(h.date),
-              to: Format.date(h.date_end)
-            )
+    confirmed_labels =
+      Enum.map(confirmed, &Map.merge(&1, %{x: coord(&1.x_value + 3), y: coord(scale.y0 + 9)}))
 
-          true ->
-            gettext("Halving ≈ %{date} (estimate)", date: Format.date(h.date))
-        end
+    taken = taken ++ Enum.map(confirmed_labels, &label_box(&1.x, &1.y, "start", [&1.text]))
 
-      %{x: coord(h.x_value + 3), y: coord(scale.y0 + 9), text: text, estimate?: h.estimate?}
-    end
+    confirmed_labels ++ Enum.map(estimates, &place_estimate(&1, scale, taken))
+  end
+
+  # UAT S3 #4 (the closing act): the estimate's label, the longest on the
+  # halvings' row, ran into the Top band's label there and past the plot's
+  # right edge („(Schätz“). It takes the first place that stays inside the
+  # plot and covers no label already placed: right of its line on the
+  # halvings' row, left of it, then on the plot's floor away from the
+  # nearer edge; if none is clear, the first that stays inside.
+  defp place_estimate(label, scale, taken) do
+    x = label.x_value
+    top = scale.y0 + 9
+    floor = scale.y1 - 6
+    {near, far} = if x > (scale.x0 + scale.x1) / 2, do: {"end", "start"}, else: {"start", "end"}
+
+    places =
+      for {y, anchor} <- [{top, "start"}, {top, "end"}, {floor, near}, {floor, far}] do
+        at = if anchor == "end", do: x - 3, else: x + 3
+        box = label_box(at, y, anchor, [label.text])
+        {%{x: coord(at), y: coord(y), anchor: anchor}, box}
+      end
+
+    inside = Enum.filter(places, fn {_place, box} -> inside?(box, scale) end)
+
+    {place, _box} =
+      Enum.find(inside, fn {_place, box} -> not Enum.any?(taken, &covers?(box, &1)) end) ||
+        List.first(inside) || List.first(places)
+
+    Map.merge(label, place)
+  end
+
+  # A label's box in the chart's units, as 9 px monospace draws it where a
+  # unit is a CSS pixel (1200 px): 0.6 em a character with a little slack,
+  # 1.2 em a line, its ascent above the baseline.
+  @label_char 5.6
+  @label_lead 10.8
+  @label_ascent 7
+
+  defp label_box(x, y, anchor, lines) when is_binary(x) or is_binary(y),
+    do: label_box(number(x), number(y), anchor, lines)
+
+  defp label_box(x, y, anchor, lines) do
+    width = (lines |> Enum.map(&String.length/1) |> Enum.max(fn -> 0 end)) * @label_char
+
+    left =
+      case anchor do
+        "end" -> x - width
+        "middle" -> x - width / 2
+        _start -> x
+      end
+
+    {left, left + width, y - @label_ascent, y + (length(lines) - 1) * @label_lead + 2}
+  end
+
+  defp number(value) when is_binary(value), do: value |> Float.parse() |> elem(0)
+  defp number(value), do: value
+
+  defp inside?({left, right, _top, _bottom}, scale),
+    do: left >= scale.x0 + 2 and right <= scale.x1 - 2
+
+  defp covers?({l1, r1, t1, b1}, {l2, r2, t2, b2}),
+    do: l1 < r2 and l2 < r1 and t1 < b2 and t2 < b1
+
+  defp halving_label(h) do
+    text =
+      cond do
+        not h.estimate? ->
+          gettext("Halving %{date}", date: Format.date(h.date))
+
+        # S29 H8: the window the chain reader stores (ADR-0059 §6).
+        match?(%Date{}, h[:date_end]) ->
+          gettext("Halving ≈ %{from} – %{to} (estimate)",
+            from: Format.date(h.date),
+            to: Format.date(h.date_end)
+          )
+
+        true ->
+          gettext("Halving ≈ %{date} (estimate)", date: Format.date(h.date))
+      end
+
+    %{x_value: h.x_value, text: text, estimate?: h.estimate?, anchor: "start"}
   end
 
   defp band_label(%{band: nil}, _payload, _scale), do: []

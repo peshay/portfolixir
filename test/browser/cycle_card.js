@@ -69,6 +69,36 @@ async function insideFonts(page, tag, what, selector, viewport, errors) {
   return own;
 }
 
+// The estimated halving's label against the plot's edges (the axes' first
+// and last x) and every other visible cycle label, in CSS pixels.
+async function estimateClash(page) {
+  return page.evaluate((panel) => {
+    const root = document.querySelector(panel);
+    const label = root.querySelector("text.cycle-label--halving.is-estimate");
+    if (!label) return { missing: true };
+    const box = label.getBoundingClientRect();
+    const svg = label.ownerSVGElement;
+    const matrix = svg.getScreenCTM();
+    // The plot is the clip path the cycles' back layer is drawn in.
+    const clipId = root.querySelector("g.cycle-layer--back").getAttribute("clip-path").replace(/^url\(#|\)$/g, "");
+    const plot = document.getElementById(clipId).querySelector("rect");
+    const x0 = plot.x.baseVal.value;
+    const x1 = x0 + plot.width.baseVal.value;
+    const toPx = (x) => new DOMPoint(x, 0).matrixTransform(matrix).x;
+    const clipped =
+      box.left < toPx(x0) - 1 ? "left" : box.right > toPx(x1) + 1 ? "right" : null;
+    const covers = Array.from(root.querySelectorAll("text.cycle-label"))
+      .filter((node) => node !== label && getComputedStyle(node).display !== "none")
+      .filter((node) => {
+        const other = node.getBoundingClientRect();
+        return other.width > 0 && box.left < other.right - 1 && other.left < box.right - 1 &&
+          box.top < other.bottom - 1 && other.top < box.bottom - 1;
+      })
+      .map((node) => node.textContent.replace(/\s+/g, " ").trim());
+    return { missing: false, clipped, covers };
+  }, PANEL);
+}
+
 async function walk(browser, theme, viewport, errors) {
   const tag = theme + " " + viewport.width;
   const context = await browser.newContext({ viewport, locale: "de-DE" });
@@ -100,6 +130,20 @@ async function walk(browser, theme, viewport, errors) {
   }), PANEL);
   if (drawn.bands !== 2) errors.push(tag + ": expected both bands on „Zyklus“, saw " + drawn.bands);
   if (drawn.today !== 1) errors.push(tag + ": the „heute“ line is not drawn");
+  // UAT S3 #4 (the closing act): the estimated halving's label neither
+  // covers another cycle label (the Top band's stood on its row) nor runs
+  // past the plot's right edge, where it was cut („(Schätz“), in both fonts.
+  if (viewport.width >= 1200) {
+    await eachFont(page, async (font) => {
+      const clash = await estimateClash(page);
+      const where = tag + " " + font.name + " Zyklus";
+      if (clash.missing) errors.push(where + ": the estimated halving's label is not drawn");
+      else {
+        if (clash.clipped) errors.push(where + ": the estimated halving's label runs past the plot (" + clash.clipped + ")");
+        for (const other of clash.covers) errors.push(where + ": the estimated halving's label covers „" + other + "“");
+      }
+    });
+  }
   await shot(page, tag, "range");
 
   await page.click("#detail-edit");
