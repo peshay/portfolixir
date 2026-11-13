@@ -387,7 +387,7 @@ defmodule Portfolixir.Catalog.SecurityCycles do
           "next_top's parts: halving_to_top from that window's halving (the next halving's " <>
           "window, ADR-0059 §6, once the open top is anchored), top_to_top from the last " <>
           "anchored top, low_to_top from the last final low with no top after it " <>
-          "(low_not_final while the open window's low is not final)",
+          "(low_not_final while the open window's top is anchored and its low is not final)",
       time_rule: "min_max",
       time_rule_text:
         "a part's window runs from its anchor's date + the minimum to + the maximum of " <>
@@ -404,7 +404,8 @@ defmodule Portfolixir.Catalog.SecurityCycles do
           "(price_from), absent whenever that part is. Factors and prices at scale 6",
       price_fallback:
         "where no step is defined — ln f₁ or ln f₂ is 0 (a factor of exactly 1), the two " <>
-          "differ in sign (the factor crossed 1), or the step leaves the double range — " <>
+          "differ in sign (the factor crossed 1), or the step leaves the double range or " <>
+          "rounds to 0 at scale 6 — " <>
           "the price side is the minimum to the maximum of the relation's stored factors, " <>
           "price_rule min_max with price_reason no_log_step. A step that grows the factor " <>
           "is taken as it comes",
