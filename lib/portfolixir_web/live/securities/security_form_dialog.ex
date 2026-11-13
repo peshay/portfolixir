@@ -3,6 +3,8 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   use Phoenix.LiveComponent
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  require PortfolixirWeb.CappedAsync
+
   # The errors key of a message about the security itself rather than one of
   # its fields; no input carries this name.
   @record_error "_record"
@@ -47,10 +49,16 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecuritySearch
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
+  alias Portfolixir.Chains
+  alias Portfolixir.Chains.Registry
+  alias Portfolixir.Knowledge.Events
   alias Portfolixir.Lifecycle.Freeze
   alias Portfolixir.Portfolios.Bonds
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.CappedAsync
+  alias PortfolixirWeb.Components.CycleChart
   alias PortfolixirWeb.DecimalInput
+  alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.NamedRecordRefusal
@@ -86,6 +94,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
       |> assign(:form, security_to_form(security))
       |> assign(:conflict, nil)
       |> assign(:errors, %{})
+      |> assign(:halving, halving_state(security))
 
     {:ok, socket}
   end
@@ -107,6 +116,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
       "feed_url" => security.feed_url || "",
       "treat_quotes_as_raw" => to_string(security.treat_quotes_as_raw == true),
       "note" => security.note || "",
+      "halving_chain" => chain_value(security.halving_chain),
       "coupon_rate" => decimal_value(security.coupon_rate),
       "coupon_frequency" => security.coupon_frequency || "",
       "maturity_date" => date_value(security.maturity_date),
@@ -498,6 +508,15 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
         <textarea name="security[note]" rows="3"><%= @form["note"] %></textarea>
       </label>
 
+      <.halving_chain_field
+        :if={@editing}
+        form={@form}
+        editing={@editing}
+        halving={@halving}
+        errors={@errors}
+        myself={@myself}
+      />
+
       <div class="modal-footer">
         <%= if @editing do %>
           <button
@@ -508,8 +527,19 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
           >
             <%= gettext("Cancel") %>
           </button>
+          <%!-- S29 H8 (board 07 ②, Q2 A): a save that deletes halving
+               events names their count, so one click confirms it. --%>
           <button type="submit" class="button-primary">
-            <%= gettext("Save changes") %>
+            <%= case deleting(@form, @editing, @halving) do %>
+              <% 0 -> %>
+                <%= gettext("Save changes") %>
+              <% count -> %>
+                <%= ngettext(
+                  "Save and delete %{count} event",
+                  "Save and delete %{count} events",
+                  count
+                ) %>
+            <% end %>
           </button>
         <% else %>
           <button
@@ -528,6 +558,223 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     </form>
     """
   end
+
+  # --- S29 H8 begin ---
+  attr(:form, :map, required: true)
+  attr(:editing, Security, required: true)
+  attr(:halving, :map, required: true)
+  attr(:errors, :map, required: true)
+  attr(:myself, :any, required: true)
+
+  # ADR-0059 §4, §8, §11 (board 07 ①, ②; D-6 Q1 to Q5): „Halving-Kette“
+  # below the master data. The choice says where the halvings come from;
+  # while it shows the stored binding, how many confirmed halvings the
+  # cycle view still needs (Q3 A: the chart has no toggle without two) and,
+  # for a chain the app reads, its health line with a refused own URL's
+  # reason and „Jetzt lesen“ (Q4 A, Q5). A choice that unbinds or rebinds a
+  # security with halving events turns into the warning naming what goes,
+  # and the save button names the count (Q2 A). Nothing here is a guess:
+  # the binding is the operator's statement (§4).
+  defp halving_chain_field(assigns) do
+    selected = assigns.form["halving_chain"] || ""
+    stored = chain_value(assigns.editing.halving_chain)
+
+    assigns =
+      assign(assigns,
+        selected: selected,
+        stored: stored,
+        deleting: deleting(assigns.form, assigns.editing, assigns.halving)
+      )
+
+    ~H"""
+    <fieldset class="halving-chain-fieldset" data-role="halving-chain">
+      <label>
+        <span><%= gettext("Halving chain") %></span>
+        <select name="security[halving_chain]">
+          <option value="" selected={@selected == ""}><%= gettext("None") %></option>
+          <option :for={chain <- Registry.names()} value={chain} selected={@selected == chain}>
+            <%= CycleChart.chain_name(chain) %>
+          </option>
+        </select>
+        <%= if msg = @errors["halving_chain"] do %>
+          <span class="field-error"><%= msg %></span>
+        <% end %>
+      </label>
+
+      <%= if @deleting > 0 do %>
+        <div class="alert-warning halving-chain__warning" role="alert" data-role="halving-delete-warning">
+          <strong>
+            <%= if @selected == "",
+              do:
+                ngettext(
+                  "Without a halving chain, %{count} halving event is deleted",
+                  "Without a halving chain, %{count} halving events are deleted",
+                  @deleting
+                ),
+              else:
+                ngettext(
+                  "Bound to %{chain}, %{count} halving event is deleted",
+                  "Bound to %{chain}, %{count} halving events are deleted",
+                  @deleting,
+                  chain: CycleChart.chain_name(@selected)
+                ) %>
+          </strong>
+          <p>
+            <%= gettext("They hold for this security only as bound to %{chain}:",
+              chain: CycleChart.chain_name(@stored)
+            ) %>
+          </p>
+          <ul>
+            <li :if={@halving.confirmed != []}>
+              <%= ngettext(
+                "%{count} confirmed halving (%{years})",
+                "%{count} confirmed halvings (%{years})",
+                length(@halving.confirmed),
+                years: Enum.map_join(@halving.confirmed, ", ", & &1.date.year)
+              ) %>
+            </li>
+            <li :if={@halving.estimates != []}>
+              <%= ngettext(
+                "%{count} estimate (%{which})",
+                "%{count} estimates (%{which})",
+                length(@halving.estimates),
+                which: Enum.map_join(@halving.estimates, "; ", &estimate_text/1)
+              ) %>
+            </li>
+          </ul>
+          <p>
+            <%= gettext("The journal keeps every deleted row. The cycles disappear from the chart.") %>
+          </p>
+        </div>
+      <% else %>
+        <p :if={@selected != ""} class="form-help" data-role="halving-chain-help">
+          <%= chain_help(@selected) %>
+        </p>
+        <%= if @selected != "" and @selected == @stored do %>
+          <p class="form-help" data-role="halving-chain-count">
+            <%= count_text(@halving) %>
+          </p>
+          <%= if @halving.health do %>
+            <div class="halving-chain__health">
+              <CycleChart.health
+                source={@halving.health}
+                chain={@stored}
+                hosts={@halving.hosts}
+                now={DateTime.utc_now()}
+              />
+              <CycleChart.read_now
+                wait={@halving.read.wait}
+                busy?={@halving.read.busy?}
+                target={@myself}
+              />
+            </div>
+            <p
+              :if={CycleChart.refused?(@halving.health)}
+              class="form-help"
+              data-role="halving-chain-refused"
+            >
+              <%= gettext("No halvings are written.") %>
+              <%= if match?(%{own?: true}, @halving.hosts),
+                do:
+                  gettext(
+                    "An own instance must be reachable over https at a public address; the variable PORTFOLIXIR_BITCOIN_ESPLORA_URL is read at start and never written by the app."
+                  ) %>
+            </p>
+          <% end %>
+        <% end %>
+      <% end %>
+    </fieldset>
+    """
+  end
+
+  # The halving events a save with this choice deletes: all of them when the
+  # choice differs from the stored binding (ADR-0059 §4), none otherwise.
+  defp deleting(form, %Security{} = editing, %{count: count}) do
+    if (form["halving_chain"] || "") != chain_value(editing.halving_chain), do: count, else: 0
+  end
+
+  defp deleting(_form, _editing, _halving), do: 0
+
+  defp chain_value(nil), do: ""
+  defp chain_value(chain), do: Atom.to_string(chain)
+
+  defp chain_help(chain) do
+    case Registry.fetch(chain) do
+      {:ok, known} ->
+        if Registry.has_source?(known),
+          do:
+            gettext(
+              "The halvings of this security come from the %{chain} chain. Cycles in the chart from two confirmed halvings.",
+              chain: CycleChart.chain_name(known)
+            ),
+          else:
+            gettext(
+              "For %{chain} the app reads no chain: halvings are entered by hand as an event „Halving“, or by an agent over the API. The app checks the block height against the chain's interval (%{interval} blocks).",
+              chain: CycleChart.chain_name(known),
+              interval:
+                known |> Registry.halving_interval() |> Decimal.new() |> Format.plain_decimal(0)
+            )
+
+      :error ->
+        ""
+    end
+  end
+
+  # ADR-0060 §1 (board 07 ①, Q3 A): the view needs two confirmed halvings.
+  defp count_text(%{confirmed: confirmed, estimates: estimates}) do
+    case length(confirmed) do
+      count when count < 2 ->
+        ngettext(
+          "%{count} of 2 confirmed halvings · cycles appear in the chart from the second",
+          "%{count} of 2 confirmed halvings · cycles appear in the chart from the second",
+          count
+        )
+
+      count ->
+        text = ngettext("%{count} confirmed halving", "%{count} confirmed halvings", count)
+
+        case estimates do
+          [next | _later] -> text <> ", " <> gettext("the next ≈ %{when}", when: when_text(next))
+          [] -> text
+        end
+    end
+  end
+
+  defp estimate_text(event) do
+    gettext("block %{height}, %{when}",
+      height: event.chain_height |> Decimal.new() |> Format.plain_decimal(0),
+      when: when_text(event)
+    )
+  end
+
+  defp when_text(%{date: date, date_end: %Date{} = date_end}),
+    do: Format.date(date) <> " – " <> Format.date(date_end)
+
+  defp when_text(%{date: date}), do: Format.date(date)
+
+  # The security's halving events and its chain's source, read when the
+  # dialog opens and after „Jetzt lesen“ (Q5).
+  defp halving_state(%Security{id: id, halving_chain: chain}) do
+    {confirmed, estimates} =
+      id
+      |> Events.list_for_security()
+      |> Enum.filter(&(&1.kind == :halving))
+      |> Enum.sort_by(& &1.chain_height)
+      |> Enum.split_with(& &1.confirmed)
+
+    hosts = chain && Chains.source_hosts(chain)
+
+    %{
+      count: length(confirmed) + length(estimates),
+      confirmed: confirmed,
+      estimates: estimates,
+      hosts: hosts,
+      health: hosts && Chains.source_health(chain),
+      read: hosts && %{wait: Chains.refresh_wait(chain), busy?: false}
+    }
+  end
+
+  # --- S29 H8 end ---
 
   attr(:form, :map, required: true)
   attr(:errors, :map, required: true)
@@ -841,7 +1088,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     params = LiveParam.form(params)
 
     case read_params(params, blank_mode(socket)) do
-      {:ok, attrs} -> save(socket, attrs)
+      {:ok, attrs} -> save(socket, put_halving_chain(attrs, params, socket))
       {:error, refused, attrs} -> {:noreply, refuse(socket, refused, attrs)}
     end
   end
@@ -883,9 +1130,49 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     {:noreply, socket}
   end
 
+  # S29 H8 (ADR-0059 §11; board 07 Q5): „Jetzt lesen“ for the stored
+  # binding's chain, outside the page's process (it asks a host).
+  def handle_event(
+        "read_chain_now",
+        _params,
+        %{
+          assigns: %{
+            editing: %Security{halving_chain: chain},
+            halving: %{read: %{busy?: false}} = halving
+          }
+        } = socket
+      )
+      when not is_nil(chain) do
+    {:noreply,
+     socket
+     |> assign(:halving, put_in(halving.read.busy?, true))
+     |> CappedAsync.start_async(:chain_read, fn -> Chains.refresh(chain) end)}
+  end
+
   # An event this component does not know, or a payload it cannot read,
   # changes nothing (E25 S4, F17).
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  # The read's answer: the halvings it wrote and the health it left, or the
+  # wait when it came sooner than ten minutes after the last.
+  @impl true
+  def handle_async(:chain_read, {:ok, {:error, {:too_soon, seconds}}}, socket) do
+    {:noreply, update(socket, :halving, &%{&1 | read: %{wait: seconds, busy?: false}})}
+  end
+
+  def handle_async(:chain_read, {:ok, _answer}, socket),
+    do: {:noreply, assign(socket, :halving, halving_state(socket.assigns.editing))}
+
+  def handle_async(:chain_read, {:exit, _reason}, socket),
+    do: {:noreply, update(socket, :halving, &put_in(&1.read.busy?, false))}
+
+  # S29 H8 (ADR-0059 §4): the binding is written from the edit form only,
+  # an emptied choice unbinding; the changeset maps the name through the
+  # registry and refuses any other value on the field.
+  defp put_halving_chain(attrs, %{"halving_chain" => chain}, %{assigns: %{editing: %Security{}}}),
+    do: Map.put(attrs, :halving_chain, blank_to_nil(chain))
+
+  defp put_halving_chain(attrs, _params, _socket), do: attrs
 
   defp save(socket, attrs) do
     cond do
@@ -1098,8 +1385,13 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   # the page's H8.6 note, as for "Merge online fields" — neither conflict
   # button has anything left to act on (#1072, board 08.3).
   defp update_security(socket, security, attrs, mode \\ :edit) do
-    case Catalog.update_security(Actor.owner_ui(), security, attrs) do
-      {:ok, updated} ->
+    case Catalog.update_security(Actor.owner_ui(), security, attrs, report: true) do
+      # S29 H8: the page's note counts the halving events the save deleted.
+      {:ok, updated, %{halving_events_deleted: deleted}} when deleted > 0 ->
+        notify_parent(socket, {:updated, updated, deleted})
+        {:noreply, socket}
+
+      {:ok, updated, _report} ->
         notify_parent(socket, {:updated, updated})
         {:noreply, socket}
 

@@ -10771,4 +10771,71 @@ band says why in the disclosure's words. A last `.hint` says the band is
 the range the stored cycles give, with n and both ends, and not a
 forecast. **The privacy mode** hides the prices (the mask), the dates,
 states and n stay. At 390 px the values wrap under the event's name.
+
+### „Halving-Kette“ in „Wertpapier bearbeiten“ (Q1 to Q4)
+
+Only when editing: a `fieldset.halving-chain-fieldset[data-role=
+halving-chain]` below the master data and the note, above the footer — a
+bordered block, the select at a field's width (≤ 22 rem): „Keine“,
+„Bitcoin“, „Bitcoin Cash“, „Litecoin“. Under it, in 13 px muted lines
+(`.form-help`, no padding inside the block):
+
+1. **the help** for the chosen chain (`[data-role=halving-chain-help]`):
+   for Bitcoin „Die Halvings dieses Wertpapiers kommen aus der
+   Bitcoin-Kette. Zyklen im Chart ab zwei bestätigten Halvings.“; for a
+   chain without a source „Für Litecoin liest die App keine Kette:
+   Halvings werden von Hand als Ereignis „Halving“ eingetragen, oder von
+   einem Agenten über die API. Die App prüft die Blockhöhe gegen das Intervall der Kette
+   (840.000 Blöcke).“;
+2. while the choice is the stored binding, **the count**
+   (`[data-role=halving-chain-count]`, Q3 A — why the chart has no
+   „Zyklen“): „1 von 2 bestätigten Halvings · Zyklen erscheinen im Chart
+   ab dem zweiten“, or „4 bestätigte Halvings, das nächste ≈ ‹von› –
+   ‹bis›“;
+3. for a chain the app reads, **the health line** of the cycle bar
+   (`CycleChart.health/1`, every state) with **„Jetzt lesen“** at its end
+   (`.halving-chain__health`); for a refused URL (Q4 A) a line in the body
+   colour (`[data-role=halving-chain-refused]`): „Es werden keine Halvings
+   geschrieben.“, and for the operator's own URL „Eine eigene Instanz muss
+   über https unter einer öffentlichen Adresse erreichbar sein; die
+   Variable PORTFOLIXIR_BITCOIN_ESPLORA_URL wird beim Start gelesen und nie
+   von der App geschrieben.“ The form is the one place this shows for a
+   coin that never got a halving, and so has no cycle bar.
+
+**The question before halving events go** (Q2 A, ADR-0059 §4): a choice
+other than the stored binding on a security with halving events replaces
+the lines with the dialog's `.alert-warning`
+(`[data-role=halving-delete-warning]`, `role=alert`): „Ohne Halving-Kette
+werden 5 Halving-Ereignisse gelöscht“ (or „Mit der Kette Litecoin werden
+…“), „Sie gelten nur für dieses Wertpapier als Bitcoin:“, a list — „4
+bestätigte Halvings (2013, 2015, 2017, 2019)“, „1 Schätzung (Block
+1.050.000, ‹von› – ‹bis›)“ — and „Das Journal behält jede gelöschte Zeile.
+Die Zyklen verschwinden aus dem Chart.“ The primary button reads
+**„Speichern und 5 Ereignisse löschen“**; one click confirms, nothing
+opens on top of the dialog. Choosing the stored binding again takes the
+warning away. After the save the page's note adds „· 5 Halving-Ereignisse
+gelöscht“.
+
+### „Jetzt lesen“ (Q5)
+
+`CycleChart.read_now/1` (`[data-role=chain-read]`): a small
+`.button-ghost` „Jetzt lesen“ at the end of the health line, in the cycle
+bar and in the form, only for a chain the app reads. It runs one
+on-demand read (`Chains.refresh/2`) outside the page's process, reads
+„Wird gelesen…“ while it runs, and its answer re-reads the health line, which is
+where the result shows. Within ten minutes of the chain's last try it is
+disabled and says „vor weniger als 10 Min. gelesen · wieder in ‹n› Min.“
+(`[data-role=chain-read-wait]`, `Chains.refresh_wait/2`, the API's
+`refresh.available_at`). At 390 px the health line wraps and the button
+follows it.
+
+### The `app.css` rules (between `S29 H8 begin` / `end`)
+
+`.cycle-halving-window`, `.cycle-today`, `.cycle-label--today`;
+`.cycle-card__events`, `__event`, `__parts` with the 561 px indent;
+`.halving-chain-fieldset`, its label and `.form-help`, `.halving-chain__warning`,
+`.cycle-bar__health` and `.halving-chain__health`, `.cycle-read`, `__button`,
+`__wait`. Every colour is a token. The browser walk
+(`test/browser/cycle_card_test.exs`) checks the card, the range „Zyklus“
+and the question in both themes at 1200 and 390 px.
 <!-- S29 H8 end -->
