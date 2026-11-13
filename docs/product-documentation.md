@@ -583,7 +583,12 @@ While cycles are on, a range **Cycle** joins **1M** to **Max**. It runs from
 three months before the last confirmed halving to four months after the
 later end of the two bands, so it reaches past today: right of the
 **today** line the axis holds only the next halving's window, the bands and
-the cones into them, and the price line is not continued.
+the cones into them, and the price line is not continued. Choosing
+**Cycle** turns the **Log scale** on, since the low band lies at a fraction
+of the top's price; the toggle turns it off again. While the bands are
+drawn on the timeline, a line under the chart states their basis (the
+stored closes in the security's currency, the windows, how a top and a low
+are chosen and anchored, the band's rule) and ends "no forecast".
 
 **A cycle's top and low.** Between two halvings, the top and the low are
 the peak and the trough of the cycle's **maximum drawdown**, the high from

@@ -643,7 +643,13 @@ Solange die Zyklen an sind, kommt zu **1M** bis **Max** der Bereich
 Halving bis vier Monate nach dem späteren Ende der beiden Bänder, also über
 heute hinaus: Rechts der Linie **heute** hält die Achse nur das Fenster des
 nächsten Halvings, die Bänder und die Kegel hinein, und die Kurslinie wird
-nicht fortgesetzt.
+nicht fortgesetzt. Wer **Zyklus** wählt, schaltet die **logarithmische
+Skala** ein, denn das Tief-Band liegt bei einem Bruchteil des Top-Kurses;
+der Schalter schaltet sie wieder aus. Solange die Bänder auf der Zeitachse
+gezeichnet sind, nennt eine Zeile unter dem Chart ihre Grundlage (die
+gespeicherten Schlusskurse in der Währung des Wertpapiers, die Fenster, wie
+ein Top und ein Tief gewählt und verankert werden, die Regel des Bands) und
+endet mit „keine Prognose“.
 
 **Top und Tief eines Zyklus.** Zwischen zwei Halvings sind Top und Tief
 Gipfel und Tal des **maximalen Drawdowns** des Zyklus, das Hoch, von dem

@@ -10839,3 +10839,34 @@ follows it.
 (`test/browser/cycle_card_test.exs`) checks the card, the range „Zyklus“
 and the question in both themes at 1200 and 390 px.
 <!-- S29 H8 end -->
+
+## Amendment 2026-11-13 — The cycle chart after the closing act *(Sprint 29's sprint PR, the design lens on Lane H; board `mockups/ux-design-2026-11-12-sprint29/07` ⑨, drawn before the fixes)*
+
+1. **The basis under the chart** (`p.detail-tab-hint[data-role=cycle-basis]`,
+   `CycleChart.basis_text/2`): while the bands are drawn on „Zeitachse“,
+   under the chart's price-basis line, board 07 ④'s sentence in the
+   security's currency, ending „Hülle der Teile, kein Mittelwert, keine
+   Prognose.“; on „Zyklus“ ⑤'s range sentence before it. „Ausgerichtet“
+   keeps its own line. The disclosure's sentence stays.
+2. **„Zyklus“ is drawn on the logarithmic scale.** Choosing it, or arriving
+   with `cycles=1`, turns „Logarithmische Skala“ on; the toggle turns it
+   off. **A price axis never reads below 0:** the 5 % pad under the lowest
+   price stops at 0 (in the privacy mode's percent, at −100 %); on the
+   logarithmic scale the pad stays a twentieth under the lowest price. A
+   series already in percent keeps its pad, and so does Wealth's value line,
+   a value and not a price (`SecurityChart.chart`'s `price_axis?`, set by
+   the security's charts only).
+3. **Labels at the plot's edges:** a top's or low's label within 70 px of
+   the plot's right edge ends at it (`text-anchor="end"`), within 70 px of
+   the left edge starts at it; a low whose label would run off the floor
+   puts it above its marker. In „Ausgerichtet“, a label that would cover
+   one already placed (left to right, closer than 90 px across and 12 px
+   up or down) steps a line away from its marker.
+4. **A disabled „Jetzt lesen“** (`.cycle-read__button:disabled`) is muted on
+   the muted surface, `cursor: not-allowed`, with no hover; the health line
+   takes its own width (`flex: 0 1 auto`), so the button follows its
+   sentence.
+5. **„Bänder und ihre Teile“ at 1200 px:** only the figures (`td.num`) keep
+   to one line, so „Woher“ wraps and the table fits its 954 px frame; a
+   part that is absent (it has a reason) carries no „Teil“ or „vorläufig“
+   badge.

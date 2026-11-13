@@ -286,4 +286,38 @@ defmodule PortfolixirWeb.DesignConformanceCssTest do
     assert app_css =~
              ~r/@media \(max-width: 720px\) \{[^@]*\.merge-identity__op \{\s*display: none;\s*\}\s*\.merge-identity__sign \{\s*display: inline;/s
   end
+
+  # User story (Sprint 29's closing act, the design lens on Lane H; board
+  # ux-design-2026-11-12-sprint29/07, ⑨ items 4 and 5):
+  # As the operator reading the cycle bar and „Bänder und ihre Teile“,
+  # I want a disabled „Jetzt lesen“ to look disabled and stand by its
+  # sentence, and the bands table to fit at 1200 px,
+  # so that the button says it waits and no column hides behind a scroll.
+  #
+  # Acceptance criteria:
+  # - `.cycle-read__button:disabled` is muted and not-allowed.
+  # - The health line in the cycle bar and the edit form takes only its
+  #   own width (`flex: 0 1 auto`), so the button follows it.
+  # - In the bands table only the figures (`td.num`) keep to one line; the
+  #   interval table's cells still do; the bands table drops the wrapper's
+  #   `min-width: max-content`, so it takes the frame's width.
+  test "a disabled „Jetzt lesen“ looks disabled, and the bands table wraps its words" do
+    app_css = File.read!(@app_css)
+
+    disabled = rule(app_css, ".cycle-read__button:disabled")
+    assert disabled =~ "color: var(--color-text-muted)"
+    assert disabled =~ "cursor: not-allowed"
+
+    health =
+      rule(app_css, ".cycle-bar__health .cycle-health,\n.halving-chain__health .cycle-health")
+
+    assert health =~ "flex: 0 1 auto"
+
+    assert rule(app_css, ".cycle-intervals-table td,\n.cycle-bands-table td.num") =~
+             "white-space: nowrap"
+
+    refute app_css =~ ~r/\.cycle-bands-table td[,\s][^{]*\{[^}]*white-space: nowrap/
+    refute app_css =~ ~r/\.cycle-bands-table td \{[^}]*white-space: nowrap/
+    assert rule(app_css, ".data-table-wrapper > .cycle-bands-table") =~ "min-width: 0"
+  end
 end
