@@ -338,10 +338,11 @@ defmodule PortfolixirWeb.SaleHindsightSection do
            ux-design-2026-11-12-sprint29/06-control-bar ②): a bar of
            labelled controls; the full-width comparison does not fit beside
            a label column on a phone, so below 560 px every label stands
-           above its control (B), from one edge. The label column from 840
-           px (Sprint 29 L3): the walk measured the line wrapping, the
-           benchmark select under the comparison, up to a 793 px bar. --%>
-      <ControlBar.bar class="hs-compare-bar" fold={840} floor={560} data-role="hindsight-compare">
+           above its control (B), from one edge. The label column from 860
+           px (Sprint 29 L3 set 840; PR 2's closing act): the English line
+           with a benchmark needs 798 px in Inter and 834 px in DejaVu Sans,
+           the fallback font, and the fold stands 16 px above the wider. --%>
+      <ControlBar.bar class="hs-compare-bar" fold={860} floor={560} data-role="hindsight-compare">
         <:group label={gettext("Comparison")} label_id={"#{@id}-compare-label"}>
           <nav class="segmented-control" aria-labelledby={"#{@id}-compare-label"}>
             <.link

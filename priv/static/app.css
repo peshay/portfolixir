@@ -6600,7 +6600,10 @@ details[open] > .disclosure-summary .disclosure-chevron {
   align-self: first baseline;
 }
 /* A, the label column: the fold's widths, then the bar folded always (the
-   chip rows, whose families never fit one line). */
+   chip rows, whose families never fit one line). Each width stands at
+   least 16 px above its bar's widest line, measured in Inter and in DejaVu
+   Sans, the fallback a device without Inter draws in (PR 2's closing act,
+   board 06 ⑮; test/browser/fonts.js). */
 @container control-bar (max-width: 560px) {
   .control-bar--fold-560 > .control-bar__controls {
     --control-bar-display: grid;
@@ -6623,8 +6626,19 @@ details[open] > .disclosure-summary .disclosure-chevron {
     --control-bar-select-width: auto;
   }
 }
-@container control-bar (max-width: 840px) {
-  .control-bar--fold-840 > .control-bar__controls {
+@container control-bar (max-width: 780px) {
+  .control-bar--fold-780 > .control-bar__controls {
+    --control-bar-display: grid;
+    --control-bar-columns: max-content minmax(0, 1fr);
+    --control-bar-gap: var(--space-2) 10px;
+    --control-bar-width: 100%;
+    --control-bar-group: contents;
+    --control-bar-label-margin: 0;
+    --control-bar-select-width: auto;
+  }
+}
+@container control-bar (max-width: 860px) {
+  .control-bar--fold-860 > .control-bar__controls {
     --control-bar-display: grid;
     --control-bar-columns: max-content minmax(0, 1fr);
     --control-bar-gap: var(--space-2) 10px;
@@ -6679,10 +6693,12 @@ details[open] > .disclosure-summary .disclosure-chevron {
     --control-bar-control-margin: 6px;
   }
 }
-/* The stacked chart's floor (PR 2's closing act, board 06 ⑭): its German
-   label column and level control need 334 px. */
-@container control-bar (max-width: 340px) {
-  .control-bar--floor-340 > .control-bar__controls {
+/* The stacked chart's floor (PR 2's closing act, board 06 ⑭ and ⑮): its
+   German label column and level control need 333 px in Inter and 357 px
+   in DejaVu Sans, the fallback a device without Inter draws in; 340 until
+   the walk measured the fallback too. */
+@container control-bar (max-width: 380px) {
+  .control-bar--floor-380 > .control-bar__controls {
     --control-bar-display: grid;
     --control-bar-columns: minmax(0, 1fr);
     --control-bar-gap: var(--space-1);
@@ -13470,7 +13486,23 @@ dialog.merge-dialog {
    needed); the line stays one line at 1200 px. */
 .crash-bar select {
   width: auto;
+  min-width: 0;
   max-width: 20.5rem;
+}
+/* On the one line the window's group takes the room the line leaves, from
+   16rem (its label and the select at its narrowest) up to its own width,
+   the select at its content up to the cap (PR 2's closing act, board 06
+   ⑮). In DejaVu Sans, the fallback a device without Inter draws in, the
+   line with the select at its cap needs 939 px, more than the 924 px bar at
+   a 1200 px window, and wrapped onto two edges; with the group at 16rem it
+   needs 805 px (770 in Inter), under the fold of 900, and in Inter nothing
+   moves.
+   In the label column the group is `display: contents`, so none of this
+   applies there. */
+.crash-bar .control-bar__group:has(> select) {
+  flex: 1 1 0;
+  min-width: 16rem;
+  max-width: max-content;
 }
 .crash-window {
   display: flex;

@@ -112,9 +112,12 @@ defmodule PortfolixirWeb.Components.ControlBarTest do
   # floor.
   #
   # Acceptance criteria:
-  # - `fold` is one of 560, 760, 840, 900, 960 or `:always`; `floor` one of 330,
-  #   340, 560 or `:always`; each becomes the class `control-bar--fold-<w>` /
-  #   `control-bar--floor-<w>`.
+  # - `fold` is one of 560, 760, 780, 860, 900, 960 or `:always`; `floor`
+  #   one of 330, 380, 560 or `:always`; each becomes the class
+  #   `control-bar--fold-<w>` / `control-bar--floor-<w>` (780, 860 and 380
+  #   since PR 2's closing act measured the bars in the fallback font too,
+  #   where 840 and 340 left the sale's comparison 6.5 px and the stacked
+  #   chart's label column none).
   # - A width outside these lists is refused when the bar renders, so no bar
   #   carries a class without a rule.
   test "the fold and the floor are named widths, each a class" do
@@ -133,12 +136,29 @@ defmodule PortfolixirWeb.Components.ControlBarTest do
 
     html =
       rendered_to_string(~H"""
-      <ControlBar.bar floor={340}>
+      <ControlBar.bar fold={780} floor={380}>
         <:group label="Account">x</:group>
       </ControlBar.bar>
       """)
 
-    assert count(html, "div.control-bar.control-bar--floor-340") == 1
+    assert count(html, "div.control-bar.control-bar--fold-780.control-bar--floor-380") == 1
+
+    # The widths the fallback font retired are refused.
+    assert_raise ArgumentError, ~r/fold/, fn ->
+      rendered_to_string(~H"""
+      <ControlBar.bar fold={840}>
+        <:group label="Account">x</:group>
+      </ControlBar.bar>
+      """)
+    end
+
+    assert_raise ArgumentError, ~r/floor/, fn ->
+      rendered_to_string(~H"""
+      <ControlBar.bar floor={340}>
+        <:group label="Account">x</:group>
+      </ControlBar.bar>
+      """)
+    end
 
     assert_raise ArgumentError, ~r/fold/, fn ->
       rendered_to_string(~H"""
@@ -195,18 +215,19 @@ defmodule PortfolixirWeb.Components.ControlBarTest do
     above =
       ~r/--control-bar-display:\s*grid;.*--control-bar-columns:\s*minmax\(0, 1fr\);.*--control-bar-control-margin:\s*6px;/s
 
-    for width <- [560, 760, 840, 900, 960] do
+    for width <- [560, 760, 780, 860, 900, 960] do
       assert container_block(width) =~ ".control-bar--fold-#{width} > .control-bar__controls"
     end
 
     assert rule(".control-bar--fold-always > .control-bar__controls") =~ column
     assert container_block(760) =~ column
 
-    for width <- [330, 340, 560] do
+    for width <- [330, 380, 560] do
       assert container_block(width) =~ ".control-bar--floor-#{width} > .control-bar__controls"
     end
 
-    assert container_block(340) =~ above
+    assert container_block(380) =~ above
+    refute @css =~ ~r/\.control-bar--(fold-840|floor-340)\b/
 
     assert rule(".control-bar--floor-always > .control-bar__controls") =~ above
     assert container_block(330) =~ above

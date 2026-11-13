@@ -95,17 +95,18 @@ function layoutOf(m) {
 
 // Issue 1435 (L1): the stacked chart's bar, now the component's first user,
 // keeps its layout to the pixel. At 1200 px one line; at 1024 px, where the
-// sidebar leaves the bar under 760 px, the label column (A); at 900 px,
-// without the sidebar, one line again; at 390 px the label column; at 320
-// px, where the label column and the widest control do not fit the bar,
-// every label above its control (B): the container query on the bar
-// decides, never the viewport. In English and in
-// German, whose „Klassifizierung“ is the longest label; no control leaves
-// the bar and the page never scrolls sideways.
+// sidebar leaves the bar under its fold, the label column (A); at 900 px,
+// without the sidebar, one line again; at 390 and 320 px, where the label
+// column and the widest control do not fit the bar with room in every font
+// (its floor of 380 px since PR 2's closing act, board 06 ⑮; the label
+// column at 390 px until then), every label above its control (B): the
+// container query on the bar decides, never the viewport. In English and
+// in German, whose „Klassifizierung“ is the longest label; no control
+// leaves the bar and the page never scrolls sideways.
 async function stackBarLayout(browser) {
   const errors = [];
   const host = new URL(base).hostname;
-  const expected = { 1200: "line", 1024: "column", 900: "line", 390: "column", 320: "above" };
+  const expected = { 1200: "line", 1024: "column", 900: "line", 390: "above", 320: "above" };
   for (const locale of ["en", "de"]) {
     for (const width of [1200, 1024, 900, 390, 320]) {
       const context = await browser.newContext({ viewport: { width, height: 900 } });

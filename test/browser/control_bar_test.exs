@@ -91,11 +91,12 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
   # Acceptance criteria:
   # - In English and in German, at 1200 px and at 900 px (no sidebar) the
   #   bar is one line, each control 8 px after its label.
-  # - At 1024 px (the sidebar leaves the bar under 760 px) and at 390 px the
+  # - At 1024 px (the sidebar leaves the bar under its fold of 780 px) the
   #   bar is the label column (A): every label at the bar's left edge, every
   #   control 10 px after the widest label (±1 px).
-  # - At 320 px every label stands above its control, both at the bar's
-  #   left edge (B).
+  # - At 390 and 320 px every label stands above its control, both at the
+  #   bar's left edge (B): its floor of 380 px since PR 2's closing act
+  #   (board 06 ⑮), where the label column needs 357 px in DejaVu Sans.
   # - No control leaves the bar, and the page never scrolls sideways.
   test "the stacked chart's bar keeps its line, its label column and its labels above",
        %{base_url: base_url} do
