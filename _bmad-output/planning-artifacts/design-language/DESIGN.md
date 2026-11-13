@@ -10724,3 +10724,51 @@ base line, `.cycle-count`, `.cycle-intervals`, the tables' cells and
 badges, `.cycle-bands` with its event and part rows and `__reason`. Every
 colour is a token.
 <!-- S29 H7 end -->
+
+<!-- S29 H8 begin -->
+## Amendment 2026-11-13 — The range „Zyklus“, the card „‹Name›-Zyklus“, „Halving-Kette“ and „Jetzt lesen“ *(Sprint 29 H8, FR-58; ADR-0060 §11; ADR-0059 §4, §8, §11; board `mockups/ux-design-2026-11-12-sprint29/07` ①, ②, ③, ⑤, ⑥, D-6 Q1 to Q5; idea board `mockups/ux-design-2026-11-10-idea-i12/01`, A's shortcut)*
+
+### The range „Zyklus“
+
+- **Where:** a `.range-button` after „Max“ (`phx-value-range="CYCLE"`),
+  **only while „Zyklen“ is on** and the view exists; a pushed „Zyklus“
+  with cycles off changes nothing. Turning „Zyklen“ off on it returns the
+  chart to the default range („1J“).
+- **Its dates** (`CycleChart.cycle_range/1`, from the cycles read): from
+  three months before the last confirmed halving to four months after
+  **the later end of the next low's and the next top's bands** (board 07
+  ⑥: the low band can end after the top band; today where neither has a
+  band). **It reaches past today**, which no other range does: the chart
+  takes the two dates as its axis' ends (`SecurityChart`'s `axis_from`,
+  `axis_to`), so the axis labels read them.
+- **Right of today** only the next halving's window
+  (`rect.cycle-halving-window`, a 12 % warning-hued strip from its date to
+  its end, behind the dashed estimate line, labelled „Halving ≈ ‹von› –
+  ‹bis› (Schätzung)“), the bands with their labels and the cones into
+  them, and **„heute“** (`line.cycle-today`, a muted dotted line, its label
+  at the plot's foot, left of the line). The price line ends at the last
+  close; it is never continued.
+- **The address** carries the toggle: `cycles=1` while „Zyklen“ is on (the
+  toggle patches it in and out; every link the page builds keeps it).
+  Arriving with `cycles=1` — from the card, a link or a reload — turns
+  cycles on and chooses „Zyklus“; on a security without the view it shows
+  no toggle and the default range.
+
+### The dashboard card „‹Name›-Zyklus“
+
+One `section.workspace-section.cycle-card[data-role=cycle-card]` per
+security with the cycle view, ordered by name, after „Fällig“ on the
+populated Übersicht and after the counts on the empty one (a watched coin
+needs no transaction). Its head is the `.section-head` of „Abgeschlossene
+Trades“: the title „Bitcoin-Zyklus“ and the link „Im Chart öffnen →“
+(`/securities/:id?tab=chart&cycles=1`), one click to the chart with cycles
+on and „Zyklus“. Under it a `dl.cycle-card__events`, one row per event
+(„Nächstes Tief“, „Nächstes Top“, the name in an 8 rem column): its
+window, its price range (two places and the currency, as „Bänder und ihre
+Teile“ prints it), its state in Q6's words and, on its own line, the parts
+with their n („Top → Tief n = 2 · Tief → Tief n = 2“); an event without a
+band says why in the disclosure's words. A last `.hint` says the band is
+the range the stored cycles give, with n and both ends, and not a
+forecast. **The privacy mode** hides the prices (the mask), the dates,
+states and n stay. At 390 px the values wrap under the event's name.
+<!-- S29 H8 end -->

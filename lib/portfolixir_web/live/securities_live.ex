@@ -76,6 +76,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
   @default_range "1Y"
+  # S29 H8 (ADR-0060 §11): the range „Zyklus“, offered only while cycles are
+  # on; its dates come from the cycles read (`CycleChart.cycle_range/1`).
+  @cycle_range "CYCLE"
 
   @tabs ~w(overview chart transactions trades quotes holdings classifications research news predictions events)
   @default_tab "overview"
@@ -171,6 +174,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_cycles_mode, "timeline")
      |> assign(:detail_cycle_lines, CycleChart.default_lines())
      # --- S29 H7 end ---
+     # S29 H8: the axis' own ends on the range „Zyklus“, nil on every other.
+     |> assign(:detail_axis, nil)
+     |> assign(:cycle_range, @cycle_range)
      |> assign(:detail_quotes, [])
      # T-9 (Sprint 17 V2, G3-A): the selected security's manual quotes over
      # its whole history, whether the sync can refill a released day, the
@@ -278,6 +284,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
              socket
              |> assign(:merged_notice, merged_notice(params, id))
              |> assign(:detail_tab, tab)
+             |> open_cycles(params)
              |> select_security(security)}
 
           nil ->
@@ -285,6 +292,30 @@ defmodule PortfolixirWeb.SecuritiesLive do
         end
     end
   end
+
+  # --- S29 H8 begin ---
+  # ADR-0060 §11 (board 01's shortcut): `cycles=1` opens the chart with
+  # cycles on, and arriving so — from the dashboard's card, a link or a
+  # reload — on the range „Zyklus“. While cycles are already on the address
+  # changes nothing, so a patch keeps the range the operator chose; without
+  # the view `load_detail_data/1` turns both back.
+  defp open_cycles(%{assigns: %{detail_cycles_on?: false}} = socket, %{"cycles" => "1"}) do
+    socket
+    |> assign(:detail_cycles_on?, true)
+    |> assign(:detail_range, @cycle_range)
+    |> assign(:detail_custom_range, nil)
+    |> assign(:detail_range_error, nil)
+  end
+
+  defp open_cycles(socket, _params), do: socket
+
+  defp cycles_shown?(assigns),
+    do: assigns.detail_cycles_on? and CycleChart.view?(assigns.detail_cycles)
+
+  defp valid_range?(@cycle_range, assigns), do: cycles_shown?(assigns)
+  defp valid_range?(range, _assigns), do: range in @ranges
+
+  # --- S29 H8 end ---
 
   # ADR-0050 §12: a link naming a security a merge took away patches to the
   # survivor — followed through every later merge to the live end — carrying
@@ -442,6 +473,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
     params =
       %{}
       |> maybe_put_param("tab", path_tab(assigns, opts, id))
+      # S29 H8: „Zyklen“ rides along while it is on and a security is open.
+      |> maybe_put_param("cycles", id && assigns[:detail_cycles_on?] && "1")
       |> put_list_params(state)
 
     if params == %{} do
@@ -1228,6 +1261,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <%= range_label(range) %>
                 </button>
               <% end %>
+              <%!-- S29 H8 (ADR-0060 §11; board 07 ⑤): „Zyklus“ beside 1M
+                   to Max, only while cycles are on. --%>
+              <button
+                :if={cycles_shown?(assigns)}
+                type="button"
+                phx-click="set_detail_range"
+                phx-value-range={@cycle_range}
+                class={[
+                  "range-button",
+                  is_nil(@detail_custom_range) and @detail_range == @cycle_range && "is-active"
+                ]}
+              >
+                <%= range_label(@cycle_range) %>
+              </button>
               <%!-- #721 (D5): an applied custom range shows itself in the
                    range group, in the same active treatment as a preset. --%>
               <button
@@ -1458,6 +1505,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
             notes={chart_notes(@detail_notes)}
             show_notes?={@detail_show_notes?}
             cycles={cycles? && %{payload: @detail_cycles, lines: @detail_cycle_lines}}
+            axis_from={@detail_axis && elem(@detail_axis, 0)}
+            axis_to={@detail_axis && elem(@detail_axis, 1)}
             currency_code={@selected_security.currency_code}
           />
           <%!-- #824: the overlays are named where they are drawn. Two of
@@ -6001,7 +6050,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("set_detail_range", %{"range" => range}, socket) do
-    if range in @ranges and socket.assigns.selected_security do
+    if valid_range?(range, socket.assigns) and socket.assigns.selected_security do
       {:noreply,
        socket
        |> assign(:detail_range, range)
@@ -6127,8 +6176,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # ADR-0060 §11: „Zyklen“, its two modes and its three line switches. A
   # mode or a line is taken only by its listed name; anything else changes
   # nothing.
+  # S29 H8: the toggle is kept in the address (`cycles=1`), so a reload or a
+  # link handed over opens the chart as it was left. Turned off, the range
+  # „Zyklus“ goes with it and the chart returns to the default range.
   def handle_event("toggle_detail_cycles", _params, socket) do
-    {:noreply, update(socket, :detail_cycles_on?, &(!&1))}
+    on? = not socket.assigns.detail_cycles_on?
+
+    socket =
+      if not on? and socket.assigns.detail_range == @cycle_range,
+        do: assign(socket, :detail_range, @default_range),
+        else: socket
+
+    socket = assign(socket, :detail_cycles_on?, on?)
+
+    {:noreply, push_patch(socket, to: securities_path(socket.assigns, tab: :current))}
   end
 
   def handle_event("set_detail_cycles_mode", %{"mode" => mode}, socket)
@@ -6887,6 +6948,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_fullscreen?, false)
     |> assign(:detail_cycles, nil)
     |> assign(:detail_chain_hosts, nil)
+    |> assign(:detail_axis, nil)
     |> assign(:detail_quotes, [])
     |> assign(:detail_manual, nil)
     |> assign(:detail_sync_adapter?, false)
@@ -6926,12 +6988,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
     # selection path goes through here, so resetting it here is what keeps the
     # next security's overview a reading surface (and keeps a stray Save from
     # writing the previous security's draft to it).
-    socket = assign(socket, :detail_note_editing?, false)
+    socket =
+      socket
+      |> assign(:detail_note_editing?, false)
+      # S29 H8: the cycles read first, since the range „Zyklus“ is its.
+      |> load_cycles()
+      |> keep_cycle_range()
 
     {from, to} =
       case socket.assigns[:detail_custom_range] do
         %{from: from, to: to} -> {from, to}
-        _ -> range_to_dates(socket.assigns.detail_range, id)
+        _ -> detail_dates(socket.assigns, id)
       end
 
     # Display-basis series (ADR-0028 §2): raw rows divided by later split
@@ -7021,8 +7088,36 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> load_research_log()
     |> load_predictions()
     |> load_stories()
-    |> load_cycles()
+    |> assign(:detail_axis, detail_axis(socket.assigns))
   end
+
+  # --- S29 H8 begin ---
+  # ADR-0060 §11: without the view there is no „Zyklen“ and no „Zyklus“:
+  # the toggle goes off and the range returns to the default.
+  defp keep_cycle_range(socket) do
+    if CycleChart.view?(socket.assigns.detail_cycles) do
+      socket
+    else
+      range = socket.assigns.detail_range
+
+      socket
+      |> assign(:detail_cycles_on?, false)
+      |> assign(:detail_range, if(range == @cycle_range, do: @default_range, else: range))
+    end
+  end
+
+  defp detail_dates(%{detail_range: @cycle_range} = assigns, _id),
+    do: CycleChart.cycle_range(assigns.detail_cycles)
+
+  defp detail_dates(assigns, id), do: range_to_dates(assigns.detail_range, id)
+
+  # The axis reaches past today only on the range „Zyklus“ (§11).
+  defp detail_axis(%{detail_range: @cycle_range, detail_custom_range: nil} = assigns),
+    do: CycleChart.cycle_range(assigns.detail_cycles)
+
+  defp detail_axis(_assigns), do: nil
+
+  # --- S29 H8 end ---
 
   # --- S29 H7 begin ---
   # ADR-0060 §11: the cycles read of a security bound to a chain, the
@@ -7837,6 +7932,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp range_label("3Y"), do: gettext("3Y")
   defp range_label("5Y"), do: gettext("5Y")
   defp range_label("MAX"), do: gettext("Max")
+  defp range_label(@cycle_range), do: pgettext("chart range", "Cycle")
   defp range_label(nil), do: gettext("default")
   defp range_label(range), do: range
 

@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.DataQuality
+  alias Portfolixir.Catalog.SecurityCycles
   alias Portfolixir.Classifications
   alias Portfolixir.Knowledge.Events
   alias Portfolixir.Ledger
@@ -19,6 +20,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.ClassificationName
+  alias PortfolixirWeb.Components.CycleChart
   alias PortfolixirWeb.ExcludedSales
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.PrivacyMode
@@ -52,6 +54,10 @@ defmodule PortfolixirWeb.DashboardLive do
       # calendar is a small table and the card must not depend on the
       # async overview read that carries the drift alerts.
       |> assign(:upcoming_events, upcoming_events())
+      # S29 H8 (ADR-0060 §11): a card „‹Name›-Zyklus“ per security with the
+      # cycle view, read synchronously like the calendar — a bound security
+      # is rare, and its read is the one the chart and the API answer from.
+      |> assign(:cycle_views, SecurityCycles.views())
       # #984 (pick G1-A): the closed-trades card appears only where a sell
       # is booked — a cheap fact read now, so a ledger without one never
       # paints a placeholder for a card that cannot appear.
@@ -267,8 +273,29 @@ defmodule PortfolixirWeb.DashboardLive do
     </section>
 
     <.count_cards {assigns} />
+
+    <.cycle_cards views={@cycle_views} />
     """
   end
+
+  attr(:views, :list, required: true)
+
+  # --- S29 H8 begin ---
+  # ADR-0060 §11 (idea board 01, A's shortcut): one card „‹Name›-Zyklus“
+  # per security with the cycle view, ordered by name, after the dated
+  # facts; its link opens the chart with cycles on and the range „Zyklus“.
+  # On the wizard too: a watched coin needs no transaction.
+  defp cycle_cards(assigns) do
+    ~H"""
+    <CycleChart.card
+      :for={payload <- @views}
+      payload={payload}
+      href={"/securities/#{payload.security_id}?tab=chart&cycles=1"}
+    />
+    """
+  end
+
+  # --- S29 H8 end ---
 
   # Populated dashboard (ADR-0022, reshaped by ADR-0024): one value card
   # scoped to the default view (Everything when none is set) with the YTD
@@ -615,6 +642,8 @@ defmodule PortfolixirWeb.DashboardLive do
           </li>
         </ul>
       </section>
+
+      <.cycle_cards views={@cycle_views} />
 
       <%!-- Data quality is ONE line (UX-DR2, decided 2026-07-12, adopted
            2026-08-05): rendered only when a count is non-zero, no green
