@@ -159,7 +159,13 @@ REST API that mempool.space and blockstream.info both serve:
   waive the policy for one variable the operator set:* the policy is the
   one request-forgery guard every outbound caller shares (#762), and an
   exception for private addresses is a change to that guard, not to this
-  adapter. §14 defers it with that reason.
+  adapter. §14 defers it with that reason. **Precision of 2026-11-13:**
+  the URL's path is never stored. An own instance may sit behind a proxy
+  that takes a key in the path, and §5's link `{base}/block/{hash}` put
+  that path into every halving's `source_url` and its journal entry (the
+  closing act's security lens on Lane H). A halving read from the own URL
+  therefore links to `https://{host}/block/{hash}`, the host alone; the
+  public sources keep their base.
 - **Order:** the primary first, the fallback only when the primary fails
   (§7). The fallback is never asked to confirm what the primary said. *Why:*
   both serve the same headers, so a second read of every figure doubles the
@@ -206,7 +212,8 @@ For each bound security and each *k* with
 `kind: halving`, `chain_height` *k* × 210,000, `date` the **UTC date of the
 block's timestamp**, `timing: exact`, `confirmed: true`,
 **`source_quality: primary`**, `source_url` `{base}/block/{hash}` of the
-source that answered, `checked_at` the day it was read, and
+source that answered (`https://{host}/block/{hash}` for the operator's own
+URL, whose path is never stored, §3), `checked_at` the day it was read, and
 `machine_generated: false`. *Why `primary`:* ADR-0044's scale puts the
 issuer's own statement at the top, and for a halving the chain is the
 issuer. *Why not `machine_generated`:* ADR-0048 §6 reserves the marker for
