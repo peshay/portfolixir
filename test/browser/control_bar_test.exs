@@ -378,19 +378,31 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
   # - An empty state of two sentences is excused; of three, caught.
   # - An exception without a reason is caught, and so is one that excuses
   #   nothing.
+  # - PR 2's closing act: two sentences in cousin blocks set as one are
+  #   caught; a sentence ending in a year or a count ends there; an ordinal
+  #   before a month or „Quartal“ does not.
   test "the open prose check catches a split paragraph and an exception without a reason",
        %{base_url: base_url} do
     {result, output} = run!("prose_attack", base_url, %{})
     fixtures = result["fixtures"]
 
-    for caught <- ~w(split_spans split_blocks long_sentence empty_state_long) do
+    for caught <-
+          ~w(split_spans split_blocks long_sentence empty_state_long) ++
+            ~w(nested_split year_end count_end en_year_end) do
       assert length(fixtures[caught]) == 1, "#{caught} went uncaught:\n" <> output
     end
 
     assert fixtures["split_spans"] |> hd() =~ "2 sentence(s)", output
     assert fixtures["split_blocks"] |> hd() =~ "+ 1 sibling(s)", output
+    # PR 2 closing act: cousins set as one are one paragraph; a sentence
+    # ending in a year or a count ends there.
+    assert fixtures["nested_split"] |> hd() =~ "+ 1 sibling(s)", output
 
-    for sound <- ~w(spaced abbreviations behind_info empty_state) do
+    for name <- ~w(year_end count_end en_year_end) do
+      assert fixtures[name] |> hd() =~ "2 sentence(s)", output
+    end
+
+    for sound <- ~w(spaced abbreviations behind_info empty_state ordinals) do
       assert fixtures[sound] == [], "#{sound} was caught:\n" <> output
     end
 

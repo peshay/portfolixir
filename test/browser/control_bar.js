@@ -1266,8 +1266,10 @@ function collect(page, exceptions = PROSE_EXCEPTIONS) {
         for (const child of e.children) visit(child);
       };
       for (const child of main.children) visit(child);
-      // Two block siblings, one right under the other with no paragraph
-      // spacing, in the same voice: one paragraph to the reader.
+      // Two blocks, one right under the other on the same left edge with
+      // no paragraph spacing, in the same voice: one paragraph to the
+      // reader, siblings or not (PR 2 closing act: two cousins, each in a
+      // wrapper of its own, read as two).
       const merged = [];
       for (const b of blocks) {
         const last = merged[merged.length - 1];
@@ -1279,7 +1281,8 @@ function collect(page, exceptions = PROSE_EXCEPTIONS) {
           const sb = getComputedStyle(b.e);
           const lineHeight = parseFloat(sb.lineHeight) || parseFloat(sb.fontSize) * 1.2;
           if (
-            prev.nextElementSibling === b.e &&
+            !prev.contains(b.e) &&
+            !b.e.contains(prev) &&
             Math.abs(a.left - r.left) <= 1 &&
             r.top - a.bottom >= -1 &&
             r.top - a.bottom < lineHeight / 2 &&
@@ -1312,20 +1315,27 @@ function collect(page, exceptions = PROSE_EXCEPTIONS) {
 
 // Abbreviations that end in a full stop inside a sentence, German and
 // English; a single letter („J.“, „M.“, „S.“, „p. a.“) and an ordinal
-// („3. Juni“) too.
+// („3. Juni“) too. A number ends its sentence („seit 2019. Ältere …“,
+// „Offen: 3. Aufgelöste …“) unless the next word is lower case, a month
+// or „Quartal“: then it is an ordinal (PR 2 closing act).
 const ABBREVIATIONS = [
   "z", "u", "d", "o", "v", "bzw", "ggf", "ggü", "inkl", "exkl", "ca", "Nr", "vgl", "etc", "evtl",
   "max", "min", "bspw", "Pp", "Mio", "Mrd", "Tsd", "Std", "Jan", "Feb", "Apr", "Jun", "Jul", "Aug",
   "Sep", "Sept", "Okt", "Nov", "Dez", "vs", "approx", "incl", "excl", "e\\.g", "i\\.e", "cf", "Mr", "Dr"
 ];
-const GUARD = new RegExp("(^|[\\s(„\"])(" + ABBREVIATIONS.join("|") + "|\\p{L}|\\d+)\\.(?=\\s)", "giu");
+const ORDINAL_NEXT =
+  "\\p{Ll}|(?:Jan(?:uar|uary)?|Feb(?:ruar|ruary)?|März|Mär|March|Mar|Apr(?:il)?|Mai|May|Jun[ie]?|Jul[iy]?|" +
+  "Aug(?:ust)?|Sept?(?:ember)?|Okt(?:ober)?|Oct(?:ober)?|Nov(?:ember)?|Dez(?:ember)?|Dec(?:ember)?|Quartal)(?=[\\s.,;:)]|$)";
+const GUARD = new RegExp("(^|[\\s(„\"])(" + ABBREVIATIONS.join("|") + "|\\p{L})\\.(?=\\s)", "giu");
+// Case-sensitive, so „\\p{Ll}“ reads lower case only.
+const ORDINAL = new RegExp("(^|[\\s(„\"])(\\d+)\\.(?=\\s+(?:" + ORDINAL_NEXT + "))", "gu");
 
 function words(text) {
   return text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
 }
 
 function sentences(text) {
-  const guarded = text.replace(GUARD, "$1$2§");
+  const guarded = text.replace(GUARD, "$1$2§").replace(ORDINAL, "$1$2§");
   return guarded
     .split(/(?<=[.!?])["“”»)]*\s+(?=[\p{Lu}„"“(\d])/u)
     .filter((s) => /\p{L}/u.test(s)).length;
@@ -1408,7 +1418,18 @@ const PROSE_FIXTURES = {
   behind_info: `<div>Kursbasis: splitbereinigt.<details class="metric-tooltip" open><summary>i</summary><p role="tooltip">Erster Satz der Methode. Zweiter Satz der Methode.</p></details></div><div class="data-note">Ein Hinweis. Mit seiner Abhilfe.</div>`,
   // An empty state: two sentences, excused; three, not.
   empty_state: `<p class="empty-state">Noch nichts erfasst. Erfassen über die API.</p>`,
-  empty_state_long: `<p class="empty-state">Noch nichts erfasst. Erfassen über die API. Oder hier.</p>`
+  empty_state_long: `<p class="empty-state">Noch nichts erfasst. Erfassen über die API. Oder hier.</p>`,
+  // --- PR 2 closing act begin (the attack lens of Lane L, pr2-l-attack) ---
+  // Two sentences in two blocks set as one, each in a wrapper of its own:
+  // cousins, not siblings (S2).
+  nested_split: `<div><div><p style="margin: 0">Ein Satz steht hier.</p></div><div><p style="margin: 0">Ein anderer folgt ihm.</p></div></div>`,
+  // A sentence that ends in a year or a count, then the next one (S3).
+  year_end: `<p>Die Kursreihe beginnt im Jahr 2019. Ältere Kurse fehlen noch.</p>`,
+  count_end: `<p>Offene Prognosen: 3. Aufgelöste folgen nach dem Stichtag.</p>`,
+  en_year_end: `<p>Quotes start in 2019. Older quotes are missing.</p>`,
+  // An ordinal before a month or a quarter stays inside its sentence.
+  ordinals: `<p>Fällig am 3. Juni, gezahlt am 1. Mai, gebucht im 2. Quartal, gemeldet am 4. Dezember.</p>`
+  // --- PR 2 closing act end ---
 };
 
 async function proseAttack(browser) {
