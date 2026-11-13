@@ -4,6 +4,6 @@
   "private": true,
   "description": "The Playwright version the browser tests (mix test test/browser --only browser) run on, pinned exactly; CI installs this lockfile and that version's Chromium.",
   "devDependencies": {
-    "playwright": "1.64.1"
+    "playwright": "1.65.0"
   }
 }
