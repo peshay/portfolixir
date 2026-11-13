@@ -17,12 +17,17 @@ defmodule Portfolixir.Invariants.BrowserWalksSettleTest do
   # - `goto`, `reload`, `goBack`, `goForward` and `setContent` replace the
   #   page's document: `visit(page, url)` waits, then goes, and
   #   `draw(page, html)` waits, then writes (the helper offers no reload or
-  #   history step; a walk that needs one adds it to the helper);
+  #   history step; a walk that needs one adds it to the helper), and so
+  #   does a script that writes `location` or calls its `assign`, `replace`
+  #   or `reload` inside the page; a call reached by its name as a string
+  #   (`page["goto"]`) is the call;
   # - `close` on a page, a context or the browser ends every page in it,
   #   the end of a walk included: `leave(target)` waits for each, then
   #   closes;
   # - a click or a tap on a link (an `a` element, a `data-phx-link`, an
-  #   `href`, the sidebar's `#nav-…` links, the privacy switch) loads
+  #   `href`, the sidebar's `#nav-…` links, the privacy switch, a link
+  #   found by `getByRole("link")`, and anything found by its text,
+  #   `getByText` or `text=`, a link's text as likely as a button's) loads
   #   another page: `follow(page, () => page.click(…))` waits, then clicks.
   #
   # The check is lexical, so its limits are named: a click on a control
@@ -43,6 +48,19 @@ defmodule Portfolixir.Invariants.BrowserWalksSettleTest do
 
   # A selector that names a link to another page.
   @link ~r/(^|[\s>+~,(])a(?=[\[.#:\s]|$)|data-phx-link|\[href|#nav-|#privacy-mode/
+
+  # A leaving call, by its name or by its name as a string (`page["goto"]`).
+  @leaving_call ~r/(?:\.|\[\s*["'`])(#{Enum.join(@leaving, "|")})(?:["'`]\s*\])?\(/
+
+  # The page sent elsewhere from inside it: `location` (or its `href`)
+  # written, or its `assign`, `replace` or `reload` called. Reading it
+  # leaves nothing.
+  @location_write ~r/\blocation(?:\.href)?\s*=(?!=)|\blocation\.(?:assign|replace|reload)\(/
+
+  # A link found by its role or by its text: `getByRole("link")`, and
+  # `getByText(…)` or a `text=` selector, which name what the operator
+  # reads, a link's text as often as a button's.
+  @link_by_role_or_text ~r/getByRole\(\s*["'`]link["'`]|getByText\(|["'`]text=/
 
   # The busy selector's parts: the helper's alone.
   @own_wait ~r/\.phx-loading|\.value-slot-pending/
@@ -150,6 +168,46 @@ defmodule Portfolixir.Invariants.BrowserWalksSettleTest do
              "a tap on #{selector} outside follow is not refused"
     end
 
+    # PR 2 closing act (the attack lens of Lane L, M2): the ways around the
+    # check the lens found. A page sent elsewhere from inside the page, a
+    # leaving call reached by its name as a string, a link found by its role
+    # or by its text.
+    for {line, rule} <- [
+          {~s|await page.evaluate(() => { location.href = base + "/x"; });|,
+           {:direct, "location"}},
+          {~s|await page.evaluate(() => window.location.assign("/x"));|, {:direct, "location"}},
+          {~s|await page.evaluate(() => location.replace("/x"));|, {:direct, "location"}},
+          {~s|await page.evaluate(() => { document.location = "/x"; });|, {:direct, "location"}},
+          {~s|await page["goto"](base + "/x");|, {:direct, "goto"}},
+          {~s|await page['reload']();|, {:direct, "reload"}}
+        ] do
+      source = String.replace(clean, "await page.click(\"#detail-tab-chart\");", line)
+      assert rule in Enum.map(violations(source), &rule/1), "#{line} is not refused"
+    end
+
+    for line <- [
+          ~s|await page.getByRole("link", { name: "Wertpapiere" }).click();|,
+          ~s|await page.getByRole('link').first().click();|,
+          ~s|await page.click("text=Wertpapiere");|,
+          ~s|await page.getByText("Wertpapiere").click();|,
+          ~s|await page.locator("a").first().click();|
+        ] do
+      source = String.replace(clean, "await page.click(\"#detail-tab-chart\");", line)
+
+      assert Enum.any?(violations(source), &match?({:unfollowed_link, _}, &1)),
+             "#{line} outside follow is not refused"
+    end
+
+    # Reading where the page is leaves nothing.
+    reading =
+      String.replace(
+        clean,
+        "await page.click(\"#detail-tab-chart\");",
+        ~s|const here = await page.evaluate(() => location.href + location.pathname);|
+      )
+
+    assert violations(reading) == []
+
     # A registered exception excuses its own violation only, and one that
     # matches nothing is stale.
     found = [{"a.js", {:direct, "goto", 3}}, {"b.js", :no_helper}]
@@ -182,8 +240,14 @@ defmodule Portfolixir.Invariants.BrowserWalksSettleTest do
 
     direct =
       for {line, n} <- Enum.with_index(lines, 1),
-          [_, call] <- Regex.scan(~r/\.(#{Enum.join(@leaving, "|")})\(/, line),
+          [_, call] <- Regex.scan(@leaving_call, line),
           do: {:direct, call, n}
+
+    # PR 2 closing act: the page sent elsewhere from inside it.
+    location =
+      for {line, n} <- Enum.with_index(lines, 1),
+          line =~ @location_write,
+          do: {:direct, "location", n}
 
     leave =
       if code =~ ~r/\blaunchChromium\(/ and not (code =~ ~r/\bleave\(/), do: [:no_leave], else: []
@@ -191,13 +255,13 @@ defmodule Portfolixir.Invariants.BrowserWalksSettleTest do
     links =
       for {line, n} <- Enum.with_index(lines, 1),
           line =~ ~r/\.(click|tap|dblclick)\(/,
-          Enum.any?(string_literals(line), &(&1 =~ @link)),
+          Enum.any?(string_literals(line), &(&1 =~ @link)) or line =~ @link_by_role_or_text,
           not (line =~ ~r/\bfollow\(/),
           do: {:unfollowed_link, n}
 
     own_wait = if code =~ @own_wait, do: [:own_wait], else: []
 
-    helper ++ direct ++ leave ++ links ++ own_wait
+    helper ++ direct ++ location ++ leave ++ links ++ own_wait
   end
 
   defp rule({:direct, call, _line}), do: {:direct, call}
@@ -232,6 +296,9 @@ defmodule Portfolixir.Invariants.BrowserWalksSettleTest do
     do: "#{file}: launches a browser and never leaves it through leave()"
 
   defp describe({file, :own_wait}), do: "#{file}: carries a busy-marker wait of its own"
+
+  defp describe({file, {:direct, "location", line}}),
+    do: "#{file}:#{line}: sends the page elsewhere through location (use the helper's visit)"
 
   defp describe({file, {:direct, call, line}}),
     do: "#{file}:#{line}: calls .#{call}( itself (use the helper's visit, draw or leave)"
