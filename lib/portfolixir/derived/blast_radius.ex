@@ -161,8 +161,10 @@ defmodule Portfolixir.Derived.BlastRadius do
   #
   # The one list that answers `[]` is `@feeds_no_security_data`: journaled
   # resource types classified, one by one, as writing nothing a security's own
-  # series reads (`security_event` except a halving, resolved above it). It is an explicit enumeration, not a default — a new resource
-  # type is absent from it and so widens.
+  # series reads (`security_event` except a halving, which
+  # `securities_for_write/2` resolves to its security first). It is an
+  # explicit enumeration, not a default — a new resource type is absent from
+  # it and so widens.
   @feeds_no_security_data ~w(
     allowance_order bucket cash_account cash_account_bucket_assignment category
     classification crash_manual_window crash_window_name depot_bucket_assignment merge_record news_item news_label policy_rule
