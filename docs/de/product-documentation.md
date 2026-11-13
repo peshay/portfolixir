@@ -256,8 +256,9 @@ Ansicht lässt sich als Lesezeichen speichern oder verlinken:
   Menge; *Auf zwei Skalen bepreist* (Issue #1068): die Anleihen, die der
   Zwei-Skalen-Wächter nennt, in beiden Richtungen (siehe *Anleihen* unten),
   die Liste, die der Zwei-Skalen-Zähler der Übersicht öffnet; und *Kurs
-  passt nicht zu Buchungen* (Issue #1101): die gehaltenen Wertpapiere, deren
-  gespeicherte Kurse ihren eigenen Buchungen widersprechen (siehe *Ein Kurs,
+  passt nicht zu Buchungen* (Issue #1101): die Wertpapiere, gehalten oder
+  nicht, deren gespeicherte Kurse ihren eigenen Buchungen widersprechen
+  (siehe *Ein Kurs,
   der nicht zu den Buchungen passt* unter Kurse und Charts), die Liste, die
   der Zähler der Übersicht für sie öffnet; und *Währung abweichend* (Issue
   #1415): die Wertpapiere, deren Kursanbieter bei der Synchronisierung, die

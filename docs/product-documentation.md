@@ -225,8 +225,9 @@ be bookmarked or linked to:
   base currency, so storing the rate empties the set; *Priced on two
   scales* (issue #1068): the bonds the two-scales guard names, in either
   direction (see *Bonds* below), the list the Overview's two-scales count
-  opens; and *Quote does not match bookings* (issue #1101): the held
-  securities whose stored quotes contradict their own bookings (see *A
+  opens; and *Quote does not match bookings* (issue #1101): the
+  securities, held or not, whose stored quotes contradict their own
+  bookings (see *A
   quote that does not match the bookings* under Quotes and Charts), the
   list the Overview's count of them opens; and *Currency mismatch* (issue
   #1415): the securities whose quote provider stated another currency than
