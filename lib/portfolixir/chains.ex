@@ -178,7 +178,8 @@ defmodule Portfolixir.Chains do
   # new row, or `last_tried_at` moved to `now` where it is due (never tried,
   # ten minutes ago or more, or after `now`). The write that loses finds the
   # row stamped and answers its wait. A chain with no security bound
-  # claims nothing: its run asks no host and starts no wait.
+  # claims nothing (its run asks no host and starts no wait); a stored try
+  # still holds it back, as the check alone did.
   @claim_sql """
   INSERT INTO chain_reads (chain, last_tried_at, inserted_at, updated_at)
   VALUES ($1, $2, $2, $2)
@@ -193,7 +194,7 @@ defmodule Portfolixir.Chains do
 
   defp claim(chain, now) do
     if bound_count(chain) == 0 do
-      :ok
+      due(Reader.state(chain), now)
     else
       cutoff = DateTime.add(now, -@refresh_seconds)
       at = DateTime.to_naive(now)
