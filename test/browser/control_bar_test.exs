@@ -499,7 +499,10 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
   # --- L5 begin ---
   # The pages the walk opens for their prose alone, no bar swept and no tab
   # followed: the seed's first bond with its terms entered, whose overview
-  # holds the bond strip and its basis line (board 06 ⑩).
+  # holds the bond strip and its basis line (board 06 ⑩); and the seed's
+  # coin bound to a halving chain (step 24), its chart opened with cycles
+  # on and the range „Zyklus“, as the Übersicht's card opens it, whose
+  # basis line stands under the chart (board 07 ⑩).
   defp prose_addresses do
     bond =
       Repo.all(
@@ -511,8 +514,21 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
         )
       )
 
+    coin =
+      Repo.all(
+        from(s in Security,
+          where: not is_nil(s.halving_chain),
+          order_by: s.id,
+          limit: 1,
+          select: s.id
+        )
+      )
+
     assert [_] = bond, "the review seed holds no bond with its terms entered"
-    Enum.map(bond, &"/securities/#{&1}")
+    assert [_] = coin, "the review seed holds no coin bound to a halving chain"
+
+    Enum.map(bond, &"/securities/#{&1}") ++
+      Enum.map(coin, &"/securities/#{&1}?tab=chart&cycles=1")
   end
 
   # --- L5 end ---

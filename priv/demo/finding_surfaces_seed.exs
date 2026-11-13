@@ -2233,4 +2233,80 @@ if Portfolixir.Crashes.list_windows().manual == [] do
   IO.puts("Sprint 29 L3: one manual crash window")
 end
 
+# 24. A coin with halving cycles (FR-58, Sprint 29 Lane H; ADR-0059 §4,
+#     ADR-0060; board ux-design-2026-11-12-sprint29/07): the cycle chart,
+#     its bands and the Übersicht's card „‹Name›-Zyklus“ show only for a
+#     security bound to a halving chain with at least two confirmed
+#     halvings, and the seed bound none, so L5's walk of the open prose
+#     never reached them. One coin, SYNTHETIC: „Ferncoin“, bound to
+#     Litecoin, a chain without a source, so its halvings are entered by
+#     hand as events (no network); four confirmed and the next one as an
+#     estimated window, and a few closes per window on a synthetic path,
+#     the last a month ago, so its bands run past today. Written only
+#     while no security of that name exists, so a re-run adds nothing.
+if find_security.("Ferncoin") == nil do
+  {:ok, coin} =
+    Catalog.create_security(owner, %{
+      name: "Ferncoin",
+      currency_code: "USD",
+      asset_class: "crypto"
+    })
+
+  {:ok, coin} = Catalog.update_security(owner, coin, %{halving_chain: "litecoin"})
+  interval = Portfolixir.Chains.Registry.halving_interval(:litecoin)
+  # The last close a month before today; every date counts back from it.
+  last_close = Date.add(today, -30)
+  on = fn days_before_last -> Date.add(last_close, -days_before_last) end
+
+  for {k, days_before_last, confirmed} <- [
+        {1, 2668, true},
+        {2, 1938, true},
+        {3, 1207, true},
+        {4, 477, true},
+        {5, -249, false}
+      ] do
+    timing =
+      if confirmed,
+        do: %{"timing" => "exact", "source_quality" => "secondary_multi"},
+        else: %{
+          "timing" => "window",
+          "date_end" => Date.to_iso8601(Date.add(on.(days_before_last), 25)),
+          "source_quality" => "unverified"
+        }
+
+    {:ok, _event} =
+      Knowledge.Events.create_event(
+        owner,
+        Map.merge(timing, %{
+          "security_id" => coin.id,
+          "kind" => "halving",
+          "chain_height" => k * interval,
+          "date" => Date.to_iso8601(on.(days_before_last)),
+          "confirmed" => confirmed
+        })
+      )
+  end
+
+  closes =
+    for {days_before_last, close} <- [
+          {2668, "40"},
+          {2618, "50"},
+          {2526, "80"},
+          {2069, "10"},
+          {1938, "9"},
+          {1522, "200"},
+          {1338, "30"},
+          {1207, "50"},
+          {1004, "500"},
+          {731, "100"},
+          {477, "470"},
+          {213, "1500"},
+          {0, "1000"}
+        ],
+        do: %{date: on.(days_before_last), close: Decimal.new(close)}
+
+  {:ok, _} = Catalog.upsert_quotes(owner, coin.id, closes)
+  IO.puts("Sprint 29 Lane H: Ferncoin, bound to Litecoin, four halvings by hand")
+end
+
 IO.puts("review seed done (timber position: #{timber_state})")

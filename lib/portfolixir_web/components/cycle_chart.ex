@@ -367,26 +367,53 @@ defmodule PortfolixirWeb.Components.CycleChart do
   def chain_name(_none), do: "—"
 
   # --- S29 closing act begin ---
-  @doc """
-  The basis sentence under the chart while the bands are drawn on the time
-  axis (board 07 ④, ⑤; ⑨ item 1): the series, the windows, the extremes,
-  the anchor and the band rule, ending „no forecast“; on the range
-  „Zyklus“ (`cycle_range?`) the range's own sentence first.
-  """
-  @spec basis_text(map(), boolean()) :: String.t()
-  def basis_text(payload, cycle_range?) do
-    basis =
-      gettext(
-        "Basis: stored daily closes in %{currency}, gaps skipped, never filled · windows from halving to halving (the close on a halving day belongs to the new window) · top and low = peak and trough of the largest decline in the window · an open top is an anchor from 20 % below it, a low only once the window closes · band: time min to max, price from the last factor to one log step further; hull of the parts, no average, no forecast.",
-        currency: payload.currency_code
-      )
+  attr(:payload, :map, required: true, doc: "the cycles read of a security with the view")
+  attr(:cycle_range?, :boolean, required: true, doc: "the chart is on the range „Zyklus“")
 
-    if cycle_range?,
-      do:
+  @doc """
+  The basis line under the chart while the bands are drawn on the time
+  axis (board 07 ④, ⑤; ⑨ item 1; ⑩): one sentence — the stored closes in
+  the security's currency, the windows, where the bands come from —
+  ending „keine Prognose“, and behind the ⓘ at its end the method (DESIGN.md
+  I1): on the range „Zyklus“ (`cycle_range?`) the range's own sentence,
+  then the gaps, the extremes and their anchors, and the band's rule.
+  """
+  def basis(assigns) do
+    ~H"""
+    <div class="detail-tab-hint" data-role="cycle-basis">
+      <%= gettext(
+        "Basis: stored daily closes in %{currency}, windows from halving to halving, bands from the stored cycles' intervals and factors: not a forecast.",
+        currency: @payload.currency_code
+      ) %>
+      <PortfolixirWeb.AppShell.section_info>
+        <:line :for={line <- basis_method(@cycle_range?)}><%= line %></:line>
+      </PortfolixirWeb.AppShell.section_info>
+    </div>
+    """
+  end
+
+  defp basis_method(cycle_range?) do
+    range =
+      if cycle_range?,
+        do: [
+          gettext(
+            "Range „Cycle“: three months before the last confirmed halving to four months after the end of the later band; right of „today“ only the halving window and the bands."
+          )
+        ],
+        else: []
+
+    range ++
+      [
         gettext(
-          "Range „Cycle“: three months before the last confirmed halving to four months after the end of the later band; right of „today“ only the halving window and the bands."
-        ) <> " " <> basis,
-      else: basis
+          "Gaps in the closes are skipped, never filled; the close on a halving day belongs to the new window."
+        ),
+        gettext(
+          "Top and low: the peak and the trough of the largest decline in the window; an open top is an anchor from 20 % below it, a low only once the window closes."
+        ),
+        gettext(
+          "Band: time from the minimum to the maximum, price from the last factor to one log step further; the hull of the parts, no average."
+        )
+      ]
   end
 
   # --- S29 closing act end ---
@@ -1222,11 +1249,19 @@ defmodule PortfolixirWeb.Components.CycleChart do
           <%= w.text %>
         </li>
       </ul>
-      <p class="detail-tab-hint" data-role="cycle-aligned-basis">
-        <%= gettext(
-          "x: calendar days since the halving · y: close ÷ the last close on or before the halving day, on a log scale · a window without such a close is left out"
-        ) %>
-      </p>
+      <%!-- Board 07 ⑩ (DESIGN.md I1): the axes on the line, the base and the
+           left-out windows behind its ⓘ. A `div`: a <details> is not
+           phrasing content. --%>
+      <div class="detail-tab-hint" data-role="cycle-aligned-basis">
+        <%= gettext("x: calendar days since the halving · y: close ÷ the halving day's close, on a log scale") %>
+        <PortfolixirWeb.AppShell.section_info>
+          <:line>
+            <%= gettext(
+              "The halving day's close is the last close on or before that day; a window without such a close is left out."
+            ) %>
+          </:line>
+        </PortfolixirWeb.AppShell.section_info>
+      </div>
     </div>
     """
   end
@@ -1641,11 +1676,16 @@ defmodule PortfolixirWeb.Components.CycleChart do
         <PortfolixirWeb.AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
         <%= gettext("Bands and their parts") %>
       </summary>
-      <p class="detail-tab-hint">
+      <%!-- Board 07 ⑩ (DESIGN.md I1): one sentence ending „keine Prognose“,
+           the rest behind its ⓘ. --%>
+      <div class="detail-tab-hint" data-role="cycle-bands-basis">
         <%= gettext(
-          "Not a forecast: each band is the range the stored cycles' intervals and factors give from the current anchors, with its n and both ends; never a single date or price, nothing fitted, nothing averaged."
+          "Each band: the range the stored cycles' intervals and factors give from the current anchors, with n and both ends: not a forecast."
         ) %>
-      </p>
+        <PortfolixirWeb.AppShell.section_info>
+          <:line><%= gettext("Never a single date or price, nothing fitted, nothing averaged.") %></:line>
+        </PortfolixirWeb.AppShell.section_info>
+      </div>
       <div class="data-table-wrapper">
         <table class="data-table cycle-bands-table">
           <thead>

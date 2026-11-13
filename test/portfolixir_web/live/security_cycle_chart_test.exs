@@ -531,6 +531,6 @@ defmodule PortfolixirWeb.SecurityCycleChartTest do
              "waits until the running cycle's low is final"
            )
 
-    assert has_element?(view, "details[data-role='cycle-bands']", "Not a forecast")
+    assert has_element?(view, "details[data-role='cycle-bands']", "not a forecast")
   end
 end

@@ -646,10 +646,12 @@ nächsten Halvings, die Bänder und die Kegel hinein, und die Kurslinie wird
 nicht fortgesetzt. Wer **Zyklus** wählt, schaltet die **logarithmische
 Skala** ein, denn das Tief-Band liegt bei einem Bruchteil des Top-Kurses;
 der Schalter schaltet sie wieder aus. Solange die Bänder auf der Zeitachse
-gezeichnet sind, nennt eine Zeile unter dem Chart ihre Grundlage (die
-gespeicherten Schlusskurse in der Währung des Wertpapiers, die Fenster, wie
-ein Top und ein Tief gewählt und verankert werden, die Regel des Bands) und
-endet mit „keine Prognose“.
+gezeichnet sind, nennt eine Zeile unter dem Chart ihre Grundlage in einem
+Satz (die gespeicherten Schlusskurse in der Währung des Wertpapiers, die
+Fenster, woher die Bänder kommen), der mit „keine Prognose“ endet; ihr ⓘ
+hält die Methode: auf **Zyklus** die Daten des Bereichs, die Lücken, wie
+ein Top und ein Tief gewählt und verankert werden, und die Regel des
+Bands.
 
 **Top und Tief eines Zyklus.** Zwischen zwei Halvings sind Top und Tief
 Gipfel und Tal des **maximalen Drawdowns** des Zyklus, das Hoch, von dem
