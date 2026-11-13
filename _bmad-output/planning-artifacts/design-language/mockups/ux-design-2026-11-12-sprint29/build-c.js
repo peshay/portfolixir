@@ -497,6 +497,13 @@ body { margin: 0; background: var(--color-bg); color: var(--color-text); font-fa
 .cy-dot.is-err { background: var(--color-danger); }
 .cy-dot.is-none { background: transparent; border: 1.5px solid var(--color-text-muted); }
 .cy-readnow { min-height: 26px; padding: 2px 10px; font-size: 12px; margin-left: 4px; }
+.cy-before { margin: 0 0 10px; } .cy-before img { display: block; height: auto; border: 1px solid var(--color-border); border-radius: 6px; }
+.cy-edge { display: block; margin: 0 0 12px; font-family: var(--font-mono); font-size: 11px; }
+.cy-edge__plot { fill: var(--color-accent-soft); stroke: var(--color-border); }
+.cy-edge__line { fill: none; stroke: var(--color-accent); stroke-width: 2; }
+.cy-edge__top { fill: var(--color-positive); } .cy-edge__low { fill: none; stroke: var(--color-danger); stroke-width: 1.5; }
+.cy-edge__label { fill: var(--color-text); paint-order: stroke; stroke: var(--color-bg); stroke-width: 3px; } .cy-edge__label.is-muted { fill: var(--color-text-muted); }
+.cy-edge__note { fill: var(--color-text-muted); font-family: var(--font-sans); font-size: 11px; }
 .cy-bar .metric-tooltip--inline { position: relative; bottom: auto; right: auto; }
 .cy-bar .metric-tooltip p { width: 30rem; max-width: 80vw; }
 .cy-bar.is-phone .cy-bar__row { gap: 6px 8px; }
@@ -712,6 +719,48 @@ const f07h = writeFrame('07h-leiste-390', `<div class="cy-card">${head('Bitcoin'
 const f07h2 = writeFrame('07h2-leiste-390-veraltet', `<div class="cy-card">${strip('Veraltet', '', cycleBar({ health: 'stale', phone: true }))}${strip('Eigene Quelle abgelehnt · A', '', cycleBar({ health: 'refusedA', phone: true, tip: REFUSED_TIP }))}${strip('Von Hand · Litecoin', '', cycleBar({ health: 'manual', phone: true }))}</div>`, { width: 390 });
 
 // ===========================================================================
+// 07i: the sprint PR's closing act on Lane H (2026-11-13), the design lens's
+// five findings, each before (a crop of the built screen on the synthetic
+// review coins, 2x, shown at half size) and after (drawn here).
+
+const before = (img, w) => `<figure class="cy-before"><img src="${img}" width="${w}" alt="vorher"></figure>`;
+const zBasis = 'Bereich „Zyklus“: drei Monate vor dem letzten bestätigten Halving bis vier Monate nach dem Ende des späteren Bands; rechts von „heute“ nur das Halving-Fenster und die Bänder. ';
+
+const f07i1a = writeFrame('07i1-vorher-zyklus', `<div class="cy-card">${before('07i1-vorher-zyklus.png', 955)}<p class="cy-hint">Gebaut: „Zyklus“ auf linearer Skala, die Kursachse ab −65,55 USD, das Tief-Band 3,8&nbsp;px hoch; kein Satz unter dem Chart (nur in der zugeklappten Offenlegung).</p></div>`, { width: 1000 });
+const f07i1b = writeFrame('07i1-nachher-zyklus', `<div class="cy-card">${toolbar({ range: 'Zyklus' })}${chart(NOW, viewZ)}<p class="cy-basis mock-new">${zBasis}${basis}</p></div>`);
+
+const edgeSvg = `<svg class="cy-edge" viewBox="0 0 560 230" width="560" height="230" role="img" aria-label="Beschriftungen am Rand">
+<rect class="cy-edge__plot" x="20" y="10" width="500" height="200"/>
+<polyline class="cy-edge__line" points="20,170 140,150 260,196 380,120 470,30 505,90 520,80"/>
+<path class="cy-edge__top" d="M464,24 h12 l-6,8 z"/><text class="cy-edge__label" x="470" y="20" text-anchor="end">1.000 USD · 10.2019</text><text class="cy-edge__label is-muted" x="470" y="40" dx="-14" text-anchor="end">verankert · vorläufig</text>
+<path class="cy-edge__low" d="M254,200 h12 l-6,-8 z"/><text class="cy-edge__label" x="260" y="186" text-anchor="middle">10,00 USD · 09.2014</text>
+<path class="cy-edge__low" d="M499,98 h12 l-6,-8 z"/><text class="cy-edge__label" x="516" y="112" text-anchor="end">bisher 700 USD · 03.2020</text><text class="cy-edge__label is-muted" x="516" y="126" text-anchor="end">vorläufig</text>
+<text class="cy-edge__note" x="24" y="226">Am rechten Rand endet die Beschriftung am Rand; ein Tief am Boden steht über seiner Marke.</text>
+</svg>`;
+const alignedSvg = `<svg class="cy-edge" viewBox="0 0 560 120" width="560" height="120" role="img" aria-label="Ausgerichtet: zwei Tiefs nebeneinander">
+<rect class="cy-edge__plot" x="20" y="10" width="500" height="80"/>
+<path class="cy-edge__low" d="M234,58 h12 l-6,-8 z"/><text class="cy-edge__label" x="240" y="72" text-anchor="middle">Tief bisher, Tag 477 (vorläufig)</text>
+<path class="cy-edge__low" d="M230,62 h12 l-6,-8 z"/><text class="cy-edge__label" x="236" y="86" text-anchor="middle">Tief Tag 476</text>
+<text class="cy-edge__note" x="24" y="112">Zwei Beschriftungen, die sich decken würden: die zweite eine Zeile tiefer.</text>
+</svg>`;
+const f07i3a = writeFrame('07i3-vorher-beschriftung', `<div class="cy-card">${before('07i3-vorher-rand.png', 381)}${before('07i3-vorher-boden.png', 560)}${before('07i3-vorher-ausgerichtet.png', 560)}<p class="cy-hint">Gebaut: am rechten Rand abgeschnitten, das Tief am Boden auf seiner Marke, zwei Tiefs in „Ausgerichtet“ übereinander.</p></div>`, { width: 600 });
+const f07i3b = writeFrame('07i3-nachher-beschriftung', `<div class="cy-card mock-new">${edgeSvg}${alignedSvg}</div>`, { width: 600 });
+
+const f07i4a = writeFrame('07i4-vorher-lesen', `<div class="cy-card">${before('07i4-vorher-lesen.png', 621)}<p class="cy-hint">Gebaut: der gesperrte Knopf sieht aus wie ein freier (oben, während der zehn Minuten), und ohne Wartezeit rückt er an den rechten Rand, weit weg von seinem Satz (unten).</p></div>`, { width: 680 });
+const f07i4b = writeFrame('07i4-nachher-lesen', `<div class="cy-card">${['wait', 'free'].map((k) => `<div class="cy-bar__row cy-bar__health mock-new"><span class="cy-health"><span class="cy-dot is-ok" aria-hidden="true"></span>Kettenquelle: mempool.space · gelesen vor 4 Min.</span><button type="button" class="button-ghost cy-readnow"${k === 'wait' ? ' disabled' : ''}>Jetzt lesen</button>${k === 'wait' ? '<span class="cy-muted">vor weniger als 10 Min. gelesen · wieder in 6 Min.</span>' : ''}</div>`).join('')}<p class="cy-hint">Gesperrt: gedämpft, ohne Hover, der Mauszeiger „nicht erlaubt“. Der Knopf steht direkt hinter seinem Satz.</p></div>`, { width: 800, css: '.cy-readnow:disabled { color: var(--color-text-muted); background: var(--color-bg-muted); border-color: var(--color-border); cursor: not-allowed; opacity: .7; } .cy-bar__health { justify-content: flex-start; margin: 6px 0; }' });
+
+const partsRows = [
+  ['b', 'Nächstes Tief', 'Hülle der Teile', '29.12.2019 – 31.12.2020', '300,00 – 382,93 USD', 'beide Wege 333,33 – 374,13 USD', 'läuft'],
+  ['p', 'Top → Tief', 'ab Top 10.2019 · Zeit n = 3, Kurs n = 3 <span class="badge badge--derived">vorläufig</span>', '02.04.2020 – 31.12.2020', '300,00 – 382,93 USD', '', 'läuft'],
+  ['p', 'Tief → Tief', 'ab Tief 05.2018 · Zeit n = 2, Kurs n = 2', '29.12.2019 – 01.05.2020', '333,33 – 374,13 USD', '', 'läuft'],
+  ['b', 'Nächstes Top', 'Hülle der Teile', '02.03.2021 – 01.07.2022', '4.500,00 – 5.599,50 USD', 'ein Kursweg <code>one_price_relation</code>', 'offen'],
+  ['p', 'Tief → Top', 'wartet, bis das Tief des laufenden Zyklus endgültig ist (am nächsten Halving)', '', '', '', '—'],
+];
+const partsTable = `<table class="data-table cy-table cy-parts"><thead><tr><th>Band · Teil</th><th>Woher</th><th class="num">Zeitfenster</th><th class="num">Kurs</th><th>Wo die Wege übereinstimmen</th><th>Stand</th></tr></thead><tbody>${partsRows.map(([k, a, b, c, d, e, f]) => `<tr class="${k === 'b' ? 'cy-row-band' : ''}"><td>${k === 'b' ? `<b>${a}</b>` : a}</td><td>${b}</td><td class="num">${c}</td><td class="num">${d}</td><td>${e}</td><td>${f}</td></tr>`).join('')}</tbody></table>`;
+const f07i5a = writeFrame('07i5-vorher-teile', `<div class="cy-card">${before('07i5-vorher-teile.png', 490)}<p class="cy-hint">Gebaut: jede Zelle ohne Umbruch, die Tabelle 1.333&nbsp;px breit im 954&nbsp;px breiten Rahmen, „Wo die Wege übereinstimmen“ und „Stand“ nur durch Scrollen; „vorläufig“ an einem Teil, der fehlt.</p></div>`, { width: 540 });
+const f07i5b = writeFrame('07i5-nachher-teile', `<div class="cy-card mock-new" style="width:954px; box-sizing:border-box">${partsTable}<p class="cy-hint">„Woher“ bricht um, nur die Zahlen bleiben auf einer Zeile; ein fehlender Teil trägt keine Kennzeichen.</p></div>`, { width: 1000, css: '.cy-parts td { white-space: normal; } .cy-parts td.num { white-space: nowrap; }' });
+
+// ===========================================================================
 // The board
 
 const BOARD_CSS = `
@@ -780,6 +829,7 @@ const sections = [
   { title: '⑥ An open top that is not yet an anchor, and parts with too few observations', recommended: true, note: `The same series <b>as it stood on 10.02.2025</b>, to show the state (the app itself reads today only, ADR-0060 §10). The 2024 window's maximum drawdown so far is ${fmtPct(PAST.open.dd)}, short of the 20&nbsp;% anchor (§2), so its top is drawn hollow as „Top bisher“ and Top → Tief answers <code>no_top_yet</code>. Top → Top has one observation (2017 → 2021; the 2013 top is before the series), so it is absent with <code>too_few_observations</code>, and so is Halving → Top, whose price it borrows. The next top is then Tief → Top alone (n = 2, one end in the partial window): <code>one_price_relation</code> again. <b>Finding:</b> here the next low's band ends after the next top's, so §11's „Zyklus“ range (to four months after the end of the top band) would cut the low band off; the frame runs to four months after the later of the two (flip „Zyklus bis zum Top-Band“). <b>Two gaps the record leaves, filled here:</b> §5 names <code>one_price_relation</code> for the top band only; here the next low also has a single part with a price side of its own, and the board gives it the same reason (proposed wording for §5: „fewer than two parts with a price side of their own“). §4 does not say whether Halving → Top is absent when the Top → Top part it borrows from is; the board treats it as absent, with the lender's n. One more case of §13 item 4 shows on the same series: five days later (15.02.2025) the drawdown reaches −21&nbsp;%, the December 2024 top anchors, and the October 2025 top replaces it.`, frames: [sized(f07e, '1200 px · Stand 10.02.2025')] },
   { title: '⑦ Parts that do not agree: parts_disjoint', recommended: true, note: `On today's series the two ways to the next low overlap (${range$(...L.agree)}). To draw <code>parts_disjoint</code>, this frame uses a <b>what-if variant</b>: every close from 01.06.2025 on scaled by 0.9, so the open window's top is about 113&#8239;k&nbsp;$. Top → Tief then ends below where Tief → Tief begins, <code>agree</code> is <code>null</code>, and the hull spans both and the gap. <b>A (recommended, Q7):</b> the hull as an outline with the two parts filled inside, so the gap reads as „no way leads here“. <b>B:</b> the hull filled like any band, with the reason in its label only; it looks like one confident range. Flip: „Uneinig nur als Hülle“.`, frames: [sized(f07f, '1200 px · Variante')] },
   { title: '⑧ The cycle bar at 390 px', recommended: true, note: 'The toolbar wraps as today; „Zyklus“ joins the range buttons. In the bar, each label starts its own line, the switches wrap, and the health line wraps under them with „Jetzt lesen“ at its end. Stale, refused (A) and by hand at the same width.', frames: [sized(f07h, '390 px · aktuell', true), sized(f07h2, '390 px · veraltet, abgelehnt, von Hand', true)] },
+  { title: '⑨ After the build: the closing act’s five design findings, before and after', recommended: true, note: `Added on 2026-11-13 by the sprint PR's closing act on Lane H, before the fixes, from the design lens's crops of the built screen (synthetic review coins). <b>1 and 2:</b> the chart drew the bands with no sentence under it (only in the closed disclosure), and „Zyklus“ landed on the linear scale with the price axis below 0. After: under the chart the basis of ④ ending „keine Prognose“, on „Zyklus“ with ⑤'s range sentence; choosing „Zyklus“, or arriving with <code>cycles=1</code>, turns the logarithmic scale on, as ⑤ draws it; and a price axis' lower pad stops at 0 (a percent axis at −100&nbsp;%). <b>3:</b> a label near the right edge ends at it, a low clamped to the floor puts its label above its marker, and two labels in „Ausgerichtet“ that would cover each other step a line apart. <b>4:</b> a disabled „Jetzt lesen“ looks disabled, and the button sits right after its sentence. <b>5:</b> in „Bänder und ihre Teile“ only the figures keep to one line, so the table fits at 1200&nbsp;px, and a part that is absent carries no badge.`, frames: [sized(f07i1a, 'vorher · Zyklus'), sized(f07i1b, 'nachher · log, Satz darunter', true), sized(f07i3a, 'vorher · Beschriftung'), sized(f07i3b, 'nachher', true), sized(f07i4a, 'vorher · Jetzt lesen'), sized(f07i4b, 'nachher', true), sized(f07i5a, 'vorher · Bänder und ihre Teile'), sized(f07i5b, 'nachher · 954 px', true)] },
 ];
 
 fs.writeFileSync(path.join(__dirname, '07-cycle-states.html'), bdHtml(sections, 'Sprint 29 · 07 Halving-Zyklen: die Zustände aus ADR-0059 und ADR-0060', intro));

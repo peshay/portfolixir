@@ -31,6 +31,13 @@ body { margin: 0; background: var(--color-bg); color: var(--color-text); font-fa
 .cy-dot.is-err { background: var(--color-danger); }
 .cy-dot.is-none { background: transparent; border: 1.5px solid var(--color-text-muted); }
 .cy-readnow { min-height: 26px; padding: 2px 10px; font-size: 12px; margin-left: 4px; }
+.cy-before { margin: 0 0 10px; } .cy-before img { display: block; height: auto; border: 1px solid var(--color-border); border-radius: 6px; }
+.cy-edge { display: block; margin: 0 0 12px; font-family: var(--font-mono); font-size: 11px; }
+.cy-edge__plot { fill: var(--color-accent-soft); stroke: var(--color-border); }
+.cy-edge__line { fill: none; stroke: var(--color-accent); stroke-width: 2; }
+.cy-edge__top { fill: var(--color-positive); } .cy-edge__low { fill: none; stroke: var(--color-danger); stroke-width: 1.5; }
+.cy-edge__label { fill: var(--color-text); paint-order: stroke; stroke: var(--color-bg); stroke-width: 3px; } .cy-edge__label.is-muted { fill: var(--color-text-muted); }
+.cy-edge__note { fill: var(--color-text-muted); font-family: var(--font-sans); font-size: 11px; }
 .cy-bar .metric-tooltip--inline { position: relative; bottom: auto; right: auto; }
 .cy-bar .metric-tooltip p { width: 30rem; max-width: 80vw; }
 .cy-bar.is-phone .cy-bar__row { gap: 6px 8px; }
