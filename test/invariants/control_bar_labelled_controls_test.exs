@@ -15,7 +15,9 @@ defmodule Portfolixir.Invariants.ControlBarLabelledControlsTest do
   # (class `segmented-control`), a chip family (class `filter-chips` or
   # `filter-chips__group`, `ChangedSince.chips` without a bar's `label_id`,
   # or a family's name, `filter-chips__family`, whose chips a function
-  # component draws). A family is **labelled** when a visible label belongs
+  # component draws; under any other class, a chip family by its chips, the
+  # nearest `role="group"` around a `filter-chip` or, with none, the chip's
+  # parent: PR 2 closing act). A family is **labelled** when a visible label belongs
   # to it (visible: neither it nor an ancestor `visually-hidden` or
   # `sr-only`), by any of
   #
@@ -247,6 +249,9 @@ defmodule Portfolixir.Invariants.ControlBarLabelledControlsTest do
   #   its family gains one.
   # - The journal as it was before L2 (6177b94, its chips and its form) is
   #   caught.
+  # - Chip families under a class no rule names (a `role="group"` holding
+  #   chips, or chips' parent), labelled through aria-labelledby or by the
+  #   text before them, are caught (PR 2 closing act).
   test "the check catches a labelled select, a split label and an exception without a reason" do
     outside = ~S"""
     <div class="toolbar">
@@ -366,6 +371,43 @@ defmodule Portfolixir.Invariants.ControlBarLabelledControlsTest do
 
     assert [journal_problem] = problems(scan_source("journal_live.ex", heex(journal)), [])
     assert journal_problem =~ "journal_live.ex:3: a labelled chips outside ControlBar.bar"
+
+    # --- PR 2 closing act begin (the attack lens of Lane L, S1) ---
+    # Chip families under a class no rule names, each a `role="group"`
+    # holding its chips, labelled through aria-labelledby: recognised by
+    # their chips, and caught.
+    unlisted = ~S"""
+    <div class="bar period-bar">
+      <span class="grp"><span id="a1">Konto</span>
+        <span class="ctl chip-row" role="group" aria-labelledby="a1"><button class="filter-chip">Giro</button></span></span>
+      <span class="grp"><label id="b1">Typ</label>
+        <span class="ctl chip-row" role="group" aria-labelledby="b1">
+          <button :for={kind <- @kinds} class="filter-chip"><%= kind %></button>
+        </span></span>
+    </div>
+    """
+
+    assert [%{kind: :chips, labelled: true}, %{kind: :chips, labelled: true}] =
+             families = scan_source("probe.ex", heex(unlisted))
+
+    assert [_, _] = problems(families, [])
+
+    # The parent of chips without a role, labelled by the text before it,
+    # is a family too; one inside a family the classes name is that family.
+    parent = ~S"""
+    <div class="period-row">
+      <strong>Zeitraum</strong>
+      <span class="chips"><button class="filter-chip">1M</button><button class="filter-chip">1J</button></span>
+    </div>
+    <span class="filter-chips" role="group" aria-label="Konto">
+      <span class="row"><button class="filter-chip">Giro</button></span>
+    </span>
+    """
+
+    assert [%{kind: :chips, labelled: true}, %{kind: :chips, labelled: false}] =
+             scan_source("probe.ex", heex(parent))
+
+    # --- PR 2 closing act end ---
   end
 
   # `body` as the one template of a source file.
@@ -503,18 +545,54 @@ defmodule Portfolixir.Invariants.ControlBarLabelledControlsTest do
 
   # A family's name (`filter-chips__family`) outside any family the reader
   # found: its chips come from a function component, so the name stands for
-  # the family.
+  # the family. A family is also recognised by its chips, under any class
+  # (PR 2 closing act).
   defp kind(node, nodes) do
     case kind(node) do
       nil ->
-        if "filter-chips__family" in classes(node) and
-             not Enum.any?(ancestors(node, nodes), &(kind(&1) != nil)),
-           do: :chips
+        cond do
+          "filter-chips__family" in classes(node) and
+              not Enum.any?(ancestors(node, nodes), &(kind(&1) != nil)) ->
+            :chips
+
+          by_chips?(node, nodes) ->
+            :chips
+
+          true ->
+            nil
+        end
 
       kind ->
         kind
     end
   end
+
+  # PR 2 closing act (the attack lens of Lane L, S1): a chip family under a
+  # class no rule above names, recognised by its chips (`filter-chip`): the
+  # nearest `role="group"` around a chip, or, with none around it, the
+  # chip's parent. Not one inside or around a family the classes name,
+  # which is that family.
+  defp by_chips?(node, nodes) do
+    chips = Enum.filter(descendants(node, nodes), &chip?/1)
+
+    family? =
+      Enum.any?(chips, fn chip ->
+        between = Enum.take_while(ancestors(chip, nodes), &(&1.id != node.id))
+
+        if node.attrs["role"] == "group" do
+          length(between) < length(ancestors(chip, nodes)) and
+            not Enum.any?(between, &(&1.attrs["role"] == "group"))
+        else
+          between == [] and
+            not Enum.any?([node | ancestors(node, nodes)], &(&1.attrs["role"] == "group"))
+        end
+      end)
+
+    family? and node.id != 0 and not chip?(node) and
+      not Enum.any?(ancestors(node, nodes) ++ descendants(node, nodes), &(kind(&1) != nil))
+  end
+
+  defp chip?(node), do: "filter-chip" in classes(node)
 
   # The visible label that belongs to a family, by the five ways above, or nil.
   defp label(node, nodes) do
