@@ -89,8 +89,9 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
   # know, and nothing on this screen moves.
   #
   # Acceptance criteria:
-  # - In English and in German, at 1200 px and at 900 px (no sidebar) the
-  #   bar is one line, each control 8 px after its label.
+  # - In English and in German, each in Inter and in DejaVu Sans (the
+  #   fallback font, PR 2's closing act), at 1200 px and at 900 px (no
+  #   sidebar) the bar is one line, each control 8 px after its label.
   # - At 1024 px (the sidebar leaves the bar under its fold of 780 px) the
   #   bar is the label column (A): every label at the bar's left edge, every
   #   control 10 px after the widest label (±1 px).
@@ -302,6 +303,11 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
   #   crossing, and a break in a band narrower than a step (761 to 767,
   #   321 to 327 px) or past 1440 px at the stylesheet's breakpoints; the
   #   strays' exceptions need a reason and go stale.
+  # - PR 2's closing act after CI (test/browser/fonts.js): a fold measured
+  #   in Inter alone, whose line holds in Inter and wraps in DejaVu Sans, is
+  #   caught in DejaVu Sans and only in its band; a break the same in both
+  #   fonts is reported once; the fonts' own check finds Inter and DejaVu
+  #   Sans and finds a family no machine has missing.
   test "the walk catches a bar that wraps only at 768 px and a label set in CSS",
        %{base_url: base_url} do
     {result, output} = run!("attack", base_url, %{})
@@ -362,6 +368,27 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
     assert Enum.any?(strays, &(&1 =~ "the exception .nowhere excuses no control")), output
 
     # --- PR 2 closing act end ---
+
+    # --- PR 2 closing act, the fallback font begin ---
+    # A fold measured in Inter alone is caught in the fallback font
+    # (fonts.js): the line holds in Inter at every width and wraps in
+    # DejaVu Sans while the bar is 681 to 706 px wide (697 to 722 px
+    # windows), as CI's runner, without Inter, drew the Crashes bar; and a
+    # break that is the same in every font is reported once.
+    fallback = fixtures["fallback_font"]
+    assert fallback["fonts"] == ["DejaVu Sans"], output
+    assert fallback["widths"] != [], output
+    assert Enum.all?(fallback["widths"], &(&1 in 697..722)), output
+    assert [only] = fallback["errors"], output
+    assert only =~ "breaks the rule in DejaVu Sans at", output
+
+    assert fixtures["css_label"]["fonts"] == ["Inter and DejaVu Sans"], output
+
+    # The walk's own check that both fonts are installed finds them, and
+    # finds a family no machine has missing, so a runner without Inter
+    # fails the walk instead of measuring the fallback twice.
+    assert result["fonts"] == %{"missing" => ["Synthetic Missing Sans"], "own" => "Inter"}, output
+    # --- PR 2 closing act, the fallback font end ---
   end
 
   # --- L5 begin ---

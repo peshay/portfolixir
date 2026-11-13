@@ -2554,6 +2554,9 @@ defmodule Portfolixir.CITest do
       for command <- [
             "npm ci --ignore-scripts --prefix test/browser",
             "npx --prefix test/browser playwright install --with-deps chromium",
+            # The fonts the layout walks measure every bar in
+            # (test/browser/fonts.js; Sprint 29 PR 2's closing act).
+            "apt-get install -y --no-install-recommends fonts-inter fonts-dejavu-core",
             "MIX_ENV=test mix ecto.migrate",
             "mix test test/browser --only browser"
           ] do
@@ -2571,10 +2574,11 @@ defmodule Portfolixir.CITest do
 
     assert File.read!(".github/dependabot.yml") =~ ~s(directory: "/test/browser")
 
-    # launch.js and settle.js are the walks' helpers, not walks: launch.js
-    # starts Chromium, settle.js (Sprint 29 M2) waits for a page's loads and
-    # never launches a browser of its own.
-    helpers = ["test/browser/launch.js", "test/browser/settle.js"]
+    # launch.js, settle.js and fonts.js are the walks' helpers, not walks:
+    # launch.js starts Chromium, settle.js (Sprint 29 M2) waits for a page's
+    # loads and fonts.js (PR 2's closing act) draws a page in a font; neither
+    # of the last two launches a browser of its own.
+    helpers = ["test/browser/launch.js", "test/browser/settle.js", "test/browser/fonts.js"]
     scripts = Path.wildcard("test/browser/*.js") -- helpers
     assert Enum.all?(helpers, &File.exists?/1)
     assert scripts != []

@@ -6,7 +6,8 @@
 // line at 1200 px; the controls from one edge once it wraps at 390 px),
 // the list's rows (one line each at 1200 px; two lines, the bar under the
 // name, at 390 px), the benchmark's dashed line inside each bar's track,
-// and that the page never scrolls sideways. The closing act adds: the bar
+// and that the page never scrolls sideways, each in Inter and in the
+// fallback font, DejaVu Sans (fonts.js). The closing act adds: the bar
 // one line at 1200 px with a long manual window in the select; the list's
 // columns, the rebounders' six included, inside the section at 1200 px;
 // the windows table's actions inside it at 1200 px; and at 390 px the
@@ -19,6 +20,7 @@
 
 const { launchChromium } = require("./launch");
 const { visit, leave } = require("./settle");
+const { FONTS, eachFont } = require("./fonts");
 
 const args = JSON.parse(process.argv[2]);
 
@@ -76,6 +78,7 @@ async function measure(page) {
       viewport: window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
       section: box(section),
+      line: box(section.querySelector("[data-role=crash-bar] .control-bar__controls")),
       options,
       controls,
       rows,
@@ -85,7 +88,9 @@ async function measure(page) {
   });
 }
 
-function check(seen, width) {
+// `font` is the font the page was measured in (fonts.js): the first is the
+// page's own, Inter.
+function check(seen, width, font) {
   const errors = [];
   if (!seen) return ["no Crashes section"];
   if (seen.scrollWidth > seen.viewport) errors.push(width + " px: the page scrolls sideways: " + seen.scrollWidth);
@@ -101,10 +106,18 @@ function check(seen, width) {
     if (!(select.right <= list.left && list.right <= universe.left))
       errors.push("1200 px: the window's select is not the bar's first control");
     // A manual window of a short name, as the review seed's, reads whole
-    // in the select at 1200 px (board 06 ⑫); a long one is cut at the cap.
+    // in the select at 1200 px in Inter (board 06 ⑫); a long one is cut at
+    // the cap. In the fallback font the line needs more than the 924 px
+    // bar with the select at its cap, so the select takes the room the
+    // line leaves (board 06 ⑮): a window is cut there only while the line
+    // is full, its last control at the bar's end.
+    const full = universe.right >= seen.line.right - 1;
     for (const option of seen.options.filter((o) => o.text.startsWith("Synthetic dip"))) {
-      if (option.needed > option.width + 0.5)
-        errors.push("1200 px: the window „" + option.text + "“ is cut: it needs " + option.needed + " px in a " + option.width + " px select");
+      if (option.needed > option.width + 0.5 && (font === FONTS[0] || !full))
+        errors.push(
+          "1200 px: the window „" + option.text + "“ is cut: it needs " + option.needed + " px in a " + option.width +
+            " px select" + (full ? "" : ", and the line ends " + Math.round(seen.line.right - universe.right) + " px before the bar")
+        );
     }
     if (!seen.options.some((o) => o.text.startsWith("Synthetic dip"))) errors.push("1200 px: no short manual window in the select");
   } else {
@@ -168,9 +181,12 @@ async function run(browser) {
         const windows = document.getElementById("crash-windows");
         if (windows) windows.open = true;
       });
-      const seen = await measure(page);
-      seenAll[width + " " + list] = seen;
-      errors.push(...check(seen, width).map((error) => list + ": " + error));
+      // In Inter and in the fallback font (fonts.js).
+      await eachFont(page, async (font) => {
+        const seen = await measure(page);
+        seenAll[width + " " + list + " " + font.name] = seen;
+        errors.push(...check(seen, width, font).map((error) => list + " in " + font.name + ": " + error));
+      });
     }
     await leave(context);
   }

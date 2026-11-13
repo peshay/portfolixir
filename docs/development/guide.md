@@ -264,7 +264,11 @@ have landed: a page left mid-load kills its load's task mid-query, and that
 takes the test's shared database connection with it.
 `test/invariants/browser_walks_settle_test.exs` refuses a script that
 navigates or closes a page without it. It needs Node, the `playwright` package on Node's module path (`NODE_PATH`) and
-its Chromium (`npx playwright install chromium`). The tag is excluded by
+its Chromium (`npx playwright install chromium`). The layout walks measure
+every bar in Inter, the app's font, and in DejaVu Sans, the fallback a device
+without Inter draws in (`test/browser/fonts.js`), and fail where either font is
+missing: on Debian or Ubuntu, `apt-get install fonts-inter fonts-dejavu-core`,
+as CI's `browser` job does. The tag is excluded by
 default (`test/test_helper.exs`), so `mix test`, `mix coveralls` and CI's
 `test` job skip it; CI's `browser` job runs only it. Run it locally with:
 

@@ -41,8 +41,10 @@ defmodule Portfolixir.Invariants.BrowserWalksSettleTest do
 
   @dir "test/browser"
 
-  # The helpers themselves: the launcher, and the wait every walk uses.
-  @helpers ~w(launch.js settle.js)
+  # The helpers themselves: the launcher, the wait every walk uses, and the
+  # fonts a layout walk measures in (fonts.js leaves no page: it draws the
+  # page in a font and measures).
+  @helpers ~w(launch.js settle.js fonts.js)
 
   @leaving ~w(goto reload goBack goForward setContent close)
 

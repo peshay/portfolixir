@@ -64,6 +64,11 @@ defmodule PortfolixirWeb.Browser.CrashSectionLayoutTest do
   # - PR 2's closing act (board 06 ⑫): a manual window of a short name, as
   #   the review seed's „Synthetic dip · … · manuell“, reads whole in the
   #   select at 1200 px.
+  # - PR 2's closing act after CI (board 06 ⑮; test/browser/fonts.js):
+  #   every check above holds in Inter and in DejaVu Sans, the fallback a
+  #   device without Inter draws in, except that in DejaVu Sans the short
+  #   window may be cut at 1200 px while the line is full, the window's
+  #   select taking the room the line leaves.
   test "the Crashes section at 1200 and 390 px", %{base_url: base_url} do
     world = base_world()
     index = create_security!(name: "Synthetic Crash Index", ticker: "SCI")
