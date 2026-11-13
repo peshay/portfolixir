@@ -11,6 +11,7 @@
 
 const { launchChromium } = require("./launch");
 const { settle, visit, leave } = require("./settle");
+const { eachFont } = require("./fonts");
 
 const args = JSON.parse(process.argv[2]);
 const base = args.base_url;
@@ -257,43 +258,46 @@ async function stackBarEdge(browser) {
     await ready(page, args.path);
     await page.waitForSelector("#stack-legend tbody tr");
     await nextFrame(page);
-    const m = await page.evaluate(() => {
-      const box = (selector) => {
-        const r = document.querySelector(selector).getBoundingClientRect();
-        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, mid: (r.top + r.bottom) / 2 };
-      };
-      return {
-        labels: ["#stack-level-label", "label[for='stack-classification']", "#stack-sort-label"].map(box),
-        controls: ["[data-role='stack-level']", "#stack-classification", "[data-role='stack-sort']"].map(box),
-        bar: box("[data-role='stack-bar']"),
-        page: document.documentElement.scrollWidth - document.documentElement.clientWidth
-      };
-    });
-    const label = locale + " at " + width + " px: ";
-    if (m.page > 0) errors.push(label + "the page scrolls sideways by " + m.page);
-    if (m.controls.some((c) => c.right > m.bar.right + 0.5)) {
-      errors.push(label + "a control leaves the bar " + JSON.stringify(m.controls));
-    }
-    if (width === 1200) {
-      const mids = m.labels.concat(m.controls).map((r) => r.mid);
-      if (Math.max(...mids) - Math.min(...mids) > 3) {
-        errors.push(label + "the bar is not one line " + JSON.stringify(mids));
-      }
-    } else {
-      const lefts = m.controls.map((c) => c.left);
-      if (Math.max(...lefts) - Math.min(...lefts) > 1) {
-        errors.push(label + "the controls start at " + JSON.stringify(lefts));
-      }
-      // Each label beside its control in one column (A), or above it (B).
-      const placed = m.labels.every((l, i) => {
-        const c = m.controls[i];
-        const beside = l.right <= c.left + 0.5 && l.bottom > c.top && l.top < c.bottom;
-        const above = l.bottom <= c.top + 0.5 && Math.abs(l.left - c.left) <= 1;
-        return beside || above;
+    // In Inter and in the fallback font (fonts.js).
+    await eachFont(page, async (font) => {
+      const m = await page.evaluate(() => {
+        const box = (selector) => {
+          const r = document.querySelector(selector).getBoundingClientRect();
+          return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, mid: (r.top + r.bottom) / 2 };
+        };
+        return {
+          labels: ["#stack-level-label", "label[for='stack-classification']", "#stack-sort-label"].map(box),
+          controls: ["[data-role='stack-level']", "#stack-classification", "[data-role='stack-sort']"].map(box),
+          bar: box("[data-role='stack-bar']"),
+          page: document.documentElement.scrollWidth - document.documentElement.clientWidth
+        };
       });
-      if (!placed) errors.push(label + "a label is not beside or above its control " + JSON.stringify(m));
-      console.error(label + JSON.stringify({ lefts, labels: m.labels.map((l) => [l.left, l.right]) }));
-    }
+      const label = locale + " at " + width + " px in " + font.name + ": ";
+      if (m.page > 0) errors.push(label + "the page scrolls sideways by " + m.page);
+      if (m.controls.some((c) => c.right > m.bar.right + 0.5)) {
+        errors.push(label + "a control leaves the bar " + JSON.stringify(m.controls));
+      }
+      if (width === 1200) {
+        const mids = m.labels.concat(m.controls).map((r) => r.mid);
+        if (Math.max(...mids) - Math.min(...mids) > 3) {
+          errors.push(label + "the bar is not one line " + JSON.stringify(mids));
+        }
+      } else {
+        const lefts = m.controls.map((c) => c.left);
+        if (Math.max(...lefts) - Math.min(...lefts) > 1) {
+          errors.push(label + "the controls start at " + JSON.stringify(lefts));
+        }
+        // Each label beside its control in one column (A), or above it (B).
+        const placed = m.labels.every((l, i) => {
+          const c = m.controls[i];
+          const beside = l.right <= c.left + 0.5 && l.bottom > c.top && l.top < c.bottom;
+          const above = l.bottom <= c.top + 0.5 && Math.abs(l.left - c.left) <= 1;
+          return beside || above;
+        });
+        if (!placed) errors.push(label + "a label is not beside or above its control " + JSON.stringify(m));
+        console.error(label + JSON.stringify({ lefts, labels: m.labels.map((l) => [l.left, l.right]) }));
+      }
+    });
     await leave(context);
   }
   if (errors.length > 0) throw new Error(errors.join("; "));
@@ -319,40 +323,46 @@ async function stackBarSwitch(browser) {
         { name: "portfolixir_locale", value: args.locales[locale], domain: host, path: "/" }
       ]);
       const page = await context.newPage();
-      const seen = {};
+      // Per font (fonts.js), each level's measure.
+      const seenIn = {};
       for (const [level, path] of Object.entries(args.paths)) {
         await ready(page, path);
         await page.waitForSelector("[data-role='stack-level']");
         if (level !== "total") await page.waitForSelector("#stack-legend tbody tr");
         await settle(page);
         await nextFrame(page);
-        const m = await page.evaluate(() => {
-          const left = (selector) => document.querySelector(selector).getBoundingClientRect().left;
-          const bar = left("[data-role='stack-bar']");
-          return {
-            label: left("#stack-level-label") - bar,
-            control: left("[data-role='stack-level']") - bar,
-            column: getComputedStyle(document.querySelector("[data-role='stack-bar'] .control-bar__controls")).display === "grid",
-            crumbs: document.querySelectorAll("[data-role='stack-crumbs']").length
-          };
+        await eachFont(page, async (font) => {
+          const seen = (seenIn[font.name] = seenIn[font.name] || {});
+          const m = await page.evaluate(() => {
+            const left = (selector) => document.querySelector(selector).getBoundingClientRect().left;
+            const bar = left("[data-role='stack-bar']");
+            return {
+              label: left("#stack-level-label") - bar,
+              control: left("[data-role='stack-level']") - bar,
+              column: getComputedStyle(document.querySelector("[data-role='stack-bar'] .control-bar__controls")).display === "grid",
+              crumbs: document.querySelectorAll("[data-role='stack-crumbs']").length
+            };
+          });
+          seen[level] = m;
+          const label = locale + " at " + width + " px in " + font.name + ", " + level + ": ";
+          if (Math.abs(m.label) > 1) {
+            errors.push(label + "the level's label starts " + m.label + " px from the bar's left edge");
+          }
+          if (level === "total" && m.crumbs !== 0) {
+            errors.push(label + "an empty breadcrumb is rendered");
+          }
         });
-        seen[level] = m;
-        const label = locale + " at " + width + " px, " + level + ": ";
-        if (Math.abs(m.label) > 1) {
-          errors.push(label + "the level's label starts " + m.label + " px from the bar's left edge");
-        }
-        if (level === "total" && m.crumbs !== 0) {
-          errors.push(label + "an empty breadcrumb is rendered");
+      }
+      for (const [font, seen] of Object.entries(seenIn)) {
+        const { total, category } = seen;
+        if (!total.column && !category.column && Math.abs(total.control - category.control) > 1) {
+          errors.push(
+            locale + " at " + width + " px in " + font + ": the level's control moves from " + total.control +
+              " to " + category.control + " px"
+          );
         }
       }
-      const { total, category } = seen;
-      if (!total.column && !category.column && Math.abs(total.control - category.control) > 1) {
-        errors.push(
-          locale + " at " + width + " px: the level's control moves from " + total.control +
-            " to " + category.control + " px"
-        );
-      }
-      console.error(locale + " at " + width + " px: " + JSON.stringify(seen));
+      console.error(locale + " at " + width + " px: " + JSON.stringify(seenIn));
       await leave(context);
     }
   }

@@ -218,6 +218,8 @@ defmodule PortfolixirWeb.Browser.ClosingActLayoutTest do
   #   classification's select and the sort's segmented control share one
   #   left edge (±1 px), each label beside its control in a column or above
   #   it; no control leaves the bar and the page does not scroll sideways.
+  # - Each of the above in Inter and in DejaVu Sans, the fallback a device
+  #   without Inter draws in (PR 2's closing act; test/browser/fonts.js).
   test "the stacked chart's bar is one line at 1200 px and its controls share one edge at 390 px",
        %{base_url: base_url} do
     world = base_world(name: "Bar Stack", cash_name: "Giro", depot_name: "Depot")
@@ -268,6 +270,8 @@ defmodule PortfolixirWeb.Browser.ClosingActLayoutTest do
   #   the level Total and at the level Categories.
   # - At the level Total, which has no filter path, no breadcrumb is
   #   rendered.
+  # - Each of the above in Inter and in DejaVu Sans (PR 2's closing act;
+  #   test/browser/fonts.js).
   test "the level's control starts at the bar's left edge at Total and at Categories",
        %{base_url: base_url} do
     world = base_world(name: "Switch Stack", cash_name: "Giro", depot_name: "Depot")

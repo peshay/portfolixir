@@ -14,6 +14,7 @@
 
 const { launchChromium } = require("./launch");
 const { settle, visit, draw, leave } = require("./settle");
+const { FONTS, useFont, eachFont, fontsHere } = require("./fonts");
 
 const args = JSON.parse(process.argv[2]);
 const base = args.base_url;
@@ -101,8 +102,9 @@ function layoutOf(m) {
 // (its floor of 380 px since PR 2's closing act, board 06 ⑮; the label
 // column at 390 px until then), every label above its control (B): the
 // container query on the bar decides, never the viewport. In English and
-// in German, whose „Klassifizierung“ is the longest label; no control
-// leaves the bar and the page never scrolls sideways.
+// in German, whose „Klassifizierung“ is the longest label, each in Inter
+// and in DejaVu Sans (fonts.js); no control leaves the bar and the page
+// never scrolls sideways.
 async function stackBarLayout(browser) {
   const errors = [];
   const host = new URL(base).hostname;
@@ -118,20 +120,24 @@ async function stackBarLayout(browser) {
       await page.waitForSelector("#stack-legend tbody tr");
       await settle(page);
       await nextFrame(page);
-      const m = await measure(page, STACK_GROUPS, "[data-role='stack-bar']");
-      const { layout, exact } = layoutOf(m);
-      const label = locale + " at " + width + " px: ";
-      console.error(label + JSON.stringify({ layout, exact, ...m }));
-      if (m.page > 0) errors.push(label + "the page scrolls sideways by " + m.page);
-      if (m.groups.some(({ control }) => control.right > m.bar.width + 0.5)) {
-        errors.push(label + "a control leaves the bar " + JSON.stringify(m.groups));
-      }
-      if (layout !== expected[width] || !exact) {
-        errors.push(
-          label + "expected the " + expected[width] + " layout, measured " + layout +
-            (exact ? "" : " (off by more than 1 px)") + " " + JSON.stringify(m.groups)
-        );
-      }
+      // In each font (fonts.js): the layout a width shows is the bar's
+      // fold and floor, so it is the same in both.
+      await eachFont(page, async (font) => {
+        const m = await measure(page, STACK_GROUPS, "[data-role='stack-bar']");
+        const { layout, exact } = layoutOf(m);
+        const label = locale + " at " + width + " px in " + font.name + ": ";
+        console.error(label + JSON.stringify({ layout, exact, ...m }));
+        if (m.page > 0) errors.push(label + "the page scrolls sideways by " + m.page);
+        if (m.groups.some(({ control }) => control.right > m.bar.width + 0.5)) {
+          errors.push(label + "a control leaves the bar " + JSON.stringify(m.groups));
+        }
+        if (layout !== expected[width] || !exact) {
+          errors.push(
+            label + "expected the " + expected[width] + " layout, measured " + layout +
+              (exact ? "" : " (off by more than 1 px)") + " " + JSON.stringify(m.groups)
+          );
+        }
+      });
       await leave(context);
     }
   }
@@ -414,14 +420,16 @@ async function migratedBar(browser) {
         await settle(page);
       }
       await nextFrame(page);
-      const m = await measureBar(page, bar.roots);
-      const label = args.bar + ", " + locale + " at " + width + " px: ";
-      console.error(label + JSON.stringify(m));
-      if (!m.visible) {
-        if (bar.shows.includes(width)) errors.push(label + "the bar is not shown");
-      } else {
-        for (const e of breaches(m, bar)) errors.push(label + e);
-      }
+      await eachFont(page, async (font) => {
+        const m = await measureBar(page, bar.roots);
+        const label = args.bar + ", " + locale + " at " + width + " px in " + font.name + ": ";
+        console.error(label + JSON.stringify(m));
+        if (!m.visible) {
+          if (bar.shows.includes(width)) errors.push(label + "the bar is not shown");
+        } else {
+          for (const e of breaches(m, bar)) errors.push(label + e);
+        }
+      });
       await leave(context);
     }
   }
@@ -638,21 +646,34 @@ async function walkBars(page, where, swept = new Set(), onWidth = null, strays =
     return true;
   });
   const started = Date.now();
-  const broken = new Map(measured.map((b) => [b.selector, new Map()]));
+  // Per bar and font, the widths it breaks at (fonts.js: every width is
+  // measured in Inter and in the fallback font, the fallback drawn on the
+  // bars and what stands beside them, not on the whole page).
+  const broken = new Map(measured.map((b) => [b.selector, new Map(FONTS.map((f) => [f.name, new Map()]))]));
   const byWidth = new Map(measured.map((b) => [b.selector, new Map()]));
+  // The fonts in turn at each width, the one the last width ended in
+  // first, so the page changes font once per width, not twice.
+  const scope = measured.map((b) => b.selector);
+  let fonts = FONTS;
   const sweepAt = async (width) => {
     await atWidth(page, width);
-    const ms = await measureBars(page, measured.map((b) => b.selector));
-    measured.forEach((bar, i) => {
-      const m = ms[i];
-      byWidth.get(bar.selector).set(width, m);
-      if (!m.visible) return;
-      seen.add(bar.selector);
-      const found = breaches(m, { everyFamilyNamed: bar.component, sweep: true });
-      if (found.length === 0) return;
-      broken.get(bar.selector).set(width, found);
-      console.error(where + " " + bar.name + " at " + width + " px: " + JSON.stringify(m));
-    });
+    for (const [i, font] of fonts.entries()) {
+      if (i > 0) await useFont(page, font, scope);
+      const ms = await measureBars(page, measured.map((b) => b.selector));
+      measured.forEach((bar, i) => {
+        const m = ms[i];
+        // The fold and the floor are crossed where the container is, the
+        // same in every font: the page's own font's measure finds them.
+        if (font === FONTS[0]) byWidth.get(bar.selector).set(width, m);
+        if (!m.visible) return;
+        seen.add(bar.selector);
+        const found = breaches(m, { everyFamilyNamed: bar.component, sweep: true });
+        if (found.length === 0) return;
+        broken.get(bar.selector).get(font.name).set(width, found);
+        console.error(where + " " + bar.name + " at " + width + " px in " + font.name + ": " + JSON.stringify(m));
+      });
+    }
+    fonts = [...fonts].reverse();
   };
   if (measured.length > 0) {
     const widths = [...new Set([...SWEEP, ...(await mediaSides(page))])].sort((a, b) => b - a);
@@ -679,16 +700,23 @@ async function walkBars(page, where, swept = new Set(), onWidth = null, strays =
       }
     }
   }
+  if (measured.length > 0) await useFont(page, FONTS[0]);
   console.error(where + ": swept " + measured.map((b) => b.name).join(", ") + " in " + (Date.now() - started) + " ms");
   for (const bar of measured) {
-    const at = broken.get(bar.selector);
-    if (at.size > 0) {
+    // A break at the same widths in every font is one break, named once
+    // with every font; one that differs is named per font.
+    const inFonts = [...broken.get(bar.selector)].filter(([, at]) => at.size > 0);
+    const key = (at) => [...at.keys()].sort((a, b) => a - b).join(",");
+    const everywhere = inFonts.length === FONTS.length && inFonts.every(([, at]) => key(at) === key(inFonts[0][1]));
+    const breaks = everywhere ? [[FONTS.map((f) => f.name).join(" and "), inFonts[0][1]]] : inFonts;
+    for (const [font, at] of breaks) {
       const first = [...at.entries()].sort((a, b) => a[0] - b[0])[0];
       report.push({
         bar: bar.name,
+        font,
         widths: [...at.keys()],
         error:
-          where + ": the bar " + bar.name + " breaks the rule at " + ranges([...at.keys()]) +
+          where + ": the bar " + bar.name + " breaks the rule in " + font + " at " + ranges([...at.keys()]) +
           "; at " + first[0] + " px: " + first[1].join("; ")
       });
     }
@@ -959,6 +987,7 @@ async function everyBar(browser) {
 
 // The gate's own attack: pages drawn here, measured as the app's are.
 const FIXTURE_CSS = `
+  :root { --font-sans: Inter, sans-serif; }
   body { margin: 0; font: 16px/1.4 sans-serif; }
   .bar { padding: 8px; }
   .filter-chip { font: inherit; padding: 2px 8px; }
@@ -1081,8 +1110,35 @@ const FIXTURES = {
   // 761 to 767 px and at 321 to 327 px, and only past 1440 px (S3).
   band_761_767: viewportBand("(min-width: 761px) and (max-width: 767px)"),
   band_321_327: viewportBand("(min-width: 321px) and (max-width: 327px)"),
-  wide_1441: viewportBand("(min-width: 1441px)")
+  wide_1441: viewportBand("(min-width: 1441px)"),
   // --- PR 2 closing act end ---
+  // --- PR 2 closing act, the fallback font begin (fonts.js) ---
+  // A fold measured in Inter alone: the line needs 668 px in Inter and 706
+  // px in DejaVu Sans, the fold is 680, so the line holds in Inter at every
+  // width and wraps in DejaVu Sans while the bar is 681 to 706 px wide
+  // (697 to 722 px windows), as CI's runner, without Inter, drew the
+  // Crashes bar.
+  fallback_font: `
+    <style>
+      .control-bar { container: control-bar / inline-size; }
+      .ff { font: 14px/1.4 var(--font-sans); }
+      .ff select, .ff .filter-chip { font: inherit; }
+      .ff .control-bar__controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .ff .control-bar__group { display: inline-flex; gap: 6px; align-items: center; }
+      @container control-bar (max-width: 680px) {
+        .control-bar--fold-680 > .control-bar__controls { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 10px; }
+        .control-bar--fold-680 .control-bar__group { display: contents; }
+        .control-bar--fold-680 select { max-width: 100%; }
+      }
+    </style>
+    <div class="bar control-bar control-bar--fold-680 ff"><div class="control-bar__controls">
+      <span class="control-bar__group"><label class="control-bar__label" for="w">Fenster</label>
+        <select id="w"><option>Synthetic dip · 15.08.2022–29.08.2022 · manuell</option></select></span>
+      <span class="control-bar__group"><span class="control-bar__label" id="l">Liste</span>
+        <span class="filter-chips" role="group" aria-labelledby="l"><button class="filter-chip">Verlierer</button><button
+          class="filter-chip">Gewinner</button><button class="filter-chip">Erholer</button></span></span>
+    </div></div>`
+  // --- PR 2 closing act, the fallback font end ---
 };
 
 async function attack(browser) {
@@ -1092,7 +1148,11 @@ async function attack(browser) {
   for (const [name, html] of Object.entries(FIXTURES)) {
     await draw(page, "<!doctype html><html><head><style>" + FIXTURE_CSS + "</style></head><body>" + html + "</body></html>");
     const { report } = await walkBars(page, name);
-    fixtures[name] = { widths: report.flatMap((r) => r.widths), errors: report.map((r) => r.error) };
+    fixtures[name] = {
+      widths: report.flatMap((r) => r.widths),
+      errors: report.map((r) => r.error),
+      fonts: [...new Set(report.map((r) => r.font).filter(Boolean))]
+    };
     for (const r of report) console.error(r.error);
   }
   // PR 2 closing act: the strays' own exception list, one that excuses the
@@ -1104,8 +1164,11 @@ async function attack(browser) {
   ]);
   await draw(page, "<!doctype html><html><head><style>" + FIXTURE_CSS + "</style></head><body><div class='excused'>" + FIXTURES.unlisted_class + "</div></body></html>");
   await walkBars(page, "excused", new Set(), null, strays);
+  // The fonts' own check (fonts.js): both fonts the walk measures in are
+  // found, and a family no machine has is not.
+  const fonts = await fontsHere(page, [...FONTS.map((f) => f.name), "Synthetic Missing Sans"]);
   await leave(context);
-  return { errors: [], fixtures, strays: strays.errors() };
+  return { errors: [], fixtures, strays: strays.errors(), fonts };
 }
 // --- L3 end ---
 

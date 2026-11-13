@@ -367,6 +367,15 @@ jobs:
       - name: Install its Chromium
         run: npx --prefix test/browser playwright install --with-deps chromium
 
+      # The layout walks measure every bar in Inter, the app's font, and in
+      # DejaVu Sans, the fallback a device without Inter draws in, and fail
+      # where either is missing (test/browser/fonts.js; Sprint 29 PR 2's
+      # closing act: without Inter this job drew the app in DejaVu Sans
+      # alone, and folds measured in Inter alone broke there). The step
+      # before refreshed the package lists.
+      - name: Install the fonts the layout walks measure in
+        run: sudo apt-get install -y --no-install-recommends fonts-inter fonts-dejavu-core
+
       - name: Prepare database
         run: |
           MIX_ENV=test mix ecto.create
