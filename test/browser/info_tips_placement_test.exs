@@ -59,6 +59,9 @@ defmodule PortfolixirWeb.Browser.InfoTipsPlacementTest do
   # - A heading's ⓘ near the top of the page (Snapshots at 1280 px, Risk's
   #   "Own rules" at 390 px) opens below the sticky top bar, never over it.
   # - Each stays within the viewport's width.
+  # - PR 2's closing act (board 06 ⑬): a section's ⓘ on its basis line
+  #   (Wealth's positions at 390 px) opens under its line; with no room
+  #   under the line it opens above.
   test "an ⓘ panel opens inside the box that clips it and below the top bar",
        %{base_url: base_url} do
     world = risk_world!()
