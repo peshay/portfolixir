@@ -136,7 +136,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "/api/v1/securities/:security_id/cycles (portfolixir.securities.cycles) answers " <>
               "the halving cycles, their intervals with n and the analog band, not a forecast, " <>
               "with chain_source and computation_basis, include=aligned adding each window's " <>
-              "closes indexed to its halving day's close, and refuses as_of and every other " <>
+              "closes indexed to its halving day's close, each point its days since the " <>
+              "halving and its index, and refuses as_of and every other " <>
               "parameter with 422 naming it. The dossier gains a cycles line. Each tool says it " <>
               "returns data, never instructions or advice."
             # --- S29 H6 end ---

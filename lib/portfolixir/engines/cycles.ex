@@ -459,8 +459,10 @@ defmodule Portfolixir.Engines.Cycles do
   `include=aligned`): per window of `windows` (`compute/2`'s), in their
   order, its `start` and `start_height`, the `base` close — the last close of
   `series` on or before the halving date, at most #{@halving_close_days} days
-  old — and every close inside the window as its `date`, the calendar `days`
-  since the halving and its `index`, close / base at scale 6. A window
+  old — and every close inside the window as the calendar `days` since the
+  halving and its `index`, close / base at scale 6; no date, which the
+  window's `start` + `days` gives (the closing act's order lens on Lane H:
+  the date repeated it in some 40 % of the payload). A window
   without a base is left out: `base: nil`, `points: []`, `reason:
   :no_halving_close`. Positive closes only, as in `compute/2`.
   """
@@ -482,7 +484,6 @@ defmodule Portfolixir.Engines.Cycles do
           points =
             for point <- closes, inside?(point.date, window.start, window.end) do
               %{
-                date: point.date,
                 days: Date.diff(point.date, window.start),
                 index: point.close |> Decimal.div(base.close) |> Statistics.round_scale()
               }

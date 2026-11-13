@@ -193,13 +193,8 @@ defmodule PortfolixirWeb.ApiV1SecurityCyclesTest do
 
     [window | _] = aligned["aligned"]
     assert window["base"] == %{"date" => "2013-01-10", "close" => "40"}
-    assert hd(window["points"]) == %{"date" => "2013-01-10", "days" => 0, "index" => "1"}
-
-    assert Enum.at(window["points"], 2) == %{
-             "date" => "2013-06-01",
-             "days" => 142,
-             "index" => "2"
-           }
+    assert hd(window["points"]) == %{"days" => 0, "index" => "1"}
+    assert Enum.at(window["points"], 2) == %{"days" => 142, "index" => "2"}
 
     assert aligned["computation_basis"]["aligned"] =~ "no_halving_close"
   end
