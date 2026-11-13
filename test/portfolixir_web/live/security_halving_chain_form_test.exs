@@ -108,6 +108,16 @@ defmodule PortfolixirWeb.SecurityHalvingChainFormTest do
 
     assert has_element?(view, "[data-role='halving-chain-help']", "840,000 blocks")
 
+    # The closing act (known from the build, H9): the screen has no event
+    # form, so the halvings of a chain without a source come through the API.
+    assert has_element?(
+             view,
+             "[data-role='halving-chain-help']",
+             "halvings are written through the API as events of kind halving"
+           )
+
+    refute has_element?(view, "[data-role='halving-chain-help']", "entered by hand")
+
     assert has_element?(
              view,
              "[data-role='halving-chain-count']",
