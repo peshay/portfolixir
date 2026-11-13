@@ -12,6 +12,8 @@
 // dialog stay inside the viewport, that the axis reaches past today (both
 // bands and the „heute“ line drawn) and that the save button names the
 // count. CYCLE_CARD_SHOTS=<dir> also writes a screenshot of each step.
+// Each check of where an element sits runs in Inter and in DejaVu Sans,
+// the fallback a device without Inter draws in (fonts.js).
 //
 // Prints one JSON object on stdout: {"ok": true} or {"ok": false, "error":
 // "..."}; the exit status is 0 either way unless the browser itself fails.
@@ -20,6 +22,7 @@
 const path = require("path");
 const { launchChromium } = require("./launch");
 const { settle, visit, follow, leave } = require("./settle");
+const { eachFont } = require("./fonts");
 
 const base = process.argv[2];
 const coinId = process.argv[3];
@@ -55,6 +58,17 @@ function inside(tag, what, m, viewport, errors) {
   else if (m.box.left < -1 || m.box.right > viewport.width + 1) errors.push(tag + ": " + what + " leaves the viewport");
 }
 
+// `inside` in Inter and in DejaVu Sans (fonts.js); answers the measure in
+// the page's own font.
+async function insideFonts(page, tag, what, selector, viewport, errors) {
+  const [own] = await eachFont(page, async (font) => {
+    const m = await measure(page, selector);
+    inside(tag + " " + font.name, what, m, viewport, errors);
+    return m;
+  });
+  return own;
+}
+
 async function walk(browser, theme, viewport, errors) {
   const tag = theme + " " + viewport.width;
   const context = await browser.newContext({ viewport, locale: "de-DE" });
@@ -67,8 +81,7 @@ async function walk(browser, theme, viewport, errors) {
 
   await visit(page, base + "/");
   await settle(page);
-  const card = await measure(page, CARD);
-  inside(tag + " Übersicht", "the card", card, viewport, errors);
+  const card = await insideFonts(page, tag + " Übersicht", "the card", CARD, viewport, errors);
   if (!/-Zyklus/.test(card.text)) errors.push(tag + ": the card is not named „‹Name›-Zyklus“");
   if (!/Nächstes Tief/.test(card.text) || !/Nächstes Top/.test(card.text)) errors.push(tag + ": the card lacks an event");
   await shot(page, tag, "card");
@@ -79,9 +92,8 @@ async function walk(browser, theme, viewport, errors) {
   await page.waitForSelector(PANEL + " g.cycle-layer");
   const range = await measure(page, PANEL + " button[phx-value-range='CYCLE'].is-active");
   if (!range.box) errors.push(tag + ": „Zyklus“ is not chosen after the card's link");
-  const bar = await measure(page, "[data-role='cycle-bar']");
-  inside(tag + " Zyklus", "the cycle bar", bar, viewport, errors);
-  inside(tag + " Zyklus", "„Jetzt lesen“", await measure(page, "[data-role='cycle-bar'] [data-role='chain-read']"), viewport, errors);
+  await insideFonts(page, tag + " Zyklus", "the cycle bar", "[data-role='cycle-bar']", viewport, errors);
+  await insideFonts(page, tag + " Zyklus", "„Jetzt lesen“", "[data-role='cycle-bar'] [data-role='chain-read']", viewport, errors);
   const drawn = await page.evaluate((panel) => ({
     bands: document.querySelectorAll(panel + " rect.cycle-band").length,
     today: document.querySelectorAll(panel + " line.cycle-today").length
@@ -93,13 +105,12 @@ async function walk(browser, theme, viewport, errors) {
   await page.click("#detail-edit");
   await page.waitForSelector("#security-dialog-form select[name='security[halving_chain]']");
   await settle(page);
-  inside(tag + " Bearbeiten", "„Halving-Kette“", await measure(page, "[data-role='halving-chain']"), viewport, errors);
+  await insideFonts(page, tag + " Bearbeiten", "„Halving-Kette“", "[data-role='halving-chain']", viewport, errors);
   await page.selectOption("#security-dialog-form select[name='security[halving_chain]']", "");
   await page.waitForSelector("[data-role='halving-delete-warning']");
   await settle(page);
-  inside(tag + " Frage", "the warning", await measure(page, "[data-role='halving-delete-warning']"), viewport, errors);
-  const submit = await measure(page, "#security-dialog-form button[type='submit']");
-  inside(tag + " Frage", "the save button", submit, viewport, errors);
+  await insideFonts(page, tag + " Frage", "the warning", "[data-role='halving-delete-warning']", viewport, errors);
+  const submit = await insideFonts(page, tag + " Frage", "the save button", "#security-dialog-form button[type='submit']", viewport, errors);
   if (!/Speichern und 5 Ereignisse löschen/.test(submit.text)) errors.push(tag + ": the save button reads „" + submit.text + "“");
   if (shots) {
     await page.locator("[data-role='halving-delete-warning']").scrollIntoViewIfNeeded();

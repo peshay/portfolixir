@@ -9950,11 +9950,16 @@ family of several lines keeps its label on its first line.
 | Prognosen, author and model | `live/predictions_live.ex` | always, 330 | Urheber, Modell (when a model is recorded) |
 | Allokation, the drift filter | `live/portfolio_live.ex` | always, 330 | „Abweichung ab“, beside „Alles ausklappen“ |
 | Risiko, Crashes (Sprint 29 C6, on the component since Lane L's integration) | `live/risk/crash_section.ex` | 900, 330 (the walk measured the line wrapping up to an 877 px bar, the window's select at its 19.5rem cap, 16 px more at its 20.5rem cap since PR 2's closing act; one line at a 1200 px window, a 924 px bar. In DejaVu Sans that line needs 939 px, so on the line the window's group takes the room the line leaves, from 16rem up to its own width: the German line needs 770 px in Inter and 805 px in DejaVu Sans, board 06 ⑮) | Fenster (select), Liste, Wertpapiere |
+| Chart, the cycle bar (Sprint 29 H7, on the component since Lane H's integration) | `components/cycle_chart.ex` | 760, 560 (its German line, „Zyklen“ and „Strecken“ with their controls, measures 569 px in Inter and 584 px in DejaVu Sans; the labels stand above at 560 px and under, as board 07 ⑧ drew them; `test/browser/cycle_chart.js` measures it in both fonts) | Zyklen (segmented), Strecken (the three switches, in „Zeitachse“ only); the health line and „Jetzt lesen“ under the bar, outside it |
 
 The review seed records two predictions, one an agent's with a model, so
 the walk reaches Prognosen' bar; the drift filter shows on the seed's plan
 once „Daten als Tabelle“ is open; its manual crash window „Synthetic dip“
-(step 23) shows the Crashes bar. The crash benchmark's form in the crash
+(step 23) shows the Crashes bar. The cycle bar shows only once „Zyklen“ is switched on
+for a security bound to a chain, which no page of the review seed links,
+so the walk does not reach it: the static check holds it to the component,
+and its own walk, `test/browser/cycle_chart.js`, measures it. „Halving-Kette“
+in the edit form is a form's field, registered as such. The crash benchmark's form in the crash
 windows' disclosure (board 02 ④) is one labelled select with its buttons
 under it, not a bar, and is registered as such in
 `test/invariants/control_bar_labelled_controls_test.exs`. `test/browser/control_bar.js` measures
@@ -10623,7 +10628,8 @@ holds the toggle, the mode and the three switches.
    exists**: not for a security bound to no chain, and not for one with
    fewer than two confirmed halvings (Q3 A; the edit form says why, H8).
 2. **The cycle bar** (`.cycle-bar`, under the toolbar while „Zyklen“ is
-   on): the label „Zyklen“ with the segmented control „Zeitachse“ |
+   on; its labelled controls on the shared control bar since Lane H's
+   integration, fold 760, floor 560): the label „Zyklen“ with the segmented control „Zeitachse“ |
    „Ausgerichtet“ (`#cycle-mode-*`); in „Zeitachse“ the label „Strecken“
    with three `.chart-toggle` switches, „Top ↔ Tief“ (on), „Top – Top“ and
    „Tief – Tief“ (`#cycle-line-*`); under them, on its own line, **the
@@ -10714,8 +10720,9 @@ no price in the privacy mode.
 
 ### The `app.css` rules (between `S29 H7 begin` / `end`)
 
-`.cycle-bar`, `__group`, `__label`, `__switches`, `.cycle-health` with its
-dot and five states, the 560 px bar rule; `.cycle-halving`, `.cycle-band`
+`.cycle-bar`, `__controls` (the control bar inside it, since Lane H's
+integration, which took `__group`, `__label` and the 560 px bar rule),
+`__switches`, `.cycle-health` with its dot and five states; `.cycle-halving`, `.cycle-band`
 with `.is-outline` and `.is-single`, `__agree`, `__part`, `.cycle-cone`
 with its three hues, `__area`, `__edge`, `__part`, `.cycle-segment` with
 its two dashed hues, `.cycle-top`, `.cycle-low`, `.cycle-label` with its

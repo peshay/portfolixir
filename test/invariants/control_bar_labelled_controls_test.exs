@@ -167,6 +167,16 @@ defmodule Portfolixir.Invariants.ControlBarLabelledControlsTest do
       match: ~s(<select name={"security["),
       reason: @form_field
     },
+    # Sprint 29 H8 (board 07 ①, ②), integrated with L4: „Halving-Kette“ in
+    # the edit form, under the master data's fields.
+    %{
+      file: "live/securities/security_form_dialog.ex",
+      match: ~s(data-role="halving-chain"),
+      reason:
+        @form_field <>
+          " (the edit form's „Halving-Kette“: its label above the select, the warning, the " <>
+          "chain's halvings, the health line and „Jetzt lesen“ under it)"
+    },
     %{file: "live/securities/filter_popover.ex", match: ~s(class="popover"), reason: @form_field},
     %{
       file: "live/classifications_live.ex",
