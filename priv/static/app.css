@@ -14080,4 +14080,66 @@ dialog.merge-dialog {
     display: none;
   }
 }
+/* „Ausgerichtet“: the past windows in three quiet hues, the open one in
+   the accent and wider, the partial one dashed; ×1 a dashed base line. */
+.security-chart .cycle-aligned__line,
+.chart-legend .cycle-aligned__line {
+  fill: none;
+  stroke-width: 1.3;
+}
+.cycle-aligned__line--past-0 {
+  stroke: var(--color-positive);
+}
+.cycle-aligned__line--past-1 {
+  stroke: var(--color-danger);
+}
+.cycle-aligned__line--past-2 {
+  stroke: var(--color-text-muted);
+}
+.cycle-aligned__line--open {
+  stroke: var(--color-accent);
+}
+.security-chart .cycle-aligned__line.is-open {
+  stroke-width: 2.2;
+}
+.security-chart .cycle-aligned__line.is-partial {
+  stroke-dasharray: 3 3;
+}
+.security-chart .cycle-aligned__base {
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+/* The count line over the interval table, and the two tables' cells: the
+   badges „Teil“ and „vorläufig“ beside a figure, on its line. */
+.cycle-count {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.cycle-intervals-table td,
+.cycle-bands-table td {
+  white-space: nowrap;
+}
+.cycle-intervals-table .badge,
+.cycle-bands-table .badge {
+  margin-left: var(--space-1);
+}
+.cycle-bands {
+  margin-top: var(--space-2);
+}
+.cycle-bands__event th,
+.cycle-bands__event td {
+  font-weight: 600;
+}
+.cycle-bands__part th {
+  padding-left: var(--space-4);
+  font-weight: 400;
+}
+.cycle-bands__reason {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
 /* --- S29 H7 end --- */

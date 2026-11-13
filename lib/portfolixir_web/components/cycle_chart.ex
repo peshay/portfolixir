@@ -856,6 +856,634 @@ defmodule PortfolixirWeb.Components.CycleChart do
     if item[:window_ended] == true, do: word <> " · " <> gettext("window over"), else: word
   end
 
+  # ------------------------------------------------------ „Ausgerichtet“
+
+  @aligned_width 960
+  @aligned_height 320
+  @aligned_plot {56, 16, 936, 292}
+
+  attr(:payload, :map, required: true, doc: "the cycles read with include: :aligned")
+
+  @doc """
+  „Ausgerichtet“ (ADR-0060 §11; board 01, A): the windows laid over each
+  other from their halving, each close indexed to its halving day's close
+  (`aligned` in the read) on a log scale, the open window drawn strong; the
+  tops and lows at their cycle day; the next low's band in the open
+  window's days. Its axis is an index (×) and its x the days since the
+  halving, so it carries no amount and the privacy mode keeps it.
+  """
+  def aligned(assigns) do
+    assigns = assign(assigns, :g, aligned_geometry(assigns.payload))
+
+    ~H"""
+    <div class="cycle-aligned" data-role="cycle-aligned">
+      <div class="chart-frame" id="cycle-aligned-frame" phx-hook="ChartScale">
+        <svg
+          class="security-chart cycle-aligned-chart"
+          role="img"
+          aria-label={gettext("The cycles laid over each other from their halving")}
+          viewBox={"0 0 #{@g.width} #{@g.height}"}
+          preserveAspectRatio="xMidYMid meet"
+          width="100%"
+        >
+          <g class="chart-axes" stroke="currentColor" stroke-opacity="0.15">
+            <line :for={t <- @g.y_ticks} x1={@g.x0} y1={t.y} x2={@g.x1} y2={t.y} />
+            <line :for={t <- @g.x_ticks} x1={t.x} y1={@g.y0} x2={t.x} y2={@g.y1} />
+          </g>
+          <line class="cycle-aligned__base" x1={@g.x0} x2={@g.x1} y1={@g.base_y} y2={@g.base_y} />
+          <g :if={@g.band} class="cycle-layer">
+            <rect
+              class="cycle-band cycle-band--low"
+              data-event="next_low"
+              data-from-day={@g.band.from_day}
+              data-to-day={@g.band.to_day}
+              x={@g.band.rect.x}
+              y={@g.band.rect.y}
+              width={@g.band.rect.w}
+              height={@g.band.rect.h}
+            />
+            <rect
+              :if={@g.band.agree}
+              class="cycle-band__agree cycle-band__agree--low"
+              data-event="next_low"
+              x={@g.band.agree.x}
+              y={@g.band.agree.y}
+              width={@g.band.agree.w}
+              height={@g.band.agree.h}
+            />
+          </g>
+          <polyline
+            :for={w <- @g.windows}
+            class={[
+              "cycle-aligned__line",
+              "cycle-aligned__line--#{w.tone}",
+              w.open? && "is-open",
+              w.partial? && "is-partial"
+            ]}
+            data-start={Date.to_iso8601(w.start)}
+            fill="none"
+            points={w.points}
+          />
+          <path
+            :for={m <- @g.marks}
+            class={["cycle-#{m.kind}", m.so_far? && "is-so-far"]}
+            data-days={m.days}
+            d={m.d}
+          >
+            <title><%= m.text %></title>
+          </path>
+          <g class="chart-axis-labels">
+            <text
+              :for={{t, index} <- Enum.with_index(@g.y_ticks)}
+              class={["chart-axis-y", index == length(@g.y_ticks) - 1 && "is-top"]}
+              x={@g.x0 - 6}
+              y={t.y}
+              text-anchor="end"
+              dominant-baseline="central"
+            >
+              <%= t.text %>
+            </text>
+            <text
+              :for={t <- @g.x_ticks}
+              class="chart-axis-x"
+              x={t.x}
+              y={@g.height - 6}
+              text-anchor="middle"
+            >
+              <%= t.text %>
+            </text>
+          </g>
+          <text
+            :for={m <- @g.marks}
+            class={["cycle-label", "cycle-label--#{m.kind}"]}
+            x={m.x}
+            y={m.label_y}
+            text-anchor="middle"
+          >
+            <%= m.text %>
+          </text>
+          <text
+            :if={@g.band}
+            class="cycle-label cycle-label--band"
+            data-event="next_low"
+            x={@g.band.label_x}
+            y={@g.band.label_y}
+            text-anchor="start"
+          >
+            <%= @g.band.text %>
+          </text>
+        </svg>
+      </div>
+      <ul class="chart-legend" data-role="cycle-aligned-legend">
+        <li :for={w <- @g.legend} class="chart-legend__item">
+          <svg :if={w.tone} class="chart-legend__swatch--line" viewBox="0 0 18 2" width="18" height="2" aria-hidden="true">
+            <line x1="0" y1="1" x2="18" y2="1" class={"cycle-aligned__line cycle-aligned__line--#{w.tone}"} stroke-width="2" />
+          </svg>
+          <%= w.text %>
+        </li>
+      </ul>
+      <p class="detail-tab-hint" data-role="cycle-aligned-basis">
+        <%= gettext(
+          "x: calendar days since the halving · y: close ÷ the last close on or before the halving day, on a log scale · a window without such a close is left out"
+        ) %>
+      </p>
+    </div>
+    """
+  end
+
+  defp aligned_geometry(payload) do
+    {x0, y0, x1, y1} = @aligned_plot
+    cycles = Map.new(payload.cycles, &{&1.start, &1})
+    drawn = Enum.filter(Map.get(payload, :aligned, []), &(&1.reason == nil and &1.points != []))
+    open = Enum.find(payload.cycles, &(&1.kind == :open))
+    open_base = open && Enum.find_value(drawn, &(&1.start == open.start && &1.base.close))
+    band = aligned_band(payload, open, open_base)
+
+    marks = Enum.flat_map(drawn, &aligned_marks(&1, Map.get(cycles, &1.start)))
+
+    indices =
+      Enum.flat_map(drawn, fn w -> Enum.map(w.points, & &1.index) end) ++
+        Enum.map(marks, & &1.index) ++
+        if(band, do: [band.price.from, band.price.to], else: [])
+
+    logs =
+      indices
+      |> Enum.map(&Decimal.to_float/1)
+      |> Enum.filter(&(&1 > 0))
+      |> Enum.map(&:math.log10/1)
+
+    {lmin, lmax} = pad_log(Enum.min([0.0 | logs]), Enum.max([0.0 | logs]))
+
+    max_day =
+      Enum.max(
+        [1461] ++
+          Enum.flat_map(drawn, fn w -> Enum.map(w.points, & &1.days) end) ++
+          if(band, do: [band.to_day], else: [])
+      )
+
+    x = fn days -> x0 + (x1 - x0) * days / max_day end
+
+    y = fn index ->
+      value = index |> to_float() |> max(1.0e-9) |> :math.log10()
+      y1 - (y1 - y0) * (value - lmin) / (lmax - lmin)
+    end
+
+    windows =
+      drawn
+      |> Enum.with_index()
+      |> Enum.map(fn {w, i} ->
+        cycle = Map.get(cycles, w.start)
+
+        %{
+          start: w.start,
+          open?: match?(%{kind: :open}, cycle),
+          partial?: match?(%{kind: :partial}, cycle),
+          tone: if(match?(%{kind: :open}, cycle), do: "open", else: "past-#{rem(i, 3)}"),
+          points: Enum.map_join(w.points, " ", &"#{coord(x.(&1.days))},#{coord(y.(&1.index))}")
+        }
+      end)
+
+    %{
+      width: @aligned_width,
+      height: @aligned_height,
+      x0: x0,
+      y0: y0,
+      x1: x1,
+      y1: y1,
+      base_y: coord(y.(1)),
+      windows: windows,
+      legend: aligned_legend(payload, windows),
+      marks: Enum.map(marks, &place_mark(&1, x, y)),
+      band: band && place_band(band, x, y, {x0, y0, x1, y1}),
+      y_ticks: index_ticks(lmin, lmax) |> Enum.map(&%{y: coord(y.(&1)), text: index_text(&1)}),
+      x_ticks:
+        for(
+          day <- 0..max_day//365,
+          do: %{x: coord(x.(day)), text: gettext("day %{days}", days: day)}
+        )
+    }
+  end
+
+  defp aligned_marks(window, cycle) do
+    base = window.base.close
+
+    top =
+      case cycle && cycle.top do
+        %{date: %Date{} = date, close: %Decimal{} = close} ->
+          days = Date.diff(date, window.start)
+
+          [
+            %{
+              kind: :top,
+              days: days,
+              index: Decimal.div(close, base),
+              so_far?: false,
+              text: gettext("Top day %{days}", days: days)
+            }
+          ]
+
+        _none ->
+          []
+      end
+
+    low =
+      case cycle && {cycle.low, cycle.low_so_far} do
+        {%{date: %Date{} = date, close: %Decimal{} = close}, _so_far} ->
+          days = Date.diff(date, window.start)
+
+          [
+            %{
+              kind: :low,
+              days: days,
+              index: Decimal.div(close, base),
+              so_far?: false,
+              text: gettext("Low day %{days}", days: days)
+            }
+          ]
+
+        {nil, %{date: %Date{} = date, close: %Decimal{} = close}} ->
+          days = Date.diff(date, window.start)
+
+          [
+            %{
+              kind: :low,
+              days: days,
+              index: Decimal.div(close, base),
+              so_far?: true,
+              text: gettext("Low so far, day %{days} (provisional)", days: days)
+            }
+          ]
+
+        _none ->
+          []
+      end
+
+    top ++ low
+  end
+
+  defp place_mark(mark, x, y) do
+    mx = x.(mark.days)
+    my = y.(mark.index)
+
+    {d, label_y} =
+      case mark.kind do
+        :top -> {triangle_down(mx, my - 3), my - 16}
+        :low -> {triangle_up(mx, my + 3), my + 22}
+      end
+
+    Map.merge(mark, %{x: coord(mx), d: d, label_y: coord(label_y)})
+  end
+
+  # The next low's band in the open window's days, indexed to its halving
+  # day's close (ADR-0060 §11).
+  defp aligned_band(
+         %{projection: %{next_low: %{band: %{} = band} = event}},
+         %{start: start},
+         %Decimal{} = base
+       ) do
+    %{
+      from_day: Date.diff(band.window.from, start),
+      to_day: Date.diff(band.window.to, start),
+      price: %{from: Decimal.div(band.price.from, base), to: Decimal.div(band.price.to, base)},
+      agree:
+        event.agree &&
+          %{from: Decimal.div(event.agree.from, base), to: Decimal.div(event.agree.to, base)},
+      n: event.parts |> Enum.filter(&(&1.reason == nil)) |> Enum.map(& &1.n_time)
+    }
+  end
+
+  defp aligned_band(_payload, _open, _base), do: nil
+
+  defp place_band(band, x, y, {_x0, y0, _x1, y1}) do
+    left = x.(band.from_day)
+    right = x.(band.to_day)
+
+    box = fn %{from: from, to: to} ->
+      ya = y.(from)
+      yb = y.(to)
+
+      %{
+        x: coord(left),
+        y: coord(min(ya, yb)),
+        w: coord(max(right - left, 1.0)),
+        h: coord(max(abs(ya - yb), 1.0))
+      }
+    end
+
+    Map.merge(band, %{
+      rect: box.(band.price),
+      agree: band.agree && box.(band.agree),
+      label_x: coord(right + 4),
+      label_y: coord(clamp(y.(band.price.to) + 9, y0 + 9, y1 - 4)),
+      text: gettext("Low band, days %{from}–%{to}", from: band.from_day, to: band.to_day)
+    })
+  end
+
+  defp aligned_legend(payload, windows) do
+    drawn = MapSet.new(windows, & &1.start)
+    tones = Map.new(windows, &{&1.start, &1.tone})
+
+    for cycle <- payload.cycles do
+      year = Integer.to_string(cycle.start.year)
+
+      text =
+        cond do
+          not MapSet.member?(drawn, cycle.start) ->
+            gettext("%{year}: no close on its halving day", year: year)
+
+          cycle.kind == :open ->
+            gettext("%{year} (running)", year: year)
+
+          cycle.kind == :partial ->
+            gettext("%{year} (partial)", year: year)
+
+          true ->
+            year
+        end
+
+      %{tone: Map.get(tones, cycle.start), text: text}
+    end
+  end
+
+  defp pad_log(min, max) when min == max, do: {min - 0.3, max + 0.3}
+  defp pad_log(min, max), do: {min - (max - min) * 0.06, max + (max - min) * 0.06}
+
+  # Powers of two between the ends, at most six: ×0.25, ×1, ×4, ×16 …
+  defp index_ticks(lmin, lmax) do
+    low = ceil(lmin / :math.log10(2))
+    high = floor(lmax / :math.log10(2))
+    count = high - low + 1
+    step = max(1, ceil(count / 6))
+
+    for e <- low..high//step, do: :math.pow(2, e)
+  end
+
+  defp index_text(value) do
+    places = if value >= 1, do: 0, else: 2
+    "×" <> Format.plain_decimal(Decimal.from_float(value * 1.0), places)
+  end
+
+  defp to_float(%Decimal{} = value), do: Decimal.to_float(value)
+  defp to_float(value) when is_number(value), do: value * 1.0
+
+  # ------------------------------------------------------ the interval table
+
+  @relations [
+    :halving_to_top,
+    :top_to_low,
+    :low_to_top,
+    :top_to_top,
+    :low_to_low,
+    :low_to_next_halving
+  ]
+
+  attr(:payload, :map, required: true)
+
+  @doc """
+  The count line and the interval table under the chart (ADR-0060 §3, §11,
+  §12; board 07 ④, Q9): a column per window from its halving year (the
+  partial one marked „Teil“, the open one „offen“), a row per relation with
+  each observation's days and change or factor, its n and which of its
+  observations are provisional or from the partial window.
+  """
+  def intervals(assigns) do
+    ~H"""
+    <div class="cycle-intervals">
+      <p class="cycle-count" data-role="cycle-count"><%= count_text(@payload) %></p>
+      <div class="data-table-wrap">
+        <table class="data-table cycle-intervals-table" data-role="cycle-intervals">
+          <thead>
+            <tr>
+              <th scope="col"><%= gettext("Segment · from cycle") %></th>
+              <th :for={cycle <- @payload.cycles} scope="col" class="num" data-window={Date.to_iso8601(cycle.start)}>
+                <%= cycle.start.year %>
+                <span :if={cycle.kind == :partial} class="badge"><%= pgettext("halving cycles", "Part") %></span>
+                <span :if={cycle.kind == :open} class="badge badge--derived"><%= pgettext("halving cycles", "open") %></span>
+              </th>
+              <th scope="col" class="num">n</th>
+              <th scope="col"><%= gettext("Marks") %></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr :for={relation <- relations()} data-relation={relation}>
+              <th scope="row"><%= relation_label(relation) %></th>
+              <td
+                :for={cycle <- @payload.cycles}
+                class="num"
+                data-window={Date.to_iso8601(cycle.start)}
+              >
+                <% obs = observation_in(@payload, relation, cycle.start) %>
+                <%= if obs do %>
+                  <%= observation_text(obs) %>
+                  <span :if={obs.partial} class="badge"><%= pgettext("halving cycles", "Part") %></span>
+                  <span :if={obs.provisional} class="badge badge--derived"><%= pgettext("halving cycles", "provisional") %></span>
+                <% else %>
+                  —
+                <% end %>
+              </td>
+              <td class="num" data-role="n">n = <%= relation_n(@payload, relation) %></td>
+              <td data-role="marks"><%= relation_marks(@payload, relation) %></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    """
+  end
+
+  @doc false
+  def relations, do: @relations
+
+  defp count_text(payload) do
+    counts = get_in(payload, [:computation_basis, :counts]) || %{}
+    first = get_in(payload, [:computation_basis, :series, :first_close])
+
+    gettext(
+      "Cycles: %{complete} complete, %{partial} partial, %{open} open · closes from %{month}",
+      complete: Map.get(counts, :cycles_complete, 0),
+      partial: Map.get(counts, :cycles_partial, 0),
+      open: if(Map.get(counts, :cycle_open), do: 1, else: 0),
+      month: Format.month(first)
+    )
+  end
+
+  defp observation_in(payload, relation, start) do
+    payload.intervals
+    |> observations(relation)
+    |> Enum.find(&(&1.from.window_start == start))
+  end
+
+  defp relation_n(payload, relation) do
+    case Map.get(payload.intervals || %{}, relation) do
+      %{n: n} -> n
+      _none -> 0
+    end
+  end
+
+  defp relation_marks(payload, relation) do
+    obs = observations(payload.intervals || %{}, relation)
+    provisional = Enum.count(obs, & &1.provisional)
+    partial = Enum.count(obs, & &1.partial)
+
+    [
+      provisional > 0 && ngettext("%{count} provisional", "%{count} provisional", provisional),
+      partial > 0 &&
+        ngettext("%{count} from the partial cycle", "%{count} from the partial cycle", partial)
+    ]
+    |> Enum.filter(& &1)
+    |> Enum.join(" · ")
+  end
+
+  @doc "A relation's name as the screen writes it."
+  @spec relation_label(atom()) :: String.t()
+  def relation_label(:halving_to_top), do: gettext("Halving → top")
+  def relation_label(:top_to_low), do: gettext("Top → low")
+  def relation_label(:low_to_top), do: gettext("Low → top")
+  def relation_label(:top_to_top), do: gettext("Top → top")
+  def relation_label(:low_to_low), do: gettext("Low → low")
+  def relation_label(:low_to_next_halving), do: gettext("Low → next halving")
+
+  # ------------------------------------------- „Bänder und ihre Teile“
+
+  attr(:payload, :map, required: true)
+
+  @doc """
+  The disclosure „Bänder und ihre Teile“ (ADR-0060 §4, §5, §7; board 07
+  ⑤, Q8): each event's band (the hull of its parts) with its window, its
+  price range, where the ways agree and its state, then each part with
+  where it is read from and its n, or why it is absent. Prices are amounts:
+  the privacy mode hides them as every amount (`Format.decimal/3`).
+  """
+  def bands(assigns) do
+    ~H"""
+    <details class="perf-table-disclosure cycle-bands" data-role="cycle-bands">
+      <summary class="disclosure-summary">
+        <PortfolixirWeb.AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+        <%= gettext("Bands and their parts") %>
+      </summary>
+      <p class="detail-tab-hint">
+        <%= gettext(
+          "Not a forecast: each band is the range the stored cycles' intervals and factors give from the current anchors, with its n and both ends; never a single date or price, nothing fitted, nothing averaged."
+        ) %>
+      </p>
+      <div class="data-table-wrap">
+        <table class="data-table cycle-bands-table">
+          <thead>
+            <tr>
+              <th scope="col"><%= gettext("Band · part") %></th>
+              <th scope="col"><%= gettext("Read from") %></th>
+              <th scope="col" class="num"><%= pgettext("halving cycles", "Window") %></th>
+              <th scope="col" class="num"><%= pgettext("halving cycles", "Price") %></th>
+              <th scope="col"><%= gettext("Where the ways agree") %></th>
+              <th scope="col"><%= gettext("State") %></th>
+            </tr>
+          </thead>
+          <tbody>
+            <%= for event <- events(@payload) do %>
+              <tr class="cycle-bands__event" data-row={event.event}>
+                <th scope="row"><%= event_label(event.event) %></th>
+                <td data-role="origin"><%= event_origin(event) %></td>
+                <td class="num" data-role="window"><%= event.band && window_text(event.band.window) %></td>
+                <td class="num" data-role="price"><%= event.band && price_text(event.band.price, @payload.currency_code) %></td>
+                <td data-role="agree">
+                  <%= agree_cell(event, @payload.currency_code) %>
+                  <code :if={event.agree_reason} class="cycle-bands__reason"><%= event.agree_reason %></code>
+                </td>
+                <td data-role="state"><%= state_text(event) %></td>
+              </tr>
+              <tr :for={part <- event.parts} class="cycle-bands__part" data-relation={part.relation}>
+                <th scope="row"><%= relation_label(part.relation) %></th>
+                <td data-role="origin">
+                  <%= part_origin(part) %>
+                  <span :if={part.partial} class="badge"><%= pgettext("halving cycles", "Part") %></span>
+                  <span :if={part.provisional} class="badge badge--derived"><%= pgettext("halving cycles", "provisional") %></span>
+                </td>
+                <td class="num" data-role="window"><%= part.window && window_text(part.window) %></td>
+                <td class="num" data-role="price"><%= part.price && price_text(part.price, @payload.currency_code) %></td>
+                <td></td>
+                <td data-role="state"><%= if part.reason, do: "—", else: state_text(part) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </details>
+    """
+  end
+
+  defp event_label(:next_low), do: gettext("Next low")
+  defp event_label(:next_top), do: gettext("Next top")
+
+  defp event_origin(%{band: nil} = event), do: absent_text(event.reason, event)
+  defp event_origin(_event), do: gettext("hull of the parts")
+
+  defp window_text(%{from: from, to: to}), do: Format.date(from) <> " – " <> Format.date(to)
+
+  # Two places, the house's amount form, hidden in the privacy mode.
+  defp price_text(%{from: from, to: to}, currency) do
+    if PrivacyMode.on?(),
+      do: PrivacyMode.hidden(),
+      else: "#{Format.decimal(from, 2)} – #{Format.decimal(to, 2)} #{currency}"
+  end
+
+  defp agree_cell(%{agree: %{} = agree}, currency) do
+    if PrivacyMode.on?(),
+      do: gettext("both ways"),
+      else: gettext("both ways %{range}", range: price_text(agree, currency))
+  end
+
+  defp agree_cell(event, currency), do: agree_text(event, currency)
+
+  defp part_origin(%{reason: reason} = part) when not is_nil(reason),
+    do: absent_text(reason, part)
+
+  defp part_origin(part) do
+    from = anchor_text(part.anchor)
+
+    n =
+      if part.price_from,
+        do:
+          gettext("time n = %{time}, price from %{relation}",
+            time: part.n_time,
+            relation: relation_label(part.price_from)
+          ),
+        else:
+          gettext("time n = %{time}, price n = %{price}", time: part.n_time, price: part.n_price)
+
+    rule =
+      if part.price_rule == :min_max,
+        do: [" · " <> gettext("price from the minimum to the maximum: no log step")],
+        else: []
+
+    Enum.join([from, " · ", n | rule])
+  end
+
+  defp anchor_text(%{event: :top, date: date}),
+    do: gettext("from the top of %{month}", month: Format.month(date))
+
+  defp anchor_text(%{event: :low, date: date}),
+    do: gettext("from the low of %{month}", month: Format.month(date))
+
+  defp anchor_text(%{event: :halving}), do: gettext("from the halving window")
+  defp anchor_text(_none), do: "—"
+
+  defp absent_text(:too_few_observations, item),
+    do:
+      gettext("too few observations (time n = %{time}, price n = %{price})",
+        time: item[:n_time] || 0,
+        price: item[:n_price] || 0
+      )
+
+  defp absent_text(:no_top_yet, _item),
+    do: gettext("waits until the open window's top anchors (a fall of 20 %)")
+
+  defp absent_text(:low_not_final, _item),
+    do: gettext("waits until the running cycle's low is final (at the next halving)")
+
+  defp absent_text(:zero_width, _item), do: gettext("a point, not a range: no part")
+  defp absent_text(:no_parts, _item), do: gettext("no part has enough data")
+  defp absent_text(reason, _item), do: to_string(reason)
+
   # -- shared --------------------------------------------------------------------
 
   defp events(%{projection: %{} = projection}),
