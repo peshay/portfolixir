@@ -222,6 +222,20 @@ one relation alone and applied to the current anchor of that relation:
   side and two factors for its price side. Otherwise it is absent, with
   `reason: too_few_observations` and its `n`. *Why:* with one observation
   a band is a point, and a point is the forecast §8 rules out.
+- **Precision of 2026-11-13: the reasons the build added.** The record
+  names `no_top_yet`, `too_few_observations`, `no_log_step`,
+  `parts_disjoint`, `one_price_relation` and `input_after_window`; the
+  build answers five more, each where the record's rules leave a part or a
+  band without one of its ends, and the read's basis states each:
+  `zero_width` (a part whose window is one day or whose price range is one
+  price is absent: it would name a single date or price, the point §8 rules
+  out), `low_not_final` (`low_to_top` while the open window's top is
+  anchored and its low is not final, §2), `no_next_halving`
+  (`halving_to_top` once the open top is anchored but no next halving is
+  stored), `no_anchor` (a part whose anchor does not exist yet, such as a
+  last final low before any window closed) and `no_parts` (an event none of
+  whose parts is present has no band). None adds a rule; each names an
+  absence the rules already imply.
 - **`halving_to_top`** has no price relation of its own. Its price side is
   `top_to_top`'s, and the part says `price_from: "top_to_top"`. Its time
   side starts from the next halving's window (ADR-0059 §6): from the window's
