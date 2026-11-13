@@ -6631,6 +6631,17 @@ details[open] > .disclosure-summary .disclosure-chevron {
     --control-bar-select-width: auto;
   }
 }
+@container control-bar (max-width: 900px) {
+  .control-bar--fold-900 > .control-bar__controls {
+    --control-bar-display: grid;
+    --control-bar-columns: max-content minmax(0, 1fr);
+    --control-bar-gap: var(--space-2) 10px;
+    --control-bar-width: 100%;
+    --control-bar-group: contents;
+    --control-bar-label-margin: 0;
+    --control-bar-select-width: auto;
+  }
+}
 @container control-bar (max-width: 960px) {
   .control-bar--fold-960 > .control-bar__controls {
     --control-bar-display: grid;
@@ -13427,7 +13438,7 @@ dialog.merge-dialog {
 /* --- S29 C6 begin: the Crashes section on Wealth › Risk (FR-54, ADR-0058
    §9 and F4; board ux-design-2026-11-12-sprint29/01, plan D-5 P1 to P9;
    board 02 ④ for the crash benchmark's inline form). The bar is the
-   stacked chart's `stack-bar` (labelled controls start on one edge); the
+   shared .control-bar (labelled controls start on one edge; issue 1435); the
    rows give way to two lines per entry where the section is narrower than
    560 px, by a container query on the section, so the bars stay (P5). --- */
 .crash-section {

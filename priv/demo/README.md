@@ -212,6 +212,10 @@ seed) needs a state for each bar it moved:
   its author and model chips. They are written only while no prediction
   exists. The allocation's drift filter needs no step: it shows on the
   Strategies plan once „Daten als Tabelle“ is open.
+- **One crash window** (step 23, with the Crashes section of Sprint 29
+  C6): a manual window „Synthetic dip“ from 40 days ago to its low 20 days
+  ago, so Vermögen → Risiko's Crashes section shows its bar of labelled
+  controls. It is written only while no manual window exists.
 
 ```bash
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.create
