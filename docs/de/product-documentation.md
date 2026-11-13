@@ -627,7 +627,8 @@ mit zwei Modi:
 
 - **Zeitachse** zeichnet die Zyklen in den Kurschart: jedes Halving als
   senkrechte Linie, das nächste als gestricheltes Fenster („Halving ≈ ‹von›
-  – ‹bis› (Schätzung)“), Top ▲ und Tief ▼ jedes Zyklus mit Datum und
+  – ‹bis› (Schätzung)“, ein Datum, wenn beide Enden auf einen Tag fallen;
+  seine Beschriftung steht, wo sie keine andere verdeckt, im Diagramm), Top ▲ und Tief ▼ jedes Zyklus mit Datum und
   Schlusskurs und die beiden Bänder. **Strecken** schaltet die Linien
   dazwischen: **Top ↔ Tief** ist an, **Top – Top** und **Tief – Tief**
   lassen sich dazuschalten. Jede Strecke trägt ihre Tage und ihre

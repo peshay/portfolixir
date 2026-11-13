@@ -747,7 +747,9 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     )
   end
 
-  defp when_text(%{date: date, date_end: %Date{} = date_end}),
+  # A window whose two ends fall on one day reads as that day (UAT S3 #5);
+  # the event stays a window.
+  defp when_text(%{date: date, date_end: %Date{} = date_end}) when date_end != date,
     do: Format.date(date) <> " – " <> Format.date(date_end)
 
   defp when_text(%{date: date}), do: Format.date(date)

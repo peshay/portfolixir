@@ -1096,8 +1096,9 @@ defmodule PortfolixirWeb.Components.CycleChart do
         not h.estimate? ->
           gettext("Halving %{date}", date: Format.date(h.date))
 
-        # S29 H8: the window the chain reader stores (ADR-0059 §6).
-        match?(%Date{}, h[:date_end]) ->
+        # S29 H8: the window the chain reader stores (ADR-0059 §6); one
+        # whose two ends fall on one day reads as that day (UAT S3 #5).
+        match?(%Date{}, h[:date_end]) and h.date_end != h.date ->
           gettext("Halving ≈ %{from} – %{to} (estimate)",
             from: Format.date(h.date),
             to: Format.date(h.date_end)
