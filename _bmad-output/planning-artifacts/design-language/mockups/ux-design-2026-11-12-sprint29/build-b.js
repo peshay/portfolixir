@@ -642,18 +642,26 @@ const hsBar = (fold, extra = '') => cbar('hs-compare-bar', fold, 560,
   cgroup('Vergleich', 'hs-c', cseg('hs-c', ['Ohne', 'Fester Zins', 'Wertpapier', 'Anschlusskauf'], 'Wertpapier')) +
   `<form class="control-bar__group control-bar__group--bare"><span class="hs-compare-bar__field"><label for="hs-b" class="visually-hidden">Benchmark</label><select id="hs-b"><optgroup label="Benchmarks"><option>Welt-Aktien ETF thesaurierend · Benchmark · zuletzt 112,40 EUR</option></optgroup></select></span></form>`, extra);
 const HS_FOLD_W = 870; // a 790 px bar in its section
+// The fold 840 as app.css drew it until ⑮ moved the bar to 860: pinned, so
+// the frame keeps showing what it compared.
+const FOLD = (w) => `@container control-bar (max-width: ${w}px) { .control-bar--fold-${w} > .control-bar__controls { --control-bar-display: grid; --control-bar-columns: max-content minmax(0, 1fr); --control-bar-gap: var(--space-2) 10px; --control-bar-width: 100%; --control-bar-group: contents; --control-bar-label-margin: 0; --control-bar-select-width: auto; } }`;
 B6.hsFoldBefore = sized(writeFrame('06u-vergleich-falz-760', pad(HS_FOLD_W, `<section class="hs-section workspace-section">${hsBar(760)}</section>`), { width: HS_FOLD_W }), 'Falz 760: eine Zeile, die umbricht (790 px Leiste)');
-B6.hsFoldAfter = sized(writeFrame('06v-vergleich-falz-840', pad(HS_FOLD_W, `<section class="hs-section workspace-section">${hsBar(840, ' mock-new')}</section>`), { width: HS_FOLD_W }), 'Falz 840: Labelspalte (A)');
+B6.hsFoldAfter = sized(writeFrame('06v-vergleich-falz-840', pad(HS_FOLD_W, `<section class="hs-section workspace-section">${hsBar(840, ' mock-new')}</section>`), { width: HS_FOLD_W, css: FOLD(840) }), 'Falz 840: Labelspalte (A)');
 // ⑫ Vermögen › Risiko, the Crashes bar: the window's select at its cap,
 // the line about 880 px; at 1200 px the bar is 924 px.
 const crashOption = 'Synthetic dip · 04.10.2026–24.10.2026 · manuell';
+// `cap` null: the select as app.css draws it.
 const crashBar = (fold, cap, extra = '') => cbar('crash-bar', fold, 330,
-  `<form class="control-bar__group"><label class="control-bar__label" for="cw">Fenster</label><select id="cw" style="max-width: ${cap}"><option>${crashOption}</option></select></form>` +
+  `<form class="control-bar__group"><label class="control-bar__label" for="cw">Fenster</label><select id="cw"${cap ? ` style="max-width: ${cap}"` : ''}><option>${crashOption}</option></select></form>` +
   cgroup('Liste', 'cl', cseg('cl', ['Verlierer', 'Gewinner', 'Erholer'], 'Verlierer')) +
   cgroup('Wertpapiere', 'cu', cseg('cu', ['Im Depot', 'Ganzer Katalog'], 'Im Depot')), extra);
 const CR_FOLD_W = 954; // an 870 px bar in its section
 const CR_LINE_W = 1008; // the 924 px bar at a 1200 px window
-const crashFrame = (name, w, html, tag) => sized(writeFrame(name, pad(w, `<section class="crash-section workspace-section">${html}</section>`), { width: w }), tag);
+// The window's group as it stood before ⑮ let it take the room the line
+// leaves: pinned in ⑫'s frames (and ⑮'s "today"), so they keep showing
+// what they compared.
+const CRASH_GROUP_FIXED = '.crash-bar .control-bar__group:has(> select) { flex: 0 1 auto; min-width: auto; max-width: none; } .crash-bar select { min-width: auto; }';
+const crashFrame = (name, w, html, tag, css = CRASH_GROUP_FIXED) => sized(writeFrame(name, pad(w, `<section class="crash-section workspace-section">${html}</section>`), { width: w, css }), tag);
 B6.crashFoldBefore = crashFrame('06w-crashes-falz-760', CR_FOLD_W, crashBar(760, '19.5rem'), 'Falz 760: eine Zeile, die umbricht (870 px Leiste)');
 B6.crashFoldAfter = crashFrame('06x-crashes-falz-900', CR_FOLD_W, crashBar(900, '19.5rem', ' mock-new'), 'Falz 900: Labelspalte (A)');
 B6.crashCapBefore = crashFrame('06y-crashes-1200-19-5rem', CR_LINE_W, crashBar(900, '19.5rem'), '1200 px heute: Auswahl bis 19,5rem, „… · manue“');
@@ -678,6 +686,29 @@ const stackBar14 = (floor, extra = '') => cbar('', 760, floor,
   cgroup('Sortieren', 'ss', cseg('ss', ['Größe', 'Veränderung'], 'Größe')), extra);
 B6.stackFloorBefore = sized(writeFrame('06zc-stapel-boden-330', pad(STACK_W, stackBar14(330)), { width: STACK_W, css: FLOOR_340 }), 'Boden 330: Labelspalte, 2 px über die Leiste');
 B6.stackFloorAfter = sized(writeFrame('06zd-stapel-boden-340', pad(STACK_W, stackBar14(340, ' mock-new')), { width: STACK_W, css: FLOOR_340 }), 'Boden 340: Labels darüber (B)');
+// ⑮ PR 2's closing act after CI: the app ships no web font, so a device
+// without Inter draws it in its own sans; CI's runner drew it in DejaVu
+// Sans, the widest of the common ones, where the folds and floors measured
+// in Inter alone broke the rule. Each frame names its font and draws it
+// (`--font-sans`); the "today" frames pin the rules they compare.
+const DEJAVU = ':root { --font-sans: "DejaVu Sans"; }';
+const crashBar15 = (extra = '') => crashBar(900, null, extra);
+const CR_FONT_W = 989; // a 905 px bar, a 1181 px window: the walk found the break at 1177 to 1208 px
+B6.crashFontBefore = crashFrame('06ze-crashes-ersatz-heute', CR_FONT_W, crashBar15(), 'DejaVu Sans, 905 px Leiste heute: die Zeile bricht um, zwei Kanten', DEJAVU + CRASH_GROUP_FIXED);
+B6.crashFontAfter = crashFrame('06zf-crashes-ersatz-neu', CR_FONT_W, crashBar15(' mock-new'), 'DejaVu Sans, 905 px Leiste neu: die Auswahl nimmt den Rest der Zeile', DEJAVU);
+B6.crashInterAfter = crashFrame('06zg-crashes-1200-inter-neu', CR_LINE_W, crashBar15(' mock-new'), 'Inter, 1200 px neu: unverändert, „… · manuell“', '');
+const STACK_380_W = 388; // a 348 px bar, a 380 px window
+const STACK_390_W = 398; // a 358 px bar, a 390 px window
+const FLOOR = (w) => `@container control-bar (max-width: ${w}px) { .control-bar--floor-${w} > .control-bar__controls { --control-bar-display: grid; --control-bar-columns: minmax(0, 1fr); --control-bar-gap: var(--space-1); --control-bar-width: 100%; --control-bar-group: contents; --control-bar-label-margin: 0; --control-bar-select-width: auto; --control-bar-control-margin: 6px; } }`;
+B6.stackFontBefore = sized(writeFrame('06zh-stapel-ersatz-boden-340', pad(STACK_380_W, stackBar14(340)), { width: STACK_380_W, css: DEJAVU + FLOOR(340) }), 'DejaVu Sans, 380 px heute: Boden 340, die Ebene 9 px über die Leiste');
+B6.stackFontAfter = sized(writeFrame('06zi-stapel-390-boden-380', pad(STACK_390_W, stackBar14(380, ' mock-new')), { width: STACK_390_W }), 'Inter, 390 px neu: Boden 380, Labels darüber (B)');
+const STACK_FOLD_W = 810; // a 770 px bar
+const stackBarFold = (fold, extra = '') => stackBar14(330, extra).replace('control-bar--fold-760', `control-bar--fold-${fold}`);
+B6.stackFoldBefore = sized(writeFrame('06zj-stapel-falz-760', pad(STACK_FOLD_W, stackBarFold(760)), { width: STACK_FOLD_W, css: DEJAVU }), 'DejaVu Sans, 770 px Leiste heute: Falz 760, eine Zeile, 17 px Luft');
+B6.stackFoldAfter = sized(writeFrame('06zk-stapel-falz-780', pad(STACK_FOLD_W, stackBarFold(780, ' mock-new')), { width: STACK_FOLD_W, css: DEJAVU }), 'DejaVu Sans, 770 px Leiste neu: Falz 780, Labelspalte (A)');
+const HS_860_W = 930; // an 850 px bar in its section
+B6.hsFontBefore = sized(writeFrame('06zl-vergleich-falz-840-ersatz', pad(HS_860_W, `<section class="hs-section workspace-section">${hsBar(840)}</section>`), { width: HS_860_W, css: DEJAVU + FOLD(840) }), 'DejaVu Sans, 850 px Leiste heute: Falz 840, die Zeile bricht um, zwei Kanten');
+B6.hsFontAfter = sized(writeFrame('06zm-vergleich-falz-860', pad(HS_860_W, `<section class="hs-section workspace-section">${hsBar(860, ' mock-new')}</section>`), { width: HS_860_W, css: DEJAVU }), 'DejaVu Sans, 850 px Leiste neu: Falz 860, Labelspalte (A)');
 const CLOSING_LEAD = '<p><strong>Nachgetragen im Abschlussakt von PR 2 (Plan Sprint 29, D-8 Punkt 3):</strong> zwei Falze, die Lane L aus der Messung des Rundgangs gesetzt hat, ohne Frame, und wohin das ⓘ einer Basiszeile öffnet. Die Leisten sind das Markup der Komponente, gezeichnet von den Container-Abfragen in app.css bei der genannten Leistenbreite.</p>';
 board('06-control-bar.html', 'Sprint 29 — Board 06: beschriftete Bedienelemente beginnen an einer Kante (#1435)', 1100,
   `<div class="mock-pickbar"><p><strong>Was entschieden ist (DESIGN.md, Amendment 2026-11-08, Board 07 ④ von Sprint 28, Wahl A; Amendment D-A5):</strong> eine Leiste beschrifteter Bedienelemente (ein Label neben einem Segmentschalter, einer Auswahl oder einer Chip-Familie) ist eine Komponente. Solange sie passt, eine Zeile; bricht sie um, eine Labelspalte so breit wie das längste Label und jedes Feld an derselben Kante (A); passt auch das nicht, jedes Label über seinem Feld (B). Die Leiste des gestapelten Charts ist der erste Nutzer und hält die Regel schon (390 px: alle drei Felder bei 100 px).</p><p><strong>Was dieses Board zeigt und vorschlägt:</strong> die Leisten, die die Regel heute brechen, gemessen an der Review-Instanz bei 390 und 1200 px (<code>capture-b-inventory.js</code>; das Inventar steht in <code>06-control-bar-inventory.md</code>), vorher wie ausgeliefert und nachher in der gemeinsamen Komponente. Vorgeschlagen: eine Chip-Familie ist ein Feld und bricht in ihrer Spalte um; jede Familie trägt ihr Label, auch „Bestand“ und „Datenqualität“, die heute nur das Filterblatt nennt; das Journal wird eine Leiste statt zwei. Gestrichelt: neu.</p></div>`,
@@ -695,7 +726,8 @@ board('06-control-bar.html', 'Sprint 29 — Board 06: beschriftete Bedienelement
     { lead: CLOSING_LEAD, title: '⑪ „Nach dem Verkauf“ mit Wertpapier: Falz 840', note: 'Mit einer Benchmark braucht die Zeile etwa 790 px (gemessen: Umbruch bis 793 px Leiste). Mit dem Standardfalz 760 bleibt sie darüber eine Zeile und bricht um: die Auswahl rutscht unter „Vergleich“ an die linke Kante, der Schalter beginnt hinter dem Label, zwei Kanten. Gebaut: Falz 840, darunter die Labelspalte (A), darüber eine Zeile; der Boden 560 (B) bleibt.', frames: [B6.hsFoldBefore, B6.hsFoldAfter], decided: true },
     { title: '⑫ Vermögen › Risiko, Crashes: Falz 900 und die Breite der Auswahl', note: 'Mit der Auswahl des Fensters an ihrer Obergrenze braucht die Zeile etwa 880 px (gemessen: Umbruch bis 877 px Leiste, deutsch). Gebaut: Falz 900, darunter die Labelspalte (A). Bei 1200 px ist die Leiste 924 px, eine Zeile; dort schnitt die Obergrenze 19,5rem den Namen eines manuellen Fensters ab („… · manue“, 319 px nötig). Neu: 20,5rem; die Zeile bleibt unter 924 px.', frames: [B6.crashFoldBefore, B6.crashFoldAfter, B6.crashCapBefore, B6.crashCapAfter], recommended: true },
     { title: '⑬ Das ⓘ einer Basiszeile öffnet unter ihr', note: 'Heute öffnet das ⓘ der sechs Zeilen aus ⑤ bis ⑩ nach oben, wie jedes ⓘ, und legt sich über den Satz, zu dem es gehört (390 px; Nachrichten auch bei 1200 px über die Tab-Leiste). Neu, wie ⑤ bis ⑩ es zeichnen: ein ⓘ in einer Basiszeile (.summary-basis, .detail-tab-hint) öffnet darunter, nach oben nur, wenn unten kein Platz ist. Jedes andere ⓘ bleibt, wie es ist.', frames: [B6.infoBefore, B6.infoAfter], recommended: true },
-    { title: '⑭ Vermögen, die Leiste des gestapelten Charts: Boden 340', note: 'Der breitere Rundgang des Abschlussakts (jede Breite, an der eine Leiste ihren Falz oder Boden kreuzt, ±1 px) fand bei 363 und 364 px Fenster (331 und 332 px Leiste, deutsch) die Ebene 2 px über der Leiste: „Klassifizierung“ und „Gesamt · Kategorien · Wertpapiere“ brauchen in der Labelspalte 334 px. Neu: Boden 340 für diese Leiste, darunter jedes Label über seinem Feld (B); bei 390 px bleibt die Labelspalte (A), bei 320 px B wie bisher.', frames: [B6.stackFloorBefore, B6.stackFloorAfter], recommended: true },
+    { title: '⑭ Vermögen, die Leiste des gestapelten Charts: Boden 340', note: 'Der breitere Rundgang des Abschlussakts (jede Breite, an der eine Leiste ihren Falz oder Boden kreuzt, ±1 px) fand bei 363 und 364 px Fenster (331 und 332 px Leiste, deutsch) die Ebene 2 px über der Leiste: „Klassifizierung“ und „Gesamt · Kategorien · Wertpapiere“ brauchen in der Labelspalte 334 px. Neu: Boden 340 für diese Leiste, darunter jedes Label über seinem Feld (B); bei 390 px bleibt die Labelspalte (A), bei 320 px B wie bisher. Abgelöst von ⑮: Boden 380.', frames: [B6.stackFloorBefore, B6.stackFloorAfter], recommended: true },
+    { title: '⑮ Die Ersatzschrift: Falze und Böden für jede Schrift', note: 'Die App liefert keine Webschrift: --font-sans nennt Inter zuerst, ein Gerät ohne Inter zeichnet in seiner eigenen Schrift. Der Browser-Job von CI hatte kein Inter und zeichnete in DejaVu Sans, der breitesten der üblichen; dort brach die Regel, weil ⑪ bis ⑭ nur in Inter gemessen waren. Gemessen in beiden Schriften (deutsch, englisch), neu je Falz und Boden mindestens 16 px über der breiteren: Crashes, die Zeile mit der Auswahl an ihrer Obergrenze 888 (Inter) und 939 px (DejaVu Sans), mehr als die 924 px Leiste bei 1200 px; neu nimmt die Gruppe „Fenster“ den Rest der Zeile, von 16rem bis zu ihrer eigenen Breite, die Zeile braucht so 770 und 805 px, Falz 900 bleibt; in Inter ändert sich nichts, in DejaVu Sans wird der Name bei 1200 px gekürzt, die Auswahl zeigt ihn ganz. Gestapelter Chart, deutsch: Labelspalte 333 und 357 px, Boden 380 (bei 390 px nun B, in jeder Schrift); die Zeile 704 und 753 px, Falz 780. „Nach dem Verkauf“, englisch mit Benchmark: 798 und 834 px, Falz 860. Der Rundgang misst jede Leiste in beiden Schriften und scheitert, wenn eine fehlt.', frames: [B6.crashFontBefore, B6.crashFontAfter, B6.crashInterAfter, B6.stackFontBefore, B6.stackFontAfter, B6.stackFoldBefore, B6.stackFoldAfter, B6.hsFontBefore, B6.hsFontAfter], recommended: true },
   ]);
 
 console.log('wrote frames/03* to 06* and boards 03 to 06');
