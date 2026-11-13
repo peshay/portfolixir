@@ -13,6 +13,8 @@ defmodule PortfolixirWeb.SecurityCycleDesignTest do
   import Portfolixir.CycleFixtures
   import PortfolixirWeb.PreferenceCookieHelpers, only: [put_preference_cookie: 3]
 
+  alias Portfolixir.Catalog.Quotes
+
   defp chart_path(security), do: "/securities/#{security.id}?tab=chart"
 
   defp open_max(conn, security) do
@@ -170,6 +172,88 @@ defmodule PortfolixirWeb.SecurityCycleDesignTest do
       refute abs(ax - bx) < 90 and abs(ay - by) < 12,
              "„#{at}“ and „#{bt}“ cover each other"
     end
+  end
+
+  # The plot's left and right x, from its clip path.
+  defp plot_x(view) do
+    [rect] = nodes(view, "clipPath rect")
+    x0 = num(rect, "x")
+    {x0, x0 + num(rect, "width")}
+  end
+
+  # A label's span in the chart's units at 1200 px, where a unit is a CSS
+  # pixel: 9 px monospace, 0.6 em a character, 1.2 em a line, the ascent
+  # 7 units above the baseline.
+  defp span(node) do
+    lines =
+      case LazyHTML.query(node, "tspan") |> Enum.to_list() do
+        [] -> [text(node)]
+        tspans -> Enum.map(tspans, &text/1)
+      end
+
+    width = (lines |> Enum.map(&String.length/1) |> Enum.max()) * 5.4
+    x = num(node, "x")
+    y = num(node, "y")
+
+    left =
+      case attr(node, "text-anchor") do
+        "end" -> x - width
+        "middle" -> x - width / 2
+        _start -> x
+      end
+
+    {left, left + width, y - 7, y + (length(lines) - 1) * 10.8 + 2}
+  end
+
+  defp covers?({l1, r1, t1, b1}, {l2, r2, t2, b2}),
+    do: l1 < r2 and l2 < r1 and t1 < b2 and t2 < b1
+
+  # User story (UAT S3 #4, the closing act):
+  # As the operator reading the next halving's estimate on the chart,
+  # I want its label whole and clear of the other labels,
+  # so that „(Schätzung)“ is never cut at the plot's edge and the Top
+  # band's label stays readable.
+  #
+  # Acceptance criteria (1200 px):
+  # - On „Zyklus“, where the Top band's label stands on the halvings' row,
+  #   the estimate's label covers no other cycle label and stays inside
+  #   the plot.
+  # - At „Max“, with a close a fortnight after the estimated halving, the
+  #   estimate stands at the plot's right edge: its label ends inside the
+  #   plot.
+  test "the estimated halving's label is whole and covers no other label", %{conn: conn} do
+    coin =
+      synthetic_cycle_coin!(
+        chain: :bitcoin,
+        shift_days: recent_shift(Portfolixir.Clock.today()),
+        next_window_days: 25
+      )
+
+    {:ok, view, _html} = live(conn, chart_path(coin))
+    view = cycles_on(view)
+    view |> element("button[phx-value-range='CYCLE']") |> render_click()
+
+    {x0, x1} = plot_x(view)
+    [estimate] = nodes(view, "text.cycle-label--halving.is-estimate")
+    {left, right, _top, _bottom} = box = span(estimate)
+    assert left >= x0 and right <= x1, "the estimate's label runs past the plot"
+
+    for other <- nodes(view, "text.cycle-label"), text(other) != text(estimate) do
+      refute covers?(box, span(other)), "the estimate's label covers „#{text(other)}“"
+    end
+
+    late = synthetic_cycle_coin!(name: "Synthetic Late Coin")
+
+    {:ok, _count} =
+      Quotes.upsert_many(late.id, [
+        %{date: ~D[2021-01-19], close: Decimal.new("900"), source: "manual"}
+      ])
+
+    view = conn |> open_max(late) |> cycles_on()
+    {x0, x1} = plot_x(view)
+    [estimate] = nodes(view, "text.cycle-label--halving.is-estimate")
+    {left, right, _top, _bottom} = span(estimate)
+    assert left >= x0 and right <= x1, "the estimate's label runs past the plot: #{right} > #{x1}"
   end
 
   # User story (board 07 ⑨ item 5):
