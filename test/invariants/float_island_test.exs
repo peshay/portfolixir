@@ -5,9 +5,12 @@ defmodule Portfolixir.Invariants.FloatIslandTest do
   have, **only for those, each one named**, each encoded as an explicit,
   tested exception and not a loophole. Widening the list needs an ADR.
 
-  This gate makes the list mechanical: every `:math` call (and `Float.pow/2`)
-  in the domain (`lib/portfolixir/**`) must be registered below with the
-  record that named it, and every registered operation must still be there.
+  This gate makes the list mechanical: every `:math` call (and `Float.pow/2`
+  and the power operator `**`) in the domain (`lib/portfolixir/**`) must be
+  registered below with the record that named it, and every registered
+  operation must still be there. `:math` reached any other way (an alias, an
+  import, `apply/3`, a variable) is found as the atom and can never be
+  registered: a float operation is called by its name.
   A new float operation, or an existing one copied into another module,
   fails the build until a record names it.
 
@@ -88,28 +91,71 @@ defmodule Portfolixir.Invariants.FloatIslandTest do
              ["Float.pow/2", "exp/1", "log10/1", "tanh/1"]
   end
 
+  # Acceptance criteria (the closing act's analytics lens on Lane H, finding
+  # 4: three forms the scan missed):
+  # - `:math` reached any other way than a direct call, pipe or capture —
+  #   an alias, an import, `apply/3`, a variable — is found as the atom
+  #   itself, which no record registers.
+  # - The power operator `**`, written, called through `Kernel` or
+  #   captured, is found as `**/2`: it answers a float for a float or a
+  #   negative exponent, so it needs a record as `:math.pow/2` does.
+  # - A direct call still counts once, not again as its atom.
+  test "the scan finds an aliased :math, apply on :math and the power operator" do
+    cases = [
+      {"alias :math, as: M\n  def f(x), do: M.log(x)", ["the atom :math"]},
+      {"import :math, only: [log: 1]\n  def f(x), do: log(x)", ["the atom :math"]},
+      {"def f(x), do: apply(:math, :log, [x])", ["the atom :math"]},
+      {"def f(x) do\n    m = :math\n    m.log(x)\n  end", ["the atom :math"]},
+      {"def f(x), do: x ** 0.5", ["**/2"]},
+      {"def f(x), do: Kernel.**(x, 0.5)", ["**/2"]},
+      {"def f, do: &**/2", ["**/2"]},
+      {"def f(x), do: :math.log(x)", ["log/1"]}
+    ]
+
+    for {body, expected} <- cases do
+      source = "defmodule Attack do\n  #{body}\nend\n"
+      assert float_operations(source) == expected, body
+    end
+  end
+
   # Every `:math.fun(args)` (arity counted with a pipe's left side),
-  # `&:math.fun/n` and `Float.pow/2`, as "fun/arity". A capture is replaced
-  # by an atom so its inner `:math.fun` reference is not counted again.
+  # `&:math.fun/n` and `Float.pow/2`, as "fun/arity"; the power operator,
+  # however written, as "**/2"; and the atom `:math` anywhere else (an
+  # alias, an import, `apply/3`, a variable), as "the atom :math". A counted
+  # call is replaced by its arguments, so its own `:math` is not seen again
+  # and only the arguments are walked; a capture by an atom.
   defp float_operations(source) do
     {_ast, found} =
       source
       |> Code.string_to_quoted!()
       |> Macro.prewalk([], fn
         # The pipe counts its left side in the arity; the call is not
-        # walked again, its left side is.
+        # walked again, its left side and its arguments are.
         {:|>, _meta, [left, {{:., _, [:math, fun]}, _, args}]}, acc ->
-          {left, ["#{fun}/#{length(args) + 1}" | acc]}
+          {[left | args], ["#{fun}/#{length(args) + 1}" | acc]}
 
         {:&, _meta, [{:/, _, [{{:., _, [:math, fun]}, _, []}, arity]}]}, acc ->
           {:captured, ["#{fun}/#{arity}" | acc]}
 
-        {{:., _, [:math, fun]}, _meta, args} = node, acc when is_list(args) ->
-          {node, ["#{fun}/#{length(args)}" | acc]}
+        {{:., _, [:math, fun]}, _meta, args}, acc when is_list(args) ->
+          {args, ["#{fun}/#{length(args)}" | acc]}
 
         {{:., _, [{:__aliases__, _, [:Float]}, :pow]}, _meta, args} = node, acc
         when length(args) == 2 ->
           {node, ["Float.pow/2" | acc]}
+
+        # `x ** y`, `Kernel.**(x, y)` and `&**/2`.
+        {:&, _meta, [{:/, _, [{:**, _, context}, 2]}]}, acc when is_atom(context) ->
+          {:captured, ["**/2" | acc]}
+
+        {:**, _meta, args}, acc when is_list(args) ->
+          {args, ["**/2" | acc]}
+
+        {{:., _, [{:__aliases__, _, [:Kernel]}, :**]}, _meta, args}, acc when is_list(args) ->
+          {args, ["**/2" | acc]}
+
+        :math, acc ->
+          {:math, ["the atom :math" | acc]}
 
         node, acc ->
           {node, acc}
