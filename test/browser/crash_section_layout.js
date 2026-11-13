@@ -56,10 +56,27 @@ async function measure(page) {
         actions: Array.from(table.querySelectorAll("td.crash-actions button")).map(box)
       };
     };
+    // The width each window's option needs in the select, measured in a
+    // copy of the select that holds it alone, with no cap (PR 2's closing
+    // act, board 06 ⑫).
+    const select = section.querySelector("#crash-window");
+    const options = select
+      ? Array.from(select.options).map((option) => {
+          const probe = select.cloneNode(false);
+          probe.removeAttribute("id");
+          probe.style.cssText = "max-width: none; width: auto; position: absolute; visibility: hidden;";
+          probe.appendChild(new Option(option.text));
+          select.parentElement.appendChild(probe);
+          const needed = probe.getBoundingClientRect().width;
+          probe.remove();
+          return { text: option.text, needed: round(needed), width: round(select.getBoundingClientRect().width) };
+        })
+      : [];
     return {
       viewport: window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
       section: box(section),
+      options,
       controls,
       rows,
       list: fit(section.querySelector("table.crash-table")),
@@ -83,6 +100,13 @@ function check(seen, width) {
     if (Math.max(...middles) - Math.min(...middles) > 4) errors.push("1200 px: the bar is not one line");
     if (!(select.right <= list.left && list.right <= universe.left))
       errors.push("1200 px: the window's select is not the bar's first control");
+    // A manual window of a short name, as the review seed's, reads whole
+    // in the select at 1200 px (board 06 ⑫); a long one is cut at the cap.
+    for (const option of seen.options.filter((o) => o.text.startsWith("Synthetic dip"))) {
+      if (option.needed > option.width + 0.5)
+        errors.push("1200 px: the window „" + option.text + "“ is cut: it needs " + option.needed + " px in a " + option.width + " px select");
+    }
+    if (!seen.options.some((o) => o.text.startsWith("Synthetic dip"))) errors.push("1200 px: no short manual window in the select");
   } else {
     // Wrapped: every control starts on one edge.
     const lefts = seen.controls.map((c) => c.left);
