@@ -33,13 +33,21 @@ defmodule PortfolixirWeb.Components.CycleChart do
   **The geometry** comes from the security chart: `scale` carries the plot's
   corners, the axis' first and last date, and the functions that place a
   date and a price on it (the chart's own log or percent transform), so a
-  mark sits where the price line does. Everything right of the last close is
-  clipped to the plot; the range that reaches past today is H8's.
+  mark sits where the price line does. Everything outside the axis is
+  clipped to the plot.
+
+  **The range „Zyklus“** (Sprint 29 H8, ADR-0060 §11; board 07 ⑤):
+  `cycle_range/1` gives its dates, from three months before the last
+  confirmed halving to four months after the later end of the two bands,
+  which reaches past today. Right of today the axis holds only the next
+  halving's window (`rect.cycle-halving-window`), the bands and the cones
+  into them, and a „heute“ line marks where the closes end.
   """
 
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Clock
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.PrivacyMode
 
@@ -302,6 +310,31 @@ defmodule PortfolixirWeb.Components.CycleChart do
   def chain_name(chain) when is_binary(chain), do: chain
   def chain_name(_none), do: "—"
 
+  # --- S29 H8 begin ---
+  @doc """
+  The range „Zyklus“ of a cycles read with the view (ADR-0060 §11; board
+  07 ⑥): from three months before the last confirmed halving to four
+  months after the later end of the next low's and the next top's bands,
+  or after today where neither has a band. `nil` without the view.
+  """
+  @spec cycle_range(map() | nil) :: {Date.t(), Date.t()} | nil
+  def cycle_range(payload) do
+    with true <- view?(payload),
+         %{date: %Date{} = last} <- payload.halvings |> Enum.filter(& &1.confirmed) |> List.last() do
+      ends =
+        case for(event <- events(payload), event.band, do: event.band.window.to) do
+          [] -> [Clock.today()]
+          ends -> ends
+        end
+
+      {Date.shift(last, month: -3), Date.shift(Enum.max(ends, Date), month: 4)}
+    else
+      _no_view -> nil
+    end
+  end
+
+  # --- S29 H8 end ---
+
   # ------------------------------------------------- the time axis' layers
 
   @doc """
@@ -336,6 +369,25 @@ defmodule PortfolixirWeb.Components.CycleChart do
 
     ~H"""
     <g class="cycle-layer cycle-layer--back" clip-path={"url(##{@clip})"}>
+      <rect
+        :for={w <- @marks.halving_windows}
+        class="cycle-halving-window"
+        data-date={Date.to_iso8601(w.from)}
+        data-to={Date.to_iso8601(w.to)}
+        x={w.x}
+        y={@scale.y0}
+        width={w.w}
+        height={@scale.y1 - @scale.y0}
+      />
+      <line
+        :if={@marks.today}
+        class="cycle-today"
+        data-date={Date.to_iso8601(@marks.today.date)}
+        x1={@marks.today.x}
+        x2={@marks.today.x}
+        y1={@scale.y0}
+        y2={@scale.y1}
+      />
       <line
         :for={h <- @marks.halvings}
         class={["cycle-halving", h.estimate? && "is-estimate"]}
@@ -434,6 +486,15 @@ defmodule PortfolixirWeb.Components.CycleChart do
         </path>
       </g>
       <text
+        :if={@marks.today_label}
+        class="cycle-label cycle-label--today"
+        x={@marks.today_label.x}
+        y={@marks.today_label.y}
+        text-anchor="end"
+      >
+        <%= pgettext("halving cycles", "today") %>
+      </text>
+      <text
         :for={h <- @marks.halving_labels}
         class={["cycle-label", "cycle-label--halving", h.estimate? && "is-estimate"]}
         x={h.x}
@@ -492,6 +553,8 @@ defmodule PortfolixirWeb.Components.CycleChart do
 
     %{
       halvings: halving_marks(payload, scale),
+      halving_windows: halving_windows(payload, scale),
+      today: today_mark(scale),
       bands: Enum.flat_map(events(payload), &band_mark(&1, coned, payload, scale)),
       cones: Enum.flat_map(cones, &cone_mark(&1, scale))
     }
@@ -505,10 +568,16 @@ defmodule PortfolixirWeb.Components.CycleChart do
 
     estimate =
       case payload.next_halving do
-        %{date: %Date{} = date} ->
+        %{date: %Date{} = date} = next ->
           if within?(date, scale),
             do: [
-              %{date: date, x: coord(scale.x.(date)), x_value: scale.x.(date), estimate?: true}
+              %{
+                date: date,
+                date_end: next[:date_end],
+                x: coord(scale.x.(date)),
+                x_value: scale.x.(date),
+                estimate?: true
+              }
             ],
             else: []
 
@@ -518,6 +587,38 @@ defmodule PortfolixirWeb.Components.CycleChart do
 
     confirmed ++ estimate
   end
+
+  # --- S29 H8 begin ---
+  # The next halving's window (ADR-0059 §6), between its two dates, where
+  # the read stores one.
+  defp halving_windows(%{next_halving: %{date: %Date{} = from, date_end: %Date{} = to}}, scale) do
+    if overlaps?(%{from: from, to: to}, scale.first, scale.last) do
+      x1 = scale.x.(from)
+
+      [
+        %{
+          from: from,
+          to: to,
+          x: coord(x1),
+          w: coord(max(scale.x.(to) - x1, 1.0))
+        }
+      ]
+    else
+      []
+    end
+  end
+
+  defp halving_windows(_payload, _scale), do: []
+
+  # „heute“, only where the axis reaches past today (the range „Zyklus“).
+  defp today_mark(scale) do
+    today = Clock.today()
+
+    if within?(today, scale) and Date.compare(scale.last, today) == :gt,
+      do: %{date: today, x: coord(scale.x.(today)), x_value: scale.x.(today)}
+  end
+
+  # --- S29 H8 end ---
 
   defp band_mark(%{band: nil}, _coned, _payload, _scale), do: []
 
@@ -594,6 +695,7 @@ defmodule PortfolixirWeb.Components.CycleChart do
       extremes: extremes,
       extreme_labels: extremes,
       halving_labels: halving_labels(payload, scale),
+      today_label: today_label(scale),
       band_labels: Enum.flat_map(events(payload), &band_label(&1, payload, scale))
     }
   end
@@ -758,12 +860,30 @@ defmodule PortfolixirWeb.Components.CycleChart do
       else: what <> " · " <> Format.date(date) <> " · " <> price(close, currency)
   end
 
+  defp today_label(scale) do
+    case today_mark(scale) do
+      nil -> nil
+      today -> %{x: coord(today.x_value - 3), y: coord(scale.y1 - 4)}
+    end
+  end
+
   defp halving_labels(payload, scale) do
     for h <- halving_marks(payload, scale) do
       text =
-        if h.estimate?,
-          do: gettext("Halving ≈ %{date} (estimate)", date: Format.date(h.date)),
-          else: gettext("Halving %{date}", date: Format.date(h.date))
+        cond do
+          not h.estimate? ->
+            gettext("Halving %{date}", date: Format.date(h.date))
+
+          # S29 H8: the window the chain reader stores (ADR-0059 §6).
+          match?(%Date{}, h[:date_end]) ->
+            gettext("Halving ≈ %{from} – %{to} (estimate)",
+              from: Format.date(h.date),
+              to: Format.date(h.date_end)
+            )
+
+          true ->
+            gettext("Halving ≈ %{date} (estimate)", date: Format.date(h.date))
+        end
 
       %{x: coord(h.x_value + 3), y: coord(scale.y0 + 9), text: text, estimate?: h.estimate?}
     end
@@ -1415,6 +1535,62 @@ defmodule PortfolixirWeb.Components.CycleChart do
     </details>
     """
   end
+
+  # --- S29 H8 begin ---
+  attr(:payload, :map, required: true, doc: "the cycles read of a security with the view")
+  attr(:href, :string, required: true)
+
+  @doc """
+  The dashboard card „‹Name›-Zyklus“ (ADR-0060 §11; idea board 01, A's
+  shortcut): the next low's and the next top's windows, price ranges and
+  states, each band's parts with their n, the sentence that the band is no
+  forecast, and the link that opens the security's chart with cycles on
+  and the range „Zyklus“. The prices are hidden in the privacy mode, as in
+  the disclosure; an event without a band says why.
+  """
+  def card(assigns) do
+    ~H"""
+    <section
+      class="workspace-section cycle-card"
+      data-role="cycle-card"
+      data-security-id={@payload.security_id}
+    >
+      <div class="section-head">
+        <h2><%= gettext("%{name} cycle", name: @payload.security_name) %></h2>
+        <a class="kpi-summary__link" href={@href} data-role="cycle-card-open">
+          <%= gettext("Open in chart →") %>
+        </a>
+      </div>
+      <dl class="cycle-card__events">
+        <div :for={event <- events(@payload)} class="cycle-card__event" data-event={event.event}>
+          <dt><%= event_label(event.event) %></dt>
+          <%= if event.band do %>
+            <dd class="num" data-role="window"><%= window_text(event.band.window) %></dd>
+            <dd class="num" data-role="price"><%= price_text(event.band.price, @payload.currency_code) %></dd>
+            <dd data-role="state"><%= state_text(event) %></dd>
+            <dd class="cycle-card__parts" data-role="parts"><%= parts_text(event) %></dd>
+          <% else %>
+            <dd data-role="reason"><%= absent_text(event.reason, event) %></dd>
+          <% end %>
+        </div>
+      </dl>
+      <p class="hint cycle-card__basis">
+        <%= gettext(
+          "The range the stored cycles give from the current anchors, with its n and both ends: not a forecast."
+        ) %>
+      </p>
+    </section>
+    """
+  end
+
+  # Each part a band is the hull of, with its time n (ADR-0060 §4).
+  defp parts_text(event) do
+    event.parts
+    |> Enum.filter(&is_nil(&1.reason))
+    |> Enum.map_join(" · ", &(relation_label(&1.relation) <> " n = " <> to_string(&1.n_time)))
+  end
+
+  # --- S29 H8 end ---
 
   defp event_label(:next_low), do: gettext("Next low")
   defp event_label(:next_top), do: gettext("Next top")

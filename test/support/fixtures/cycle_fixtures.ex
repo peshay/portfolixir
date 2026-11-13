@@ -48,19 +48,41 @@ defmodule Portfolixir.CycleFixtures do
   The coin, bound to `chain` (`:litecoin` by default), with the halvings
   and closes above. Options: `:name`, `:chain`, `:halvings` (how many of
   the five halving rows to write, all by default), `:closes_from` (the
-  first close kept; a later one makes the first window partial).
+  first close kept; a later one makes the first window partial),
+  `:shift_days` (every date moved by that many days, so a test can put the
+  last close near today and the bands past it; Sprint 29 H8),
+  `:next_window_days` (the unconfirmed halving written as a window of that
+  many days after its date, as the chain reader writes the next one).
   """
   def synthetic_cycle_coin!(opts \\ []) do
     name = Keyword.get(opts, :name, "Synthetic Cycle Coin")
     chain = Keyword.get(opts, :chain, :litecoin)
     count = Keyword.get(opts, :halvings, length(@halvings))
+    shift = Keyword.get(opts, :shift_days, 0)
     agent = Actor.api_token_rw("synthetic-agent")
 
     coin = create_security!(name: name, ticker: nil, asset_class: "crypto", currency: "USD")
     {:ok, coin} = Catalog.update_security(agent, coin, %{halving_chain: chain})
 
+    window = Keyword.get(opts, :next_window_days)
+
     for {k, date, confirmed} <- Enum.take(@halvings, count) do
-      {:ok, _event} = halving!(coin, chain, k * Registry.halving_interval(chain), date, confirmed)
+      date = date |> Date.from_iso8601!() |> Date.add(shift)
+
+      extra =
+        if window && not confirmed,
+          do: %{"timing" => "window", "date_end" => Date.add(date, window)},
+          else: %{}
+
+      {:ok, _event} =
+        halving!(
+          coin,
+          chain,
+          k * Registry.halving_interval(chain),
+          Date.to_iso8601(date),
+          confirmed,
+          extra
+        )
     end
 
     from = Keyword.get(opts, :closes_from, ~D[1900-01-01])
@@ -68,11 +90,19 @@ defmodule Portfolixir.CycleFixtures do
     rows =
       for {date, close} <- @closes,
           Date.compare(date, from) != :lt,
-          do: %{date: date, close: Decimal.new(close), source: "manual"}
+          do: %{date: Date.add(date, shift), close: Decimal.new(close), source: "manual"}
 
     {:ok, _count} = Quotes.upsert_many(coin.id, rows)
     coin
   end
+
+  @doc """
+  The `:shift_days` that puts the coin's last close `days_ago` days before
+  `today`: its next low's band then runs past today and its next top's band
+  lies after it (Sprint 29 H8, the range „Zyklus“).
+  """
+  def recent_shift(today, days_ago \\ 30),
+    do: Date.diff(today, List.last(@closes) |> elem(0)) - days_ago
 
   @doc """
   Writes `chain`'s state row (ADR-0059 §8) as a run would have left it:
@@ -95,13 +125,17 @@ defmodule Portfolixir.CycleFixtures do
   # A chain without a source takes its halvings by hand (an agent's write);
   # a chain with one only from its reader (ADR-0059 §5), so the fixture
   # writes them as the reader's run does.
-  defp halving!(coin, chain, height, date, confirmed) do
-    attrs = %{
-      "date" => date,
-      "timing" => "exact",
-      "confirmed" => confirmed,
-      "source_quality" => if(confirmed, do: "primary", else: "unverified")
-    }
+  defp halving!(coin, chain, height, date, confirmed, extra) do
+    attrs =
+      Map.merge(
+        %{
+          "date" => date,
+          "timing" => "exact",
+          "confirmed" => confirmed,
+          "source_quality" => if(confirmed, do: "primary", else: "unverified")
+        },
+        extra
+      )
 
     if Registry.has_source?(chain) do
       Events.put_chain_halving(Actor.system_job("chain_read"), coin.id, chain, height, attrs)

@@ -14153,3 +14153,60 @@ dialog.merge-dialog {
   font-weight: 400;
 }
 /* --- S29 H7 end --- */
+
+/* --- S29 H8 begin: the range „Zyklus“, the dashboard card „‹Name›-Zyklus“,
+   „Halving-Kette“ in the edit form and „Jetzt lesen“ (ADR-0060 §11,
+   ADR-0059 §4, §8, §11; board 07, idea board 01) --- */
+/* Right of today on the range „Zyklus“: the next halving's window as a
+   faint warning-hued strip behind its dashed line, and „heute“ as a muted
+   dashed line where the closes end. */
+.security-chart .cycle-halving-window {
+  fill: var(--color-warning);
+  fill-opacity: 0.12;
+}
+.security-chart .cycle-today {
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+.security-chart .cycle-label--today {
+  fill: var(--color-text-muted);
+}
+/* The dashboard card: one row per event, its name, then its window, price
+   range, state and parts, wrapping under the name on a phone. */
+.cycle-card__events {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+.cycle-card__event {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--color-border);
+}
+.cycle-card__event dt {
+  flex: 0 0 8rem;
+  font-weight: 600;
+}
+.cycle-card__event dd {
+  margin: 0;
+}
+.cycle-card__event dd[data-role="state"] {
+  font-weight: 600;
+}
+.cycle-card__parts,
+.cycle-card__event dd[data-role="reason"] {
+  flex: 1 0 100%;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+@media (min-width: 561px) {
+  .cycle-card__parts,
+  .cycle-card__event dd[data-role="reason"] {
+    padding-left: calc(8rem + var(--space-3));
+  }
+}
+/* --- S29 H8 end --- */

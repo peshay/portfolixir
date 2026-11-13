@@ -142,6 +142,17 @@ defmodule Portfolixir.LocalizationTest do
           not (pot =~ ~s(msgid "#{msgid}")),
           do: {path, msgid}
 
+    # A pgettext call is extracted under its context: its context and msgid
+    # stand together in the .pot (Sprint 29 H8, the range „Zyklus“). Read as a
+    # plain call, its context was taken for a msgid the .pot lacks.
+    missing =
+      missing ++
+        for path <- flagged_views,
+            content = File.read!(path),
+            {context, msgid} <- extract_pgettext_literals(content),
+            not (pot =~ ~s(msgctxt "#{context}"\nmsgid "#{msgid}")),
+            do: {path, "#{context} | #{msgid}"}
+
     assert missing == [],
            "The following gettext() calls are not extracted in default.pot — " <>
              "run `mix gettext.extract --merge` and translate in priv/gettext/de/:\n" <>
@@ -202,8 +213,14 @@ defmodule Portfolixir.LocalizationTest do
   # Only matches the first (msgid) argument when it is a plain string literal.
   # Does not attempt to match multiline or interpolated strings.
   defp extract_gettext_literals(content) do
-    Regex.scan(~r/gettext\("((?:[^"\\]|\\.)*)"\s*(?:,|\))/, content)
+    Regex.scan(~r/(?<!p)gettext\("((?:[^"\\]|\\.)*)"\s*(?:,|\))/, content)
     |> Enum.map(fn [_full, msgid] -> decode_unicode_escapes(msgid) end)
+    |> Enum.uniq()
+  end
+
+  defp extract_pgettext_literals(content) do
+    Regex.scan(~r/pgettext\(\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)"/, content)
+    |> Enum.map(fn [_full, context, msgid] -> {context, decode_unicode_escapes(msgid)} end)
     |> Enum.uniq()
   end
 

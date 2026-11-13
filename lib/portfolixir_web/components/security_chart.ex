@@ -96,6 +96,13 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   # `%{payload: the cycles read, lines: the three switches}`, or nil.
   attr(:cycles, :map, default: nil)
   # --- S29 H7 end ---
+  # --- S29 H8 begin ---
+  # The range „Zyklus“ (ADR-0060 §11): the axis' own ends, which may lie
+  # before the first close and after the last one, so the axis reaches past
+  # today. nil keeps the axis on the closes.
+  attr(:axis_from, :any, default: nil)
+  attr(:axis_to, :any, default: nil)
+  # --- S29 H8 end ---
   attr(:currency_code, :string, default: "")
   # nil resolves to the localized "Price chart" at render time — a compile-time
   # attr default cannot go through gettext with the caller's locale.
@@ -118,7 +125,8 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     geometry =
       build_geometry(assigns.quotes, assigns.log_scale?,
         percent_mode?: assigns.percent_mode?,
-        extra_values: range_extending_values(assigns)
+        extra_values: range_extending_values(assigns),
+        axis: {assigns.axis_from, assigns.axis_to}
       )
 
     plot_left = @padding_left
@@ -548,8 +556,9 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   defp build_geometry_from_quotes(quotes, log_scale?, opts) do
     percent_mode? = Keyword.get(opts, :percent_mode?, false)
     indexed = Enum.with_index(quotes)
-    first_date = List.first(quotes).date
-    last_date = List.last(quotes).date
+    {axis_from, axis_to} = Keyword.get(opts, :axis, {nil, nil})
+    first_date = earlier(List.first(quotes).date, axis_from)
+    last_date = later(List.last(quotes).date, axis_to)
     base = percent_base(quotes)
     base_close = base && chart_float(base)
     rebase? = percent_mode? and is_float(base_close)
@@ -589,6 +598,17 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     }
   end
 
+  # --- S29 H8 begin ---
+  # An axis end the caller names widens the axis past the closes, never
+  # narrows it (the range „Zyklus“, ADR-0060 §11).
+  defp earlier(date, %Date{} = axis), do: Enum.min([date, axis], Date)
+  defp earlier(date, _none), do: date
+
+  defp later(date, %Date{} = axis), do: Enum.max([date, axis], Date)
+  defp later(date, _none), do: date
+
+  # --- S29 H8 end ---
+
   # The percent view's 100 %: the first close above zero, as a `Decimal`,
   # or nil when none is. A value series can open at zero (a buy booked
   # before its money) or below it, and a percent of such a base would print
@@ -614,10 +634,18 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   # --- S29 H7 begin ---
   # The bands and the shown cones' parts that meet the axis widen the value
   # range, so a band above or below every close stays on the plot.
-  defp cycle_values(%{cycles: %{} = cycles, quotes: quotes}) do
+  defp cycle_values(%{cycles: %{} = cycles, quotes: quotes} = assigns) do
     case Enum.filter(quotes, &valid_quote?/1) do
-      [] -> []
-      valid -> CycleChart.timeline_values(cycles, hd(valid).date, List.last(valid).date)
+      [] ->
+        []
+
+      valid ->
+        # S29 H8: on the range „Zyklus“ the axis reaches past the last close.
+        CycleChart.timeline_values(
+          cycles,
+          earlier(hd(valid).date, assigns[:axis_from]),
+          later(List.last(valid).date, assigns[:axis_to])
+        )
     end
   end
 

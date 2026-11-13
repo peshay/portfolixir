@@ -88,6 +88,28 @@ defmodule Portfolixir.Catalog.SecurityCycles do
     end
   end
 
+  @doc """
+  The cycles read of every security that has the view (ADR-0060 §1), in
+  the order of their names: the dashboard's cards „‹Name›-Zyklus“ (§11,
+  Sprint 29 H8). A security bound to no chain is not read; one whose read
+  names a reason (too few halvings, no closes) is left out.
+  """
+  @spec views() :: [map()]
+  def views do
+    from(s in Security,
+      where: not is_nil(s.halving_chain),
+      order_by: [asc: s.name, asc: s.id],
+      select: s.id
+    )
+    |> Repo.all()
+    |> Enum.flat_map(fn id ->
+      case for_security(id) do
+        {:ok, %{reason: nil} = payload} -> [payload]
+        _no_view -> []
+      end
+    end)
+  end
+
   # Keys come from the caller's map or keyword list; an atom key is the
   # caller's own code, converted to its name, never the other way round.
   defp options(params) when is_map(params) or is_list(params) do
