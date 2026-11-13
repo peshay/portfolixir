@@ -465,6 +465,26 @@ defmodule Portfolixir.Chains.ReaderTest do
       assert state.last_ok_at == nil
     end
 
+    # The closing act's re-check: the error was cut by graphemes, so 600
+    # × (e + U+0301) kept some 1,000 code points, the state row's changeset
+    # refused them and recording the failure raised.
+    test "an error of combining characters is cut to the column by code points" do
+      security!()
+      error = String.duplicate("e\u0301", 600)
+
+      read = fn _heights_for, _opts ->
+        {:error, [%{source: :mempool, host: "h", error: error}]}
+      end
+
+      {result, _log} = with_log(fn -> run(read: read) end)
+      assert {:error, [_failure]} = result
+
+      stored = Repo.get_by!(ChainRead, chain: "bitcoin").last_error
+      assert String.starts_with?(stored, "h: e\u0301")
+      assert length(String.codepoints(stored)) <= 512
+      assert String.valid?(stored)
+    end
+
     test "a run that raises stays its chain's" do
       security!()
       read = fn _heights_for, _opts -> raise "synthetic adapter bug" end
