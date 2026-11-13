@@ -446,7 +446,13 @@ addendum's "within a day"). It is reported:
   of §6); `POST /api/v1/chains/:chain/refresh`, an on-demand run that
   answers with the health. It is throttled to once per 10 minutes per chain:
   sooner answers 429 with `retry_after`, and a chain without a source
-  answers 422 `no_source`. `securities.update` takes `halving_chain` (a
+  answers 422 `no_source`. *Precision of 2026-11-13:* the try is claimed
+  in one conditional write of the state row before any host is asked, so
+  of two refreshes sent together exactly one runs; a last try stamped
+  after the clock is due; and a run that read earlier but stores later
+  never moves the state row backwards (the tip, the times and the error
+  stay the newer run's). The closing act's security and order lenses on
+  Lane H found the throttle checked outside any lock. `securities.update` takes `halving_chain` (a
   registry chain or `null`); an unknown value is refused with 422 naming the
   field. Events of kind `halving` are read through ADR-0048's four reads.
 - **MCP:** `portfolixir.chains.list` and `portfolixir.chains.refresh`. Each

@@ -192,15 +192,68 @@ defmodule Portfolixir.ChainsTest do
     assert Chains.refresh("bitcoin", now: DateTime.add(@now, 30)) == {:error, {:too_soon, 570}}
   end
 
-  test "a last try stamped after now waits ten minutes at most" do
+  # The closing act's security lens on Lane H (finding 3): a last try
+  # stamped after the clock (a clock set back, a restored backup) answered
+  # {:too_soon, 600} at every later moment until the clock caught up, a
+  # year if the stamp was a year ahead. A stamp after `now` is due; the run
+  # stamps `now`, and the ten minutes count from there.
+  test "a last try stamped after now is due, and the ten minutes count from the run" do
+    bound!(:bitcoin)
+    serve(%{"mempool.space" => {:chain, @tip}})
+
     Repo.insert!(%ChainRead{
       chain: "bitcoin",
-      last_tried_at: DateTime.add(@now, 3600),
+      last_tried_at: DateTime.add(@now, 365 * 24 * 3600),
       inserted_at: @now,
       updated_at: @now
     })
 
-    assert Chains.refresh("bitcoin", now: @now) == {:error, {:too_soon, 600}}
+    assert Chains.refresh_wait("bitcoin", @now) == 0
+    assert {:ok, %{run: %{status: :ok}} = entry} = Chains.refresh("bitcoin", now: @now)
+    assert entry.health.last_tried_at == @now
+    assert Chains.refresh("bitcoin", now: DateTime.add(@now, 60)) == {:error, {:too_soon, 540}}
+  end
+
+  # The closing act's security and order lenses on Lane H: the throttle was
+  # checked outside any lock, so refreshes sent together each passed it
+  # and each asked the source. The try is now claimed in one conditional
+  # write before the network read; the others answer too_soon.
+  test "refreshes sent together: one claims the try and asks the source, the others wait" do
+    bound!(:bitcoin)
+    test_pid = self()
+
+    read = fn heights_for, opts ->
+      send(test_pid, :read)
+      Process.sleep(50)
+      serve_canned(heights_for, opts)
+    end
+
+    results =
+      1..8
+      |> Enum.map(fn _ ->
+        Task.async(fn -> Chains.refresh("bitcoin", now: @now, read: read) end)
+      end)
+      |> Enum.map(&Task.await(&1, 20_000))
+
+    assert Enum.count(results, &match?({:ok, %{run: %{status: :ok}}}, &1)) == 1
+    assert Enum.count(results, &(&1 == {:error, {:too_soon, 600}})) == 7
+    assert_received :read
+    refute_received :read
+  end
+
+  defp serve_canned(heights_for, _opts) do
+    heights = heights_for.(@tip)
+
+    {:ok,
+     %{
+       source: :mempool,
+       host: "mempool.space",
+       base: "https://mempool.space/api",
+       tip: @tip,
+       blocks: Map.new(heights, &{&1, %{height: &1, hash: hash(&1), timestamp: timestamp(&1)}}),
+       genesis_checked: true,
+       attempts: []
+     }}
   end
 
   defp flush do

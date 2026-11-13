@@ -24,14 +24,19 @@ defmodule Portfolixir.Chains do
   minutes per chain**, counted from the state row's `last_tried_at`, which
   every run that asked a host stamps, the scheduled ones too: sooner answers
   `{:error, {:too_soon, seconds}}`, the seconds until ten minutes after the
-  last try (at most 600, also when the stored try lies after `now`). A run
-  with no security bound asks no host and stamps nothing, so it starts no
-  wait. A chain without a source answers `{:error, :no_source}`, a name the
+  last try. A try stamped after `now` (a clock set back) is due. A run with
+  no security bound asks no host and stamps nothing, so it starts no wait.
+  A chain without a source answers `{:error, :no_source}`, a name the
   registry does not hold `{:error, :not_found}`; neither asks a host.
 
-  Two refreshes sent in the same instant can both pass the check; the
-  reader's lock per chain (`Reader`, "Two runs never write twice") keeps the
-  second from writing anything the first wrote.
+  **The try is claimed before the source is asked**, in one conditional
+  write of the state row's `last_tried_at` (an `INSERT … ON CONFLICT DO
+  UPDATE … WHERE` the try is due, `RETURNING`): of two refreshes sent in the
+  same instant exactly one claims it and runs, and the other answers
+  `too_soon` without asking a host (the closing act's security and order
+  lenses on Lane H). The reader's lock per chain (`Reader`, "Two runs never
+  write twice") still keeps a scheduled run and a refresh from writing
+  twice.
   """
 
   import Ecto.Query
@@ -107,7 +112,7 @@ defmodule Portfolixir.Chains do
 
     with {:ok, chain} <- fetch(name),
          :ok <- source(chain),
-         :ok <- due(Reader.state(chain), now) do
+         :ok <- claim(chain, now) do
       run = chain |> Reader.run(Keyword.put(opts, :now, now)) |> outcome(chain)
       {:ok, chain |> entry(bound_count(chain), now) |> Map.put(:run, run)}
     end
@@ -145,13 +150,56 @@ defmodule Portfolixir.Chains do
     do: if(Registry.has_source?(chain), do: :ok, else: {:error, :no_source})
 
   defp due(%ChainRead{last_tried_at: %DateTime{} = tried}, now) do
-    case @refresh_seconds - DateTime.diff(now, tried, :second) do
-      wait when wait > 0 -> {:error, {:too_soon, min(wait, @refresh_seconds)}}
+    case DateTime.diff(now, tried, :second) do
+      # A try stamped after `now` is due: a clock set back must not hold
+      # the refresh until it catches up.
+      since when since < 0 -> :ok
+      since when since < @refresh_seconds -> {:error, {:too_soon, @refresh_seconds - since}}
       _due -> :ok
     end
   end
 
   defp due(_never_tried, _now), do: :ok
+
+  # The try claimed in one conditional write before the source is asked: a
+  # new row, or `last_tried_at` moved to `now` where it is due (never tried,
+  # ten minutes ago or more, or after `now`). The write that loses finds the
+  # row stamped and answers its wait. A chain with no security bound
+  # claims nothing: its run asks no host and starts no wait.
+  @claim_sql """
+  INSERT INTO chain_reads (chain, last_tried_at, inserted_at, updated_at)
+  VALUES ($1, $2, $2, $2)
+  ON CONFLICT (chain) DO UPDATE
+    SET last_tried_at = EXCLUDED.last_tried_at, updated_at = EXCLUDED.updated_at
+    WHERE chain_reads.last_tried_at IS NULL
+       OR chain_reads.last_tried_at <= $3
+       OR chain_reads.last_tried_at > $2
+  RETURNING id
+  /* chain refresh claim */
+  """
+
+  defp claim(chain, now) do
+    if bound_count(chain) == 0 do
+      :ok
+    else
+      cutoff = DateTime.add(now, -@refresh_seconds)
+      at = DateTime.to_naive(now)
+
+      case Repo.query!(@claim_sql, [Atom.to_string(chain), at, DateTime.to_naive(cutoff)]) do
+        %{num_rows: 1} -> :ok
+        %{num_rows: 0} -> lost_claim(chain, now)
+      end
+    end
+  end
+
+  defp lost_claim(chain, now) do
+    case due(Reader.state(chain), now) do
+      {:error, {:too_soon, _seconds}} = too_soon -> too_soon
+      # Claimed by another refresh at this very second, or since: the full
+      # ten minutes.
+      :ok -> {:error, {:too_soon, @refresh_seconds}}
+    end
+  end
 
   defp outcome({:ok, :unbound}, _chain), do: %{status: :unbound}
 
@@ -198,11 +246,11 @@ defmodule Portfolixir.Chains do
     }
   end
 
-  # A try stamped after `now` still waits ten minutes at most (`due/2`).
+  # A try stamped after `now` is due at once (`due/2`).
   defp available_at(tried, now) do
-    at = DateTime.add(tried, @refresh_seconds)
-    latest = DateTime.add(now, @refresh_seconds)
-    if DateTime.compare(at, latest) == :gt, do: latest, else: at
+    if DateTime.compare(tried, now) == :gt,
+      do: now,
+      else: DateTime.add(tried, @refresh_seconds)
   end
 
   defp inputs(%ChainRead{

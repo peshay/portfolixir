@@ -1791,8 +1791,8 @@ Reihenfolge der Registry, jede mit:
   ersten erfolgreichen Lauf und für eine Kette ohne Quelle.
 - `refresh` — `interval_seconds` (600) und `available_at`, zehn Minuten nach
   dem letzten Versuch, der erste Zeitpunkt, zu dem ein Lesen auf Abruf
-  erlaubt ist (ein schon vergangener, wenn es jetzt erlaubt ist; `null` vor
-  dem ersten Versuch). `null` für eine Kette ohne Quelle.
+  erlaubt ist (ein schon vergangener, wenn es jetzt erlaubt ist, jetzt, wenn
+  der letzte Versuch nach der Uhr liegt; `null` vor dem ersten Versuch). `null` für eine Kette ohne Quelle.
 
 **`POST /api/v1/chains/:chain/refresh`**
 
@@ -1810,7 +1810,11 @@ sagt, was geschah.
   Versuch jedes Laufs, die geplanten mitgezählt: früher antwortet `429` mit
   `errors.retry_after`, den verbleibenden Sekunden, demselben Wert im Header
   `Retry-After` und einem `errors.detail`. Kein Host wird gefragt. Warten Sie
-  die genannte Zeit ab; nicht in einer Schleife wiederholen.
+  die genannte Zeit ab; nicht in einer Schleife wiederholen. Der Versuch wird
+  belegt, bevor ein Host gefragt wird, also läuft von zwei zugleich
+  gesendeten Abrufen einer, und der andere antwortet `429`. Ein letzter
+  Versuch, der nach der Uhr des Servers gestempelt ist (eine zurückgestellte
+  Uhr), hält den Abruf nicht auf: Er ist sofort erlaubt.
 - Eine Kette ohne Quelle antwortet `422` mit `errors.code` `no_source`,
   `errors.chain` und `errors.detail`: `bitcoin_cash` und `litecoin`.
 - Ein Name, den die Registry nicht kennt, antwortet `404`.

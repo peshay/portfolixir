@@ -1647,8 +1647,8 @@ order, each with:
   and for a chain without a source.
 - `refresh` — `interval_seconds` (600) and `available_at`, ten minutes after
   the last try, the first moment an on-demand read is allowed (a time already
-  past when it is allowed now; `null` before the first try). `null` for a
-  chain without a source.
+  past when it is allowed now, now when the last try lies after the clock;
+  `null` before the first try). `null` for a chain without a source.
 
 **`POST /api/v1/chains/:chain/refresh`**
 
@@ -1665,7 +1665,10 @@ happened.
   any run, the scheduled ones included: sooner answers `429` with
   `errors.retry_after`, the seconds left, the same in the `Retry-After`
   header, and an `errors.detail`. No host is asked. Wait for the time it
-  names; do not retry in a loop.
+  names; do not retry in a loop. The try is claimed before any host is
+  asked, so of two refreshes sent together one runs and the other answers
+  `429`. A last try stamped after the server's clock (a clock set back)
+  does not hold the refresh: it is allowed at once.
 - A chain without a source answers `422` with `errors.code` `no_source`,
   `errors.chain` and `errors.detail`: `bitcoin_cash` and `litecoin`.
 - A name the registry does not hold answers `404`.

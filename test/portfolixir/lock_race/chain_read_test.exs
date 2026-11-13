@@ -17,6 +17,7 @@ defmodule Portfolixir.LockRace.ChainReadTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Chains
   alias Portfolixir.Chains.Reader
   alias Portfolixir.EsploraFixtures
   alias Portfolixir.Journal.Entry, as: JournalEntry
@@ -76,6 +77,32 @@ defmodule Portfolixir.LockRace.ChainReadTest do
   end
 
   defp run, do: Reader.run(:bitcoin, read: &canned/2, now: ~U[2026-11-12 12:00:00Z])
+
+  # A canned reading at another tip, for the order of two readings.
+  defp canned_at(tip) do
+    fn heights_for, _opts ->
+      heights = heights_for.(tip)
+
+      {:ok,
+       %{
+         source: :mempool,
+         host: "mempool.space",
+         base: "https://mempool.space/api",
+         tip: tip,
+         blocks:
+           Map.new(heights, fn height ->
+             {height,
+              %{
+                height: height,
+                hash: EsploraFixtures.hash(height),
+                timestamp: EsploraFixtures.timestamp(height)
+              }}
+           end),
+         genesis_checked: true,
+         attempts: []
+       }}
+    end
+  end
 
   defp halving_entries(security) do
     Repo.all(
@@ -164,5 +191,72 @@ defmodule Portfolixir.LockRace.ChainReadTest do
       assert Events.count_halvings(security.id) == 0
       assert halving_entries(security) == []
     end
+  end
+
+  # User story (ADR-0059 §11; the closing act's security lens finding 3 and
+  # order lens finding 1 on Lane H):
+  # As the operator whose agent and screen may both ask for a fresh read,
+  # I want two refreshes sent in the same instant to ask the source once,
+  # so that the ten-minute throttle holds against parallel callers too.
+  #
+  # Acceptance criteria:
+  # - The first refresh claims the try in one conditional write before it
+  #   reads; held right after that write, the second passes no lock and
+  #   answers {:too_soon, 600} without asking the source.
+  # - The first then runs and answers status ok; the source was asked once.
+  test "two refreshes in the same instant: one claims the try, the other is too soon",
+       %{db: db} do
+    _security = security!(:bitcoin)
+    reads = :counters.new(1, [])
+
+    read = fn heights_for, opts ->
+      :counters.add(reads, 1, 1)
+      canned(heights_for, opts)
+    end
+
+    refresh = fn -> Chains.refresh(:bitcoin, read: read, now: ~U[2026-11-20 12:00:00Z]) end
+
+    {first, second} =
+      LockRace.race!(db, {refresh, LockRace.query?("chain refresh claim")}, refresh,
+        second: :passes
+      )
+
+    assert {:ok, %{run: %{status: :ok}}} = first
+    assert second == {:error, {:too_soon, 600}}
+    assert :counters.get(reads, 1) == 1
+  end
+
+  # User story (ADR-0059 §8; the closing act's order lens finding 1):
+  # As the agent reading the chain's health and the next halving's inputs,
+  # I want a reading that finishes later but was taken earlier never to
+  # overwrite a newer one,
+  # so that the state row never moves backwards.
+  #
+  # Acceptance criteria:
+  # - A run at 12:05 reading tip 870,001 holds the chain's lock; a run at
+  #   12:00 reading tip 870,000 waits, then stores.
+  # - The state row keeps the tip 870,001, its inputs, and the tries and
+  #   successes of 12:05.
+  test "an older reading stored after a newer one leaves the state row as the newer left it",
+       %{db: db} do
+    _security = security!(:bitcoin)
+    newer_at = ~U[2026-11-21 12:05:00Z]
+
+    newer = fn -> Reader.run(:bitcoin, read: canned_at(870_001), now: newer_at) end
+
+    older = fn ->
+      Reader.run(:bitcoin, read: canned_at(870_000), now: ~U[2026-11-21 12:00:00Z])
+    end
+
+    {newer_run, older_run} = LockRace.race!(db, {newer, &chain_lock?/1}, older)
+
+    assert {:ok, %{tip: 870_001}} = newer_run
+    assert {:ok, %{tip: 870_000}} = older_run
+
+    state = Reader.state(:bitcoin)
+    assert state.tip_height == 870_001
+    assert state.tip_at == DateTime.from_unix!(EsploraFixtures.timestamp(870_001))
+    assert state.last_tried_at == newer_at
+    assert state.last_ok_at == newer_at
   end
 end
