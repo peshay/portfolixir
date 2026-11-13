@@ -377,33 +377,53 @@ defmodule Portfolixir.Chains.Reader do
   def stale?(%ChainRead{last_ok_at: ok_at, inserted_at: first_try}, %DateTime{} = now),
     do: DateTime.diff(now, ok_at || first_try, :second) >= @stale_seconds
 
+  # The state row never moves backwards (the closing act's order lens on
+  # Lane H): the network reads lie outside the lock, so a run that read
+  # earlier can store after one that read later. Under the lock, a run
+  # whose success is older than the stored one leaves the host, the error
+  # and the genesis day alone, a tip lower than the stored one leaves the
+  # tip and its inputs alone, and the two times only move forward.
   defp record_ok(chain, reading, now, today) do
+    stored = state(chain)
+    later_success? = later?(stored && stored.last_ok_at, now)
+    higher_tip? = is_integer(stored && stored.tip_height) and stored.tip_height > reading.tip
+
     genesis =
-      if reading.genesis_checked,
+      if reading.genesis_checked and not later_success?,
         do: %{genesis_checked_on: today, genesis_checked_host: reading.host},
         else: %{}
 
-    fields =
-      Map.merge(
-        %{
-          source_host: reading.host,
-          last_tried_at: now,
-          last_ok_at: now,
-          last_error: nil,
+    success =
+      if later_success?,
+        do: %{},
+        else: %{source_host: reading.host, last_error: nil}
+
+    tip =
+      if later_success? or higher_tip?,
+        do: %{},
+        else: %{
           tip_height: reading.tip,
           tip_at: DateTime.from_unix!(reading.blocks[reading.tip].timestamp),
           tip_2016_at: DateTime.from_unix!(reading.blocks[reading.tip - @period].timestamp)
-        },
-        genesis
-      )
+        }
 
-    upsert!(chain, now, fields)
+    fields = %{last_tried_at: now, last_ok_at: now} |> Map.merge(success) |> Map.merge(tip)
+    upsert!(chain, now, Map.merge(fields, genesis))
   end
 
+  # A failure stored after a later success leaves that success's error
+  # (none) standing; its try still moves the last try forward.
   defp record_failure(chain, now, error) do
     Repo.transaction(fn ->
       lock!(chain)
-      upsert!(chain, now, %{last_tried_at: now, last_error: error_text(error)})
+      stored = state(chain)
+
+      fields =
+        if later?(stored && stored.last_ok_at, now),
+          do: %{last_tried_at: now},
+          else: %{last_tried_at: now, last_error: error_text(error)}
+
+      upsert!(chain, now, fields)
     end)
 
     Logger.warning("chain read #{chain}: #{error}")
@@ -420,6 +440,14 @@ defmodule Portfolixir.Chains.Reader do
     |> String.slice(0, @max_error)
   end
 
+  defp later?(%DateTime{} = stored, now), do: DateTime.compare(stored, now) == :gt
+  defp later?(nil, _now), do: false
+
+  # `last_tried_at` and `last_ok_at` take the later of the stored and the
+  # new time in the write itself, so a refresh's claim (`Chains.refresh/2`)
+  # stamped between this run's read of the row and its write is kept.
+  @forward [:last_tried_at, :last_ok_at]
+
   defp upsert!(chain, now, fields) do
     row =
       ChainRead.changeset(
@@ -427,10 +455,25 @@ defmodule Portfolixir.Chains.Reader do
         Map.put(fields, :chain, Atom.to_string(chain))
       )
 
-    Repo.insert!(row,
-      on_conflict: {:replace, Map.keys(fields) ++ [:updated_at]},
-      conflict_target: :chain
-    )
+    {forward, plain} = Map.split(fields, @forward)
+
+    update =
+      from(c in ChainRead, update: [set: ^Keyword.new(Map.put(plain, :updated_at, now))])
+
+    update =
+      Enum.reduce(forward, update, fn
+        {:last_tried_at, at}, query ->
+          from(c in query,
+            update: [set: [last_tried_at: fragment("GREATEST(?, ?)", c.last_tried_at, ^at)]]
+          )
+
+        {:last_ok_at, at}, query ->
+          from(c in query,
+            update: [set: [last_ok_at: fragment("GREATEST(?, ?)", c.last_ok_at, ^at)]]
+          )
+      end)
+
+    Repo.insert!(row, on_conflict: update, conflict_target: :chain)
   end
 
   # -- the process ---------------------------------------------------------------
