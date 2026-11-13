@@ -54,9 +54,11 @@ defmodule PortfolixirWeb.Securities.StoriesTab do
       aria-labelledby="detail-tab-news"
       class="detail-tab-panel detail-tab-panel--news"
     >
+      <%!-- #1435 (4), L5 (board ux-design-2026-11-12-sprint29/06 ⑥): the
+           time zone is a basis, so it stays on the line as a „·“ fact. --%>
       <div class="detail-tab-hint" data-role="stories-basis">
-        <%= gettext("The stories of this security the news layer keeps, newest first, as the agent reads them.") %>
-        <%= gettext("Times in UTC.") %>
+        <%= gettext("The stories of this security the news layer keeps, newest first, as the agent reads them") %>
+        · <%= gettext("Times in UTC.") %>
         <AppShell.section_info>
           <:line>
             <%= gettext(

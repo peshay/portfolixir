@@ -274,10 +274,19 @@ defmodule PortfolixirWeb.TransactionHistoryCashMovedTest do
 
     basis = doc |> Floki.find("[data-role='summary-basis']") |> Floki.text()
 
-    assert basis =~
-             "je Währung in der Richtung ihrer Art summiert und nicht umgerechnet; ein " <>
-               "Verkauf, dessen Gebühren und Steuern seinen Erlös übersteigen, mindert die " <>
-               "Summe der Verkäufe."
+    # #1435 (4), L5 (board ux-design-2026-11-12-sprint29/06 ⑨): the set and
+    # the currency on the line, the direction and the costly sell in its ⓘ.
+    assert basis =~ "je Währung summiert und nicht umgerechnet."
+
+    tip =
+      doc
+      |> Floki.find("[data-role='summary-basis'] details.metric-tooltip [role='tooltip']")
+      |> Floki.text()
+      |> String.replace(~r/\s+/u, " ")
+
+    assert tip =~
+             "Jede Art wird in ihrer eigenen Richtung summiert; ein Verkauf, dessen " <>
+               "Gebühren und Steuern seinen Erlös übersteigen, mindert die Summe der Verkäufe."
 
     refute basis =~ "ohne Vorzeichen"
 

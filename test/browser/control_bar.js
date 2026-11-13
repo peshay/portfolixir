@@ -507,7 +507,11 @@ function ranges(widths) {
 // `swept` holds the bars already swept on earlier pages, by their markup
 // and their width at 1200 and 390 px: the same bar in the same place (the
 // securities' chip row beside each of a security's tabs) is swept once.
-async function walkBars(page, where, swept = new Set()) {
+//
+// `onWidth` (L5), when given, reads the page at 1200 and at 390 px, the
+// widths every page is set to here anyway: the open prose check rides on
+// these visits instead of making its own.
+async function walkBars(page, where, swept = new Set(), onWidth = null) {
   await openDisclosures(page);
   const bars = await tagBars(page);
   const report = [];
@@ -516,6 +520,7 @@ async function walkBars(page, where, swept = new Set()) {
   const widths = new Map(bars.map((b) => [b.selector, []]));
   for (const width of [1200, 390]) {
     await atWidth(page, width);
+    if (onWidth) await onWidth(width);
     const ms = await measureBars(page, bars.map((b) => b.selector));
     bars.forEach((bar, i) => {
       widths.get(bar.selector).push(ms[i].visible ? ms[i].width : null);
@@ -588,6 +593,11 @@ async function everyBar(browser) {
   const found = new Set();
   const host = new URL(base).hostname;
   let visited = 0;
+  // --- L5 begin ---
+  const prose = new Prose();
+  const started = Date.now();
+  let proseMs = 0;
+  // --- L5 end ---
   const walkLocale = async (locale) => {
     const context = await browser.newContext({ viewport: { width: 1200, height: 900 } });
     await context.addCookies([
@@ -598,7 +608,14 @@ async function everyBar(browser) {
     const queue = [...args.addresses];
     const queued = new Set(queue);
     const walk = async (where) => {
-      const { bars, report } = await walkBars(page, where, swept);
+      // --- L5 begin ---
+      const readProse = async (width) => {
+        const t = Date.now();
+        await prose.read(page, where + " at " + width + " px");
+        proseMs += Date.now() - t;
+      };
+      // --- L5 end ---
+      const { bars, report } = await walkBars(page, where, swept, readProse);
       bars.forEach((b) => found.add(b));
       console.error(where + ": " + JSON.stringify(bars));
       for (const r of report) errors.push(r.error);
@@ -639,10 +656,42 @@ async function everyBar(browser) {
         await walk(where + " #" + id);
       }
     }
+    // --- L5 begin ---
+    // Pages the walk opens for their prose alone (a bond's overview, its
+    // strip's basis line): read at 1200 and 390 px, no bar swept, no tab
+    // followed, so a page added for one paragraph costs a page's visit.
+    for (const path of args.prose_addresses || []) {
+      const response = await visit(page, base + path);
+      const loaded = await settle(page);
+      visited += 1;
+      const where = locale + " " + path;
+      if (!response || response.status() >= 400 || !loaded.settled) {
+        errors.push(where + ": the page did not load (" + (response && response.status()) + ", " + JSON.stringify(loaded) + ")");
+        continue;
+      }
+      for (const width of [1200, 390]) {
+        await atWidth(page, width);
+        const t = Date.now();
+        await prose.read(page, where + " at " + width + " px");
+        proseMs += Date.now() - t;
+      }
+      await atWidth(page, 1200);
+    }
+    // --- L5 end ---
     await leave(context);
   };
   await Promise.all(["de", "en"].map(walkLocale));
-  return { errors, bars: [...found].sort(), visited };
+  // --- L5 begin ---
+  const proseErrors = prose.errors();
+  console.error("open prose: " + prose.checked + " paragraphs read in " + proseMs + " ms of a walk of " + (Date.now() - started) + " ms");
+  for (const e of proseErrors) console.error(e);
+  return {
+    errors,
+    bars: [...found].sort(),
+    visited,
+    prose: { errors: proseErrors, checked: prose.checked, ms: proseMs, walk_ms: Date.now() - started }
+  };
+  // --- L5 end ---
 }
 
 // The gate's own attack: pages drawn here, measured as the app's are.
@@ -710,13 +759,333 @@ async function attack(browser) {
 }
 // --- L3 end ---
 
+// --- L5 begin: open prose (issue 1435 (4), Sprint 29 L5) ---
+// Open prose (DESIGN.md, amendment 2026-11-02, I1; the inventory
+// `ux-design-2026-11-12-sprint29/06-control-bar-inventory.md` §3; board 06
+// ⑤ to ⑩): no visible free paragraph runs past one sentence of at most 25
+// words. A section's method sentences sit behind
+// its ⓘ; what stays on the page is its basis line.
+//
+// The check rides on the walk above (L3), in the same page visits:
+// `collect(page)` reads the paragraphs of the page as it stands, `Prose`
+// gathers them over the whole walk and answers the breaches and the stale
+// exceptions at its end.
+//
+// A *paragraph* is what a reader sees as one: a block-level box in `main`
+// and the text of its inline content, across every inline element in it
+// (a paragraph split into two spans, or into two gettext calls, is one),
+// and two block siblings set one under the other with no paragraph spacing
+// between them read as one as well. A paragraph is *free* outside:
+//
+// - an ⓘ (`details.metric-tooltip`): the method's place, the rule's target;
+// - a data note (`.data-note`): it clamps to two lines (UX-DR17, I1);
+// - a table, a list or a description list: rows and records, data;
+// - a dialog, a filter sheet, a chart's tooltip: overlays the walk does
+//   not measure as the page;
+// - a stored record's own text (a research entry, a phone row, the
+//   attention list): written by the operator or the agent, not the app;
+// - a heading, a label, a legend, a button, a link: names, not prose.
+//
+// Sentences are counted with the abbreviations kept inside („z. B.“,
+// „ggü.“, „p. a.“, „e.g.“, an ordinal, a single letter as „J.“ and „M.“ in
+// a term), in German and in English. A basis line of facts joined by „·“
+// is one sentence.
+
+// The threshold (inventory §3, from the measured data): one sentence of at
+// most 25 words.
+const MAX_SENTENCES = 1;
+const MAX_WORDS = 25;
+
+// The registered exceptions: free paragraphs past the threshold that stay,
+// each with its reason. An entry without a reason fails the walk, and so
+// does one that excuses nothing over the threshold during the whole walk (a
+// stale entry hides the next paragraph that lands where it points).
+// `limit` bounds an excused paragraph still: past it, it breaks the rule.
+//
+// An alert (an error and its remedy, `p.alert-error`, `[role=alert]`) is
+// not registered: the walk takes no action, so it shows none, and an entry
+// that excuses nothing is stale. One a seed state shows is registered then.
+const EMPTY_STATE = { sentences: 2, words: 50 };
+const PROSE_EXCEPTIONS = [
+  {
+    selector: ".empty-state",
+    reason:
+      "an empty state: the state and where to act (EXPERIENCE.md on empty states), two sentences of at most 25 words each",
+    limit: EMPTY_STATE
+  },
+  {
+    selector: "[data-role='unassigned-hint']",
+    reason: "an empty state's two parts: the share no category holds, and the link that assigns it",
+    limit: EMPTY_STATE
+  },
+  {
+    selector: "[data-role='no-plan-hint']",
+    reason: "an empty state's two parts: no target plan for the view, and the link that creates one",
+    limit: EMPTY_STATE
+  },
+  {
+    selector: ".prediction-bands__why",
+    reason:
+      "an empty state's two parts: no band has the 20 resolved predictions a hit rate needs yet, and where the finding stands meanwhile",
+    limit: EMPTY_STATE
+  },
+  {
+    selector: "[data-role='assignment-basis']",
+    reason: "a list of names (the accounts a bucket holds): data, not prose"
+  },
+  {
+    selector: "[data-role='cost-recovery']",
+    reason: "a figure's label: a question and its answer beside the figure"
+  },
+  {
+    selector: "[data-role='trades-basis']",
+    reason:
+      "a registered basis line: facts joined by „·“ (depots, where fees and taxes count, income left out), each a parameter of the figures (UX-DR11), none a method",
+    limit: { sentences: 1, words: 30 }
+  },
+  {
+    selector: "form .hint",
+    reason: "a form field's help: what the field takes, beside it (DESIGN.md I1 leaves a form's field help in place)",
+    limit: EMPTY_STATE
+  }
+];
+
+// The containers whose text is not a free paragraph (see the head).
+const NOT_FREE = [
+  "details.metric-tooltip",
+  ".data-note",
+  "table", "ul", "ol", "dl",
+  "dialog", ".modal", ".filter-sheet", ".chart-tip", ".chart-tooltip", "[role='tooltip']",
+  ".research-entry", ".phone-row", ".attention-list",
+  "h1", "h2", "h3", "h4", "h5", "h6", "label", "legend", "summary", "button", "a", "select",
+  "option", "textarea", "svg", "nav", "[role='tablist']"
+].join(", ");
+
+// Answers the visible free paragraphs of the page as it stands: their text,
+// what they are (tag, class, data-role) and which exceptions they fall
+// under (by index). Read in the page; counted in Node.
+function collect(page, exceptions = PROSE_EXCEPTIONS) {
+  return page.evaluate(
+    ({ notFree, selectors }) => {
+      const main = document.querySelector("main") || document.body;
+      const BLOCK = /^(block|flex|grid|list-item|flow-root|table|table-caption)$/;
+      const SKIP = "details, script, style, template, svg, .visually-hidden, .sr-only, [hidden]";
+      const shown = (e) =>
+        e.getClientRects().length > 0 &&
+        e.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+      const isBlock = (e) => BLOCK.test(getComputedStyle(e).display);
+      // The text of a block's inline content: its text nodes and every
+      // inline element in it, never a block inside it (a block of its own).
+      const runOf = (block) => {
+        let text = "";
+        const walk = (node) => {
+          for (const child of node.childNodes) {
+            if (child.nodeType === Node.TEXT_NODE) text += child.data;
+            else if (child.nodeType === Node.ELEMENT_NODE) {
+              if (child.matches(SKIP) || isBlock(child)) continue;
+              const style = getComputedStyle(child);
+              if (style.display === "none" || style.visibility === "hidden") continue;
+              if (child.matches("br")) text += " ";
+              walk(child);
+            }
+          }
+        };
+        walk(block);
+        return text.replace(/\s+/g, " ").trim();
+      };
+      // In document order, never into a container that is not free nor
+      // into one not displayed: a long table costs one test, not a style
+      // per cell.
+      const blocks = [];
+      const PRUNE = "script, style, template, svg, .visually-hidden, .sr-only, [hidden], " + notFree;
+      const visit = (e) => {
+        if (e.matches(PRUNE)) return;
+        const display = getComputedStyle(e).display;
+        if (display === "none") return;
+        if (BLOCK.test(display) && shown(e)) {
+          const text = runOf(e);
+          if (/[\p{L}\p{N}]/u.test(text)) blocks.push({ e, text });
+        }
+        for (const child of e.children) visit(child);
+      };
+      for (const child of main.children) visit(child);
+      // Two block siblings, one right under the other with no paragraph
+      // spacing, in the same voice: one paragraph to the reader.
+      const merged = [];
+      for (const b of blocks) {
+        const last = merged[merged.length - 1];
+        if (last) {
+          const prev = last.els[last.els.length - 1];
+          const a = prev.getBoundingClientRect();
+          const r = b.e.getBoundingClientRect();
+          const sa = getComputedStyle(prev);
+          const sb = getComputedStyle(b.e);
+          const lineHeight = parseFloat(sb.lineHeight) || parseFloat(sb.fontSize) * 1.2;
+          if (
+            prev.nextElementSibling === b.e &&
+            Math.abs(a.left - r.left) <= 1 &&
+            r.top - a.bottom >= -1 &&
+            r.top - a.bottom < lineHeight / 2 &&
+            sa.fontSize === sb.fontSize &&
+            sa.color === sb.color
+          ) {
+            last.els.push(b.e);
+            last.text += " " + b.text;
+            continue;
+          }
+        }
+        merged.push({ els: [b.e], text: b.text });
+      }
+      return merged.map(({ els, text }) => {
+        const e = els[0];
+        return {
+          text,
+          what: e.tagName.toLowerCase() + (e.className && typeof e.className === "string" ? "." + e.className.trim().split(/\s+/).join(".") : "") +
+            (e.getAttribute("data-role") ? "[data-role='" + e.getAttribute("data-role") + "']" : "") +
+            (els.length > 1 ? " + " + (els.length - 1) + " sibling(s)" : ""),
+          matches: selectors
+            .map((s, i) => (els.some((x) => x.closest(s)) ? i : -1))
+            .filter((i) => i >= 0)
+        };
+      });
+    },
+    { notFree: NOT_FREE, selectors: exceptions.map((x) => x.selector) }
+  );
+}
+
+// Abbreviations that end in a full stop inside a sentence, German and
+// English; a single letter („J.“, „M.“, „S.“, „p. a.“) and an ordinal
+// („3. Juni“) too.
+const ABBREVIATIONS = [
+  "z", "u", "d", "o", "v", "bzw", "ggf", "ggü", "inkl", "exkl", "ca", "Nr", "vgl", "etc", "evtl",
+  "max", "min", "bspw", "Pp", "Mio", "Mrd", "Tsd", "Std", "Jan", "Feb", "Apr", "Jun", "Jul", "Aug",
+  "Sep", "Sept", "Okt", "Nov", "Dez", "vs", "approx", "incl", "excl", "e\\.g", "i\\.e", "cf", "Mr", "Dr"
+];
+const GUARD = new RegExp("(^|[\\s(„\"])(" + ABBREVIATIONS.join("|") + "|\\p{L}|\\d+)\\.(?=\\s)", "giu");
+
+function words(text) {
+  return text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+}
+
+function sentences(text) {
+  const guarded = text.replace(GUARD, "$1$2§");
+  return guarded
+    .split(/(?<=[.!?])["“”»)]*\s+(?=[\p{Lu}„"“(\d])/u)
+    .filter((s) => /\p{L}/u.test(s)).length;
+}
+
+// Validates a list of exceptions: each needs a selector and a reason.
+function invalidExceptions(exceptions) {
+  return exceptions
+    .map((x, i) => {
+      if (!x || typeof x.selector !== "string" || x.selector.trim() === "")
+        return "open prose: exception " + i + " names no selector";
+      if (typeof x.reason !== "string" || x.reason.trim().split(/\s+/).length < 3)
+        return "open prose: the exception " + x.selector + " gives no reason";
+      return null;
+    })
+    .filter(Boolean);
+}
+
+// Gathers the paragraphs of a walk, page by page, and answers its errors:
+// each paragraph past the threshold that no exception excuses (once per
+// text, at the first page it was seen on), each exception without a
+// reason, and each that excused nothing.
+class Prose {
+  constructor(exceptions = PROSE_EXCEPTIONS) {
+    this.exceptions = exceptions;
+    this.used = new Set();
+    this.seen = new Map();
+    this.breaches = [];
+    this.checked = 0;
+  }
+
+  async read(page, where) {
+    for (const p of await collect(page, this.exceptions)) this.add(p, where);
+  }
+
+  add(p, where) {
+    const key = p.what + "\n" + p.text;
+    if (this.seen.has(key)) return;
+    this.seen.set(key, where);
+    this.checked += 1;
+    const s = sentences(p.text);
+    const w = words(p.text);
+    if (s <= MAX_SENTENCES && w <= MAX_WORDS) return;
+    const excusing = p.matches.map((i) => [i, this.exceptions[i]]);
+    const within = excusing.filter(([, x]) => !x.limit || (s <= x.limit.sentences && w <= x.limit.words));
+    if (within.length > 0) {
+      within.forEach(([i]) => this.used.add(i));
+      return;
+    }
+    this.breaches.push(
+      where + ": the free paragraph " + p.what + " runs " + s + " sentence(s), " + w +
+        " words (at most " + MAX_SENTENCES + " of " + MAX_WORDS + "): „" + p.text.slice(0, 160) +
+        (p.text.length > 160 ? "…" : "") + "“"
+    );
+  }
+
+  errors() {
+    const stale = this.exceptions
+      .map((x, i) => (this.used.has(i) ? null : "open prose: the exception " + x.selector + " excuses no paragraph on any page; remove it"))
+      .filter(Boolean);
+    return [...invalidExceptions(this.exceptions), ...this.breaches, ...stale];
+  }
+}
+
+// The prose check's own attack: paragraphs drawn here, read as the app's
+// are, with an exception list of its own (one without a reason, one that
+// matches nothing).
+const PROSE_FIXTURES = {
+  // Two sentences in two spans of one paragraph (two gettext calls).
+  split_spans: `<p><span>Der erste Satz steht hier.</span> <span>Der zweite folgt ihm.</span></p>`,
+  // Two sentences in two paragraphs set as one: no spacing between them.
+  split_blocks: `<div><p style="margin: 0">Der erste Satz steht hier.</p><p style="margin: 0">Der zweite folgt ihm.</p></div>`,
+  // Two paragraphs with a paragraph's spacing: two, each one sentence.
+  spaced: `<div><p style="margin: 0 0 1em">Der erste Satz steht hier.</p><p style="margin: 0">Der zweite folgt ihm.</p></div>`,
+  // One sentence with its abbreviations, German and English.
+  abbreviations: `<p>Kupon 2,5 % p. a. ggü. dem Vorjahr, z. B. im 3. Quartal, Restlaufzeit 4 J. 7 M. ab heute.</p><p>Counts per kind, e.g. buys and sells, i.e. what the filter selects.</p>`,
+  // One sentence of 26 words.
+  long_sentence: `<p>${Array.from({ length: 26 }, (_, i) => "Wort" + i).join(" ")}.</p>`,
+  // Two sentences behind the ⓘ and in a data note: not free.
+  behind_info: `<div>Kursbasis: splitbereinigt.<details class="metric-tooltip" open><summary>i</summary><p role="tooltip">Erster Satz der Methode. Zweiter Satz der Methode.</p></details></div><div class="data-note">Ein Hinweis. Mit seiner Abhilfe.</div>`,
+  // An empty state: two sentences, excused; three, not.
+  empty_state: `<p class="empty-state">Noch nichts erfasst. Erfassen über die API.</p>`,
+  empty_state_long: `<p class="empty-state">Noch nichts erfasst. Erfassen über die API. Oder hier.</p>`
+};
+
+async function proseAttack(browser) {
+  const context = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+  const page = await context.newPage();
+  const prose = new Prose([
+    { selector: ".empty-state", reason: "an empty state: the state and where to act", limit: { sentences: 2, words: 50 } },
+    { selector: ".no-reason" },
+    { selector: ".nowhere", reason: "an entry that matches no paragraph" }
+  ]);
+  for (const [name, html] of Object.entries(PROSE_FIXTURES)) {
+    await draw(page, "<!doctype html><html><head><style>body { margin: 0; font: 16px/1.4 sans-serif; }</style></head><body><main>" + html + "</main></body></html>");
+    await prose.read(page, name);
+  }
+  await leave(context);
+  const errors = prose.errors();
+  const fixtures = Object.fromEntries(
+    Object.keys(PROSE_FIXTURES).map((name) => [name, errors.filter((e) => e.startsWith(name + ":"))])
+  );
+  for (const e of errors) console.error(e);
+  return { errors: [], fixtures, registry: errors.filter((e) => e.startsWith("open prose:")) };
+}
+// --- L5 end ---
+
 const CASES = {
   stack_bar_layout: stackBarLayout,
   migrated_bar: migratedBar,
   // --- L3 begin ---
   every_bar: everyBar,
-  attack: attack
+  attack: attack,
   // --- L3 end ---
+  // --- L5 begin ---
+  prose_attack: proseAttack
+  // --- L5 end ---
 };
 
 (async () => {
