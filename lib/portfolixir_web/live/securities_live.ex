@@ -1444,7 +1444,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
               @detail_split_events,
               @selected_security.currency_code
             ) %>
+          <%!-- S29 H7: „Ausgerichtet“ replaces the price chart while it is
+               chosen (ADR-0060 §11). --%>
+          <CycleChart.aligned :if={cycles? and @detail_cycles_mode == "aligned"} payload={@detail_cycles} />
           <SecurityChart.chart
+            :if={not (cycles? and @detail_cycles_mode == "aligned")}
             quotes={@detail_quotes}
             transactions={@detail_transactions}
             overlays={chart_overlays}
@@ -1462,7 +1466,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
                gone under `forced-colors: active`. Same legend the Wealth
                chart ships, the swatch carrying each series' own stroke
                class. --%>
-          <ul :if={chart_overlays != []} class="chart-legend" data-role="detail-chart-legend">
+          <ul
+            :if={chart_overlays != [] and not (cycles? and @detail_cycles_mode == "aligned")}
+            class="chart-legend"
+            data-role="detail-chart-legend"
+          >
             <li :for={overlay <- chart_overlays} class="chart-legend__item">
               <svg
                 class="chart-legend__swatch--line"
@@ -1491,6 +1499,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <:line><%= gettext("Stored quotes are never modified (see the Quotes tab).") %></:line>
             </AppShell.section_info>
           </div>
+
+          <%!-- S29 H7 (ADR-0060 §11, §12; board 07 ④, ⑤): under the chart,
+               the count line with the interval table, and the disclosure of
+               the bands and their parts. --%>
+          <%= if cycles? do %>
+            <CycleChart.intervals payload={@detail_cycles} />
+            <CycleChart.bands payload={@detail_cycles} />
+          <% end %>
 
           <%!-- #824 (ADR-0047 §9, design pick D1-A): the derived metrics
                beside the series they describe. One period control — these

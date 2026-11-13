@@ -21,6 +21,8 @@ defmodule PortfolixirWeb.SecurityCycleChartTest do
   import Portfolixir.WorldFixtures, only: [create_security!: 1]
   import PortfolixirWeb.PreferenceCookieHelpers, only: [put_preference_cookie: 3]
 
+  alias PortfolixirWeb.Format
+
   defp chart_path(security), do: "/securities/#{security.id}?tab=chart"
 
   # The chart tab at „Max“, so the whole stored history is on the axis.
@@ -270,6 +272,8 @@ defmodule PortfolixirWeb.SecurityCycleChartTest do
   # - The axis is in percent, as the chart is today.
   # - A top's label names its month, no close; the band's label names the
   #   band, its dates and its state, no price.
+  # - The disclosure hides its prices as every amount; „Ausgerichtet“
+  #   keeps its index axis, which is no amount.
   # - The German page says „Zyklen“, „Zeitachse“, „Top ↔ Tief“.
   test "the privacy mode draws the cycles without a price", %{conn: conn} do
     coin = synthetic_cycle_coin!()
@@ -297,5 +301,215 @@ defmodule PortfolixirWeb.SecurityCycleChartTest do
     refute band =~ "300"
     refute band =~ "383"
     refute band =~ "USD"
+
+    assert has_element?(view, "tr[data-row='next_low'] td[data-role='price'] .pf-mask")
+    assert has_element?(view, "tr[data-row='next_low'] td[data-role='agree']", "beide Wege")
+    refute view |> nodes("details[data-role='cycle-bands']") |> hd() |> text() =~ "USD"
+
+    view |> element("#cycle-mode-aligned") |> render_click()
+    assert has_element?(view, "[data-role='cycle-aligned'] .chart-axis-y", "×1")
+  end
+
+  defp api_cycles(security) do
+    build_conn()
+    |> put_req_header("accept", "application/json")
+    |> put_req_header("authorization", "Bearer test-api-token")
+    |> get("/api/v1/securities/#{security.id}/cycles")
+    |> json_response(200)
+    |> Map.fetch!("data")
+  end
+
+  defp cell(row, role),
+    do: row |> LazyHTML.query("td[data-role='#{role}']") |> Enum.to_list() |> hd() |> text()
+
+  defp iso(value), do: Date.from_iso8601!(value)
+  defp dec(value), do: Decimal.new(value)
+
+  # User story (ADR-0060 §11 „Ausgerichtet“; board 01, A):
+  # As the operator with cycles on,
+  # I want the windows laid over each other from their halving, indexed to
+  # the halving day's close on a log scale, with the next low's band in
+  # cycle days,
+  # so that I see that the timing repeats and the size shrinks.
+  #
+  # Acceptance criteria:
+  # - „Aligned“ replaces the price chart with one line per window (the
+  #   open one marked), its tops and lows at their cycle days, and the next
+  #   low's band from day 353 to day 721 of the open window.
+  # - The line switches belong to the time axis and leave the bar.
+  # - The axis is an index (×), so the privacy mode keeps it.
+  test "„Aligned“ lays the windows over each other from their halving", %{conn: conn} do
+    coin = synthetic_cycle_coin!()
+    view = conn |> open_max(coin) |> cycles_on()
+    view |> element("#cycle-mode-aligned") |> render_click()
+
+    assert has_element?(view, "#cycle-mode-aligned[aria-pressed='true']")
+    refute has_element?(view, "#cycle-line-top_low")
+    assert has_element?(view, "[data-role='cycle-aligned'] svg")
+    refute has_element?(view, "svg.security-chart polyline.quote-line")
+
+    lines = nodes(view, "[data-role='cycle-aligned'] polyline.cycle-aligned__line")
+
+    assert Enum.map(lines, &attr(&1, "data-start")) ==
+             ~w(2013-01-10 2015-01-10 2017-01-10 2019-01-10)
+
+    assert "is-open" in classes(List.last(lines))
+
+    tops = nodes(view, "[data-role='cycle-aligned'] path.cycle-top")
+    assert Enum.map(tops, &attr(&1, "data-days")) == ~w(142 416 203 264)
+
+    assert [band] =
+             nodes(view, "[data-role='cycle-aligned'] rect.cycle-band[data-event='next_low']")
+
+    assert attr(band, "data-from-day") == "353"
+    assert attr(band, "data-to-day") == "721"
+    assert has_element?(view, "[data-role='cycle-aligned'] .chart-axis-y", "×1")
+
+    view |> element("#cycle-mode-timeline") |> render_click()
+    assert has_element?(view, "svg.security-chart g.cycle-layer")
+  end
+
+  # User story (ADR-0060 §3, §11, §12; board 07 ④, Q9):
+  # As the operator with cycles on,
+  # I want the intervals under the chart, each with its n, and the count of
+  # complete, partial and open cycles,
+  # so that every figure says how few cycles stand behind it.
+  #
+  # Acceptance criteria:
+  # - The count line names the complete, partial and open cycles and the
+  #   month of the first stored close.
+  # - One row per relation, each with the n the API answers; a cell carries
+  #   its days and its change or factor; „provisional“ marks an
+  #   observation with an end that is not final, „Part“ one from the
+  #   partial window, whose column head says „Part“ too.
+  test "the interval table carries every row's n and the count", %{conn: conn} do
+    coin = synthetic_cycle_coin!()
+    api = api_cycles(coin)
+    view = conn |> open_max(coin) |> cycles_on()
+
+    assert has_element?(
+             view,
+             "[data-role='cycle-count']",
+             "Cycles: 3 complete, 0 partial, 1 open · closes from 2013-01"
+           )
+
+    rows = nodes(view, "table[data-role='cycle-intervals'] tbody tr")
+
+    assert Enum.map(rows, &attr(&1, "data-relation")) ==
+             ~w(halving_to_top top_to_low low_to_top top_to_top low_to_low low_to_next_halving)
+
+    for row <- rows do
+      relation = attr(row, "data-relation")
+      [n] = row |> LazyHTML.query("td[data-role='n']") |> Enum.map(&text/1)
+      assert n == "n = #{api["intervals"][relation]["n"]}"
+    end
+
+    assert has_element?(
+             view,
+             "tr[data-relation='top_to_low'] td[data-window='2013-01-10']",
+             "457 d · -87.5 %"
+           )
+
+    assert has_element?(
+             view,
+             "tr[data-relation='low_to_top'] td[data-window='2017-01-10'] .badge",
+             "provisional"
+           )
+
+    partial = synthetic_cycle_coin!(name: "Late Close Coin", closes_from: ~D[2013-03-01])
+    view = conn |> open_max(partial) |> cycles_on()
+
+    assert has_element?(view, "[data-role='cycle-count']", "2 complete, 1 partial, 1 open")
+
+    assert has_element?(
+             view,
+             "table[data-role='cycle-intervals'] th[data-window='2013-01-10'] .badge",
+             "Part"
+           )
+
+    assert has_element?(
+             view,
+             "tr[data-relation='low_to_top'] td[data-window='2013-01-10'] .badge",
+             "Part"
+           )
+  end
+
+  # User story (ADR-0060 §4, §5, §7, §11; board 07 ⑤, Q6, Q8):
+  # As the operator with cycles on,
+  # I want a disclosure „Bands and their parts“ listing each band and each
+  # part with its window, its price range, its n, where the ways agree and
+  # its state,
+  # so that the band can be traced to what made it, as the agent reads it.
+  #
+  # Acceptance criteria:
+  # - Each event's row and each present part's row show the window and the
+  #   price range the API answers for the same security, and each part its
+  #   time n and price n (the borrowed price side named).
+  # - The next low's row says „both ways“ with agree's range; the next
+  #   top's says one price way; the states read running, missed, open.
+  # - An absent part says why (low → top waits for a final low).
+  # - The disclosure says the band is not a forecast.
+  test "the disclosure lists the bands and their parts as the API answers them", %{conn: conn} do
+    coin = synthetic_cycle_coin!()
+    api = api_cycles(coin)
+    view = conn |> open_max(coin) |> cycles_on()
+
+    assert has_element?(view, "details[data-role='cycle-bands'] summary", "Bands and their parts")
+
+    for event <- ~w(next_low next_top) do
+      answer = api["projection"][event]
+      band = answer["band"]
+      [row] = nodes(view, "tr[data-row='#{event}']")
+
+      assert cell(row, "window") ==
+               "#{Format.date(iso(band["window"]["from"]))} – #{Format.date(iso(band["window"]["to"]))}"
+
+      assert cell(row, "price") ==
+               "#{Format.decimal(dec(band["price"]["from"]), 2)} – #{Format.decimal(dec(band["price"]["to"]), 2)} USD"
+
+      for part <- answer["parts"], part["reason"] == nil do
+        [prow] = nodes(view, "tr[data-row='#{event}'] ~ tr[data-relation='#{part["relation"]}']")
+        origin = cell(prow, "origin")
+
+        if part["price_from"] do
+          assert origin =~ "time n = #{part["n_time"]}, price from Top → top"
+        else
+          assert origin =~ "time n = #{part["n_time"]}, price n = #{part["n_price"]}"
+        end
+
+        assert cell(prow, "price") ==
+                 "#{Format.decimal(dec(part["price"]["from"]), 2)} – #{Format.decimal(dec(part["price"]["to"]), 2)} USD"
+
+        assert cell(prow, "window") ==
+                 "#{Format.date(iso(part["window"]["from"]))} – #{Format.date(iso(part["window"]["to"]))}"
+      end
+    end
+
+    agree = api["projection"]["next_low"]["agree"]
+
+    assert has_element?(
+             view,
+             "tr[data-row='next_low'] td[data-role='agree']",
+             "both ways #{Format.decimal(dec(agree["from"]), 2)} – #{Format.decimal(dec(agree["to"]), 2)} USD"
+           )
+
+    assert has_element?(view, "tr[data-row='next_top'] td[data-role='agree']", "one price way")
+    assert has_element?(view, "tr[data-row='next_low'] td[data-role='state']", "running")
+
+    assert has_element?(
+             view,
+             "tr[data-relation='low_to_low'] td[data-role='state']",
+             "missed · window over"
+           )
+
+    assert has_element?(view, "tr[data-row='next_top'] td[data-role='state']", "open")
+
+    assert has_element?(
+             view,
+             "tr[data-relation='low_to_top'] td[data-role='origin']",
+             "waits until the running cycle's low is final"
+           )
+
+    assert has_element?(view, "details[data-role='cycle-bands']", "Not a forecast")
   end
 end

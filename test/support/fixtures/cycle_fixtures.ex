@@ -47,7 +47,8 @@ defmodule Portfolixir.CycleFixtures do
   @doc """
   The coin, bound to `chain` (`:litecoin` by default), with the halvings
   and closes above. Options: `:name`, `:chain`, `:halvings` (how many of
-  the five halving rows to write, all by default).
+  the five halving rows to write, all by default), `:closes_from` (the
+  first close kept; a later one makes the first window partial).
   """
   def synthetic_cycle_coin!(opts \\ []) do
     name = Keyword.get(opts, :name, "Synthetic Cycle Coin")
@@ -62,8 +63,12 @@ defmodule Portfolixir.CycleFixtures do
       {:ok, _event} = halving!(coin, chain, k * Registry.halving_interval(chain), date, confirmed)
     end
 
+    from = Keyword.get(opts, :closes_from, ~D[1900-01-01])
+
     rows =
-      for {date, close} <- @closes, do: %{date: date, close: Decimal.new(close), source: "manual"}
+      for {date, close} <- @closes,
+          Date.compare(date, from) != :lt,
+          do: %{date: date, close: Decimal.new(close), source: "manual"}
 
     {:ok, _count} = Quotes.upsert_many(coin.id, rows)
     coin
