@@ -260,6 +260,27 @@ defmodule PortfolixirWeb.SecurityCycleChartTest do
              "[data-role='cycle-health'][data-status='refused']",
              "Chain source refused: node.example.invalid resolves to a private address"
            )
+
+    # The closing act's security lens on Lane H (finding 4): an IPv6
+    # literal's host has colons, and the health line read its refusal as a
+    # plain failure.
+    for host <- ["::1", "fd00::5"] do
+      Portfolixir.Repo.delete_all(Portfolixir.Chains.ChainRead)
+
+      chain_state!(:bitcoin, %{
+        last_tried_at: DateTime.add(now, -600),
+        last_error: "#{host}: url_not_allowed:private_address",
+        inserted_at: DateTime.add(now, -3600)
+      })
+
+      view = conn |> open_max(bitcoin) |> cycles_on()
+
+      assert has_element?(
+               view,
+               "[data-role='cycle-health'][data-status='refused']",
+               "Chain source refused: #{host} resolves to a private address"
+             )
+    end
   end
 
   # User story (ADR-0060 §11, the privacy mode; plan row H7):
