@@ -1825,8 +1825,8 @@ include takes aligned only, …"]`. No parameter changes a figure.
 **`include=aligned`** adds `aligned`: per window, in the cycles' order, its
 `start`, `start_height`, `base` (`date`, `close`: the last close on or
 before the halving date, at most 7 days old) and `points`, each a close in
-the window with its `date`, `days` (calendar days since the halving) and
-`index` (close / base, a decimal string at scale 6). A window without such
+the window with `days` (calendar days since the halving; its date is
+`start` + `days`) and `index` (close / base, a decimal string at scale 6). A window without such
 a close has `base` `null`, no points and `reason` `no_halving_close`. It is
 off by default so the payload stays small.
 

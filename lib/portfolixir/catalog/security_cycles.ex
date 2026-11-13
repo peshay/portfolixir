@@ -208,8 +208,8 @@ defmodule Portfolixir.Catalog.SecurityCycles do
     "include=aligned: per window, in the cycles' order, its closes indexed to its halving " <>
       "day's close, the last close on or before the halving date, at most " <>
       "#{Cycles.halving_close_days()} days old (base); each point is a close inside the " <>
-      "window with its date, the calendar days since the halving and close / base at " <>
-      "scale 6. A window without such a close is left out: base null, no points, reason " <>
+      "window as the calendar days since the halving (its date is the window's start + " <>
+      "the days) and close / base at scale 6. A window without such a close is left out: base null, no points, reason " <>
       "no_halving_close. The same split-adjusted closes in the security's own currency as " <>
       "the windows; nothing is filled"
   end

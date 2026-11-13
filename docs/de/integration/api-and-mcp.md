@@ -1987,8 +1987,8 @@ Zahl.
 **`include=aligned`** ergänzt `aligned`: je Fenster, in der Reihenfolge der
 Zyklen, sein `start`, `start_height`, `base` (`date`, `close`: der letzte
 Schlusskurs am oder vor dem Halving-Datum, höchstens 7 Tage alt) und
-`points`, jeder ein Schlusskurs im Fenster mit `date`, `days`
-(Kalendertage seit dem Halving) und `index` (Schlusskurs / Basis, ein
+`points`, jeder ein Schlusskurs im Fenster mit `days` (Kalendertage seit
+dem Halving; sein Datum ist `start` + `days`) und `index` (Schlusskurs / Basis, ein
 Dezimal-String mit 6 Stellen). Ein Fenster ohne einen solchen Schlusskurs
 hat `base` `null`, keine Punkte und `reason` `no_halving_close`. Es ist
 standardmäßig aus, damit der Payload klein bleibt.

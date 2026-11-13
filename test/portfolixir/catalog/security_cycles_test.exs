@@ -427,7 +427,12 @@ defmodule Portfolixir.Catalog.SecurityCyclesTest do
   # --- Sprint 29 H5 end ---
 
   # --- Sprint 29 H6 begin ---
-  defp aligned_points(window), do: Enum.map(window.points, &{&1.date, &1.days, dec(&1.index)})
+  # A point carries its days and its index alone (the closing act's order
+  # lens on Lane H: its date repeated the window's start + its days, some
+  # 40 % of the aligned payload); the date is read back from the start.
+  defp aligned_points(window),
+    do: Enum.map(window.points, &{Date.add(window.start, &1.days), &1.days, dec(&1.index)})
+
   defp dec(decimal), do: Decimal.to_string(decimal, :normal)
 
   # User story (ADR-0060 §11; plan row H6):
@@ -443,8 +448,9 @@ defmodule Portfolixir.Catalog.SecurityCyclesTest do
   # - `include: "aligned"` (or `%{"include" => "aligned"}`, or `:aligned`)
   #   adds per window, in the cycles' order, its start and start height, the
   #   base close (the last close on or before the halving date, at most 7
-  #   days old), and every close inside the window as its date, the calendar
-  #   days since the halving and close / base at scale 6.
+  #   days old), and every close inside the window as the calendar days
+  #   since the halving and close / base at scale 6; no date, which the
+  #   window's start and the days give.
   # - A window without such a close is left out: no base, no points,
   #   `reason: :no_halving_close`; a close after the halving day or 8 days
   #   before it is no base.
@@ -471,6 +477,11 @@ defmodule Portfolixir.Catalog.SecurityCyclesTest do
            ]
 
     [first, second, open] = payload.aligned
+
+    for window <- payload.aligned, point <- window.points do
+      assert Map.keys(point) |> Enum.sort() == [:days, :index]
+    end
+
     assert {first.base.date, dec(first.base.close)} == {~D[2020-01-10], "50.000000"}
 
     # py: adjusted closes 50, 200, 50, 75 over 50; days from 2020-01-10.
