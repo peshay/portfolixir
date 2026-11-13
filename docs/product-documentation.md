@@ -570,7 +570,8 @@ Pressed, it shows the cycle bar under the toolbar, with two modes:
 
 - **Timeline** draws the cycles on the price chart: each halving as a
   vertical line, the next one as a dashed window ("Halving ≈ ‹from› –
-  ‹to› (estimate)"), each cycle's top ▲ and low ▼ with its date and
+  ‹to› (estimate)", one date when both ends fall on one day; its label
+  stands where it covers no other, inside the plot), each cycle's top ▲ and low ▼ with its date and
   close, and the two bands. **Segments** switches the lines between them:
   **Top ↔ low** is on, **Top – top** and **Low – low** can be added. Each
   segment carries its days and its change; a line never runs past the last

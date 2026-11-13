@@ -329,6 +329,47 @@ defmodule PortfolixirWeb.SecurityHalvingChainFormTest do
   # - A second read pushed while it waits asks no host and keeps the wait.
   # - In the cycle bar the button waits as well, with the minutes left.
   # - A chain without a source has no button.
+  # User story (UAT S3 #5, the closing act):
+  # As the operator reading the next halving's estimate,
+  # I want a window whose two ends fall on one day shown as that day,
+  # so that the form does not read „21.12.2028 – 21.12.2028“.
+  #
+  # Acceptance criteria:
+  # - A next halving stored as a window of one day reads „the next ≈
+  #   ‹day›“ in the form, with no range; on the chart its label reads
+  #   „Halving ≈ ‹day› (estimate)“. The stored event stays a window.
+  test "a one-day halving window reads as its day in the form and on the chart",
+       %{conn: conn} do
+    coin =
+      synthetic_cycle_coin!(
+        name: "Synthetic One Day Coin",
+        chain: :bitcoin,
+        shift_days: recent_shift(Portfolixir.Clock.today()),
+        next_window_days: 0
+      )
+
+    [next] =
+      for e <- Events.list_for_security(coin.id),
+          e.kind == :halving and not e.confirmed,
+          do: e
+
+    assert {next.timing, next.date_end} == {:window, next.date}
+    day = Format.date(next.date)
+
+    view = open_edit(conn, coin)
+    count = view |> element("[data-role='halving-chain-count']") |> render()
+    assert count =~ "the next ≈ #{day}"
+    refute count =~ "#{day} – #{day}"
+
+    {:ok, chart, _html} = live(conn, "/securities/#{coin.id}?tab=chart")
+    chart |> element("#toggle-cycles") |> render_click()
+    chart |> element("button[phx-value-range='CYCLE']") |> render_click()
+
+    assert chart
+           |> element("text.cycle-label--halving.is-estimate")
+           |> render() =~ "Halving ≈ #{day} (estimate)"
+  end
+
   test "„Jetzt lesen“ reads the chain once and shows the ten-minute wait", %{conn: conn} do
     fresh = "Fresh Chain Coin" |> then(&create_security!(name: &1)) |> bind!(:bitcoin)
     serve(%{"mempool.space" => {:chain, 870_000}})
