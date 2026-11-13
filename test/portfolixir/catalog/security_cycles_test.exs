@@ -155,10 +155,11 @@ defmodule Portfolixir.Catalog.SecurityCyclesTest do
     assert List.last(payload.halvings).date_end == ~D[2023-01-20]
     assert hd(payload.halvings).source_quality == :secondary_multi
 
-    assert payload.next_halving == %{
+    assert Map.take(payload.next_halving, [:height, :date, :date_end, :inputs]) == %{
              height: 3_360_000,
              date: ~D[2023-01-05],
-             date_end: ~D[2023-01-20]
+             date_end: ~D[2023-01-20],
+             inputs: nil
            }
 
     assert Enum.map(payload.cycles, &{&1.start, &1.end, &1.kind}) == [
@@ -580,4 +581,86 @@ defmodule Portfolixir.Catalog.SecurityCyclesTest do
   end
 
   # --- Sprint 29 H6 end ---
+
+  # --- Sprint 29 closing act begin ---
+  # User story (ADR-0059 §6: "the basis ... in full by ADR-0060's read"; the
+  # closing act's analytics lens on Lane H, finding 1):
+  # As the operator's agent checking the next halving's window,
+  # I want the cycles read to carry the window's basis and its inputs,
+  # so that I can recompute the window the band's halving_to_top part
+  # starts from without a second read.
+  #
+  # Acceptance criteria:
+  # - next_halving carries the stored event's `note`, `checked_at` and
+  #   `source_url`, and `inputs`: the chain source's next-halving inputs
+  #   (tip, its time, the time 2,016 blocks below, the mean), as
+  #   GET /api/v1/chains states them.
+  # - A chain without a source: `inputs` is nil, the note what was written.
+  # - The basis names them (`computation_basis.next_halving`).
+  test "next_halving carries the stored window's basis and the chain's inputs" do
+    coin = Portfolixir.CycleFixtures.synthetic_cycle_coin!(chain: :bitcoin, halvings: 4)
+
+    note =
+      "Halving 1050000 from tip 1049000 (2021-01-03T00:00:00Z) and block 1046984 " <>
+        "(2020-12-20T00:00:00Z): mean 600.00 s a block over the last 2016 blocks."
+
+    url = "https://mempool.space/api/block/" <> String.duplicate("ab", 32)
+
+    {:ok, _event} =
+      Events.put_chain_halving(
+        Actor.system_job("chain_read"),
+        coin.id,
+        :bitcoin,
+        1_050_000,
+        %{
+          date: ~D[2021-01-05],
+          date_end: ~D[2021-01-20],
+          timing: :window,
+          confirmed: false,
+          source_quality: :unverified,
+          source_url: url,
+          checked_at: ~D[2021-01-03],
+          note: note,
+          machine_generated: false
+        },
+        today: ~D[2021-01-03]
+      )
+
+    Portfolixir.CycleFixtures.chain_state!(:bitcoin,
+      last_tried_at: ~U[2021-01-03 00:00:00Z],
+      last_ok_at: ~U[2021-01-03 00:00:00Z],
+      source_host: "mempool.space",
+      tip_height: 1_049_000,
+      tip_at: ~U[2021-01-03 00:00:00Z],
+      tip_2016_at: ~U[2020-12-20 00:00:00Z]
+    )
+
+    assert {:ok, payload} = SecurityCycles.for_security(coin.id)
+
+    assert payload.next_halving == %{
+             height: 1_050_000,
+             date: ~D[2021-01-05],
+             date_end: ~D[2021-01-20],
+             note: note,
+             checked_at: ~D[2021-01-03],
+             source_url: url,
+             inputs: %{
+               tip_height: 1_049_000,
+               tip_at: ~U[2021-01-03 00:00:00Z],
+               tip_2016_at: ~U[2020-12-20 00:00:00Z],
+               period_blocks: 2016,
+               mean_block_seconds: Decimal.new("600.00")
+             }
+           }
+
+    assert payload.computation_basis.next_halving =~ "ADR-0059 §6"
+    assert payload.computation_basis.next_halving =~ "inputs"
+
+    lite = Portfolixir.CycleFixtures.synthetic_cycle_coin!(name: "Lite Window Coin")
+    assert {:ok, %{next_halving: next}} = SecurityCycles.for_security(lite.id)
+    assert next.inputs == nil
+    assert Map.has_key?(next, :note)
+  end
+
+  # --- Sprint 29 closing act end ---
 end
