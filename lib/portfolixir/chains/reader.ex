@@ -449,13 +449,14 @@ defmodule Portfolixir.Chains.Reader do
 
   # The error as the state row stores it: one line of visible text within
   # its column, whatever a source or an exception put into it (a control
-  # character a space, an invisible one spelled `[U+XXXX]`).
+  # character a space, an invisible one spelled `[U+XXXX]`), cut by code
+  # points as the column counts them, never inside a grapheme.
   defp error_text(error) do
     error
     |> String.replace_invalid()
     |> String.replace(~r/[\x{0}-\x{1F}\x{7F}-\x{9F}\x{2028}\x{2029}]/u, " ")
     |> Text.escape_invisible()
-    |> String.slice(0, @max_error)
+    |> Text.truncate(@max_error)
   end
 
   defp later?(%DateTime{} = stored, now), do: DateTime.compare(stored, now) == :gt
