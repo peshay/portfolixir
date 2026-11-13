@@ -188,8 +188,9 @@ describe("the security logo tools", () => {
   //   it is journaled under the token.
   // - logo_delete says the stored image is deleted and the logo locked as
   //   "no logo", that logo_put sets one again, journaled under the token.
-  // - logo_discover says a locked logo answers no_source and names the
-  //   other results, journaled under the token.
+  // - logo_discover says a locked logo, or a security no discovery source
+  //   covers (a bond, a fund), answers no_source and names the other
+  //   results, journaled under the token (PR 2 closing act).
   // - Each says what it returns: the logo status.
   it("says what each write does, refuses and answers", () => {
     const put = tool(PUT)?.description ?? "";
@@ -204,6 +205,7 @@ describe("the security logo tools", () => {
 
     const discover = tool(DISCOVER)?.description ?? "";
     assert.match(discover, /locked logo .* answers result no_source/);
+    assert.match(discover, /, or a security no discovery source covers, answers result no_source/);
     assert.match(discover, /updated or failed/);
 
     for (const description of [put, remove, discover]) {

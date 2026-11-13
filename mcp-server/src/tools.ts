@@ -5059,7 +5059,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.securities.logo_discover",
     "Search a security's logo again",
-    "Search again for security_id's logo from the discovery sources, outside the instance. A locked logo (set or removed by hand) is left alone and answers result no_source; else updated or failed, a found image replacing a discovered one. Journaled under your token. Returns the logo status with result.",
+    "Search again for security_id's logo, outside the instance. A locked logo (set or removed manually), or a security no discovery source covers, answers result no_source; else updated or failed, a found image replacing a discovered logo. Journaled under your token. Returns the logo status with result.",
     logoSecuritySchema,
     logoSecurityZ
   )
