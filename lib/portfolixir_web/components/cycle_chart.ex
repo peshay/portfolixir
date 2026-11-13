@@ -471,7 +471,12 @@ defmodule PortfolixirWeb.Components.CycleChart do
         y={b.y}
         text-anchor={b.anchor}
       >
-        <tspan :for={{line, index} <- Enum.with_index(b.lines)} x={b.x} dy={if index == 0, do: "0", else: "1.2em"}>
+        <tspan
+          :for={{line, index} <- Enum.with_index(b.lines)}
+          class={index > 0 && "cycle-label__more"}
+          x={b.x}
+          dy={if index == 0, do: "0", else: "1.2em"}
+        >
           <%= line %>
         </tspan>
       </text>
@@ -703,7 +708,7 @@ defmodule PortfolixirWeb.Components.CycleChart do
         date: date,
         d: d,
         x: coord(x),
-        y: coord(clamp(label_y, scale.y0 + 9, scale.y1 - 4)),
+        y: coord(clamp(label_y, scale.y0 + 22, scale.y1 - 4)),
         provisional?: provisional?,
         so_far?: so_far?,
         lines: extreme_lines(kind, date, close, provisional?, so_far?, partial?, currency),
@@ -1250,7 +1255,7 @@ defmodule PortfolixirWeb.Components.CycleChart do
     ~H"""
     <div class="cycle-intervals">
       <p class="cycle-count" data-role="cycle-count"><%= count_text(@payload) %></p>
-      <div class="data-table-wrap">
+      <div class="data-table-wrapper">
         <table class="data-table cycle-intervals-table" data-role="cycle-intervals">
           <thead>
             <tr>
@@ -1366,7 +1371,7 @@ defmodule PortfolixirWeb.Components.CycleChart do
           "Not a forecast: each band is the range the stored cycles' intervals and factors give from the current anchors, with its n and both ends; never a single date or price, nothing fitted, nothing averaged."
         ) %>
       </p>
-      <div class="data-table-wrap">
+      <div class="data-table-wrapper">
         <table class="data-table cycle-bands-table">
           <thead>
             <tr>
