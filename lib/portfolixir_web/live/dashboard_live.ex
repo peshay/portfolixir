@@ -649,7 +649,7 @@ defmodule PortfolixirWeb.DashboardLive do
                      the count is the held securities'; the catalogue's
                      stands after it in parentheses, as its own link, only
                      where the two differ. --%>
-                <span :if={finding[:catalog]} class="dq-catalog" data-catalog-of={finding.role}>(<a href={finding.catalog.href}><%= gettext("%{count} in the catalog", count: finding.catalog.count) %></a>)</span>
+                <span :if={finding[:catalog]} class="dq-catalog" data-catalog-of={finding.role}>(<a href={finding.catalog.href}><%= ngettext("%{count} in the catalog", "%{count} in the catalog", finding.catalog.count) %></a>)</span>
                 <%!-- #1121 (board 01 ③, pick N3 A): a finding in the total
                      says what it does to the total above, after its link and
                      outside it, so the link still names the list it opens.
