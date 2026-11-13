@@ -3316,15 +3316,22 @@ defmodule PortfolixirWeb.PortfolioLive do
                stays true and is said where it helps: the API guide and the
                column picker's grouping. --%>
           <%!-- #1332 (board 02 ①) and D-9: the rule the total uses, named,
-               and the currency the market value is in. --%>
-          <p class="summary-basis" data-role="positions-basis">
+               and the currency the market value is in. #1435 (4), L5
+               (board ux-design-2026-11-12-sprint29/06 ⑤): one sentence on
+               the line, what the total sums behind its ⓘ (I1). A `div`: a
+               <details> is not phrasing content. --%>
+          <div class="summary-basis" data-role="positions-basis">
             <%= gettext(
               "One row per depot and security, valued at the latest stored price or, without a quote, at the last own trade price."
             ) %>
-            <%= gettext("Market value in %{currency}, the figure the total sums.",
-              currency: @portfolio.base_currency_code
-            ) %>
-          </p>
+            <AppShell.section_info>
+              <:line>
+                <%= gettext("Market value in %{currency}, the figure the total sums.",
+                  currency: @portfolio.base_currency_code
+                ) %>
+              </:line>
+            </AppShell.section_info>
+          </div>
           <%= if @holding_rows == [] do %>
             <div id="no-positions" class="empty-state" role="status">
               <%= gettext("No holdings yet") %>

@@ -107,11 +107,16 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     assert strip =~ "Rendite bis Fälligkeit ≈"
     assert strip =~ "linear angenähert"
 
+    # #1435 (4), L5 (board ux-design-2026-11-12-sprint29/06 ⑩): the basis on
+    # the line, each formula a line of its ⓘ.
     basis = text(view, ~s([data-role="bond-basis"]))
-    assert basis =~ "Ein Stück im Bestand ist ein Hundertstel des Nominals"
-    assert basis =~ "(Kupon + (100 − Kurs) ÷ Restlaufzeit in Jahren) ÷ Kurs"
-    assert basis =~ "das Jahr zu 365 Tagen"
-    assert basis =~ "Ohne Stückzinsen, Gebühren und Steuern"
+    assert basis =~ "ohne Stückzinsen, Gebühren und Steuern"
+
+    tip = text(view, ~s([data-role="bond-basis"] details.metric-tooltip [role="tooltip"]))
+    assert tip =~ "Ein Stück im Bestand ist ein Hundertstel des Nominals"
+    assert tip =~ "(Kupon + (100 − Kurs) ÷ Restlaufzeit in Jahren) ÷ Kurs"
+    assert tip =~ "das Jahr zu 365 Tagen"
+    assert tip =~ "Berichtet, nicht bewertet."
 
     refute has_element?(view, ~s([data-role="two-scales-note"]))
   end

@@ -1441,15 +1441,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <%= overlay.label %>
             </li>
           </ul>
-          <p
+          <%!-- #1435 (4), L5 (board ux-design-2026-11-12-sprint29/06 ⑦): the
+               basis on the line, the rule behind its ⓘ, as the Quotes tab's
+               line has it. A `div`: a <details> is not phrasing content. --%>
+          <div
             :if={series_basis_label(@detail_series_basis, @detail_split_events)}
             class="detail-tab-hint"
             data-role="chart-basis"
           >
-            <%= gettext("Price basis: %{basis}. Stored quotes are never modified (see the Quotes tab).",
+            <%= gettext("Price basis: %{basis}.",
               basis: series_basis_label(@detail_series_basis, @detail_split_events)
             ) %>
-          </p>
+            <AppShell.section_info>
+              <:line><%= gettext("Stored quotes are never modified (see the Quotes tab).") %></:line>
+            </AppShell.section_info>
+          </div>
 
           <%!-- #824 (ADR-0047 §9, design pick D1-A): the derived metrics
                beside the series they describe. One period control — these

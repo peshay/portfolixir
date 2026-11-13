@@ -45,9 +45,11 @@ defmodule PortfolixirWeb.Securities.PredictionsTab do
       class="detail-tab-panel detail-tab-panel--predictions"
     >
       <%!-- Board 02 ②: the tab has no heading, so its line keeps the set
-           and ends in the ⓘ with the rule, as Research and Dates do. --%>
+           and ends in the ⓘ with the rule, as Research and Dates do.
+           #1435 (4), L5 (board ux-design-2026-11-12-sprint29/06 ⑧): the
+           rule is the ⓘ's first line, so the line no longer repeats it. --%>
       <div class="detail-tab-hint" data-role="predictions-basis">
-        <%= gettext("Recorded predictions on this security, newest first. None is ever changed or deleted.") %>
+        <%= gettext("Recorded predictions on this security, newest first.") %>
         <AppShell.section_info>
           <:line>
             <%= gettext(

@@ -312,8 +312,10 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
 
     basis = view |> element("[data-role='predictions-basis']") |> render() |> text()
 
-    assert basis =~
-             "Recorded predictions on this security, newest first. None is ever changed or deleted."
+    # #1435 (4), L5 (board ux-design-2026-11-12-sprint29/06 ⑧): the line is
+    # one sentence; the rule it repeated is the ⓘ's first line.
+    assert basis =~ "Recorded predictions on this security, newest first."
+    refute basis =~ "None is ever changed or deleted."
 
     tip =
       view |> element("[data-role='predictions-basis'] [role='tooltip']") |> render() |> text()

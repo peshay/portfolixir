@@ -24,6 +24,7 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
 
   alias Ecto.Adapters.SQL.Sandbox
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Classifications
   alias Portfolixir.Classifications.Classification
   alias Portfolixir.Ledger.Transaction
@@ -229,7 +230,11 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
     addresses = shell_addresses()
 
     {result, output} =
-      run!("every_bar", base_url, %{addresses: addresses, locales: locales()})
+      run!("every_bar", base_url, %{
+        addresses: addresses,
+        prose_addresses: prose_addresses(),
+        locales: locales()
+      })
 
     assert result["ok"] == true, output
     assert result["visited"] >= length(addresses) * 2, output
@@ -240,6 +245,30 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
                   transaction-chips prediction-filters drift-filter) do
       assert bar in found, "the walk did not find the bar #{bar}:\n" <> output
     end
+
+    # --- L5 begin ---
+    # Issue 1435 (4), Sprint 29 L5 (DESIGN.md I1; inventory §3; board 06
+    # ⑤ to ⑩): open prose, read in the same page visits, at 1200 and at
+    # 390 px, in German and in English.
+    #
+    # User story:
+    # As the operator reading a screen,
+    # I want every free paragraph on it to be one sentence of at most 25
+    # words, the method behind the section's ⓘ,
+    # so that a screen shows its figures and their basis, and a paragraph
+    # of method grown back onto a page fails the build.
+    #
+    # Acceptance criteria:
+    # - No visible free paragraph (a block's inline text, across every
+    #   inline element in it, or two blocks set as one) outside an ⓘ, a
+    #   data note, a table or a list runs past one sentence or 25 words.
+    # - Past it, a paragraph stays only under a registered exception with
+    #   its reason (an empty state, an alert, a list of names, a figure's
+    #   label), and an exception that excuses nothing fails as stale.
+    prose = result["prose"]
+    assert prose["checked"] > 0, output
+    assert prose["errors"] == [], Enum.join(prose["errors"], "\n")
+    # --- L5 end ---
   end
 
   # The gate's own attack (Sprint 29 plan, the attack lens of Lane L): pages
@@ -269,6 +298,44 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
     assert error =~ "sits neither after nor under its label „Konto“", output
     refute error =~ "without a visible label", output
   end
+
+  # --- L5 begin ---
+  # The open prose check's own attack (Sprint 29 plan, the attack lens of
+  # Lane L): paragraphs the walk draws itself and reads as it reads the
+  # app's, with an exception list of its own.
+  #
+  # Acceptance criteria:
+  # - A paragraph of two sentences split into two spans, or into two
+  #   blocks set with no spacing between them, is caught.
+  # - Two paragraphs with a paragraph's spacing, each one sentence, are not;
+  #   nor is one sentence with its German and English abbreviations, nor
+  #   two sentences behind an ⓘ or in a data note.
+  # - A sentence of 26 words is caught.
+  # - An empty state of two sentences is excused; of three, caught.
+  # - An exception without a reason is caught, and so is one that excuses
+  #   nothing.
+  test "the open prose check catches a split paragraph and an exception without a reason",
+       %{base_url: base_url} do
+    {result, output} = run!("prose_attack", base_url, %{})
+    fixtures = result["fixtures"]
+
+    for caught <- ~w(split_spans split_blocks long_sentence empty_state_long) do
+      assert length(fixtures[caught]) == 1, "#{caught} went uncaught:\n" <> output
+    end
+
+    assert fixtures["split_spans"] |> hd() =~ "2 sentence(s)", output
+    assert fixtures["split_blocks"] |> hd() =~ "+ 1 sibling(s)", output
+
+    for sound <- ~w(spaced abbreviations behind_info empty_state) do
+      assert fixtures[sound] == [], "#{sound} was caught:\n" <> output
+    end
+
+    registry = result["registry"]
+    assert Enum.any?(registry, &(&1 =~ "the exception .no-reason gives no reason")), output
+    assert Enum.any?(registry, &(&1 =~ "the exception .nowhere excuses no paragraph")), output
+  end
+
+  # --- L5 end ---
 
   # Every live route of the router, as the addresses the walk opens; the
   # walk follows each page's area tabs and comparisons from there.
@@ -324,5 +391,26 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
   end
 
   defp address(_path), do: []
+
+  # --- L5 begin ---
+  # The pages the walk opens for their prose alone, no bar swept and no tab
+  # followed: the seed's first bond with its terms entered, whose overview
+  # holds the bond strip and its basis line (board 06 ⑩).
+  defp prose_addresses do
+    bond =
+      Repo.all(
+        from(s in Security,
+          where: not is_nil(s.coupon_rate),
+          order_by: s.id,
+          limit: 1,
+          select: s.id
+        )
+      )
+
+    assert [_] = bond, "the review seed holds no bond with its terms entered"
+    Enum.map(bond, &"/securities/#{&1}")
+  end
+
+  # --- L5 end ---
   # --- L3 end ---
 end

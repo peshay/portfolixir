@@ -334,9 +334,17 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   · <.currency_totals totals={row.totals} />
                 </span>
               <% end %>
-              <p class="summary-basis" data-role="summary-basis">
-                <%= gettext("Counts and the cash moved per kind of the transactions this filter selects, summed per currency in each kind's own direction and not converted; a sell whose fees and taxes exceed its proceeds lowers the sells' sum.") %>
-              </p>
+              <%!-- #1435 (4), L5 (board ux-design-2026-11-12-sprint29/06 ⑨):
+                   the set and the currency on the line, how each kind is
+                   summed behind its ⓘ (I1). --%>
+              <div class="summary-basis" data-role="summary-basis">
+                <%= gettext("Counts and the cash moved per kind of the transactions this filter selects, summed per currency and not converted.") %>
+                <AppShell.section_info>
+                  <:line>
+                    <%= gettext("Each kind is summed in its own direction; a sell whose fees and taxes exceed its proceeds lowers the sells' sum.") %>
+                  </:line>
+                </AppShell.section_info>
+              </div>
             </div>
 
             <%= if Enum.empty?(@filtered_transactions) do %>

@@ -46,11 +46,29 @@ defmodule PortfolixirWeb.Securities.BondStrip do
           <.current_yield_cell security={@security} bond={@bond} />
           <.yield_to_maturity_cell bond={@bond} />
         </dl>
-        <p class="detail-tab-hint" data-role="bond-basis">
+        <%!-- #1435 (4), L5 (board ux-design-2026-11-12-sprint29/06 ⑩): the
+             basis on the line, each formula a line of its ⓘ (I1). A `div`:
+             a <details> is not phrasing content. --%>
+        <div class="detail-tab-hint" data-role="bond-basis">
           <%= gettext(
-            "Coupon and price in percent of face: one unit held is a hundredth of the nominal, so the price is also the price per unit. Current yield = coupon ÷ price. Remaining term in calendar days from today, a year of 365 days. Yield to maturity linearly approximated: (coupon + (100 − price) ÷ remaining term in years) ÷ price, without compounding. Without accrued interest, fees and taxes. Reported, not evaluated."
+            "Coupon and price in percent of face, remaining term from today, without accrued interest, fees and taxes."
           ) %>
-        </p>
+          <AppShell.section_info>
+            <:line>
+              <%= gettext(
+                "One unit held is a hundredth of the nominal, so the price is also the price per unit."
+              ) %>
+            </:line>
+            <:line><%= gettext("Current yield = coupon ÷ price.") %></:line>
+            <:line><%= gettext("Remaining term in calendar days, a year of 365 days.") %></:line>
+            <:line>
+              <%= gettext(
+                "Yield to maturity linearly approximated: (coupon + (100 − price) ÷ remaining term in years) ÷ price, without compounding."
+              ) %>
+            </:line>
+            <:line><%= gettext("Reported, not evaluated.") %></:line>
+          </AppShell.section_info>
+        </div>
       <% else %>
         <p class="detail-tab-empty" data-role="bond-empty">
           <%= gettext(

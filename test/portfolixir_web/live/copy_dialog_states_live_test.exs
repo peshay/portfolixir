@@ -77,10 +77,19 @@ defmodule PortfolixirWeb.CopyDialogStatesLiveTest do
 
       basis = view |> element("[data-role='positions-basis']") |> render() |> text()
 
-      assert String.trim(basis) ==
+      # #1435 (4), L5 (board ux-design-2026-11-12-sprint29/06 ⑤): one
+      # sentence on the line, what the total sums behind its ⓘ.
+      assert basis =~
                "One row per depot and security, valued at the latest stored price or, " <>
-                 "without a quote, at the last own trade price. " <>
-                 "Market value in EUR, the figure the total sums."
+                 "without a quote, at the last own trade price."
+
+      tip =
+        view
+        |> element("[data-role='positions-basis'] details.metric-tooltip [role='tooltip']")
+        |> render()
+        |> text()
+
+      assert String.trim(tip) == "Market value in EUR, the figure the total sums."
 
       refute basis =~ "API"
       refute basis =~ "projection"
