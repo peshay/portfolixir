@@ -14074,9 +14074,15 @@ dialog.merge-dialog {
 .security-chart .cycle-label--band {
   fill: var(--color-text-muted);
 }
+/* On a phone the plot is about 130 px tall: the marks, the bands and the
+   cones stay, and of the labels only each band's first line; the figures
+   stand in the interval table and the disclosure under the chart. */
 @media (max-width: 560px) {
   .security-chart .cycle-label--segment,
-  .security-chart .cycle-label--halving {
+  .security-chart .cycle-label--halving,
+  .security-chart .cycle-label--top,
+  .security-chart .cycle-label--low,
+  .security-chart .cycle-label__more {
     display: none;
   }
 }
@@ -14125,7 +14131,11 @@ dialog.merge-dialog {
 .cycle-bands-table .badge {
   margin-left: var(--space-1);
 }
+.cycle-intervals {
+  margin-bottom: var(--space-3);
+}
 .cycle-bands {
+  position: relative;
   margin-top: var(--space-2);
 }
 .cycle-bands__event th,

@@ -10603,3 +10603,124 @@ columns, `.crash-track` with `__bar`, `__zero`, `__ref`, `.crash-axis`,
 rule.
 Every colour is a token.
 <!-- S29 C6 end -->
+
+<!-- S29 H7 begin -->
+## Amendment 2026-11-13 — The halving cycles on the security chart *(Sprint 29 H7, FR-58; ADR-0060 §4 to §7, §11, §12; ADR-0059 §8; idea boards `mockups/ux-design-2026-11-10-idea-i12/01` to `03` as adopted; board `mockups/ux-design-2026-11-12-sprint29/07`, D-6 Q3 to Q9)*
+
+A security bound to a halving chain with at least two confirmed halvings
+has the cycle view (ADR-0060 §1), and its Diagramm tab draws it from the
+cycles read (`Portfolixir.Catalog.SecurityCycles.for_security/2`, the read
+`GET /api/v1/securities/:id/cycles` answers from) and nothing else. Built
+in `PortfolixirWeb.Components.CycleChart` (`bar/1`, `health/1`,
+`timeline_back/1`, `timeline_front/1`, `aligned/1`, `intervals/1`,
+`bands/1`) and `SecurityChart`'s `cycles` attribute; `SecuritiesLive`
+holds the toggle, the mode and the three switches.
+
+### Anatomy, top to bottom
+
+1. **The toggle „Zyklen“** (`#toggle-cycles`, a `.chart-toggle`, off by
+   default) after „MA200“ in the chart's toolbar, **only where the view
+   exists**: not for a security bound to no chain, and not for one with
+   fewer than two confirmed halvings (Q3 A; the edit form says why, H8).
+2. **The cycle bar** (`.cycle-bar`, under the toolbar while „Zyklen“ is
+   on): the label „Zyklen“ with the segmented control „Zeitachse“ |
+   „Ausgerichtet“ (`#cycle-mode-*`); in „Zeitachse“ the label „Strecken“
+   with three `.chart-toggle` switches, „Top ↔ Tief“ (on), „Top – Top“ and
+   „Tief – Tief“ (`#cycle-line-*`); under them, on its own line, **the
+   health line** (`.cycle-health[data-status]`, a dot and a sentence):
+   - `by_hand` — „Halvings von Hand · keine Kettenquelle für Litecoin“
+     (hollow dot);
+   - `current` — „Kettenquelle: mempool.space · gelesen vor 2 Std.“, the
+     fallback named „blockstream.info (Ersatz)“ (gain-hued dot);
+   - `failed` — the same with „· letzter Versuch fehlgeschlagen: …“, each
+     code in words where board 07 names one (`wrong_chain` „falsche Kette:
+     Genesis-Block passt nicht“, `tip_behind` „Quelle hinkt hinterher“);
+   - `stale` — ADR-0059 §8's sentence „Kettenquelle seit ‹n› Std. ohne
+     Antwort · zuletzt ‹Host›, ‹Zeit› · Halving-Schätzung von dann“
+     (warning dot, text in the body colour);
+   - `refused` — „Eigene Kettenquelle abgelehnt: ‹Host› löst auf eine
+     private Adresse auf · nichts gelesen seit ‹Datum›“, the reason in the
+     line (Q4 A; danger dot);
+   - `never_read` — „Kettenquelle: noch nicht gelesen“.
+   „Jetzt lesen“ (Q5) joins the line with H8.
+3. **„Zeitachse“** on the price chart, in the chart's own log or percent
+   transform, clipped to the plot:
+   - behind the line: each confirmed halving a vertical line in the
+     warning hue (`line.cycle-halving`), the next one dashed
+     (`.is-estimate`) when it lies on the axis; **one band per event**
+     (`rect.cycle-band`, neutral, 16 % fill) with „beide Wege“, `agree`,
+     darker inside it (`.cycle-band__agree`); the band an outline
+     (`.is-outline`, dashed) where a cone goes into it, a dashed edge
+     (`.is-single`) for `one_price_relation`, and for `parts_disjoint` the
+     outlined hull with its parts filled inside (`.cycle-band__part`, Q7
+     A); the **cones** (`g.cycle-cone[data-line]`) from the last anchor to
+     the near corners of their own part, two dashed edges, the area at
+     10 %, the part at 18 % — „Top ↔ Tief“ neutral, „Top – Top“ the gain
+     hue, „Tief – Tief“ the loss hue (board 03);
+   - in front of the line: the **segments** (`line.cycle-segment`) of each
+     switched-on line, never past the last anchor, each with „‹Tage› T ·
+     −87,5 %“ or „· ×2,5“ at its middle; **▲ over each top** (pointing at
+     its close, gain hue; the open window's anchored top at 55 %,
+     „verankert · vorläufig“) and **▼ under each low** (loss hue; the open
+     window's low so far hollow, „bisher … · vorläufig“; a partial window's
+     „Tief des Teilzyklus“), each labelled „‹Kurs› · ‹Monat›“; the
+     halvings' labels „Halving ‹Datum›“ at the top edge; each band's label
+     beside it: „Tief-Band ‹von›–‹bis› USD“, its dates, „beide Wege ‹von›–‹bis›“
+     or why not, and its state.
+   - Labels are 9 CSS px at every width (`--chart-upx`) over a halo in the
+     frame's colour, as the axis labels are. **Under 560 px** only the
+     marks, bands, cones and each band's first line stay: a 390 px plot is
+     about 130 px tall, and the figures stand in the tables below.
+4. **„Ausgerichtet“** (`[data-role=cycle-aligned]`) replaces the price
+   chart: the windows laid over each other from their halving, x the
+   calendar days („Tag 0“ … every 365), y the close ÷ the halving day's
+   close on a log scale with power-of-two ticks („×0,25“, „×1“, „×4“) and
+   ×1 dashed; past windows in the gain, loss and muted hues, the open one
+   in the accent and wider, a partial one dashed; tops and lows as above
+   with „Top Tag 526“; the next low's band in the open window's days; a
+   legend of the windows by halving year („(laufend)“, „(Teil)“) and the
+   basis line.
+5. **The count line** (`[data-role=cycle-count]`): „Zyklen: 3 vollständig,
+   0 unvollständig, 1 offen · Kurse ab 01.2013“ (§12).
+6. **The interval table** (`table[data-role=cycle-intervals]` in a
+   `.data-table-wrapper`, UX-DR15): a column per window by its halving
+   year (the partial one badged „Teil“, the open one „offen“), a row per
+   relation (Halving → Top, Top → Tief, Tief → Top, Top → Top, Tief → Tief,
+   Tief → nächstes Halving), each cell its days and change or factor with
+   „Teil“ and „vorläufig“ badges (Q9), then „n = ‹n›“ and the marks
+   („1 vorläufig · 1 aus dem Teilzyklus“).
+7. **The disclosure „Bänder und ihre Teile“** (`details[data-role=
+   cycle-bands]`, closed; Q8): the sentence that the band is no forecast,
+   then per event „Hülle der Teile“ with its window, price, where the ways
+   agree (or „ein Kursweg, kein „beide Wege““ / „Wege uneinig“ with the
+   reason's code) and its state; under it each part: „ab Top 10.2025 ·
+   Zeit n = 2, Kurs n = 2“ (a borrowed price side „Kurs aus Top → Top“, a
+   fallback rule named), badges, window, price and state, or why it is
+   absent („wartet, bis das Tief des laufenden Zyklus endgültig ist“).
+   **The states** read „offen“, „läuft“, „erreicht“, „verfehlt“, with „·
+   Fenster vorbei“ once the window has ended (Q6).
+
+### The privacy mode
+
+A price is an amount. The price chart keeps its percent axis (as today);
+a top's or a low's label names its month only, a band's label its kind,
+dates, „beide Wege“ and state, no price; the disclosure's prices are the
+mask (`Format.decimal/3`). Days, changes, factors, counts, dates and
+„Ausgerichtet“'s index axis are no amounts and stay. The browser walk
+(`test/browser/cycle_chart_test.exs`) checks both themes at 1200 and
+390 px and the privacy mode at both widths: no sideways scroll, the bar's
+labels over their controls at 390 px, every shown label at least 7 px,
+no price in the privacy mode.
+
+### The `app.css` rules (between `S29 H7 begin` / `end`)
+
+`.cycle-bar`, `__group`, `__label`, `__switches`, `.cycle-health` with its
+dot and five states, the 560 px bar rule; `.cycle-halving`, `.cycle-band`
+with `.is-outline` and `.is-single`, `__agree`, `__part`, `.cycle-cone`
+with its three hues, `__area`, `__edge`, `__part`, `.cycle-segment` with
+its two dashed hues, `.cycle-top`, `.cycle-low`, `.cycle-label` with its
+halving, segment and band forms and the 560 px rule; the aligned lines and
+base line, `.cycle-count`, `.cycle-intervals`, the tables' cells and
+badges, `.cycle-bands` with its event and part rows and `__reason`. Every
+colour is a token.
+<!-- S29 H7 end -->
