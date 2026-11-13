@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>07j1-nachher-prosa</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-sans); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 3px; border-radius: 8px; }
+.cy-card { background: var(--color-bg-elevated); padding: 14px 16px 14px; }
+.cy-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0 0 10px; }
+.cy-head h2 { margin: 0; font-size: 16px; }
+.cy-sub { font-size: 12.5px; color: var(--color-text-muted); }
+.detail-pane-toolbar { margin: 0 0 12px; }
+.chart-toggle[disabled] { opacity: .55; cursor: not-allowed; }
+.cy-bar { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; padding: 6px 8px; font-size: 12.5px; color: var(--color-text-muted); }
+.cy-bar__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.cy-bar__label { font-weight: 600; }
+.cy-bar__label + .segmented-control, .cy-bar__label + .cy-switches { margin-right: 8px; }
+.cy-switches { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.cy-health { display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.cy-health b { color: var(--color-text); }
+.cy-health.is-stale b { color: var(--color-warning); }
+.cy-health.is-error b { color: var(--color-danger); }
+.cy-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; align-self: center; margin-right: 2px; }
+.cy-field p.cy-health, .cy-bar.is-phone .cy-health { display: block; }
+.cy-field p.cy-health .cy-dot, .cy-bar.is-phone .cy-dot { margin-right: 6px; vertical-align: 0; }
+.cy-dot.is-ok { background: var(--color-positive); }
+.cy-dot.is-warn { background: var(--color-warning); }
+.cy-dot.is-err { background: var(--color-danger); }
+.cy-dot.is-none { background: transparent; border: 1.5px solid var(--color-text-muted); }
+.cy-readnow { min-height: 26px; padding: 2px 10px; font-size: 12px; margin-left: 4px; }
+.cy-before { margin: 0 0 10px; } .cy-before img { display: block; height: auto; border: 1px solid var(--color-border); border-radius: 6px; }
+.cy-edge { display: block; margin: 0 0 12px; font-family: var(--font-mono); font-size: 11px; }
+.cy-edge__plot { fill: var(--color-accent-soft); stroke: var(--color-border); }
+.cy-edge__line { fill: none; stroke: var(--color-accent); stroke-width: 2; }
+.cy-edge__top { fill: var(--color-positive); } .cy-edge__low { fill: none; stroke: var(--color-danger); stroke-width: 1.5; }
+.cy-edge__label { fill: var(--color-text); paint-order: stroke; stroke: var(--color-bg); stroke-width: 3px; } .cy-edge__label.is-muted { fill: var(--color-text-muted); }
+.cy-edge__note { fill: var(--color-text-muted); font-family: var(--font-sans); font-size: 11px; }
+.cy-prose { margin: 0 0 14px; }
+.cy-prose__tag { display: block; margin: 0 0 3px; font: 600 11px var(--font-mono); color: var(--color-danger); }
+.cy-prose__tag.is-ok { color: var(--color-positive); }
+.cy-prose .detail-tab-hint { font-size: 12px; color: var(--color-text-muted); margin: 0; }
+.cy-prose .metric-tooltip--section { position: relative; bottom: auto; right: auto; margin-left: 4px; vertical-align: -3px; }
+.cy-prose .metric-tooltip--section summary { display: inline-flex; }
+.cy-prose .metric-tooltip--section p { right: auto; left: -24rem; }
+.cy-prose.is-open { padding-bottom: 150px; }
+.cy-bar .metric-tooltip--inline { position: relative; bottom: auto; right: auto; }
+.cy-bar .metric-tooltip p { width: 30rem; max-width: 80vw; }
+.cy-bar.is-phone .cy-bar__row { gap: 6px 8px; }
+.cy-bar.is-phone .cy-bar__label { width: 100%; }
+.cy-bar.is-phone .cy-health { display: block; line-height: 1.45; }
+.cy-chart { display: block; background: var(--color-chart-surface); border-radius: 6px; }
+.cy-grid line { stroke: var(--color-border); stroke-width: 1; }
+.cy-ylab text, .cy-xlab text { fill: var(--color-text-muted); font: 11px var(--font-sans); }
+.cy-line { stroke: var(--color-accent); stroke-width: 1.5; }
+.cy-line-invented { stroke: var(--color-chart-surface); stroke-width: 2; stroke-dasharray: 3 4; opacity: .9; }
+.cy-halving { stroke: var(--color-warning); stroke-width: 1.4; }
+.cy-halving.is-est { stroke-dasharray: 5 4; stroke-width: 1.1; }
+.cy-halving-l { fill: var(--color-warning); font: 700 10.5px var(--font-sans); paint-order: stroke; stroke: var(--color-chart-surface); stroke-width: 3px; }
+.cy-halving-l.is-sub { font-weight: 600; fill: var(--color-text-muted); }
+.cy-halving-win { fill: color-mix(in oklab, var(--color-warning) 16%, transparent); }
+.cy-halving-win.is-stale { fill: url(#none); fill: color-mix(in oklab, var(--color-text-muted) 14%, transparent); }
+.cy-today { stroke: var(--color-text-muted); stroke-width: 1; stroke-dasharray: 1 3; }
+.cy-today-l { fill: var(--color-text-muted); font: 600 10px var(--font-sans); }
+.cy-hatch { stroke: color-mix(in oklab, var(--color-text-muted) 35%, transparent); stroke-width: 2; }
+.cy-band { stroke-width: 1.2; }
+.cy-band--top { fill: color-mix(in oklab, var(--color-positive) 22%, transparent); stroke: var(--color-positive); }
+.cy-band--low { fill: color-mix(in oklab, var(--color-danger) 22%, transparent); stroke: var(--color-danger); }
+.cy-band.is-past { fill: color-mix(in oklab, var(--color-text-muted) 16%, transparent); stroke: var(--color-text-muted); stroke-dasharray: 3 2; }
+.cy-band.is-one { stroke-dasharray: 5 3; }
+.cy-band.is-hull { fill: color-mix(in oklab, var(--color-danger) 6%, transparent); stroke-dasharray: 5 3; }
+.cy-band.is-hull.is-past { fill: color-mix(in oklab, var(--color-text-muted) 6%, transparent); }
+.cy-band.is-part { fill: color-mix(in oklab, var(--color-danger) 26%, transparent); stroke-width: 1; }
+.cy-band.is-part.is-past { fill: color-mix(in oklab, var(--color-text-muted) 26%, transparent); stroke-dasharray: none; }
+.cy-agree { fill: color-mix(in oklab, var(--color-text) 30%, transparent); stroke: none; }
+.cy-band-l { fill: var(--color-text-muted); font: 600 10.5px var(--font-sans); paint-order: stroke; stroke: var(--color-chart-surface); stroke-width: 3px; }
+.cy-band-l.is-head { fill: var(--color-text); }
+.cy-mark--top { fill: var(--color-positive); }
+.cy-mark--low { fill: var(--color-danger); }
+.cy-mark.is-hollow { fill: var(--color-chart-surface); stroke: var(--color-positive); stroke-width: 1.5; }
+.cy-mark-l { fill: var(--color-text); font: 600 10.5px var(--font-sans); paint-order: stroke; stroke: var(--color-chart-surface); stroke-width: 3px; }
+.cy-mark-l.is-sub { fill: var(--color-text-muted); font-weight: 500; }
+.cy-bracket { fill: none; stroke: var(--color-text-muted); stroke-width: 1; }
+.cy-note.is-head { font-style: normal; font-weight: 700; fill: var(--color-text); }
+.cy-note { fill: var(--color-text-muted); font: italic 10.5px var(--font-sans); paint-order: stroke; stroke: var(--color-chart-surface); stroke-width: 3px; }
+.cy-basis { margin: 8px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--color-text-muted); }
+.cy-count { margin: 0; font-size: 12.5px; color: var(--color-text-muted); }
+.cy-count b { color: var(--color-text); }
+.cy-caption { caption-side: top; text-align: left; padding: 0 0 6px; }
+.cy-table { width: 100%; margin-top: 12px; font-size: 12.5px; }
+.cy-table th, .cy-table td { white-space: nowrap; }
+.cy-bands td:nth-child(2), .cy-bands td[colspan] { white-space: normal; }
+.cy-bands td:nth-child(5) { white-space: normal; }
+.cy-disclosure { margin-top: 14px; }
+.cy-disclosure > summary { font-size: 13px; font-weight: 600; }
+.cy-table td.num, .cy-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.cy-muted { color: var(--color-text-muted); font-weight: 500; }
+.cy-badge { font-size: 10px; padding: 0 6px; vertical-align: 1px; }
+.cy-bands tr.cy-row-band td { border-top: 1px solid var(--color-border-strong); }
+.cy-bands tr.cy-row-part td:first-child { padding-left: 22px; color: var(--color-text-muted); }
+.cy-bands tr.is-absent td { color: var(--color-text-muted); }
+.cy-reason.is-hl { color: var(--color-text); font-weight: 650; background: var(--color-accent-soft); padding: 1px 4px; border-radius: 4px; }
+.cy-bands code, .cy-table code { font-size: 11px; color: var(--color-text-muted); }
+.cy-h3 { margin: 12px 0 6px; font-size: 13px; }
+.cy-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cy-pair h3 { margin: 0 0 6px; font-size: 13px; }
+.cy-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 0; font-size: 11.5px; color: var(--color-text-muted); }
+.cy-strip { border-top: 1px solid var(--color-border); padding: 12px 0 4px; }
+.cy-strip:first-child { border-top: 0; padding-top: 0; }
+.cy-strip > h3 { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--color-text-muted); }
+.cy-strip > h3 small { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--color-accent); margin-left: 6px; }
+.cy-strip .detail-pane-toolbar { margin-bottom: 8px; }
+.cy-hint { margin: 0 0 4px; font-size: 12.5px; color: var(--color-text-muted); }
+/* the edit form */
+.modal.cy-modal { max-width: 600px; margin: 0; box-shadow: none; border-radius: 0; }
+.cy-modal .modal-body { padding-bottom: 4px; }
+.cy-field { display: grid; gap: 6px; padding: 12px; margin: 14px 0 0; border-radius: 8px; }
+.cy-field > label { display: grid; gap: 4px; max-width: 18rem; }
+.cy-field > label > span { font-size: 13px; font-weight: 600; }
+.cy-field select { min-height: 34px; }
+.cy-field .form-help, .cy-field .hint { margin: 0; padding: 0; font-size: 12.5px; color: var(--color-text-muted); line-height: 1.45; }
+.cy-field .cy-health { font-size: 12.5px; color: var(--color-text-muted); }
+.cy-listbox { list-style: none; margin: 0; padding: 4px 0; width: 18rem; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-bg-elevated); box-shadow: var(--shadow-panel); font-size: 13px; }
+.cy-listbox li { padding: 5px 12px; }
+.cy-listbox li.is-selected { background: var(--color-accent); color: var(--color-on-accent, #fff); }
+.cy-listbox li small { color: inherit; opacity: .75; margin-left: 6px; }
+.cy-elided { margin: 0 0 4px; font-size: 12.5px; color: var(--color-text-subtle); font-style: italic; }
+.cy-confirm { margin: 10px 0 0; }
+.cy-confirm ul { margin: 4px 0 6px; padding-left: 18px; }
+.cy-confirm > div { margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="cy-card">
+<div class="detail-pane-toolbar" role="toolbar" aria-label="Diagramm-Optionen">
+<div class="range-buttons" role="group" aria-label="Zeitraum">
+<button type="button" class="range-button">1M</button>
+<button type="button" class="range-button">3M</button>
+<button type="button" class="range-button">6M</button>
+<button type="button" class="range-button">YTD</button>
+<button type="button" class="range-button">1J</button>
+<button type="button" class="range-button">3J</button>
+<button type="button" class="range-button">5J</button>
+<button type="button" class="range-button">Max</button>
+<button type="button" class="range-button mock-new is-active">Zyklus</button>
+</div>
+<details class="period-disclosure">
+<summary class="disclosure-summary">Benutzerdefinierter Zeitraum …</summary>
+</details>
+<div class="chart-toggles">
+<button type="button" class="chart-toggle is-active">Logarithmische Skala</button>
+<button type="button" class="chart-toggle">Prozent</button>
+<button type="button" class="chart-toggle">Transaktionen anzeigen</button>
+<button type="button" class="chart-toggle">Notizen anzeigen</button>
+<button type="button" class="chart-toggle">MA200</button>
+<button type="button" class="chart-toggle is-active mock-new" aria-pressed="true">Zyklen</button>
+<button type="button" class="chart-toggle">…</button>
+</div>
+</div>
+<svg class="cy-chart" viewBox="0 0 1166 440" width="1166" height="440" role="img" aria-label="Kursverlauf mit Zyklen">
+<defs>
+<clipPath id="clip-zyk">
+<rect x="62" y="6" width="1086" height="400"/>
+</clipPath>
+<pattern id="hatch-zyk" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+<line x1="0" y1="0" x2="0" y2="6" class="cy-hatch"/>
+</pattern>
+</defs>
+<g class="cy-grid">
+<line x1="62" x2="1148" y1="355.8579023553896" y2="355.8579023553896"/>
+<line x1="62" x2="1148" y1="265.915782753471" y2="265.915782753471"/>
+<line x1="62" x2="1148" y1="197.87719582141676" y2="197.87719582141676"/>
+<line x1="62" x2="1148" y1="129.83860888936252" y2="129.83860888936252"/>
+<line x1="62" x2="1148" y1="39.896489287443885" y2="39.896489287443885"/>
+</g>
+<g class="cy-ylab"><text x="54" y="359.8579023553896" text-anchor="end">20&#8239;k&nbsp;$</text><text x="54" y="269.915782753471" text-anchor="end">50&#8239;k&nbsp;$</text><text x="54" y="201.87719582141676" text-anchor="end">100&#8239;k&nbsp;$</text><text x="54" y="133.83860888936252" text-anchor="end">200&#8239;k&nbsp;$</text><text x="54" y="43.896489287443885" text-anchor="end">500&#8239;k&nbsp;$</text>
+</g>
+<g class="cy-xlab"><text x="231.74864864864867" y="428" text-anchor="middle">2025</text><text x="410.3027027027027" y="428" text-anchor="middle">2026</text><text x="588.8567567567568" y="428" text-anchor="middle">2027</text><text x="767.4108108108109" y="428" text-anchor="middle">2028</text><text x="946.454054054054" y="428" text-anchor="middle">2029</text><text x="1125.008108108108" y="428" text-anchor="middle">2030</text>
+</g>
+<g clip-path="url(#clip-zyk)">
+<line class="cy-today" x1="564.3972972972973" x2="564.3972972972973" y1="22" y2="406"/><text class="cy-today-l" x="568.3972972972973" y="400">heute</text>
+<line class="cy-halving" x1="106.51621621621621" x2="106.51621621621621" y1="22" y2="406"/><text class="cy-halving-l" x="110.51621621621621" y="32">Halving 20.04.2024</text>
+<rect class="cy-halving-win" x="807.5243243243243" y="22" width="12.229729729729684" height="384"/>
+<line class="cy-halving is-est" x1="807.5243243243243" x2="807.5243243243243" y1="22" y2="406"/>
+<line class="cy-halving is-est" x1="819.754054054054" x2="819.754054054054" y1="22" y2="406"/><text class="cy-halving-l" x="802.5243243243243" y="376" text-anchor="end">Halving ≈ 23.03.–17.04.2028</text><text class="cy-halving-l is-sub" x="802.5243243243243" y="389" text-anchor="end">Schätzung · Block 1.050.000</text>
+<rect class="cy-band cy-band--low is-past" x="545.3189189189189" y="223.89550999549274" width="11.740540540540565" height="98.02555481549373"/>
+<rect class="cy-agree" x="545.3189189189189" y="294.42029833710944" width="11.740540540540565" height="3.381856253227056"/><text class="cy-band-l is-head" x="539.3189189189189" y="335.9210648109865" text-anchor="end">Tief-Band 28,3&#8239;k&nbsp;$–76,7&#8239;k&nbsp;$ · 04.10.–28.10.2026</text><text class="cy-band-l" x="539.3189189189189" y="348.4210648109865" text-anchor="end">beide Wege 36,1&#8239;k&nbsp;$–37,4&#8239;k&nbsp;$</text><text class="cy-band-l" x="539.3189189189189" y="360.9210648109865" text-anchor="end">erreicht · Fenster vorbei</text>
+<rect class="cy-band cy-band--top is-one" x="1064.3486486486486" y="116.08262178390008" width="23.48108108108113" height="30.770442348605727"/><text class="cy-band-l is-head" x="1058.3486486486486" y="120.08262178390008" text-anchor="end">Top-Band 168&#8239;k&nbsp;$–230&#8239;k&nbsp;$</text><text class="cy-band-l" x="1058.3486486486486" y="132.5826217839001" text-anchor="end">30.08.–17.10.2029</text><text class="cy-band-l" x="1058.3486486486486" y="145.0826217839001" text-anchor="end">ein Kursweg: Top → Top (n = 2)</text><text class="cy-band-l" x="1058.3486486486486" y="157.5826217839001" text-anchor="end">kein „beide Wege“ bis Tief → Top dazukommt</text><text class="cy-band-l" x="1058.3486486486486" y="170.0826217839001" text-anchor="end">offen</text>
+<polyline class="cy-line" fill="none" points="62.0,264.6 62.5,262.8 63.0,262.8 63.5,260.4 64.0,258.2 64.4,259.8 64.9,259.1 65.4,260.4 65.9,262.2 66.4,263.6
+66.9,262.4 67.4,262.5 67.9,258.9 68.4,256.8 68.8,258.9 69.3,260.0 69.8,259.6 70.3,255.7 70.8,254.7 71.3,252.9
+71.8,255.3 72.3,255.8 72.8,252.9 73.3,251.3 73.7,249.4 74.2,248.9 74.7,250.0 75.2,252.2 75.7,253.0 76.2,252.5
+76.7,249.9 77.2,246.6 77.7,243.6 78.1,243.7 78.6,245.7 79.1,245.1 79.6,241.7 80.1,242.1 80.6,240.4 81.1,239.7
+81.6,237.1 82.1,236.6 82.5,237.1 83.0,237.5 83.5,236.7 84.0,235.3 84.5,235.1 85.0,235.0 85.5,233.9 86.0,233.0
+86.5,232.0 86.9,231.1 87.4,229.8 87.9,228.8 88.4,229.8 88.9,229.8 89.4,230.5 89.9,230.6 90.4,229.8 90.9,231.3
+91.4,232.2 91.8,231.8 92.3,232.7 92.8,234.6 93.3,233.8 93.8,235.6 94.3,234.9 94.8,235.7 95.3,236.0 95.8,236.1
+96.2,234.1 96.7,236.3 97.2,238.9 97.7,240.7 98.2,238.2 98.7,238.8 99.2,238.0 99.7,238.2 100.2,238.1 100.6,237.4
+101.1,238.6 101.6,238.9 102.1,240.7 102.6,240.7 103.1,240.7 103.6,240.7 104.1,240.7 104.6,240.7 105.0,240.7 105.5,240.7
+106.0,240.7 106.5,241.7 107.0,242.7 107.5,242.7 108.0,242.7 108.5,242.7 109.0,242.7 109.5,242.9 109.9,242.7 110.4,242.7
+110.9,242.8 111.4,242.7 111.9,242.7 112.4,243.6 112.9,242.7 113.4,242.7 113.9,242.7 114.3,242.7 114.8,242.7 115.3,243.1
+115.8,242.7 116.3,242.7 116.8,244.0 117.3,242.8 117.8,242.7 118.3,242.7 118.7,244.6 119.2,244.3 119.7,243.7 120.2,245.7
+120.7,246.0 121.2,244.0 121.7,246.9 122.2,247.4 122.7,248.8 123.1,249.5 123.6,250.9 124.1,253.2 124.6,251.7 125.1,248.8
+125.6,251.7 126.1,252.1 126.6,249.5 127.1,248.5 127.6,250.3 128.0,252.9 128.5,252.9 129.0,250.4 129.5,252.5 130.0,252.5
+130.5,250.1 131.0,249.4 131.5,252.4 132.0,251.9 132.4,254.9 132.9,251.7 133.4,254.4 133.9,252.9 134.4,253.2 134.9,253.0
+135.4,252.8 135.9,250.9 136.4,251.2 136.8,249.7 137.3,252.1 137.8,251.2 138.3,249.8 138.8,249.9 139.3,249.3 139.8,246.7
+140.3,248.6 140.8,252.3 141.2,252.6 141.7,254.5 142.2,254.7 142.7,257.1 143.2,256.3 143.7,257.1 144.2,256.0 144.7,254.5
+145.2,255.7 145.7,255.4 146.1,253.8 146.6,252.6 147.1,255.1 147.6,253.3 148.1,251.9 148.6,253.5 149.1,254.5 149.6,254.8
+150.1,256.3 150.5,257.2 151.0,255.8 151.5,254.8 152.0,256.1 152.5,255.4 153.0,254.6 153.5,254.9 154.0,255.2 154.5,256.2
+154.9,255.9 155.4,256.1 155.9,257.1 156.4,257.4 156.9,257.4 157.4,257.4 157.9,257.4 158.4,257.4 158.9,258.4 159.3,257.4
+159.8,257.3 160.3,256.8 160.8,256.5 161.3,255.8 161.8,255.6 162.3,254.5 162.8,254.3 163.3,254.2 163.8,254.0 164.2,252.8
+164.7,253.2 165.2,252.2 165.7,252.2 166.2,252.5 166.7,251.9 167.2,251.7 167.7,249.7 168.2,248.5 168.6,249.4 169.1,250.1
+169.6,250.3 170.1,250.0 170.6,248.3 171.1,247.6 171.6,246.2 172.1,245.2 172.6,244.1 173.0,244.5 173.5,244.3 174.0,246.0
+174.5,245.5 175.0,244.8 175.5,245.6 176.0,244.2 176.5,243.5 177.0,244.2 177.4,243.0 177.9,244.9 178.4,245.7 178.9,246.2
+179.4,244.0 179.9,244.4 180.4,243.6 180.9,240.6 181.4,241.2 181.9,239.4 182.3,238.1 182.8,235.5 183.3,231.8 183.8,229.0
+184.3,228.1 184.8,231.0 185.3,230.3 185.8,228.5 186.3,227.6 186.7,226.2 187.2,228.5 187.7,231.1 188.2,228.5 188.7,228.2
+189.2,226.3 189.7,222.6 190.2,222.9 190.7,224.0 191.1,224.2 191.6,225.7 192.1,224.1 192.6,225.2 193.1,221.9 193.6,221.9
+194.1,221.5 194.6,220.4 195.1,220.8 195.5,218.9 196.0,220.1 196.5,217.0 197.0,217.1 197.5,216.6 198.0,216.9 198.5,214.8
+199.0,216.6 199.5,213.2 200.0,214.4 200.4,215.6 200.9,213.1 201.4,213.9 201.9,214.1 202.4,211.6 202.9,211.2 203.4,213.1
+203.9,210.0 204.4,207.7 204.8,209.3 205.3,210.7 205.8,212.7 206.3,213.5 206.8,210.6 207.3,210.7 207.8,211.5 208.3,210.1
+208.8,207.1 209.2,206.6 209.7,208.3 210.2,207.0 210.7,205.4 211.2,206.3 211.7,206.6 212.2,206.4 212.7,205.6 213.2,203.6
+213.6,203.3 214.1,202.7 214.6,200.8 215.1,199.1 215.6,199.7 216.1,199.1 216.6,199.8 217.1,198.4 217.6,198.4 218.1,197.6
+218.5,197.6 219.0,196.7 219.5,196.8 220.0,196.8 220.5,196.4 221.0,195.6 221.5,195.2 222.0,194.8 222.5,194.1 222.9,193.5
+223.4,193.1 223.9,192.2 224.4,193.1 224.9,193.1 225.4,193.1 225.9,193.1 226.4,193.6 226.9,194.2 227.3,194.2 227.8,194.2
+228.3,194.0 228.8,195.0 229.3,196.3 229.8,196.5 230.3,197.0 230.8,196.7 231.3,196.7 231.7,195.9 232.2,194.7 232.7,195.6
+233.2,196.0 233.7,195.5 234.2,195.5 234.7,194.5 235.2,193.1 235.7,195.4 236.2,197.1 236.6,198.9 237.1,197.8 237.6,197.7
+238.1,200.4 238.6,198.5 239.1,201.0 239.6,199.9 240.1,202.2 240.6,202.8 241.0,201.4 241.5,202.1 242.0,202.5 242.5,203.7
+243.0,204.8 243.5,205.7 244.0,208.4 244.5,205.5 245.0,202.5 245.4,201.7 245.9,199.9 246.4,203.5 246.9,205.2 247.4,208.3
+247.9,206.5 248.4,209.9 248.9,209.1 249.4,207.1 249.8,209.6 250.3,208.2 250.8,211.6 251.3,211.1 251.8,212.4 252.3,212.7
+252.8,215.3 253.3,212.0 253.8,209.5 254.3,212.1 254.7,210.3 255.2,213.5 255.7,211.1 256.2,214.2 256.7,214.0 257.2,213.6
+257.7,210.5 258.2,209.9 258.7,210.3 259.1,210.3 259.6,210.9 260.1,209.9 260.6,209.6 261.1,210.9 261.6,210.7 262.1,210.9
+262.6,211.4 263.1,214.3 263.5,212.5 264.0,212.4 264.5,210.9 265.0,210.7 265.5,210.6 266.0,210.5 266.5,210.6 267.0,212.3
+267.5,214.1 267.9,214.1 268.4,214.8 268.9,214.6 269.4,216.2 269.9,217.6 270.4,218.1 270.9,218.2 271.4,218.4 271.9,219.8
+272.4,221.3 272.8,221.5 273.3,220.5 273.8,220.8 274.3,221.1 274.8,222.1 275.3,222.6 275.8,222.0 276.3,222.5 276.8,222.5
+277.2,222.6 277.7,222.6 278.2,222.6 278.7,222.6 279.2,223.5 279.7,222.6 280.2,221.4 280.7,220.8 281.2,219.7 281.6,219.5
+282.1,219.9 282.6,220.8 283.1,221.3 283.6,220.1 284.1,219.8 284.6,219.5 285.1,218.1 285.6,214.5 286.0,212.6 286.5,212.6
+287.0,208.8 287.5,208.9 288.0,207.5 288.5,204.9 289.0,206.0 289.5,206.6 290.0,207.1 290.5,203.0 290.9,201.0 291.4,202.4
+291.9,202.0 292.4,202.4 292.9,200.4 293.4,201.2 293.9,199.5 294.4,200.3 294.9,197.9 295.3,196.5 295.8,197.4 296.3,197.4
+296.8,195.8 297.3,196.1 297.8,194.7 298.3,192.6 298.8,192.0 299.3,190.2 299.7,189.0 300.2,188.6 300.7,187.6 301.2,186.7
+301.7,186.7 302.2,186.7 302.7,186.7 303.2,186.7 303.7,186.7 304.1,186.6 304.6,186.4 305.1,186.7 305.6,186.7 306.1,186.7
+306.6,186.7 307.1,186.7 307.6,186.7 308.1,186.7 308.6,186.7 309.0,186.7 309.5,186.7 310.0,186.7 310.5,186.7 311.0,186.7
+311.5,186.7 312.0,186.7 312.5,186.7 313.0,186.7 313.4,186.7 313.9,186.7 314.4,186.7 314.9,184.5 315.4,184.9 315.9,184.6
+316.4,186.2 316.9,186.7 317.4,186.7 317.8,184.6 318.3,186.7 318.8,186.7 319.3,185.4 319.8,184.5 320.3,186.2 320.8,186.2
+321.3,186.7 321.8,186.7 322.2,186.7 322.7,184.9 323.2,181.9 323.7,182.4 324.2,181.2 324.7,181.6 325.2,183.4 325.7,184.1
+326.2,186.1 326.7,186.7 327.1,186.7 327.6,186.7 328.1,186.7 328.6,186.7 329.1,186.7 329.6,186.7 330.1,186.7 330.6,186.7
+331.1,185.2 331.5,186.1 332.0,184.2 332.5,184.9 333.0,185.8 333.5,185.5 334.0,184.2 334.5,181.8 335.0,183.0 335.5,181.5
+335.9,179.8 336.4,180.1 336.9,179.7 337.4,179.2 337.9,178.5 338.4,178.5 338.9,178.5 339.4,178.5 339.9,178.5 340.3,178.5
+340.8,178.5 341.3,178.5 341.8,177.6 342.3,176.6 342.8,176.6 343.3,176.6 343.8,176.6 344.3,176.6 344.8,176.6 345.2,176.6
+345.7,176.6 346.2,176.6 346.7,176.6 347.2,176.6 347.7,176.6 348.2,176.2 348.7,176.3 349.2,176.2 349.6,176.2 350.1,176.2
+350.6,176.6 351.1,176.6 351.6,176.5 352.1,176.2 352.6,176.2 353.1,176.6 353.6,176.6 354.0,176.2 354.5,176.6 355.0,176.6
+355.5,176.6 356.0,176.3 356.5,176.6 357.0,176.6 357.5,176.6 358.0,176.6 358.4,176.2 358.9,176.6 359.4,176.2 359.9,176.2
+360.4,176.4 360.9,176.2 361.4,176.2 361.9,176.2 362.4,176.2 362.9,176.2 363.3,176.2 363.8,176.2 364.3,176.2 364.8,176.2
+365.3,176.2 365.8,176.2 366.3,176.2 366.8,176.2 367.3,176.2 367.7,175.2 368.2,176.2 368.7,176.2 369.2,176.9 369.7,177.7
+370.2,177.9 370.7,179.4 371.2,178.7 371.7,181.1 372.1,182.2 372.6,184.9 373.1,186.1 373.6,187.9 374.1,188.7 374.6,191.4
+375.1,189.7 375.6,190.6 376.1,193.2 376.5,196.8 377.0,194.1 377.5,191.9 378.0,193.5 378.5,197.4 379.0,199.2 379.5,198.1
+380.0,197.1 380.5,198.2 381.0,202.3 381.4,203.4 381.9,204.4 382.4,203.7 382.9,203.8 383.4,203.9 383.9,203.2 384.4,204.6
+384.9,207.6 385.4,207.9 385.8,207.4 386.3,209.0 386.8,209.8 387.3,211.4 387.8,212.0 388.3,212.5 388.8,213.7 389.3,214.0
+389.8,214.0 390.2,215.0 390.7,214.0 391.2,214.0 391.7,214.0 392.2,213.8 392.7,212.7 393.2,211.8 393.7,212.7 394.2,212.3
+394.6,212.6 395.1,212.8 395.6,210.8 396.1,211.3 396.6,211.3 397.1,211.4 397.6,212.1 398.1,214.0 398.6,214.0 399.1,212.6
+399.5,211.4 400.0,212.0 400.5,213.0 401.0,210.7 401.5,212.8 402.0,212.1 402.5,211.2 403.0,211.8 403.5,212.9 403.9,211.0
+404.4,208.2 404.9,204.7 405.4,207.2 405.9,205.9 406.4,204.4 406.9,203.8 407.4,202.9 407.9,202.9 408.3,204.3 408.8,203.1
+409.3,202.9 409.8,203.8 410.3,204.1 410.8,203.0 411.3,202.9 411.8,202.9 412.3,204.2 412.7,204.8 413.2,203.0 413.7,204.1
+414.2,203.7 414.7,202.9 415.2,203.0 415.7,202.9 416.2,202.9 416.7,201.9 417.2,202.9 417.6,203.4 418.1,203.9 418.6,205.0
+419.1,205.3 419.6,206.5 420.1,207.9 420.6,208.9 421.1,208.4 421.6,207.6 422.0,207.9 422.5,207.5 423.0,206.4 423.5,205.8
+424.0,206.0 424.5,207.8 425.0,207.9 425.5,210.4 426.0,208.8 426.4,209.4 426.9,209.8 427.4,208.2 427.9,207.8 428.4,210.8
+428.9,214.0 429.4,214.3 429.9,213.1 430.4,217.2 430.8,217.3 431.3,220.4 431.8,218.8 432.3,217.1 432.8,215.8 433.3,216.1
+433.8,219.1 434.3,219.5 434.8,218.8 435.3,222.9 435.7,221.9 436.2,225.3 436.7,225.6 437.2,228.6 437.7,228.5 438.2,229.7
+438.7,230.6 439.2,228.1 439.7,228.8 440.1,227.7 440.6,228.5 441.1,228.2 441.6,226.9 442.1,229.5 442.6,229.3 443.1,231.7
+443.6,232.8 444.1,234.8 444.5,236.0 445.0,236.4 445.5,237.5 446.0,237.4 446.5,237.7 447.0,237.5 447.5,237.7 448.0,237.7
+448.5,238.7 448.9,237.7 449.4,237.7 449.9,237.7 450.4,237.6 450.9,237.1 451.4,237.7 451.9,237.1 452.4,236.4 452.9,235.7
+453.4,235.2 453.8,234.3 454.3,233.9 454.8,233.8 455.3,234.4 455.8,234.4 456.3,235.5 456.8,236.1 457.3,237.7 457.8,236.9
+458.2,234.8 458.7,234.0 459.2,233.7 459.7,236.2 460.2,234.7 460.7,232.5 461.2,234.6 461.7,235.1 462.2,235.3 462.6,232.1
+463.1,230.6 463.6,230.5 464.1,229.9 464.6,230.0 465.1,229.7 465.6,231.0 466.1,233.8 466.6,235.2 467.0,237.7 467.5,237.7
+468.0,237.7 468.5,237.7 469.0,237.7 469.5,236.3 470.0,237.2 470.5,236.3 471.0,237.5 471.5,235.5 471.9,234.9 472.4,234.6
+472.9,234.9 473.4,232.1 473.9,231.5 474.4,230.4 474.9,229.6 475.4,228.4 475.9,228.4 476.3,228.4 476.8,228.4 477.3,228.4
+477.8,228.4 478.3,228.4 478.8,228.4 479.3,229.3 479.8,229.5 480.3,228.4 480.7,229.2 481.2,228.4 481.7,228.4 482.2,228.4
+482.7,228.4 483.2,228.7 483.7,228.6 484.2,228.4 484.7,228.5 485.1,228.4 485.6,228.4 486.1,228.4 486.6,228.4 487.1,228.4
+487.6,228.4 488.1,228.4 488.6,227.4 489.1,228.4 489.6,228.4 490.0,228.7 490.5,228.9 491.0,228.9 491.5,229.6 492.0,230.3
+492.5,230.7 493.0,230.9 493.5,232.0 494.0,231.7 494.4,232.0 494.9,231.3 495.4,230.2 495.9,232.3 496.4,232.0 496.9,234.2
+497.4,235.1 497.9,237.5 498.4,238.8 498.8,237.2 499.3,236.3 499.8,237.6 500.3,235.8 500.8,236.4 501.3,235.0 501.8,232.8
+502.3,235.5 502.8,234.1 503.2,233.9 503.7,234.5 504.2,237.4 504.7,239.2 505.2,240.2 505.7,240.5 506.2,242.3 506.7,240.7
+507.2,238.8 507.7,240.2 508.1,244.0 508.6,243.3 509.1,246.3 509.6,244.1 510.1,244.9 510.6,248.2 511.1,247.5 511.6,245.9
+512.1,249.6 512.5,251.9 513.0,254.9 513.5,251.6 514.0,251.6 514.5,252.9 515.0,253.3 515.5,253.5 516.0,256.3 516.5,255.2
+516.9,254.9 517.4,254.3 517.9,254.0 518.4,253.4 518.9,252.6 519.4,253.1 519.9,253.3 520.4,255.0 520.9,256.6 521.3,257.3
+521.8,259.1 522.3,259.2 522.8,258.3 523.3,259.1 523.8,258.7 524.3,260.0 524.8,260.3 525.3,260.8 525.8,261.1 526.2,260.9
+526.7,260.8 527.2,261.1 527.7,260.9 528.2,260.4 528.7,259.7 529.2,259.9 529.7,260.5 530.2,260.9 530.6,260.9 531.1,261.1
+531.6,261.1 532.1,261.1 532.6,262.1 533.1,261.1 533.6,261.1 534.1,261.1 534.6,260.8 535.0,259.9 535.5,258.6 536.0,258.1
+536.5,258.2 537.0,259.4 537.5,259.1 538.0,257.1 538.5,258.3 539.0,256.3 539.4,256.4 539.9,257.2 540.4,257.9 540.9,255.6
+541.4,256.3 541.9,256.8 542.4,256.2 542.9,255.8 543.4,257.0 543.9,259.4 544.3,261.1 544.8,259.1 545.3,256.9 545.8,254.2
+546.3,254.4 546.8,256.5 547.3,256.8 547.8,259.1 548.3,257.4 548.7,258.6 549.2,260.1 549.7,260.8 550.2,256.8 550.7,253.5
+551.2,253.8 551.7,254.6 552.2,252.7 552.7,251.5 553.1,252.8 553.6,250.8 554.1,248.9 554.6,249.8 555.1,251.4 555.6,251.3
+556.1,250.0 556.6,248.2 557.1,248.1 557.5,247.4 558.0,248.0 558.5,248.7 559.0,248.6 559.5,247.4 560.0,247.4 560.5,247.4
+561.0,247.4 561.5,246.4 562.0,245.4 562.4,245.4 562.9,245.0 563.4,245.0 563.9,244.0"/>
+<polyline class="cy-line-invented" fill="none" points="368.2,176.2 368.7,176.2 369.2,176.9 369.7,177.7 370.2,177.9 370.7,179.4 371.2,178.7 371.7,181.1 372.1,182.2 372.6,184.9
+373.1,186.1 373.6,187.9 374.1,188.7 374.6,191.4 375.1,189.7 375.6,190.6 376.1,193.2 376.5,196.8 377.0,194.1 377.5,191.9
+378.0,193.5 378.5,197.4 379.0,199.2 379.5,198.1 380.0,197.1 380.5,198.2 381.0,202.3 381.4,203.4 381.9,204.4 382.4,203.7
+382.9,203.8 383.4,203.9 383.9,203.2 384.4,204.6 384.9,207.6 385.4,207.9 385.8,207.4 386.3,209.0 386.8,209.8 387.3,211.4
+387.8,212.0 388.3,212.5 388.8,213.7 389.3,214.0 389.8,214.0 390.2,215.0 390.7,214.0 391.2,214.0 391.7,214.0 392.2,213.8
+392.7,212.7 393.2,211.8 393.7,212.7 394.2,212.3 394.6,212.6 395.1,212.8 395.6,210.8 396.1,211.3 396.6,211.3 397.1,211.4
+397.6,212.1 398.1,214.0 398.6,214.0 399.1,212.6 399.5,211.4 400.0,212.0 400.5,213.0 401.0,210.7 401.5,212.8 402.0,212.1
+402.5,211.2 403.0,211.8 403.5,212.9 403.9,211.0 404.4,208.2 404.9,204.7 405.4,207.2 405.9,205.9 406.4,204.4 406.9,203.8
+407.4,202.9 407.9,202.9 408.3,204.3 408.8,203.1 409.3,202.9 409.8,203.8 410.3,204.1 410.8,203.0 411.3,202.9 411.8,202.9
+412.3,204.2 412.7,204.8 413.2,203.0 413.7,204.1 414.2,203.7 414.7,202.9 415.2,203.0 415.7,202.9 416.2,202.9 416.7,201.9
+417.2,202.9 417.6,203.4 418.1,203.9 418.6,205.0 419.1,205.3 419.6,206.5 420.1,207.9 420.6,208.9 421.1,208.4 421.6,207.6
+422.0,207.9 422.5,207.5 423.0,206.4 423.5,205.8 424.0,206.0 424.5,207.8 425.0,207.9 425.5,210.4 426.0,208.8 426.4,209.4
+426.9,209.8 427.4,208.2 427.9,207.8 428.4,210.8 428.9,214.0 429.4,214.3 429.9,213.1 430.4,217.2 430.8,217.3 431.3,220.4
+431.8,218.8 432.3,217.1 432.8,215.8 433.3,216.1 433.8,219.1 434.3,219.5 434.8,218.8 435.3,222.9 435.7,221.9 436.2,225.3
+436.7,225.6 437.2,228.6 437.7,228.5 438.2,229.7 438.7,230.6 439.2,228.1 439.7,228.8 440.1,227.7 440.6,228.5 441.1,228.2
+441.6,226.9 442.1,229.5 442.6,229.3 443.1,231.7 443.6,232.8 444.1,234.8 444.5,236.0 445.0,236.4 445.5,237.5 446.0,237.4
+446.5,237.7 447.0,237.5 447.5,237.7 448.0,237.7 448.5,238.7 448.9,237.7 449.4,237.7 449.9,237.7 450.4,237.6 450.9,237.1
+451.4,237.7 451.9,237.1 452.4,236.4 452.9,235.7 453.4,235.2 453.8,234.3 454.3,233.9 454.8,233.8 455.3,234.4 455.8,234.4
+456.3,235.5 456.8,236.1 457.3,237.7 457.8,236.9 458.2,234.8 458.7,234.0 459.2,233.7 459.7,236.2 460.2,234.7 460.7,232.5
+461.2,234.6 461.7,235.1 462.2,235.3 462.6,232.1 463.1,230.6 463.6,230.5 464.1,229.9 464.6,230.0 465.1,229.7 465.6,231.0
+466.1,233.8 466.6,235.2 467.0,237.7 467.5,237.7 468.0,237.7 468.5,237.7 469.0,237.7 469.5,236.3 470.0,237.2 470.5,236.3
+471.0,237.5 471.5,235.5 471.9,234.9 472.4,234.6 472.9,234.9 473.4,232.1 473.9,231.5 474.4,230.4 474.9,229.6 475.4,228.4
+475.9,228.4 476.3,228.4 476.8,228.4 477.3,228.4 477.8,228.4 478.3,228.4 478.8,228.4 479.3,229.3 479.8,229.5 480.3,228.4
+480.7,229.2 481.2,228.4 481.7,228.4 482.2,228.4 482.7,228.4 483.2,228.7 483.7,228.6 484.2,228.4 484.7,228.5 485.1,228.4
+485.6,228.4 486.1,228.4 486.6,228.4 487.1,228.4 487.6,228.4 488.1,228.4 488.6,227.4 489.1,228.4 489.6,228.4 490.0,228.7
+490.5,228.9 491.0,228.9 491.5,229.6 492.0,230.3 492.5,230.7 493.0,230.9 493.5,232.0 494.0,231.7 494.4,232.0 494.9,231.3
+495.4,230.2 495.9,232.3 496.4,232.0 496.9,234.2 497.4,235.1 497.9,237.5 498.4,238.8 498.8,237.2 499.3,236.3 499.8,237.6
+500.3,235.8 500.8,236.4 501.3,235.0 501.8,232.8 502.3,235.5 502.8,234.1 503.2,233.9 503.7,234.5 504.2,237.4 504.7,239.2
+505.2,240.2 505.7,240.5 506.2,242.3 506.7,240.7 507.2,238.8 507.7,240.2 508.1,244.0 508.6,243.3 509.1,246.3 509.6,244.1
+510.1,244.9 510.6,248.2 511.1,247.5 511.6,245.9 512.1,249.6 512.5,251.9 513.0,254.9 513.5,251.6 514.0,251.6 514.5,252.9
+515.0,253.3 515.5,253.5 516.0,256.3 516.5,255.2 516.9,254.9 517.4,254.3 517.9,254.0 518.4,253.4 518.9,252.6 519.4,253.1
+519.9,253.3 520.4,255.0 520.9,256.6 521.3,257.3 521.8,259.1 522.3,259.2 522.8,258.3 523.3,259.1 523.8,258.7 524.3,260.0
+524.8,260.3 525.3,260.8 525.8,261.1 526.2,260.9 526.7,260.8 527.2,261.1 527.7,260.9 528.2,260.4 528.7,259.7 529.2,259.9
+529.7,260.5 530.2,260.9 530.6,260.9 531.1,261.1 531.6,261.1 532.1,261.1 532.6,262.1 533.1,261.1 533.6,261.1 534.1,261.1
+534.6,260.8 535.0,259.9 535.5,258.6 536.0,258.1 536.5,258.2 537.0,259.4 537.5,259.1 538.0,257.1 538.5,258.3 539.0,256.3
+539.4,256.4 539.9,257.2 540.4,257.9 540.9,255.6 541.4,256.3 541.9,256.8 542.4,256.2 542.9,255.8 543.4,257.0 543.9,259.4
+544.3,261.1 544.8,259.1 545.3,256.9 545.8,254.2 546.3,254.4 546.8,256.5 547.3,256.8 547.8,259.1 548.3,257.4 548.7,258.6
+549.2,260.1 549.7,260.8 550.2,256.8 550.7,253.5 551.2,253.8 551.7,254.6 552.2,252.7 552.7,251.5 553.1,252.8 553.6,250.8
+554.1,248.9 554.6,249.8 555.1,251.4 555.6,251.3 556.1,250.0 556.6,248.2 557.1,248.1 557.5,247.4 558.0,248.0 558.5,248.7
+559.0,248.6 559.5,247.4 560.0,247.4 560.5,247.4 561.0,247.4 561.5,246.4 562.0,245.4 562.4,245.4 562.9,245.0 563.4,245.0
+563.9,244.0"/>
+<polygon class="cy-mark cy-mark--top" points="362.7432432432432,166.1915161291451 372.7432432432432,166.1915161291451 367.7432432432432,173.1915161291451"/><text class="cy-mark-l" x="367.7432432432432" y="151.1915161291451" text-anchor="middle">126&#8239;k&nbsp;$ · Okt 2025</text><text class="cy-mark-l is-sub" x="367.7432432432432" y="163.1915161291451" text-anchor="middle">verankert · vorläufig</text>
+<polygon class="cy-mark cy-mark--low" points="527.6,271.0659194397937 537.6,271.0659194397937 532.6,264.0659194397937"/><text class="cy-mark-l" x="532.6" y="283.0659194397937" text-anchor="middle">bisher 52&#8239;k&nbsp;$ · Sep 2026</text><text class="cy-mark-l is-sub" x="532.6" y="295.0659194397937" text-anchor="middle">Tief bisher, vorläufig</text>
+</g>
+</svg>
+<div class="cy-prose mock-new"><span class="cy-elided">unter dem Chart, ⓘ zu</span><span class="cy-prose__tag is-ok">21 Wörter · 1 Satz</span>
+<div class="detail-tab-hint">Rechenbasis: gespeicherte Tagesschlusskurse in USD, Fenster von Halving zu Halving, Bänder aus den Abständen und Faktoren der gespeicherten Zyklen: keine Prognose.<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info" data-place="below">
+<summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+<p role="tooltip">Bereich „Zyklus“: drei Monate vor dem letzten bestätigten Halving bis vier Monate nach dem Ende des späteren Bands; rechts von „heute“ nur das Halving-Fenster und die Bänder.<br>Lücken in den Schlusskursen werden übersprungen, nie gefüllt; der Schluss am Halving-Tag gehört zum neuen Fenster.<br>Top und Tief: Gipfel und Talsohle des größten Rückgangs im Fenster; ein offenes Top ist Anker ab 20&nbsp;% darunter, ein Tief erst, wenn das Fenster schließt.<br>Band: Zeit Min bis Max, Kurs vom letzten Faktor bis einen Log-Schritt weiter; Hülle der Teile, kein Mittelwert.</p>
+</details>
+</div>
+</div>
+<div class="cy-prose mock-new is-open"><span class="cy-elided">dieselbe Zeile, ⓘ offen: die Methode unter der Zeile</span><span class="cy-prose__tag is-ok">21 Wörter · 1 Satz</span>
+<div class="detail-tab-hint">Rechenbasis: gespeicherte Tagesschlusskurse in USD, Fenster von Halving zu Halving, Bänder aus den Abständen und Faktoren der gespeicherten Zyklen: keine Prognose.<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info" data-place="below" open>
+<summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+<p role="tooltip">Bereich „Zyklus“: drei Monate vor dem letzten bestätigten Halving bis vier Monate nach dem Ende des späteren Bands; rechts von „heute“ nur das Halving-Fenster und die Bänder.<br>Lücken in den Schlusskursen werden übersprungen, nie gefüllt; der Schluss am Halving-Tag gehört zum neuen Fenster.<br>Top und Tief: Gipfel und Talsohle des größten Rückgangs im Fenster; ein offenes Top ist Anker ab 20&nbsp;% darunter, ein Tief erst, wenn das Fenster schließt.<br>Band: Zeit Min bis Max, Kurs vom letzten Faktor bis einen Log-Schritt weiter; Hülle der Teile, kein Mittelwert.</p>
+</details>
+</div>
+</div>
+<div class="cy-prose mock-new"><span class="cy-elided">„Bänder und ihre Teile“, aufgeklappt</span><span class="cy-prose__tag is-ok">24 Wörter · 1 Satz</span>
+<div class="detail-tab-hint">Jedes Band: der Bereich, den Abstände und Faktoren der gespeicherten Zyklen von den aktuellen Ankern aus ergeben, mit n und beiden Enden: keine Prognose.<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info" data-place="below">
+<summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+<p role="tooltip">Nie ein einzelnes Datum oder ein einzelner Kurs, nichts angepasst, nichts gemittelt.</p>
+</details>
+</div>
+</div>
+<div class="cy-prose mock-new"><span class="cy-elided">unter „Ausgerichtet“</span><span class="cy-prose__tag is-ok">11 Wörter · 1 Satz</span>
+<div class="detail-tab-hint">x: Kalendertage seit dem Halving · y: Schlusskurs ÷ Schlusskurs am Halving-Tag, logarithmisch<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info" data-place="below">
+<summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+<p role="tooltip">Der Schlusskurs am Halving-Tag ist der letzte am oder vor diesem Tag; ein Fenster ohne einen solchen Schlusskurs fehlt.</p>
+</details>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -504,6 +504,14 @@ body { margin: 0; background: var(--color-bg); color: var(--color-text); font-fa
 .cy-edge__top { fill: var(--color-positive); } .cy-edge__low { fill: none; stroke: var(--color-danger); stroke-width: 1.5; }
 .cy-edge__label { fill: var(--color-text); paint-order: stroke; stroke: var(--color-bg); stroke-width: 3px; } .cy-edge__label.is-muted { fill: var(--color-text-muted); }
 .cy-edge__note { fill: var(--color-text-muted); font-family: var(--font-sans); font-size: 11px; }
+.cy-prose { margin: 0 0 14px; }
+.cy-prose__tag { display: block; margin: 0 0 3px; font: 600 11px var(--font-mono); color: var(--color-danger); }
+.cy-prose__tag.is-ok { color: var(--color-positive); }
+.cy-prose .detail-tab-hint { font-size: 12px; color: var(--color-text-muted); margin: 0; }
+.cy-prose .metric-tooltip--section { position: relative; bottom: auto; right: auto; margin-left: 4px; vertical-align: -3px; }
+.cy-prose .metric-tooltip--section summary { display: inline-flex; }
+.cy-prose .metric-tooltip--section p { right: auto; left: -24rem; }
+.cy-prose.is-open { padding-bottom: 150px; }
 .cy-bar .metric-tooltip--inline { position: relative; bottom: auto; right: auto; }
 .cy-bar .metric-tooltip p { width: 30rem; max-width: 80vw; }
 .cy-bar.is-phone .cy-bar__row { gap: 6px 8px; }
@@ -761,6 +769,38 @@ const f07i5a = writeFrame('07i5-vorher-teile', `<div class="cy-card">${before('0
 const f07i5b = writeFrame('07i5-nachher-teile', `<div class="cy-card mock-new" style="width:954px; box-sizing:border-box">${partsTable}<p class="cy-hint">„Woher“ bricht um, nur die Zahlen bleiben auf einer Zeile; ein fehlender Teil trägt keine Kennzeichen.</p></div>`, { width: 1000, css: '.cy-parts td { white-space: normal; } .cy-parts td.num { white-space: nowrap; }' });
 
 // ===========================================================================
+// 07j: Lane H's open prose on L5's rule (2026-11-13, the sprint PR's
+// integration): DESIGN.md I1, one visible sentence of at most 25 words,
+// the method behind the line's ⓘ at its end, opening under its line. The
+// words are counted as the walk counts them (test/browser/control_bar.js).
+
+const wordCount = (html) => html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+const proseTag = (html, sentences, ok) => `<span class="cy-prose__tag${ok ? ' is-ok' : ''}">${wordCount(html)} Wörter · ${sentences} ${sentences === 1 ? 'Satz' : 'Sätze'}${ok ? '' : ' · über der Regel'}</span>`;
+const proseBefore = (where, html, sentences) => `<div class="cy-prose"><span class="cy-elided">${where}</span>${proseTag(html, sentences, false)}<p class="detail-tab-hint">${html}</p></div>`;
+const sectionTip = (lines, open) => `<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info" data-place="below"${open ? ' open' : ''}><summary aria-label="Zu diesem Abschnitt">ⓘ</summary><p role="tooltip">${lines.join('<br>')}</p></details>`;
+const proseAfter = (where, html, lines, open = false) => `<div class="cy-prose mock-new${open ? ' is-open' : ''}"><span class="cy-elided">${where}</span>${proseTag(html, 1, true)}<div class="detail-tab-hint">${html}${sectionTip(lines, open)}</div></div>`;
+
+const oldBands = 'Keine Prognose: Jedes Band ist der Bereich, den die Abstände und Faktoren der gespeicherten Zyklen von den aktuellen Ankern aus ergeben, mit seinem n und beiden Enden; nie ein einzelnes Datum oder ein einzelner Kurs, nichts angepasst, nichts gemittelt.';
+// As built (the app's own German, and „Ausgerichtet“'s English line, the
+// one past the rule).
+const oldBasis = 'Rechenbasis: gespeicherte Tagesschlusskurse in USD, Lücken übersprungen, nie gefüllt · Fenster Halving bis Halving (der Schluss am Halving-Tag gehört zum neuen Fenster) · Top und Tief = Gipfel und Talsohle des größten Rückgangs im Fenster · ein offenes Top ist Anker ab 20&nbsp;% darunter, ein Tief erst, wenn das Fenster schließt · Band: Zeit Min bis Max, Kurs vom letzten Faktor bis einen Log-Schritt weiter; Hülle der Teile, kein Mittelwert, keine Prognose.';
+const oldAlignedEn = 'x: calendar days since the halving · y: close ÷ the last close on or before the halving day, on a log scale · a window without such a close is left out';
+const newBasis = 'Rechenbasis: gespeicherte Tagesschlusskurse in USD, Fenster von Halving zu Halving, Bänder aus den Abständen und Faktoren der gespeicherten Zyklen: keine Prognose.';
+const newBasisTip = [
+  zBasis.trim(),
+  'Lücken in den Schlusskursen werden übersprungen, nie gefüllt; der Schluss am Halving-Tag gehört zum neuen Fenster.',
+  'Top und Tief: Gipfel und Talsohle des größten Rückgangs im Fenster; ein offenes Top ist Anker ab 20&nbsp;% darunter, ein Tief erst, wenn das Fenster schließt.',
+  'Band: Zeit Min bis Max, Kurs vom letzten Faktor bis einen Log-Schritt weiter; Hülle der Teile, kein Mittelwert.',
+];
+const newBands = 'Jedes Band: der Bereich, den Abstände und Faktoren der gespeicherten Zyklen von den aktuellen Ankern aus ergeben, mit n und beiden Enden: keine Prognose.';
+const newBandsTip = ['Nie ein einzelnes Datum oder ein einzelner Kurs, nichts angepasst, nichts gemittelt.'];
+const newAligned = 'x: Kalendertage seit dem Halving · y: Schlusskurs ÷ Schlusskurs am Halving-Tag, logarithmisch';
+const newAlignedTip = ['Der Schlusskurs am Halving-Tag ist der letzte am oder vor diesem Tag; ein Fenster ohne einen solchen Schlusskurs fehlt.'];
+
+const f07j1a = writeFrame('07j1-vorher-prosa', `<div class="cy-card">${proseBefore('unter dem Chart, Bereich „Zyklus“', zBasis + oldBasis, 2)}${proseBefore('„Bänder und ihre Teile“, aufgeklappt', oldBands, 1)}${proseBefore('unter „Ausgerichtet“, englisch (deutsch 22 Wörter)', oldAlignedEn, 1)}<p class="cy-hint">Gebaut: drei offene Absätze, der Satz unter dem Chart mit Methode und Bereich in einem Absatz.</p></div>`);
+const f07j1b = writeFrame('07j1-nachher-prosa', `<div class="cy-card">${toolbar({ range: 'Zyklus' })}${chart(NOW, viewZ)}${proseAfter('unter dem Chart, ⓘ zu', newBasis, newBasisTip)}${proseAfter('dieselbe Zeile, ⓘ offen: die Methode unter der Zeile', newBasis, newBasisTip, true)}${proseAfter('„Bänder und ihre Teile“, aufgeklappt', newBands, newBandsTip)}${proseAfter('unter „Ausgerichtet“', newAligned, newAlignedTip)}</div>`);
+
+// ===========================================================================
 // The board
 
 const BOARD_CSS = `
@@ -830,6 +870,7 @@ const sections = [
   { title: '⑦ Parts that do not agree: parts_disjoint', recommended: true, note: `On today's series the two ways to the next low overlap (${range$(...L.agree)}). To draw <code>parts_disjoint</code>, this frame uses a <b>what-if variant</b>: every close from 01.06.2025 on scaled by 0.9, so the open window's top is about 113&#8239;k&nbsp;$. Top → Tief then ends below where Tief → Tief begins, <code>agree</code> is <code>null</code>, and the hull spans both and the gap. <b>A (recommended, Q7):</b> the hull as an outline with the two parts filled inside, so the gap reads as „no way leads here“. <b>B:</b> the hull filled like any band, with the reason in its label only; it looks like one confident range. Flip: „Uneinig nur als Hülle“.`, frames: [sized(f07f, '1200 px · Variante')] },
   { title: '⑧ The cycle bar at 390 px', recommended: true, note: 'The toolbar wraps as today; „Zyklus“ joins the range buttons. In the bar, each label starts its own line, the switches wrap, and the health line wraps under them with „Jetzt lesen“ at its end. Stale, refused (A) and by hand at the same width.', frames: [sized(f07h, '390 px · aktuell', true), sized(f07h2, '390 px · veraltet, abgelehnt, von Hand', true)] },
   { title: '⑨ After the build: the closing act’s five design findings, before and after', recommended: true, note: `Added on 2026-11-13 by the sprint PR's closing act on Lane H, before the fixes, from the design lens's crops of the built screen (synthetic review coins). <b>1 and 2:</b> the chart drew the bands with no sentence under it (only in the closed disclosure), and „Zyklus“ landed on the linear scale with the price axis below 0. After: under the chart the basis of ④ ending „keine Prognose“, on „Zyklus“ with ⑤'s range sentence; choosing „Zyklus“, or arriving with <code>cycles=1</code>, turns the logarithmic scale on, as ⑤ draws it; and a price axis' lower pad stops at 0 (a percent axis at −100&nbsp;%). <b>3:</b> a label near the right edge ends at it, a low clamped to the floor puts its label above its marker, and two labels in „Ausgerichtet“ that would cover each other step a line apart. <b>4:</b> a disabled „Jetzt lesen“ looks disabled, and the button sits right after its sentence. <b>5:</b> in „Bänder und ihre Teile“ only the figures keep to one line, so the table fits at 1200&nbsp;px, and a part that is absent carries no badge.`, frames: [sized(f07i1a, 'vorher · Zyklus'), sized(f07i1b, 'nachher · log, Satz darunter', true), sized(f07i3a, 'vorher · Beschriftung'), sized(f07i3b, 'nachher', true), sized(f07i4a, 'vorher · Jetzt lesen'), sized(f07i4b, 'nachher', true), sized(f07i5a, 'vorher · Bänder und ihre Teile'), sized(f07i5b, 'nachher · 954 px', true)] },
+  { title: '⑩ Lane H’s open prose on L5’s rule: one sentence, the method behind its ⓘ', recommended: true, note: `Added on 2026-11-13 by the sprint PR's integration, before the fix: L5's walk (DESIGN.md I1, one visible sentence of at most 25 words) did not reach Lane H's screens, because the review seed bound no coin to a chain. Measured with the walk's own count, the line under the chart reads 67 words in German (79 in English) and 94 in two sentences on „Zyklus“, the disclosure's sentence 39 and „Ausgerichtet“'s line 30 in English. <b>After:</b> under the chart one sentence of the basis — the stored closes in the security's currency, the windows, where the bands come from — ending „keine Prognose“; behind the ⓘ at its end, opening under its line (board 06 ⑬), the range's sentence on „Zyklus“, the gaps, how a top and a low are chosen and anchored, and the band's rule. The disclosure keeps one sentence ending „keine Prognose“, with „nie ein einzelnes Datum …“ behind its ⓘ; „Ausgerichtet“'s line keeps its two axes, the halving day's close and the left-out windows behind its ⓘ. The card on the Übersicht already holds one sentence (20 words) and stays.`, frames: [sized(f07j1a, 'vorher · drei Absätze über der Regel'), sized(f07j1b, 'nachher · ein Satz, die Methode im ⓘ', true)] },
 ];
 
 fs.writeFileSync(path.join(__dirname, '07-cycle-states.html'), bdHtml(sections, 'Sprint 29 · 07 Halving-Zyklen: die Zustände aus ADR-0059 und ADR-0060', intro));
