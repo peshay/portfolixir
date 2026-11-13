@@ -13892,8 +13892,8 @@ dialog.merge-dialog {
 /* --- S29 H7 begin: the halving cycles on the security chart (ADR-0060 §11,
    ADR-0059 §8; idea boards I12 01 to 03 as adopted, board 07) --- */
 /* The cycle bar under the chart's toolbar: „Zyklen“ with its two modes,
-   „Strecken“ with the three line switches, the chain source's health line
-   on its own line under them. */
+   „Strecken“ with the three line switches (a control bar), the chain
+   source's health line on its own line under them. */
 .cycle-bar {
   display: flex;
   flex-wrap: wrap;
@@ -13905,16 +13905,12 @@ dialog.merge-dialog {
   border-radius: var(--radius-md);
   background: var(--color-bg-elevated);
 }
-.cycle-bar__group {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-.cycle-bar__label {
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
-  font-weight: 600;
+/* The labelled controls are the shared control bar (issue 1435), on the
+   cycle bar's first line, as wide as the cycle bar; at 560 px and under
+   its labels stand above their controls (board 07 ⑧, `floor` 560). */
+.cycle-bar__controls {
+  flex: 1 0 100%;
+  min-width: 0;
 }
 .cycle-bar__switches {
   display: inline-flex;
@@ -13953,14 +13949,6 @@ dialog.merge-dialog {
 .cycle-health--stale .cycle-health__text,
 .cycle-health--refused .cycle-health__text {
   color: var(--color-text);
-}
-/* Board 07 ⑧: at 390 px each label starts its own line, its controls under
-   it, and the switches wrap. */
-@media (max-width: 560px) {
-  .cycle-bar__group {
-    flex-direction: column;
-    align-items: flex-start;
-  }
 }
 
 /* The time axis: halvings as vertical lines in the warning hue (the next

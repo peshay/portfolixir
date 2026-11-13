@@ -48,6 +48,7 @@ defmodule PortfolixirWeb.Components.CycleChart do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias Portfolixir.Clock
+  alias PortfolixirWeb.ControlBar
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.PrivacyMode
 
@@ -93,38 +94,41 @@ defmodule PortfolixirWeb.Components.CycleChart do
   def bar(assigns) do
     ~H"""
     <div class="cycle-bar" data-role="cycle-bar" role="group" aria-label={gettext("Cycles")}>
-      <div class="cycle-bar__group">
-        <span class="cycle-bar__label" id="cycle-mode-label"><%= gettext("Cycles") %></span>
-        <div class="segmented-control" role="group" aria-labelledby="cycle-mode-label">
-          <button
-            :for={{mode, label} <- [{"timeline", pgettext("halving cycles", "Timeline")}, {"aligned", pgettext("halving cycles", "Aligned")}]}
-            type="button"
-            id={"cycle-mode-#{mode}"}
-            phx-click="set_detail_cycles_mode"
-            phx-value-mode={mode}
-            class={["segmented-control__option", @mode == mode && "is-active"]}
-            aria-pressed={to_string(@mode == mode)}
-          >
-            <%= label %>
-          </button>
-        </div>
-      </div>
-      <div :if={@mode == "timeline"} class="cycle-bar__group">
-        <span class="cycle-bar__label" id="cycle-lines-label"><%= gettext("Segments") %></span>
-        <div class="cycle-bar__switches" role="group" aria-labelledby="cycle-lines-label">
-          <button
-            :for={line <- lines()}
-            type="button"
-            id={"cycle-line-#{line}"}
-            phx-click="toggle_detail_cycle_line"
-            phx-value-line={line}
-            class={["chart-toggle", @lines[line] && "is-active"]}
-            aria-pressed={to_string(@lines[line] == true)}
-          >
-            <%= line_label(line) %>
-          </button>
-        </div>
-      </div>
+      <%!-- Issue 1435 (integration): the labelled controls on the shared
+      bar; at 560 px and under every label stands above its controls
+      (board 07 ⑧). --%>
+      <ControlBar.bar floor={560} class="cycle-bar__controls">
+        <:group label={gettext("Cycles")} label_id="cycle-mode-label">
+          <div class="segmented-control" role="group" aria-labelledby="cycle-mode-label">
+            <button
+              :for={{mode, label} <- [{"timeline", pgettext("halving cycles", "Timeline")}, {"aligned", pgettext("halving cycles", "Aligned")}]}
+              type="button"
+              id={"cycle-mode-#{mode}"}
+              phx-click="set_detail_cycles_mode"
+              phx-value-mode={mode}
+              class={["segmented-control__option", @mode == mode && "is-active"]}
+              aria-pressed={to_string(@mode == mode)}
+            >
+              <%= label %>
+            </button>
+          </div>
+        </:group>
+        <:group :if={@mode == "timeline"} label={gettext("Segments")} label_id="cycle-lines-label">
+          <div class="cycle-bar__switches" role="group" aria-labelledby="cycle-lines-label">
+            <button
+              :for={line <- lines()}
+              type="button"
+              id={"cycle-line-#{line}"}
+              phx-click="toggle_detail_cycle_line"
+              phx-value-line={line}
+              class={["chart-toggle", @lines[line] && "is-active"]}
+              aria-pressed={to_string(@lines[line] == true)}
+            >
+              <%= line_label(line) %>
+            </button>
+          </div>
+        </:group>
+      </ControlBar.bar>
       <div class="cycle-bar__health">
         <.health
           source={@payload.chain_source}
