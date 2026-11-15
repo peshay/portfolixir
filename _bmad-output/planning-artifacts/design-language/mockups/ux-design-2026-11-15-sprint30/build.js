@@ -6,6 +6,9 @@
 //      line whose fix changes the picture;
 //   03 the app ships Inter (#1221): three surfaces in DejaVu Sans, what a
 //      device without Inter draws today, and in the shipped variable font.
+//   04 „Tops und Flops“ per period (idea I32, FR-59, ADR-0061): the card on
+//      the Overview (A) or a block on Vermögen › Performance (B), from
+//      capture-d.js's fragments.
 //
 // Every "today" frame is the review instance's own markup, captured by
 // capture.js on the synthetic review seed (captured/*.html); every "after"
@@ -18,7 +21,8 @@
 //
 // Usage:
 //   node capture.js   # optional: re-captures (review instance on :4013)
-//   node build.js     # writes frames/* and the three boards
+//   node capture-d.js # optional: board 04's fragments (same instance)
+//   node build.js     # writes frames/* and the four boards
 //   node render.js    # measures the frames, rebuilds, renders the PNGs
 const fs = require('fs');
 const path = require('path');
@@ -548,4 +552,219 @@ board('03-shipped-font.html', 'Sprint 30 · #1221 — die App liefert Inter', 20
   { title: '③ Transaktionen bei 390 px, der Filter geöffnet', recommended: true, note: `Die Historie am Telefon, wo die Chips der Leiste im Filterblatt stehen (Konto, Typ, Geändert seit); das Blatt geöffnet und im Fluss der Seite gezeichnet statt am Fuß des Fensters, die Liste nach vier Zeilen ausgelassen. Höhe DejaVu Sans ${fp(B3.txD, 'height')} px, Inter ${fp(B3.txI, 'height')} px.`, frames: [B3.txD, B3.txI] },
 ]);
 
-console.log('wrote frames and boards 01 to 03');
+// ===========================================================================
+// Board 04 — idea I32, „Tops und Flops“ per period (FR-59, ADR-0061)
+
+const B4 = {};
+const OVERVIEW = cap('d-overview-1200.html');
+const OVERVIEW_PRIVACY = cap('d-overview-privacy-1200.html');
+const PERF = cap('d-perf-1200.html');
+const D_MEASURES = json(path.join(DIR, 'captured', 'd-measures.json'), {});
+
+// The Overview's fragment in its parts: the wrappers and the load-error
+// region, one entry per top-level section, the closing tags.
+function overviewParts(html) {
+  const first = html.indexOf('<section');
+  const last = html.lastIndexOf('</section>') + '</section>'.length;
+  const sections = html.slice(first, last).split(/(?=<section\b)/).map((s) => s.trim()).filter(Boolean)
+    .map((s) => ({ id: (s.match(/^<section[^>]*\bid="([^"]+)"/) || [0, (s.match(/class="([^"]+)"/) || [0, ''])[1]])[1], html: s }));
+  return { prefix: html.slice(0, first), sections, suffix: html.slice(last) };
+}
+// The Overview with the card after the KPI strip; `keep` limits the
+// sections drawn (the rest named in a crop line).
+function overviewWith(html, card, { keep = null, crop = '' } = {}) {
+  const o = overviewParts(html);
+  const out = [];
+  for (const s of o.sections) {
+    if (!keep || keep.includes(s.id)) out.push(s.html);
+    if (s.id === 'dashboard-kpi-strip' && card) out.push(card);
+  }
+  if (crop) out.push(`<p class="mock-crop">${crop}</p>`);
+  return o.prefix + out.join('\n') + o.suffix;
+}
+const cardOnly = (html, card) => { const o = overviewParts(html); return o.prefix + card + o.suffix; };
+
+// The figures. YTD is the seed's own: the Kursrendite from its stored
+// closes (the last on or before 31.12.2025 and the latest, all twelve in
+// EUR; psql on the review database), the Beitrag the contribution table's
+// rows for YTD as captured (d-measures.json), every one of the 41 opened.
+const CLOSES = [
+  [3, 'Allianz SE vinkulierte Namens-Aktien o.N.', 95.12, 116.86],
+  [1, 'Apple Inc. Registered Shares o.N.', 161.18, 188.87],
+  [2, 'Microsoft Corporation Registered Shares DL-,00000625', 200.79, 234.52],
+  [7, 'NVIDIA Corporation Registered Shares DL-,001', 207.64, 240.11],
+  [6, 'Bitcoin', 46233.79, 51393.52],
+  [47, 'Larkspur Rail AG 4,00 % Anleihe 2031', 99.0, 100.25],
+  [42, 'Birkenhain Wasser Anleihe 2029 1,50%', 0.982, 0.985],
+  [43, 'Ostsee Logistik 4,10% 2028/2033', 98.8, 99.1],
+  [41, 'Kestrel Anleihe 2030 2,75%', 97.1, 97.25],
+  [5, 'Vanguard FTSE All-World UCITS ETF USD Acc', 87.12, 87.21],
+  [8, 'Nordic Timber Holdings AB', 42.93, 42.64, 'letzter Kurs 11.10.2026'],
+  [4, 'iShares Core MSCI World UCITS ETF USD (Acc)', 75.0, 72.02]
+];
+const pct = (r) => (r > 0 ? '+' : r < 0 ? '−' : '') + nf1.format(Math.abs(r)) + '%';
+const ytdReturns = CLOSES.map(([id, name, a, b, sub]) => ({ id, name, r: (b / a - 1) * 100, sub })).sort((x, y) => y.r - x.r);
+const nf2 = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const amount = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + nf2.format(Math.abs(v));
+const contribRows = (D_MEASURES.contribution || []).map((r) => ({ id: r.id, name: r.name, v: deNum(r.figure.replace(/^\+/, '')), sold: r.note === 'am Ende nicht mehr im Bestand' || r.note === 'weder zu Beginn noch am Ende im Bestand', mark: r.unvalued }));
+const contribNonZero = contribRows.filter((r) => Math.round(r.v * 100) !== 0).sort((x, y) => y.v - x.v);
+const contribZero = contribRows.length - contribNonZero.length;
+
+// Five highest over five lowest; under ten, the list splits (the larger
+// half on top), so no name stands in both halves. The lowest half reads
+// from the lowest up.
+function halves(rows, key) {
+  const sorted = [...rows].sort((x, y) => y[key] - x[key]);
+  const n = Math.min(5, Math.ceil(sorted.length / 2));
+  const m = Math.min(5, sorted.length - n);
+  return { top: sorted.slice(0, n), bottom: sorted.slice(sorted.length - m).reverse() };
+}
+
+const MASK = '<span class=pf-mask role=img aria-label=verborgen></span>';
+const signClass = (v) => (v > 0 ? 'is-positive' : v < 0 ? 'is-negative' : '');
+function returnRow(r) {
+  return `<li><a href="/securities/${r.id}" class="attention-item" data-role="movers-row"><span class="attention-name">${esc(r.name)}${r.sub ? `<small class="attention-item__sub">${r.sub}</small>` : ''}</span><span class="num ${signClass(r.r)}">${pct(r.r)}</span></a></li>`;
+}
+function contribRow(r, largest, privacy) {
+  const w = (Math.abs(r.v) / largest * 45).toFixed(1);
+  const fig = privacy ? MASK : `${amount(r.v)} EUR`;
+  return `<li><a href="/securities/${r.id}" class="attention-item" data-role="movers-row"><span class="attention-name">${esc(r.name)}${r.sold ? ' <span class="badge badge--neutral" data-role="movers-sold">verkauft</span>' : ''}${r.mark ? `<span class="contribution-unvalued-mark">${r.mark}</span>` : ''}${r.sub ? `<small class="attention-item__sub">${r.sub}</small>` : ''}</span><span class="num movers__figure"><span class="${signClass(r.v)}">${fig}</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill ${r.v < 0 ? 'is-under' : 'is-over'}" style="width: ${w}%"></span></span></span></a></li>`;
+}
+const PERIODS = [['day', 'Tag'], ['week', 'Woche'], ['month', 'Monat'], ['quarter', 'Quartal'], ['ytd', 'YTD'], ['1y', '1J']];
+function controlBar(active, list = null) {
+  const seg = (items, cur, param, id) => `<div class="segmented-control" data-role="movers-${param}" role="group" aria-labelledby="${id}">${items.map(([k, l]) => `<a href="/?movers_${param}=${k}" class="segmented-control__option${k === cur ? ' is-active' : ''}"${k === cur ? ' aria-current="true"' : ''}>${l}</a>`).join('')}</div>`;
+  const listGroup = list ? `<span class="control-bar__group"><span class="control-bar__label" id="movers-list-label">Liste</span>${seg([['return', 'Kursrendite'], ['contribution', 'Beitrag']], list, 'list', 'movers-list-label')}</span>` : '';
+  return `<div class="control-bar control-bar--fold-560 control-bar--floor-380" data-role="movers-bar"><div class="control-bar__controls"><span class="control-bar__group"><span class="control-bar__label" id="movers-period-label">Zeitraum</span>${seg(PERIODS, active, 'period', 'movers-period-label')}</span>${listGroup}</div></div>`;
+}
+const INFO_LINES = [
+  'Kursrendite: letzter gespeicherter Schlusskurs im Zeitraum ÷ Schlusskurs vor dem Zeitraum − 1, beide in EUR zum gespeicherten Wechselkurs ihres Tages; Erträge und Kosten zählen nicht.',
+  'Beitrag: Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten je Position, wie „Beitrag je Position“ in Vermögen; eine im Zeitraum verkaufte Position zählt mit.',
+  'Je fünf höchste und niedrigste; unter zehn teilt sich die Liste, kein Name steht in beiden Hälften. Ein Beitrag, der 0,00 liest, steht in keiner Hälfte.',
+  'Ohne Schlusskurs vor dem Zeitraum, ohne Kurs darin oder ohne Wechselkurs: keine Kursrendite. Ein Tag ohne Kurs zählt beim Beitrag null, wie in Vermögen.',
+  'Tag: seit dem vorigen Schlusskurs jedes Wertpapiers; die beiden Daten stehen an der Zeile.'
+];
+// The card. `layout`: 'cols' (two columns, stacked by the card's own
+// container query under 640 px: A1 at 390 px) or a list key for A2.
+function moversCard(o) {
+  const info = `<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info"${o.infoOpen ? ' open data-place="below"' : ''}><summary aria-label="Über diesen Abschnitt">ⓘ</summary><p role="tooltip">${INFO_LINES.join('<br>')}</p></details>`;
+  const head = `<div class="section-head"><div class="section-title"><h2 id="movers-title">Tops und Flops</h2>${info}</div><a class="kpi-summary__link" href="${o.href}" data-role="movers-wealth-link">In Vermögen ansehen →</a></div>`;
+  const bar = controlBar(o.period, o.layout === 'cols' ? null : o.layout);
+  const basis = `<p class="summary-basis" data-role="movers-basis">${o.basis}</p>`;
+  if (o.empty) return `<section id="dashboard-movers" class="workspace-section movers mock-new" aria-labelledby="movers-title">${head}${bar}<p class="empty-state" data-role="movers-empty">Keine Bestände in dieser Ansicht.</p></section>`;
+  const rs = halves(o.returns, 'r');
+  const cs = halves(o.contrib, 'v');
+  const largest = Math.max(...[...cs.top, ...cs.bottom].map((r) => Math.abs(r.v)));
+  const half = (label, rows, fn) => rows.length ? `<h4 class="movers__half">${label}</h4><ul class="attention-list">${rows.map(fn).join('')}</ul>` : '';
+  const retCol = `<div class="movers__col" data-role="movers-return">${o.layout === 'cols' ? '<h3>Kursrendite</h3>' : ''}${half('Höchste', rs.top, returnRow)}${half('Niedrigste', rs.bottom, returnRow)}${o.returnCount ? `<p class="movers__count">${o.returnCount}</p>` : ''}</div>`;
+  const conCol = `<div class="movers__col" data-role="movers-contribution">${o.layout === 'cols' ? '<h3>Beitrag</h3>' : ''}${half('Höchste', cs.top, (r) => contribRow(r, largest, o.privacy))}${half('Niedrigste', cs.bottom, (r) => contribRow(r, largest, o.privacy))}${o.contribCount ? `<p class="movers__count">${o.contribCount}</p>` : ''}</div>`;
+  const cols = o.layout === 'cols' ? retCol + conCol : o.layout === 'return' ? retCol : conCol;
+  return `<section id="dashboard-movers" class="workspace-section movers mock-new" aria-labelledby="movers-title">${head}${bar}${basis}<div class="movers__grid${o.layout === 'cols' ? '' : ' movers__grid--one'}">${cols}</div></section>`;
+}
+const MOVERS_CSS = `
+/* I32: the card „Tops und Flops“ on the Overview. Its parts are the page's
+   own: .section-head with the I1 ⓘ and the „→“ link of the trades card,
+   the shared control bar, .attention-list rows, the contribution table's
+   bar under its figure (contribution_table.ex) and the „ohne Bestand“
+   badge's neutral look for „verkauft“. New are only the grid and the two
+   small labels. */
+.movers { container: movers / inline-size; }
+.movers .section-head { margin-bottom: 0; }
+.movers > .summary-basis { margin: 0; font-size: 12px; color: var(--color-text-muted); }
+.movers__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5, 20px) 48px; align-items: start; }
+.movers__grid--one { grid-template-columns: minmax(0, 1fr); }
+@container movers (max-width: 640px) { .movers__grid { grid-template-columns: minmax(0, 1fr); } }
+.movers__col h3 { margin: 0; padding-bottom: 6px; font-size: 15px; border-bottom: 1px solid var(--color-border); }
+.movers__half { margin: 12px 0 6px; font-size: 11px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-text-muted); }
+.movers__col > .movers__half:first-child { margin-top: 0; }
+.movers__count { margin: 12px 0 0; font-size: 12px; color: var(--color-text-muted); }
+.movers .attention-item .num { text-align: right; }
+.movers .attention-name .badge { margin-left: 6px; vertical-align: 1px; }
+.movers__figure .drift-bar { display: block; flex: none; width: 110px; min-width: 110px; margin: 5px 0 0 auto; }
+`;
+
+const YTD = {
+  period: 'ytd', layout: 'cols', href: '/portfolio?from=2026-01-01&amp;to=2026-11-15',
+  basis: 'Ansicht Alles · YTD: Schlusskurs 31.12.2025 bis 15.11.2026 · in EUR, aus gespeicherten Schlusskursen und Buchungen',
+  returns: ytdReturns, contrib: contribNonZero,
+  returnCount: '23 ohne Kursrendite: 17 ohne Kurs, 4 erst im Zeitraum bepreist, 2 ohne Wechselkurs',
+  contribCount: `${contribZero} Positionen ohne Beitrag im Zeitraum`
+};
+const yRet = halves(ytdReturns, 'r'), yCon = halves(contribNonZero, 'v');
+
+// ① today, ② A at 1200 px, the ⓘ open, ④ the privacy mode.
+B4.today = tagged(writeFrame('04a-uebersicht-heute', OVERVIEW, {}), 'Heute · Übersicht bei 1200 px, Ansicht Alles: keine Karte');
+B4.a = tagged(writeFrame('04b-a-karte', overviewWith(OVERVIEW, moversCard(YTD)), { css: MOVERS_CSS }), 'A · „Tops und Flops“ unter dem KPI-Streifen, YTD, die Zahlen des Seeds');
+B4.info = tagged(writeFrame('04c-a-info-offen', cardOnly(OVERVIEW, moversCard({ ...YTD, infoOpen: true })), { css: MOVERS_CSS }), 'A · dieselbe Karte, das ⓘ geöffnet: die Methode');
+B4.privacy = tagged(writeFrame('04d-a-privat', cardOnly(OVERVIEW_PRIVACY, moversCard({ ...YTD, privacy: true })), { css: MOVERS_CSS, privacy: true }), 'A · Privatsphäre-Modus: Kursrendite bleibt, Beitrag behält Reihenfolge und Balken, der Betrag ist der Balken der App');
+
+// ③ 390 px: A1 stacked (recommended), A2 the switch in both states.
+const KEEP_390 = ['dashboard-kpi-strip'];
+const CROP_390 = 'Darunter wie heute: Abgeschlossene Trades, Ziel-Abweichungen, Fällig, Ferncoin-Zyklus, Datenqualität.';
+B4.a1 = tagged(writeFrame('04e-a1-390-gestapelt', overviewWith(OVERVIEW, moversCard(YTD), { keep: KEEP_390, crop: CROP_390 }), { width: 390, css: MOVERS_CSS }), 'A1 · 390 px, gestapelt: Kursrendite, darunter Beitrag');
+B4.a2r = tagged(writeFrame('04f-a2-390-kursrendite', overviewWith(OVERVIEW, moversCard({ ...YTD, layout: 'return' }), { keep: KEEP_390, crop: CROP_390 }), { width: 390, css: MOVERS_CSS }), 'A2 · 390 px, Schalter auf „Kursrendite“');
+B4.a2c = tagged(writeFrame('04g-a2-390-beitrag', overviewWith(OVERVIEW, moversCard({ ...YTD, layout: 'contribution' }), { keep: KEEP_390, crop: CROP_390 }), { width: 390, css: MOVERS_CSS }), 'A2 · 390 px, Schalter auf „Beitrag“');
+
+// ⑤ States, invented figures: „Tag“ on Sunday 15.11.2026; six securities
+// in a view; a view without holdings.
+const STOCK = 'Do 12.11. → Fr 13.11.', COIN = 'Sa 14.11. → So 15.11.';
+const DAY = [
+  [6, 'Bitcoin', 2.4, 61.68, COIN], [7, 'NVIDIA Corporation Registered Shares DL-,001', 1.8, 43.31, STOCK], [1, 'Apple Inc. Registered Shares o.N.', 0.9, 84.99, STOCK],
+  [3, 'Allianz SE vinkulierte Namens-Aktien o.N.', 0.6, 42.07, STOCK], [2, 'Microsoft Corporation Registered Shares DL-,00000625', 0.4, 9.38, STOCK],
+  [4, 'iShares Core MSCI World UCITS ETF USD (Acc)', -1.1, -95.07, STOCK], [5, 'Vanguard FTSE All-World UCITS ETF USD Acc', -0.7, -25.23, STOCK],
+  [47, 'Larkspur Rail AG 4,00 % Anleihe 2031', -0.2, -20.05, STOCK], [41, 'Kestrel Anleihe 2030 2,75%', -0.1, -5.0, STOCK], [42, 'Birkenhain Wasser Anleihe 2029 1,50%', 0.1, 0.01, STOCK]
+];
+B4.day = tagged(writeFrame('04h-zustand-tag-wochenende', cardOnly(OVERVIEW, moversCard({
+  period: 'day', layout: 'cols', href: '/portfolio?from=2026-11-12&amp;to=2026-11-15',
+  basis: 'Ansicht Alles · Tag: seit dem vorigen Schlusskurs jedes Wertpapiers, die Daten an der Zeile · in EUR',
+  returns: DAY.map(([id, name, r, , sub]) => ({ id, name, r, sub })), contrib: DAY.map(([id, name, , v, sub]) => ({ id, name, v, sub })),
+  returnCount: '25 ohne Kursrendite: 17 ohne Kurs, 6 ohne zwei Schlusskurse, 2 ohne Wechselkurs', contribCount: '25 Positionen ohne Beitrag an ihrem Tag'
+})), { css: MOVERS_CSS }), 'Zustand · „Tag“ am Sonntag, 15.11.2026: Aktie Fr gegen Do, Krypto So gegen Sa · Zahlen erfunden');
+const SIX = [
+  [11, 'Kestrel Industrial Group NV', 6.3, 312.0], [46, 'Wexmoor Instruments AG', 3.1, 96.5], [50, 'Tamarisk Systems Inc.', 1.2, 18.6],
+  [12, 'Alpine Test Werke AG', -0.4, -8.9], [35, 'Brightwater Utilities plc', -1.9, -61.8], [37, 'Sable Point Energy ASA', -4.8, -233.4]
+];
+B4.six = tagged(writeFrame('04i-zustand-sechs', cardOnly(OVERVIEW, moversCard({
+  period: 'month', layout: 'cols', href: '/portfolio?view=nur-neuzugang&amp;from=2026-11-01&amp;to=2026-11-15',
+  basis: 'Ansicht Nur Neuzugang · Monat: Schlusskurs 31.10.2026 bis 15.11.2026 · in EUR, aus gespeicherten Schlusskursen und Buchungen',
+  returns: SIX.map(([id, name, r]) => ({ id, name, r })),
+  contrib: [...SIX.map(([id, name, , v]) => ({ id, name, v })), { id: 38, name: 'Linden Bay Bond 2029', v: 41.2, sold: true }]
+})), { css: MOVERS_CSS }), 'Zustand · sechs Wertpapiere: je Hälfte drei; sieben Positionen mit einer verkauften: vier über drei · Zahlen erfunden');
+B4.empty = tagged(writeFrame('04j-zustand-leer', cardOnly(OVERVIEW, moversCard({ period: 'ytd', layout: 'cols', href: '/portfolio?from=2026-01-01&amp;to=2026-11-15', empty: true })), { css: MOVERS_CSS }), 'Zustand · eine Ansicht ohne Bestände');
+
+// ⑥ B, not recommended: the same rankings on Vermögen › Performance, under
+// „Beitrag je Position“, following that page's period (YTD/1J/3J/5J/Max).
+const perfB = (() => {
+  let s = PERF.replace(/(<figure id="performance-figure"[\s\S]*?<\/figure>)/, '<p class="mock-crop">Der Performance-Chart wie heute (Gesamt, TTWROR, YTD).</p>');
+  s = s.replace(/<div class="control-bar[^"]*" data-role="stack-bar">[\s\S]*?<\/span>\s*<\/div>\s*<\/div>/, '');
+  s = s.replace(/<form method="get" action="\/portfolio" class="period-disclosure__body benchmark-form"[\s\S]*?<\/form>/, '');
+  const rs = halves(ytdReturns, 'r'), cs = halves(contribNonZero, 'v');
+  const largest = Math.max(...[...cs.top, ...cs.bottom].map((r) => Math.abs(r.v)));
+  const half = (label, rows, fn) => `<h4 class="movers__half">${label}</h4><ul class="attention-list">${rows.map(fn).join('')}</ul>`;
+  const block = `<div id="performance-movers" class="contribution movers mock-new" data-role="movers"><div class="contribution__head"><div class="section-title"><h3 id="movers-title">Tops und Flops</h3><details class="metric-tooltip metric-tooltip--inline metric-tooltip--section"><summary aria-label="Über diesen Abschnitt">ⓘ</summary><p role="tooltip">${INFO_LINES.slice(0, 4).join('<br>')}</p></details></div><span class="contribution__scope">YTD · Ansicht Alles</span></div><div class="movers__grid"><div class="movers__col"><h3>Kursrendite</h3>${half('Höchste', rs.top, returnRow)}${half('Niedrigste', rs.bottom, returnRow)}<p class="movers__count">${YTD.returnCount}</p></div><div class="movers__col"><h3>Beitrag</h3>${half('Höchste', cs.top, (r) => contribRow(r, largest))}${half('Niedrigste', cs.bottom, (r) => contribRow(r, largest))}<p class="movers__count">${YTD.contribCount}</p></div></div></div>`;
+  return swap(s, /<\/section>(\s*<\/div><\/main>)/, `${block}</section>$1`);
+})();
+const B_CSS = MOVERS_CSS + '#performance-movers { display: grid; gap: var(--space-3); margin-top: var(--space-5, 20px); }';
+B4.b = tagged(writeFrame('04k-b-vermoegen', perfB, { css: B_CSS }), 'B · Vermögen › Performance, YTD: unter „Beitrag je Position“, dem Zeitraum der Seite folgend');
+
+const yList = (rows, f) => rows.map(f).join(', ');
+const TOPS_LEAD = `<p><strong>Entschieden</strong> (Idee I32, FR-59, ADR-0061 in Arbeit): für den Umfang der Übersicht (die Standard-Ansicht, sonst „Alles“) je Kalenderfenster zwei Ranglisten nebeneinander: <b>Kursrendite</b> (jedes heute im Umfang gehaltene Wertpapier, seine Kursrendite in EUR über das Fenster aus gespeicherten Schlusskursen) und <b>Beitrag</b> (der Geldbeitrag jeder Position in EUR über dasselbe Fenster, ADR-0051, mit den im Fenster verkauften Positionen, markiert „verkauft“). Fenster <b>Tag · Woche · Monat · Quartal · YTD · 1J</b>, jeweils bis heute; „Tag“ ist seit dem vorigen Schlusskurs jedes Wertpapiers, die Daten stehen dabei. Je fünf Höchste und Niedrigste je Rangliste. Keine Urteilswörter. Ein sichtbarer Basissatz, die Methode hinter dem ⓘ (DESIGN.md, I1). Jeder Name führt zum Wertpapier; „In Vermögen ansehen →“ öffnet Vermögen mit dem Fenster als benutzerdefiniertem Zeitraum.</p>
+<p><strong>Das Board schlägt vor</strong>, und jede Zeile ist per Kommentar umkehrbar:</p>
+<ul>
+<li><b>A, die Karte auf der Übersicht, direkt unter dem KPI-Streifen</b> und vor „Abgeschlossene Trades“. Die Übersicht ist eine Spalte von Abschnitten; Wert-Karte und Streifen nennen die Rendite des Umfangs (+6,2% seit Jahresbeginn, TTWROR 1J), die Karte sagt gleich darunter, welche Namen sie bewegt haben, im selben Umfang. „Abgeschlossene Trades“ zählt dagegen über alle Depots, unabhängig von der Ansicht, und „Ziel-Abweichungen“, „Fällig“ und „Datenqualität“ beantworten „braucht etwas mich?“; zwischen ihnen stünde die Karte im falschen Gespräch.</li>
+<li><b>Der Zeitraum in der geteilten Leiste</b> (<code>ControlBar.bar/1</code>, „Labelled controls start on one edge“): eine Gruppe „Zeitraum“, bei 1200 px eine Zeile, am Telefon das Label darüber (Boden 380). Der Link rechts im Kopf wie „Alle Trades →“.</li>
+<li><b>Die Zeilen sind die der Übersicht</b> (<code>.attention-item</code>): Name links, Zahl rechts; Kursrendite als Prozent mit einer Nachkommastelle und Vorzeichen, Beitrag als Betrag in EUR mit dem Balken der Beitragstabelle darunter (<code>.drift-bar</code>, 110 px, das größte gelistete füllt 45 %). „verkauft“ als <code>badge--neutral</code> wie „ohne Bestand“ unter „Fällig“; eine Position, die an Tagen null zählte, trägt die Markierung der Beitragstabelle („171 Tage mit 0 bewertet“). Keine Rangnummern: die Beitrags-Lesung trägt keine.</li>
+<li><b>Unter jeder Liste die Zahl ohne Antwort</b>: bei der Kursrendite nach Grund („17 ohne Kurs, 4 erst im Zeitraum bepreist, 2 ohne Wechselkurs“), beim Beitrag die Positionen, deren Beitrag 0,00 liest; ein Beitrag 0,00 steht in keiner Hälfte, sonst füllen ungepreiste Fonds die Niedrigsten.</li>
+<li><b>Am Telefon A1, gestapelt</b>: Kursrendite, darunter Beitrag; der Balken fällt dort wie in der Beitragstabelle weg (<code>.drift-bar</code> unter 560 px).</li>
+</ul>
+<p><strong>Die Zahlen:</strong> ② bis ④ und ⑥ sind die des Seeds, YTD bis 15.11.2026. Kursrendite aus den gespeicherten Schlusskursen der zwölf Wertpapiere, die einen am 31.12.2025 und einen danach haben (Höchste ${yList(yRet.top, (r) => `${r.name.split(' ')[0]} ${pct(r.r)}`)}; Niedrigste ${yList(yRet.bottom, (r) => `${r.name.split(' ')[0]} ${pct(r.r)}`)}); Beitrag aus der Tabelle „Beitrag je Position“ für YTD, alle ${contribRows.length} Zeilen (${contribNonZero.length} mit Beitrag, ${contribZero} mit 0,00). ⑤'s Tag- und Monatszahlen sind erfunden und so markiert.</p>
+<p><strong>Umkehrbar per Kommentar:</strong> „Tops/Flops auf Vermögen“ (B), „Tops/Flops umschaltbar am Handy“ (A2), „Tops/Flops nur Kursrendite“, „Tops/Flops nur Beitrag“.</p>`;
+
+board('04-tops-flops.html', 'Sprint 30 · I32 — Tops und Flops je Zeitraum', 2010, TOPS_LEAD, [
+  { title: '① Heute und ② A: die Karte auf der Übersicht, 1200 px', recommended: true, note: 'Links die Übersicht, wie die Review-Instanz sie heute zeigt (Ansicht Alles). Rechts dieselbe Seite mit der Karte unter dem KPI-Streifen: Kopf mit ⓘ und „In Vermögen ansehen →“, die Leiste „Zeitraum“, der Basissatz, zwei Spalten „Kursrendite“ | „Beitrag“, je „Höchste“ (5) über „Niedrigste“ (5). Wrenfield Gardens AG und Tamarisk Mining Ltd wurden im Jahr verkauft und stehen nur beim Beitrag; Larkspur Robotics Inc hat keinen Wechselkurs und daher keine Kursrendite, beim Beitrag steht es mit seinen 171 Tagen zu null. Nordic Timber trägt das Datum seines letzten Kurses, weil es vor dem Fensterende liegt.', frames: [B4.today, B4.a] },
+  { title: '② A mit offenem ⓘ und ④ A im Privatsphäre-Modus', recommended: true, note: 'Das ⓘ hält die Methode (I1): die zwei Formeln, die Teilung unter zehn, was keine Antwort hat, und was „Tag“ heißt; sichtbar bleibt der eine Basissatz. Im Privatsphäre-Modus folgt die Karte der Regel der App (PrivacyMode, DESIGN.md Amendment 2026-11-06): jeder Betrag in einer Währung ist der Balken <code>pf-mask</code>, Prozente bleiben. Die Kursrendite bleibt also unverändert; der Beitrag behält Reihenfolge, Vorzeichenfarbe und den Balken unter der Zahl, wie die Beitragstabelle im Modus ihre <code>drift-bar</code>-Breiten behält (gemessen: 45,0 %, 42,0 %, 16,9 % …) und die Erträge-Balken ihre Höhen („ratios“). Die Zählzeile nennt keine Beträge („ohne Beitrag“ statt „0,00“), so bleibt sie im Modus gleich.', frames: [B4.info, B4.privacy] },
+  { title: '③ A bei 390 px: A1 gestapelt (empfohlen) und A2 mit Schalter', recommended: true, note: 'Ein Container-Query auf der Karte (unter 640 px) stapelt die Spalten: A1 zeigt Kursrendite, darunter Beitrag, ohne Bedienschritt; die Seite wird länger, liest aber beide Fragen. A2 setzt eine zweite Gruppe „Liste: Kursrendite · Beitrag“ in die Leiste und zeigt eine Liste. Die Leiste folgt der geteilten Regel: unter ihrem Boden stehen die Labels über ihren Steuerungen, alle an einer Kante. Die Balken fallen unter 560 px weg, wie in der Beitragstabelle. Darunter folgt die Übersicht wie heute (abgeschnitten).', frames: [B4.a1, B4.a2r, B4.a2c] },
+  { title: '⑤ Zustände: „Tag“ am Wochenende, sechs Wertpapiere, leerer Umfang', note: '„Tag“ am Sonntag, 15.11.2026: jede Zeile misst seit dem vorigen Schlusskurs ihres Wertpapiers, die Aktie Fr 13.11. gegen Do 12.11., Bitcoin So 15.11. gegen Sa 14.11. Die beiden Daten stehen als kleine Zeile unter dem Namen, nicht im Tooltip: am Telefon gibt es kein Hover, und genau sie unterscheiden die Zeilen. Mit sechs Wertpapieren zeigt jede Hälfte drei, kein Name in beiden; beim Beitrag sind es sieben Positionen mit einer verkauften, also vier über drei (die größere Hälfte oben). Ohne Bestände bleibt die Leiste, die Listen weichen dem Satz „Keine Bestände in dieser Ansicht.“; ein Beitrag einer im Fenster verkauften Position fiele dann noch an, das Board lässt diesen Fall der Story. Tag- und Monatszahlen erfunden.', frames: [B4.day, B4.six, B4.empty] },
+  { title: '⑥ B — nicht empfohlen: auf Vermögen › Performance', option: true, note: 'Dieselben Ranglisten als Block unter „Beitrag je Position“, dem Zeitraum der Seite folgend (YTD, 1J, 3J, 5J, Max, benutzerdefiniert). Nicht empfohlen: die Seite hat kein Tag, keine Woche, keinen Monat und kein Quartal, also genau die kurzen Fenster nicht, nach denen „Tops und Flops“ gefragt wird (nur über „Benutzerdefinierter Zeitraum …“); und die Tabelle darüber ordnet den Geldbeitrag schon, größter zuerst, so dass die Spalte „Beitrag“ hier zum zweiten Mal dasselbe sagt. Der Chart ist abgeschnitten, die Leiste „Ebene“ ausgelassen.', frames: [B4.b] }
+]);
+
+console.log('wrote frames and boards 01 to 04');

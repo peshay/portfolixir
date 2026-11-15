@@ -21,7 +21,7 @@ const os = require('os');
 const path = require('path');
 
 const QUANTIZE = 'import sys\nfrom PIL import Image\nfor f in sys.argv[1:]:\n    Image.open(f).convert("RGB").quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).save(f, optimize=True)\n';
-const BOARDS = ['01-axis-start', '02-wealth-polish', '03-shipped-font'];
+const BOARDS = ['01-axis-start', '02-wealth-polish', '03-shipped-font', '04-tops-flops'];
 const WIDTH = 2060;
 const FRAMES = path.join(__dirname, 'frames');
 

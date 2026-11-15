@@ -1,0 +1,531 @@
+<div class="phx-connected"><div id="app-shell" class="app-shell"><div class="app-frame"><main class="app-main app-main--workspace"><div id="dashboard-workspace" class="workspace-page"><div id="dashboard-overview">
+
+  <div id="dashboard-load-error" role="status">
+
+  </div>
+
+
+  <section id="dashboard-wealth" class="workspace-section" aria-label="Vermögenswert">
+
+
+      <a id="dashboard-wealth-card" href="/portfolio?period=ytd" class="stat stat--link">
+        <span>Alles</span>
+        <strong>
+          <span id="count-wealth-card" class="count-up" data-decimals="2"><span data-count-digits=""><span class="pf-mask" role="img" aria-label="verborgen"></span></span></span><small class="value-suffix">EUR</small>
+        </strong>
+
+        <small data-role="card-ttwror">
+          <span class="is-positive">+6,2%</span>
+          seit Jahresbeginn
+        </small>
+
+      </a>
+
+
+    <div id="dashboard-wealth-card-status" role="status" class="wealth-card-status"><div id="wealth-card-excluded" class="data-note data-note--attention data-note--clamped" data-role="wealth-card-excluded">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+  </span>
+  <span class="data-note__word">Achtung</span>
+
+    <div class="data-note__body">
+      <div id="wealth-card-excluded-text" class="data-note__text">
+
+
+    <span data-role="wealth-card-excluded-counts">Nicht in der Summe: 3 Verrechnungskonten, 1 Position ohne Preis, 2 Positionen ohne Wechselkurs. </span>3 Verrechnungskonten ohne Wechselkurs zu EUR — USD Settlement (<span class="pf-mask" role="img" aria-label="verborgen"></span> USD), US Broker (<span class="pf-mask" role="img" aria-label="verborgen"></span> USD), Dollar Cash (<span class="pf-mask" role="img" aria-label="verborgen"></span> USD) · 1 gehaltene Position ohne Preis — Placeholder Anleihe 2031 3,25% · 2 gehaltene Positionen ohne Wechselkurs zu EUR — Harborline Freight Inc (Kurs <span class="pf-mask" role="img" aria-label="verborgen"></span> USD), Larkspur Robotics Inc (Kurs <span class="pf-mask" role="img" aria-label="verborgen"></span> USD).
+
+
+
+  </div>
+      <div class="data-note__actions">
+    <a href="/portfolio?period=ytd" data-role="wealth-card-excluded-link">Details in Vermögen →</a>
+  </div>
+    </div>
+    <button type="button" class="link-button data-note__more" aria-expanded="false" aria-controls="wealth-card-excluded-text" data-more="mehr" data-less="weniger">mehr</button>
+
+</div></div>
+  </section>
+
+
+  <section id="dashboard-kpi-strip" class="workspace-section kpi-strip" aria-label="Kennzahlen">
+    <div class="kpi-strip__cells">
+      <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-ttwror">
+        <span class="kpi-strip__label">TTWROR 1J</span>
+
+          <strong class="is-positive">
+            +8,0%
+          </strong>
+
+          <small class="kpi-strip__sub">IRR +9,4%</small>
+
+      </a>
+      <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-cash-quote">
+        <span class="kpi-strip__label">Cashquote</span>
+
+          <strong>21,7%</strong>
+          <small class="kpi-strip__sub">
+            <span class="pf-mask" role="img" aria-label="verborgen"></span> EUR Cash
+          </small>
+
+      </a>
+
+      <a href="/transactions" class="kpi-strip__cell" data-role="kpi-last-booking">
+        <span class="kpi-strip__label">Letzte Buchung</span>
+
+          <strong>12.11.2026</strong>
+
+          <small class="kpi-strip__sub">
+            Kauf · Kestrel Industrial Group NV
+          </small>
+
+      </a>
+
+      <a href="/securities?dq=stale_quote&amp;holding=held" class="kpi-strip__cell" data-role="kpi-freshness">
+        <span class="kpi-strip__label">Kurse</span>
+
+          <strong>
+            15.11.2026
+          </strong>
+
+
+          <small class="kpi-strip__sub kpi-strip__sub--attention">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+            <span>19 gehaltene veraltet</span>
+          </small>
+
+      </a>
+    </div>
+
+    <div class="summary-basis kpi-strip__basis" data-role="kpi-strip-basis">
+      Ansicht Alles · Rendite über 1J bis 15.11.2026 · in EUR · Kurse: der neueste über die gehaltenen Positionen
+      <details class="metric-tooltip metric-tooltip--inline" data-role="kpi-strip-info">
+        <summary aria-label="Zu diesen Kennzahlen">ⓘ</summary>
+        <p role="tooltip">
+          TTWROR — zeitgewichtete Rendite für den gewählten Zeitraum (nicht annualisiert). Ein- und Auszahlungen werden neutralisiert, sodass nur die Anlageperformance zählt.
+          IRR — geldgewichtete Rendite, annualisiert. Berücksichtigt Zeitpunkt und Höhe der Zahlungsströme im Zeitraum. Zeiträume unter einem Jahr zeigen die Perioden-MWR — dieselbe Kennzahl, nicht annualisiert.
+          Cashquote: einsetzbares Bargeld ÷ (Wertpapierwert + einsetzbares Bargeld). Reserve- und Kreditlinienkonten sind ausgeschlossen.
+        </p>
+      </details>
+    </div>
+  </section>
+
+  <section id="dashboard-trades" class="workspace-section">
+  <div class="section-head">
+
+    <div class="section-title">
+      <h2>Abgeschlossene Trades</h2>
+      <details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+  <summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+  <p role="tooltip">
+          p. a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst
+        </p>
+</details>
+    </div>
+    <a class="kpi-summary__link" href="/cashflow?tab=realized">Alle Trades →</a>
+  </div>
+
+      <div id="trades-card-excluded" class="data-note data-note--attention data-note--clamped" data-role="trades-card-excluded">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+  </span>
+  <span class="data-note__word">Achtung</span>
+
+    <div class="data-note__body">
+      <div id="trades-card-excluded-text" class="data-note__text">
+
+        <span data-role="trades-card-excluded-counts">Fehlt bei den Trades: 1 Verkauf ohne gespeicherten Wechselkurs; 1 Verkauf, dessen Kauf keinen Gegenwert in seiner Währung hat. </span>
+
+        <span data-role="trades-card-excluded-no-rate">1 Verkauf ohne gespeicherten Wechselkurs an seinem Schlussdatum fehlt bei den Trades: Harborline Freight Inc. Das Nachladen der Wechselkurse steht unter „Alle Trades“.</span>
+        <span data-role="trades-card-excluded-missing-leg">1 Verkauf ohne Umrechnung — ein Kauf, den er schließt, hat keinen Gegenwert in der Währung des Verkaufs — fehlt bei den Trades: Arbolia Inc.</span>
+
+
+
+
+
+
+      </div>
+
+    </div>
+    <button type="button" class="link-button data-note__more" aria-expanded="false" aria-controls="trades-card-excluded-text" data-more="mehr" data-less="weniger">mehr</button>
+
+</div>
+      <p class="summary-basis" data-role="trades-card-basis">
+
+        Die 5 zuletzt abgeschlossenen · Ergebnis in EUR · FIFO über alle Depots, unabhängig von der Ansicht
+      </p>
+      <ul class="attention-list">
+        <li>
+          <a href="/securities/35?tab=trades" class="attention-item" data-role="closed-trade">
+            <span class="attention-name">
+              Brightwater Utilities plc
+              <small class="attention-item__sub">
+                verkauft 06.10.2026 · 460 Tage
+              </small>
+            </span>
+            <span class="num">
+              <span class="is-positive"><span class="pf-mask" role="img" aria-label="verborgen"></span></span><small class="value-suffix">EUR</small>
+              <small class="attention-item__sub">
+
+                  <span class="is-positive">+7,9%</span>
+                  p. a.
+
+              </small>
+            </span>
+          </a>
+        </li><li>
+          <a href="/securities/33?tab=trades" class="attention-item" data-role="closed-trade">
+            <span class="attention-name">
+              Tamarisk Mining Ltd
+              <small class="attention-item__sub">
+                verkauft 07.08.2026 · 600 Tage
+              </small>
+            </span>
+            <span class="num">
+              <span class="is-negative"><span class="pf-mask" role="img" aria-label="verborgen"></span></span><small class="value-suffix">EUR</small>
+              <small class="attention-item__sub">
+
+
+                    <span class="is-negative">-100,0%</span>
+                    gesamt
+
+
+              </small>
+            </span>
+          </a>
+        </li><li>
+          <a href="/securities/48?tab=trades" class="attention-item" data-role="closed-trade">
+            <span class="attention-name">
+              Kestrel Bay Resources Inc.
+              <small class="attention-item__sub">
+                verkauft 18.07.2026 · 80 Tage
+              </small>
+            </span>
+            <span class="num">
+              <span class="is-positive"><span class="pf-mask" role="img" aria-label="verborgen"></span></span><small class="value-suffix">EUR</small>
+              <small class="attention-item__sub">
+
+
+                    <span class="is-positive">+18,7%</span>
+                    gesamt
+
+
+              </small>
+            </span>
+          </a>
+        </li><li>
+          <a href="/securities/32?tab=trades" class="attention-item" data-role="closed-trade">
+            <span class="attention-name">
+              Wrenfield Gardens AG
+              <small class="attention-item__sub">
+                verkauft 18.07.2026 · 780 Tage
+              </small>
+            </span>
+            <span class="num">
+              <span class="is-positive"><span class="pf-mask" role="img" aria-label="verborgen"></span></span><small class="value-suffix">EUR</small>
+              <small class="attention-item__sub">
+
+                  <span class="is-positive">+17,8%</span>
+                  p. a.
+
+              </small>
+            </span>
+          </a>
+        </li><li>
+          <a href="/securities/45?tab=trades" class="attention-item" data-role="closed-trade">
+            <span class="attention-name">
+              Thornbury Water Fund
+              <small class="attention-item__sub">
+                verkauft 05.05.2025 · 91 Tage
+              </small>
+            </span>
+            <span class="num">
+              <span class="is-negative"><span class="pf-mask" role="img" aria-label="verborgen"></span></span><small class="value-suffix">EUR</small>
+              <small class="attention-item__sub">
+
+
+                    <span class="is-negative">-4,5%</span>
+                    gesamt
+
+
+              </small>
+            </span>
+          </a>
+        </li>
+      </ul>
+
+</section>
+
+
+
+  <section id="dashboard-attention" class="workspace-section">
+    <h2>Ziel-Abweichungen</h2>
+
+    <p class="hint" data-role="attention-explainer">
+      <span data-role="attention-basis">Ansicht Alles · Plan „Plan“ auf Strategies · </span>Kategorien, die mehr als ±5 pp von ihrem Soll-Gewicht abweichen.
+    </p>
+
+
+        <ul class="attention-list">
+          <li>
+            <a href="/portfolio?tab=allocation" data-role="drift-alert" class="attention-item">
+              <span class="attention-name">
+                Growth
+              </span>
+
+              <span class="drift-bar" aria-hidden="true">
+                <span class="drift-bar__fill is-under" style="width: 45.0%">
+                </span>
+              </span>
+              <span class="num is-negative">
+                29,9 pp unter dem Soll
+                · <span class="pf-mask" role="img" aria-label="verborgen"></span> EUR
+              </span>
+            </a>
+          </li><li>
+            <a href="/portfolio?tab=allocation" data-role="drift-alert" class="attention-item">
+              <span class="attention-name">
+                Global Core
+              </span>
+
+              <span class="drift-bar" aria-hidden="true">
+                <span class="drift-bar__fill is-under" style="width: 28.3%">
+                </span>
+              </span>
+              <span class="num is-negative">
+                18,8 pp unter dem Soll
+                · <span class="pf-mask" role="img" aria-label="verborgen"></span> EUR
+              </span>
+            </a>
+          </li><li>
+            <a href="/portfolio?tab=allocation" data-role="drift-alert" class="attention-item">
+              <span class="attention-name">
+                Platforms
+              </span>
+
+              <span class="drift-bar" aria-hidden="true">
+                <span class="drift-bar__fill is-under" style="width: 16.7%">
+                </span>
+              </span>
+              <span class="num is-negative">
+                11,1 pp unter dem Soll
+                · <span class="pf-mask" role="img" aria-label="verborgen"></span> EUR
+              </span>
+            </a>
+          </li><li>
+            <a href="/portfolio?tab=allocation" data-role="drift-alert" class="attention-item">
+              <span class="attention-name">
+                Stability
+              </span>
+
+              <span class="drift-bar" aria-hidden="true">
+                <span class="drift-bar__fill is-under" style="width: 8.5%">
+                </span>
+              </span>
+              <span class="num is-negative">
+                5,7 pp unter dem Soll
+                · <span class="pf-mask" role="img" aria-label="verborgen"></span> EUR
+              </span>
+            </a>
+          </li><li>
+            <a href="/portfolio?tab=allocation" data-role="drift-alert" class="attention-item">
+              <span class="attention-name">
+                Quality
+              </span>
+
+              <span class="drift-bar" aria-hidden="true">
+                <span class="drift-bar__fill is-under" style="width: 8.5%">
+                </span>
+              </span>
+              <span class="num is-negative">
+                5,7 pp unter dem Soll
+                · <span class="pf-mask" role="img" aria-label="verborgen"></span> EUR
+              </span>
+            </a>
+          </li>
+        </ul>
+
+
+  </section>
+
+
+  <section id="dashboard-upcoming" class="workspace-section">
+
+    <div class="section-title">
+      <h2>Fällig</h2>
+      <details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+  <summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+  <p role="tooltip">
+          Ein als Zeitraum oder Monat angegebener Termin gilt als fällig, sobald irgendein Tag, auf den er fallen kann, im Horizont liegt.
+        </p>
+</details>
+    </div>
+    <p class="hint" data-role="upcoming-basis">
+      Datierte Fakten zu jedem Wertpapier im Katalog — gehalten oder nicht —, die in den nächsten 30 Tagen anstehen.
+    </p>
+    <ul class="attention-list">
+      <li>
+        <a href="/securities/10?tab=events" data-role="upcoming-event" class="attention-item">
+
+          <span class="attention-name">
+            Helios Solar Systems SE
+            <span class="badge badge--neutral" data-role="upcoming-unheld">
+              ohne Bestand
+            </span>
+            <small class="attention-item__sub">
+              Ende der Haltefrist
+              · Innerhalb eines Zeitraums
+            </small>
+          </span>
+          <span class="num">
+            20.11.2026
+          </span>
+        </a>
+      </li><li>
+        <a href="/securities/1?tab=events" data-role="upcoming-event" class="attention-item">
+
+          <span class="attention-name">
+            Apple Inc. Registered Shares o.N.
+
+            <small class="attention-item__sub">
+              Geschäftszahlen
+              · Angekündigt
+            </small>
+          </span>
+          <span class="num">
+            24.11.2026
+          </span>
+        </a>
+      </li><li>
+        <a href="/securities/1?tab=events" data-role="upcoming-event" class="attention-item">
+
+          <span class="attention-name">
+            Apple Inc. Registered Shares o.N.
+
+            <small class="attention-item__sub">
+              Ex-Dividenden-Tag
+              · Geschätzt
+            </small>
+          </span>
+          <span class="num">
+            08.12.2026
+          </span>
+        </a>
+      </li><li>
+        <a href="/securities/10?tab=events" data-role="upcoming-event" class="attention-item">
+
+          <span class="attention-name">
+            Helios Solar Systems SE
+            <span class="badge badge--neutral" data-role="upcoming-unheld">
+              ohne Bestand
+            </span>
+            <small class="attention-item__sub">
+              Indexüberprüfung
+              · Monat bekannt, Tag nicht
+            </small>
+          </span>
+          <span class="num">
+            30.12.2026
+          </span>
+        </a>
+      </li>
+    </ul>
+  </section>
+
+  <section class="workspace-section cycle-card" data-role="cycle-card" data-security-id="51">
+  <div class="section-head">
+    <h2>Ferncoin-Zyklus</h2>
+    <a class="kpi-summary__link" href="/securities/51?tab=chart&amp;cycles=1" data-role="cycle-card-open">
+      Im Chart öffnen →
+    </a>
+  </div>
+  <dl class="cycle-card__events">
+    <div class="cycle-card__event" data-event="next_low">
+      <dt>Nächstes Tief</dt>
+
+        <dd class="num" data-role="window">14.06.2026 – 17.06.2027</dd>
+        <dd class="num" data-role="price"><span class="pf-mask" role="img" aria-label="verborgen"></span></dd>
+        <dd data-role="state">läuft</dd>
+        <dd class="cycle-card__parts" data-role="parts">Top → Tief n = 3 · Tief → Tief n = 2</dd>
+
+    </div><div class="cycle-card__event" data-event="next_top">
+      <dt>Nächstes Top</dt>
+
+        <dd class="num" data-role="window">17.08.2027 – 15.12.2028</dd>
+        <dd class="num" data-role="price"><span class="pf-mask" role="img" aria-label="verborgen"></span></dd>
+        <dd data-role="state">offen</dd>
+        <dd class="cycle-card__parts" data-role="parts">Halving → Top n = 4 · Top → Top n = 3</dd>
+
+    </div>
+  </dl>
+  <p class="hint cycle-card__basis">
+    Der Bereich, den die gespeicherten Zyklen von den heutigen Ankern aus ergeben, mit seinem n und beiden Enden: keine Prognose.
+  </p>
+</section>
+
+
+  <section id="dashboard-data-quality" class="workspace-section">
+    <h2>Datenqualität</h2>
+
+    <div role="status">
+      <div id="dashboard-dq-line" class="data-note data-note--problem data-note--clamped" data-role="data-quality-line">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"></path><path d="M12 8v4"></path><circle cx="12" cy="16" r=".6"></circle></svg>
+  </span>
+  <span class="data-note__word">Problem</span>
+
+    <div class="data-note__body">
+      <div id="dashboard-dq-line-text" class="data-note__text">
+        </div>
+      <div class="data-note__actions">
+
+
+            <a href="/securities?dq=stale_quote&amp;holding=held" data-role="dq-quotes">19 gehaltene Wertpapiere ohne Kurs seit 7 Tagen</a>
+
+            <span class="dq-catalog" data-catalog-of="dq-quotes">(<a href="/securities?dq=stale_quote">im Katalog 27</a>)</span>
+
+
+
+
+              <span aria-hidden="true"> · </span>
+
+            <a href="/securities?filter[]=asset_class%3Ais_nil&amp;filter[]=is_retired%3Ais_false&amp;holding=held" data-role="dq-class">eins ohne Anlageklasse</a>
+
+
+
+
+
+
+              <span aria-hidden="true"> · </span>
+
+            <a href="/securities?dq=missing_logo&amp;holding=held" data-role="dq-logo">35 ohne Logo</a>
+
+            <span class="dq-catalog" data-catalog-of="dq-logo">(<a href="/securities?dq=missing_logo">im Katalog 48</a>)</span>
+
+
+
+
+              <span aria-hidden="true"> · </span>
+
+            <a href="/securities?dq=two_scales&amp;holding=held" data-role="dq-two-scales">3 gehaltene Anleihen auf zwei Skalen bepreist</a>
+
+
+
+            <span data-effect-of="dq-two-scales">— jede zählt in der Summe oben hundertfach zu hoch oder zu niedrig</span>
+
+
+              <span aria-hidden="true"> · </span>
+
+            <a href="/securities?dq=implausible_quote&amp;holding=held" data-role="dq-implausible-quote">ein gehaltenes Wertpapier, dessen Kurse nicht zu seinen Buchungen passen</a>
+
+
+
+            <span data-effect-of="dq-implausible-quote">— sein Wert in der Summe oben oder sein Einstand ist daher falsch</span>
+
+        </div>
+    </div>
+    <button type="button" class="link-button data-note__more" aria-expanded="false" aria-controls="dashboard-dq-line-text" data-more="mehr" data-less="weniger" hidden="">mehr</button>
+
+</div>
+    </div>
+  </section>
+</div></div></main></div></div></div>

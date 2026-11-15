@@ -1,0 +1,738 @@
+<div class="phx-connected"><div id="app-shell" class="app-shell"><div class="app-frame"><main class="app-main app-main--workspace"><div id="portfolio-overview" class="workspace-page portfolio-overview"><section id="portfolio-performance" class="workspace-section">
+      <header class="section-head">
+        <h2>Performance</h2>
+
+        <div class="section-head-controls">
+          <div class="segmented-control" data-role="chart-series" role="group" aria-label="Diagrammreihe">
+            <button type="button" class="segmented-control__option is-active" aria-pressed="true">
+              % (TTWROR)
+            </button>
+            <button type="button" class="segmented-control__option " aria-pressed="false">
+              Wert (%)
+            </button>
+          </div>
+          <div class="segmented-control" data-role="period-tokens" role="group" aria-label="Zeitraum">
+
+              <button type="button" class="segmented-control__option is-active" aria-pressed="true">
+                YTD
+              </button>
+
+              <button type="button" class="segmented-control__option " aria-pressed="false">
+                1J
+              </button>
+
+              <button type="button" class="segmented-control__option " aria-pressed="false">
+                3J
+              </button>
+
+              <button type="button" class="segmented-control__option " aria-pressed="false">
+                5J
+              </button>
+
+              <button type="button" class="segmented-control__option " aria-pressed="false">
+                Max
+              </button>
+
+
+
+          </div>
+
+
+
+          <details id="benchmark-picker" class="period-disclosure" data-role="benchmark-picker">
+            <summary class="disclosure-summary">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+              Benchmark…
+
+            </summary>
+            <form method="get" action="/portfolio" class="period-disclosure__body benchmark-form" data-role="benchmark-form">
+
+              <input type="hidden" name="benchmark[]" value="">
+
+              <input type="hidden" name="benchmark_order" value="">
+
+              <div class="bm-groups" data-role="benchmark-groups">
+
+                  <span class="bm-groups__label" id="benchmark-group-flagged">
+                    Benchmarks
+                  </span>
+                  <span class="bm-groups__options" role="group" aria-labelledby="benchmark-group-flagged" data-group="flagged">
+                    <label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:29">
+                      Kestrel Industrial Group NV Index
+                    </label>
+                  </span>
+
+                  <span class="bm-groups__label" id="benchmark-group-held">
+                    Im Bestand
+                  </span>
+                  <span class="bm-groups__options" role="group" aria-labelledby="benchmark-group-held" data-group="held">
+                    <label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:3">
+                      Allianz SE vinkulierte Namens-Aktien o.N.
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:12">
+                      Alpine Test Werke AG
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:1">
+                      Apple Inc. Registered Shares o.N.
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:42">
+                      Birkenhain Wasser Anleihe 2029 1,50%
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:6">
+                      Bitcoin
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:36">
+                      Harborline Freight Inc
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:41">
+                      Kestrel Anleihe 2030 2,75%
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:11">
+                      Kestrel Industrial Group NV
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:47">
+                      Larkspur Rail AG 4,00 % Anleihe 2031
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:40">
+                      Larkspur Robotics Inc
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:2">
+                      Microsoft Corporation Registered Shares DL-,00000625
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:7">
+                      NVIDIA Corporation Registered Shares DL-,001
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:8">
+                      Nordic Timber Holdings AB
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:43">
+                      Ostsee Logistik 4,10% 2028/2033
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:50">
+                      Tamarisk Systems Inc.
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:5">
+                      Vanguard FTSE All-World UCITS ETF USD Acc
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:46">
+                      Wexmoor Instruments AG
+                    </label><label class="benchmark-form__option">
+                      <input type="checkbox" name="benchmark[]" value="security:4">
+                      iShares Core MSCI World UCITS ETF USD (Acc)
+                    </label>
+                  </span>
+
+              </div>
+
+              <label class="benchmark-form__rate" for="benchmark-rate">
+                Fester Zins % p. a.
+              </label>
+              <input type="number" id="benchmark-rate" name="benchmark_rate" step="0.01" min="-99.99" max="1000">
+              <button type="submit">Anwenden</button>
+              <span class="hint">
+                Bis zu zwei Benchmarks — die ersten beiden angekreuzten gelten.
+              </span>
+            </form>
+          </details>
+        </div>
+      </header>
+
+
+
+
+
+
+
+
+
+
+
+        <p class="perf-badge is-positive" data-role="period-badge">
+          <strong>+6,2%</strong>
+          <span class="perf-badge-sep">·</span>
+
+          <span class="is-positive" data-role="period-badge-money"><span class="pf-mask" role="img" aria-label="verborgen"></span> EUR</span>
+          <span class="perf-badge-period">(YTD)</span>
+        </p>
+
+        <div class="control-bar control-bar--fold-780 control-bar--floor-380" data-role="stack-bar">
+
+  <div class="control-bar__controls">
+    <span class="control-bar__group ">
+
+  <span class="control-bar__label" id="stack-level-label">Ebene</span>
+
+    <div class="segmented-control" data-role="stack-level" role="group" aria-labelledby="stack-level-label">
+      <a href="/portfolio?level=total&amp;scale=ttwror&amp;period=ytd" class="segmented-control__option is-active" aria-current="true" data-level="total">
+        Gesamt
+      </a><a href="/portfolio?level=category&amp;scale=ttwror&amp;period=ytd" class="segmented-control__option" data-level="category">
+        Kategorien
+      </a><a href="/portfolio?level=security&amp;scale=ttwror&amp;period=ytd" class="segmented-control__option" data-level="security">
+        Wertpapiere
+      </a>
+    </div>
+
+</span>
+  </div>
+</div>
+
+          <figure id="performance-figure" class="perf-figure" data-chart-mode="ttwror">
+  <div class="chart-frame" id="chart-f2c1792ef178" data-chart-id="chart-f2c1792ef178" style="--chart-upx: 1.0596;">
+  <svg class="security-chart " role="img" aria-label="Kumulierte TTWROR über die Zeit" viewBox="0 0 960 320" preserveAspectRatio="xMidYMid meet" width="100%">
+
+      <g class="chart-axes" stroke="currentColor" stroke-opacity="0.15">
+
+    <line x1="56" y1="292.0" x2="936" y2="292.0"></line>
+
+    <line x1="56" y1="223.0" x2="936" y2="223.0"></line>
+
+    <line x1="56" y1="154.0" x2="936" y2="154.0"></line>
+
+    <line x1="56" y1="85.0" x2="936" y2="85.0"></line>
+
+    <line x1="56" y1="16.0" x2="936" y2="16.0"></line>
+
+</g>
+
+
+
+
+      <line class="chart-zeroline" x1="56" y1="277.91" x2="936" y2="277.91"></line>
+
+      <path class="quote-area" d="M56.0,277.91 L56.0,277.91 L58.77,277.91 L61.53,277.91 L64.3,277.99 L67.07,277.99 L69.84,277.99 L72.6,277.99 L75.37,277.99 L78.14,277.99 L80.91,277.99 L83.67,271.85 L86.44,271.85 L89.21,271.85 L91.97,271.85 L94.74,271.85 L97.51,271.85 L100.28,271.85 L103.04,279.45 L105.81,279.45 L108.58,279.45 L111.35,279.45 L114.11,279.45 L116.88,279.45 L119.65,279.45 L122.42,265.75 L125.18,265.75 L127.95,265.75 L130.72,265.75 L133.48,265.75 L136.25,265.75 L139.02,265.75 L141.79,254.8 L144.55,254.8 L147.32,254.8 L150.09,254.8 L152.86,254.8 L155.62,254.8 L158.39,254.8 L161.16,254.68 L163.92,254.68 L166.69,254.68 L169.46,254.68 L172.23,254.68 L174.99,254.68 L177.76,254.68 L180.53,254.05 L183.3,254.05 L186.06,254.05 L188.83,254.05 L191.6,254.05 L194.36,254.05 L197.13,254.05 L199.9,255.18 L202.67,255.18 L205.43,255.18 L208.2,255.18 L210.97,255.18 L213.74,255.18 L216.5,255.18 L219.27,236.16 L222.04,236.16 L224.81,236.16 L227.57,236.16 L230.34,236.16 L233.11,236.16 L235.87,236.16 L238.64,232.87 L241.41,232.87 L244.18,232.87 L246.94,232.87 L249.71,232.87 L252.48,232.87 L255.25,232.87 L258.01,243.08 L260.78,243.08 L263.55,243.08 L266.31,243.08 L269.08,243.08 L271.85,243.08 L274.62,243.08 L277.38,230.19 L280.15,230.19 L282.92,230.19 L285.69,230.19 L288.45,230.19 L291.22,230.19 L293.99,230.19 L296.75,226.36 L299.52,226.36 L302.29,226.31 L305.06,226.31 L307.82,226.31 L310.59,226.31 L313.36,226.31 L316.13,225.71 L318.89,225.71 L321.66,225.71 L324.43,225.71 L327.19,225.71 L329.96,225.71 L332.73,225.71 L335.5,227.29 L338.26,227.29 L341.03,227.29 L343.8,208.74 L346.57,208.74 L349.33,208.74 L352.1,208.74 L354.87,193.35 L357.64,193.35 L360.4,193.35 L363.17,193.35 L365.94,193.35 L368.7,193.35 L371.47,193.35 L374.24,204.13 L377.01,204.13 L379.77,204.13 L382.54,204.68 L385.31,204.68 L388.08,204.68 L390.84,204.68 L393.61,195.69 L396.38,195.69 L399.14,195.69 L401.91,195.69 L404.68,195.69 L407.45,195.69 L410.21,195.69 L412.98,179.63 L415.75,179.63 L418.52,179.63 L421.28,179.63 L424.05,179.63 L426.82,179.63 L429.58,179.63 L432.35,179.56 L435.12,179.56 L437.89,179.56 L440.65,179.56 L443.42,179.56 L446.19,179.56 L448.96,179.56 L451.72,178.71 L454.49,178.71 L457.26,178.71 L460.03,178.71 L462.79,178.71 L465.56,178.71 L468.33,178.71 L471.09,147.28 L473.86,147.28 L476.63,147.28 L479.4,147.28 L482.16,147.28 L484.93,147.28 L487.7,147.28 L490.47,148.32 L493.23,148.32 L496.0,148.32 L498.77,148.32 L501.53,148.32 L504.3,148.32 L507.07,148.32 L509.84,135.24 L512.6,135.24 L515.37,135.24 L518.14,135.24 L520.91,176.69 L523.67,176.64 L526.44,176.64 L529.21,186.06 L531.97,186.06 L534.74,186.06 L537.51,186.06 L540.28,186.06 L543.04,186.06 L545.81,186.06 L548.58,194.61 L551.35,194.61 L554.11,189.04 L556.88,189.04 L559.65,189.04 L562.42,189.04 L565.18,189.04 L567.95,175.96 L570.72,175.96 L573.48,175.96 L576.25,175.96 L579.02,175.96 L581.79,175.96 L584.55,175.96 L587.32,174.78 L590.09,174.78 L592.86,174.75 L595.62,174.71 L598.39,174.67 L601.16,174.63 L603.92,160.26 L606.69,156.5 L609.46,156.5 L612.23,156.5 L614.99,156.5 L617.76,156.5 L620.53,156.5 L623.3,156.5 L626.06,59.0 L628.83,59.0 L631.6,59.0 L634.36,59.0 L637.13,59.0 L639.9,59.0 L642.67,59.0 L645.43,56.19 L648.2,56.19 L650.97,56.19 L653.74,56.19 L656.5,56.19 L659.27,73.93 L662.04,73.93 L664.81,73.94 L667.57,73.94 L670.34,73.94 L673.11,73.94 L675.87,73.94 L678.64,73.94 L681.41,73.94 L684.18,78.16 L686.94,78.16 L689.71,78.16 L692.48,78.16 L695.25,78.16 L698.01,78.16 L700.78,78.16 L703.55,64.91 L706.31,64.91 L709.08,64.91 L711.85,64.91 L714.62,64.91 L717.38,64.91 L720.15,64.91 L722.92,56.35 L725.69,56.35 L728.45,56.35 L731.22,56.35 L733.99,56.35 L736.75,56.35 L739.52,56.35 L742.29,49.16 L745.06,49.16 L747.82,49.16 L750.59,49.16 L753.36,49.16 L756.13,49.16 L758.89,49.16 L761.66,28.55 L764.43,28.6 L767.19,28.61 L769.96,28.7 L772.73,28.7 L775.5,28.7 L778.26,28.7 L781.03,38.6 L783.8,38.6 L786.57,38.6 L789.33,38.6 L792.1,38.6 L794.87,38.6 L797.64,38.6 L800.4,55.3 L803.17,55.3 L805.94,55.3 L808.7,55.3 L811.47,55.3 L814.24,55.29 L817.01,55.29 L819.77,46.33 L822.54,46.28 L825.31,46.15 L828.08,46.15 L830.84,46.15 L833.61,46.15 L836.38,46.15 L839.14,45.35 L841.91,45.35 L844.68,45.35 L847.45,45.35 L850.21,45.35 L852.98,45.35 L855.75,45.35 L858.52,38.81 L861.28,38.81 L864.05,38.81 L866.82,38.81 L869.58,38.81 L872.35,38.81 L875.12,38.81 L877.89,45.22 L880.65,45.22 L883.42,45.22 L886.19,45.22 L888.96,45.22 L891.72,45.22 L894.49,45.22 L897.26,56.54 L900.03,56.54 L902.79,56.54 L905.56,56.54 L908.33,57.72 L911.09,57.18 L913.86,57.18 L916.63,58.82 L919.4,58.82 L922.16,58.82 L924.93,58.82 L927.7,58.82 L930.47,58.86 L933.23,57.71 L936.0,54.81 L936.0,292.0 L56.0,292.0 Z"></path>
+
+      <polyline class="quote-line" fill="none" stroke="currentColor" stroke-width="1.6" points="56.0,277.91 58.77,277.91 61.53,277.91 64.3,277.99 67.07,277.99 69.84,277.99 72.6,277.99 75.37,277.99 78.14,277.99 80.91,277.99 83.67,271.85 86.44,271.85 89.21,271.85 91.97,271.85 94.74,271.85 97.51,271.85 100.28,271.85 103.04,279.45 105.81,279.45 108.58,279.45 111.35,279.45 114.11,279.45 116.88,279.45 119.65,279.45 122.42,265.75 125.18,265.75 127.95,265.75 130.72,265.75 133.48,265.75 136.25,265.75 139.02,265.75 141.79,254.8 144.55,254.8 147.32,254.8 150.09,254.8 152.86,254.8 155.62,254.8 158.39,254.8 161.16,254.68 163.92,254.68 166.69,254.68 169.46,254.68 172.23,254.68 174.99,254.68 177.76,254.68 180.53,254.05 183.3,254.05 186.06,254.05 188.83,254.05 191.6,254.05 194.36,254.05 197.13,254.05 199.9,255.18 202.67,255.18 205.43,255.18 208.2,255.18 210.97,255.18 213.74,255.18 216.5,255.18 219.27,236.16 222.04,236.16 224.81,236.16 227.57,236.16 230.34,236.16 233.11,236.16 235.87,236.16 238.64,232.87 241.41,232.87 244.18,232.87 246.94,232.87 249.71,232.87 252.48,232.87 255.25,232.87 258.01,243.08 260.78,243.08 263.55,243.08 266.31,243.08 269.08,243.08 271.85,243.08 274.62,243.08 277.38,230.19 280.15,230.19 282.92,230.19 285.69,230.19 288.45,230.19 291.22,230.19 293.99,230.19 296.75,226.36 299.52,226.36 302.29,226.31 305.06,226.31 307.82,226.31 310.59,226.31 313.36,226.31 316.13,225.71 318.89,225.71 321.66,225.71 324.43,225.71 327.19,225.71 329.96,225.71 332.73,225.71 335.5,227.29 338.26,227.29 341.03,227.29 343.8,208.74 346.57,208.74 349.33,208.74 352.1,208.74 354.87,193.35 357.64,193.35 360.4,193.35 363.17,193.35 365.94,193.35 368.7,193.35 371.47,193.35 374.24,204.13 377.01,204.13 379.77,204.13 382.54,204.68 385.31,204.68 388.08,204.68 390.84,204.68 393.61,195.69 396.38,195.69 399.14,195.69 401.91,195.69 404.68,195.69 407.45,195.69 410.21,195.69 412.98,179.63 415.75,179.63 418.52,179.63 421.28,179.63 424.05,179.63 426.82,179.63 429.58,179.63 432.35,179.56 435.12,179.56 437.89,179.56 440.65,179.56 443.42,179.56 446.19,179.56 448.96,179.56 451.72,178.71 454.49,178.71 457.26,178.71 460.03,178.71 462.79,178.71 465.56,178.71 468.33,178.71 471.09,147.28 473.86,147.28 476.63,147.28 479.4,147.28 482.16,147.28 484.93,147.28 487.7,147.28 490.47,148.32 493.23,148.32 496.0,148.32 498.77,148.32 501.53,148.32 504.3,148.32 507.07,148.32 509.84,135.24 512.6,135.24 515.37,135.24 518.14,135.24 520.91,176.69 523.67,176.64 526.44,176.64 529.21,186.06 531.97,186.06 534.74,186.06 537.51,186.06 540.28,186.06 543.04,186.06 545.81,186.06 548.58,194.61 551.35,194.61 554.11,189.04 556.88,189.04 559.65,189.04 562.42,189.04 565.18,189.04 567.95,175.96 570.72,175.96 573.48,175.96 576.25,175.96 579.02,175.96 581.79,175.96 584.55,175.96 587.32,174.78 590.09,174.78 592.86,174.75 595.62,174.71 598.39,174.67 601.16,174.63 603.92,160.26 606.69,156.5 609.46,156.5 612.23,156.5 614.99,156.5 617.76,156.5 620.53,156.5 623.3,156.5 626.06,59.0 628.83,59.0 631.6,59.0 634.36,59.0 637.13,59.0 639.9,59.0 642.67,59.0 645.43,56.19 648.2,56.19 650.97,56.19 653.74,56.19 656.5,56.19 659.27,73.93 662.04,73.93 664.81,73.94 667.57,73.94 670.34,73.94 673.11,73.94 675.87,73.94 678.64,73.94 681.41,73.94 684.18,78.16 686.94,78.16 689.71,78.16 692.48,78.16 695.25,78.16 698.01,78.16 700.78,78.16 703.55,64.91 706.31,64.91 709.08,64.91 711.85,64.91 714.62,64.91 717.38,64.91 720.15,64.91 722.92,56.35 725.69,56.35 728.45,56.35 731.22,56.35 733.99,56.35 736.75,56.35 739.52,56.35 742.29,49.16 745.06,49.16 747.82,49.16 750.59,49.16 753.36,49.16 756.13,49.16 758.89,49.16 761.66,28.55 764.43,28.6 767.19,28.61 769.96,28.7 772.73,28.7 775.5,28.7 778.26,28.7 781.03,38.6 783.8,38.6 786.57,38.6 789.33,38.6 792.1,38.6 794.87,38.6 797.64,38.6 800.4,55.3 803.17,55.3 805.94,55.3 808.7,55.3 811.47,55.3 814.24,55.29 817.01,55.29 819.77,46.33 822.54,46.28 825.31,46.15 828.08,46.15 830.84,46.15 833.61,46.15 836.38,46.15 839.14,45.35 841.91,45.35 844.68,45.35 847.45,45.35 850.21,45.35 852.98,45.35 855.75,45.35 858.52,38.81 861.28,38.81 864.05,38.81 866.82,38.81 869.58,38.81 872.35,38.81 875.12,38.81 877.89,45.22 880.65,45.22 883.42,45.22 886.19,45.22 888.96,45.22 891.72,45.22 894.49,45.22 897.26,56.54 900.03,56.54 902.79,56.54 905.56,56.54 908.33,57.72 911.09,57.18 913.86,57.18 916.63,58.82 919.4,58.82 922.16,58.82 924.93,58.82 927.7,58.82 930.47,58.86 933.23,57.71 936.0,54.81"></polyline>
+
+
+
+
+
+
+
+
+
+
+
+
+      <g class="chart-axis-labels">
+
+    <text class="chart-axis-y " x="50" y="292.0" text-anchor="end" dominant-baseline="central">
+      -0,4%
+    </text>
+
+    <text class="chart-axis-y " x="50" y="223.0" text-anchor="end" dominant-baseline="central">
+      +1,5%
+    </text>
+
+    <text class="chart-axis-y " x="50" y="154.0" text-anchor="end" dominant-baseline="central">
+      +3,4%
+    </text>
+
+    <text class="chart-axis-y " x="50" y="85.0" text-anchor="end" dominant-baseline="central">
+      +5,3%
+    </text>
+
+    <text class="chart-axis-y is-top" x="50" y="16.0" text-anchor="end" dominant-baseline="central">
+      +7,3%
+    </text>
+
+  <text class="chart-axis-x" x="56" y="314" text-anchor="start">
+    01.01.2026
+  </text>
+  <text class="chart-axis-x" x="936" y="314" text-anchor="end">
+    15.11.2026
+  </text>
+</g>
+
+  </svg>
+
+<div class="chart-crosshair" hidden=""></div><div class="chart-tooltip" hidden="" role="status"></div><div class="chart-zoom-rect" hidden=""></div></div>
+
+
+
+
+
+
+</figure>
+
+
+
+
+
+        <p class="hint" data-role="performance-basis">
+          01.01.2026 – 15.11.2026
+
+          <span data-role="performance-as-of">
+            · berechnet 15.11.2026 07:23 UTC
+          </span>
+        </p>
+
+
+
+        <div id="performance-contribution" class="contribution" data-role="contribution">
+  <div class="contribution__head">
+
+    <div class="section-title">
+      <h3 id="contribution-title">Beitrag je Position</h3>
+      <details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+  <summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+  <p role="tooltip">Beitrag = Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten<br>Anfangswert: der Schluss des Vortags<br>
+          Positionen und Restposten ergeben genau das Ergebnis im Zeitraum; Einzahlungen und Entnahmen sind kein Ergebnis
+        </p>
+</details>
+    </div>
+    <span class="contribution__scope" data-role="contribution-scope">YTD · Ansicht Alles · sortiert nach Beitrag</span>
+  </div>
+
+      <div id="contribution-table-wrap" class="data-table-wrapper">
+  <table id="contribution-table" class="data-table contribution-table" aria-labelledby="contribution-title">
+    <thead>
+      <tr>
+        <th scope="col">Wertpapier</th>
+        <th scope="col" class="num">Anfangswert</th>
+        <th scope="col" class="num">Zu-/Abflüsse</th>
+        <th scope="col" class="num">Erträge</th>
+        <th scope="col" class="num">Kosten</th>
+        <th scope="col" class="num">Endwert</th>
+        <th scope="col" class="num">Beitrag</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr data-role="contribution-row" data-security-id="1">
+        <td class="contribution-table__name">
+          Apple Inc. Registered Shares o.N.
+
+
+        </td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num contribution-table__figure">
+          <span class="is-positive"><span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-over" style="width: 45.0%">
+            </span>
+          </span>
+        </td>
+      </tr><tr data-role="contribution-row" data-security-id="3">
+        <td class="contribution-table__name">
+          Allianz SE vinkulierte Namens-Aktien o.N.
+
+
+        </td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num contribution-table__figure">
+          <span class="is-positive"><span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-over" style="width: 42.0%">
+            </span>
+          </span>
+        </td>
+      </tr><tr data-role="contribution-row" data-security-id="47">
+        <td class="contribution-table__name">
+          Larkspur Rail AG 4,00 % Anleihe 2031
+
+
+        </td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num contribution-table__figure">
+          <span class="is-positive"><span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-over" style="width: 16.9%">
+            </span>
+          </span>
+        </td>
+      </tr><tr data-role="contribution-row" data-security-id="32">
+        <td class="contribution-table__name">
+          Wrenfield Gardens AG
+
+          <small class="contribution-table__note">
+            am Ende nicht mehr im Bestand
+          </small>
+        </td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num contribution-table__figure">
+          <span class="is-positive"><span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-over" style="width: 13.5%">
+            </span>
+          </span>
+        </td>
+      </tr><tr data-role="contribution-row" data-security-id="50">
+        <td class="contribution-table__name">
+          Tamarisk Systems Inc.
+
+          <small class="contribution-table__note">
+            zu Beginn nicht im Bestand
+          </small>
+        </td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num contribution-table__figure">
+          <span class="is-positive"><span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-over" style="width: 12.1%">
+            </span>
+          </span>
+        </td>
+      </tr><tr data-role="contribution-row" data-security-id="2">
+        <td class="contribution-table__name">
+          Microsoft Corporation Registered Shares DL-,00000625
+
+
+        </td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num contribution-table__figure">
+          <span class="is-positive"><span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-over" style="width: 10.9%">
+            </span>
+          </span>
+        </td>
+      </tr><tr data-role="contribution-row" data-security-id="34">
+        <td class="contribution-table__name">
+          Saltmarsh Logistics SE
+          <span class="contribution-unvalued-mark" data-role="contribution-unvalued-mark">235 Tage mit 0 bewertet</span>
+          <small class="contribution-table__note">
+            weder zu Beginn noch am Ende im Bestand
+          </small>
+        </td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num contribution-table__figure">
+          <span class="is-positive"><span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-over" style="width: 10.6%">
+            </span>
+          </span>
+        </td>
+      </tr><tr data-role="contribution-row" data-security-id="4">
+        <td class="contribution-table__name">
+          iShares Core MSCI World UCITS ETF USD (Acc)
+
+
+        </td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num contribution-table__figure">
+          <span class="is-negative"><span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-under" style="width: 11.5%">
+            </span>
+          </span>
+        </td>
+      </tr><tr data-role="contribution-row" data-security-id="33">
+        <td class="contribution-table__name">
+          Tamarisk Mining Ltd
+
+          <small class="contribution-table__note">
+            am Ende nicht mehr im Bestand
+          </small>
+        </td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num contribution-table__figure">
+          <span class="is-negative"><span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-under" style="width: 12.9%">
+            </span>
+          </span>
+        </td>
+      </tr><tr data-role="contribution-row" data-security-id="40">
+        <td class="contribution-table__name">
+          Larkspur Robotics Inc
+          <span class="contribution-unvalued-mark" data-role="contribution-unvalued-mark">171 Tage mit 0 bewertet</span>
+          <small class="contribution-table__note">
+            zu Beginn nicht im Bestand
+          </small>
+        </td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num contribution-table__figure">
+          <span class="is-negative"><span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-under" style="width: 30.0%">
+            </span>
+          </span>
+        </td>
+      </tr>
+      <tr class="contribution-table__more">
+        <td colspan="7" data-role="contribution-more">
+          <span>31 kleinere Positionen sind ausgeblendet; die Summe enthält sie.</span>
+          <button type="button" class="link-button contribution-show-all" data-role="contribution-show-all" aria-expanded="false">
+
+    Alle 41 anzeigen
+
+</button>
+        </td>
+      </tr>
+      <tr class="contribution-table__rest-head">
+        <td colspan="7" data-role="contribution-rest-head">
+          Keiner Position zugeordnet
+        </td>
+      </tr>
+      <tr class="contribution-table__rest" data-role="contribution-remainder" data-line="interest">
+        <td class="contribution-table__name">
+          Zinsen
+
+          <small class="contribution-table__note">Zinsbuchungen ohne Wertpapier: Kontozinsen und Kupons, die ohne ihre Anleihe gebucht sind</small>
+        </td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num">
+          <span class="is-positive"><span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+        </td>
+      </tr><tr class="contribution-table__rest" data-role="contribution-remainder" data-line="standalone_fees_and_taxes">
+        <td class="contribution-table__name">
+          Einzelne Gebühren und Steuern
+
+          <small class="contribution-table__note">Ohne Handelsbezug, auch mit Wertpapier</small>
+        </td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num">
+          <span class=""><span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+        </td>
+      </tr><tr class="contribution-table__rest" data-role="contribution-remainder" data-line="cash_currency_effect">
+        <td class="contribution-table__name">
+          Währungseffekt auf Bargeld
+          <span class="contribution-unvalued-mark" data-role="contribution-unvalued-mark" data-cash-account-id="17">Dollar Cash: 201 Tage mit 0 bewertet</span><span class="contribution-unvalued-mark" data-role="contribution-unvalued-mark" data-cash-account-id="16">Tagesgeld CHF: 28 Tage mit 0 bewertet</span><span class="contribution-unvalued-mark" data-role="contribution-unvalued-mark" data-cash-account-id="12">US Broker: 320 Tage mit 0 bewertet</span><span class="contribution-unvalued-mark" data-role="contribution-unvalued-mark" data-cash-account-id="2">USD Settlement: 4 Tage mit 0 bewertet</span>
+          <small class="contribution-table__note">Fremdwährungskonten und Abrechnungsdifferenzen von Käufen und Verkäufen</small>
+        </td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num">
+          <span class="is-positive"><span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+        </td>
+      </tr>
+      <tr class="contribution-table__sum" data-role="contribution-sum">
+        <td>Summe = Ergebnis im Zeitraum</td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num"><span class="pf-mask" role="img" aria-label="verborgen"></span></td>
+        <td class="num" data-role="contribution-sum-figure">
+          <span class="is-positive"><span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+          <small class="value-suffix">EUR</small>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+      <ul id="contribution-phone-rows" class="phone-rows contribution-phone-rows" aria-label="Beitrag je Position">
+  <li class="phone-row" data-role="contribution-row" data-security-id="1">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Apple Inc. Registered Shares o.N.</span>
+      <span class="phone-row__ids"><span class="pf-mask" role="img" aria-label="verborgen"></span> → <span class="pf-mask" role="img" aria-label="verborgen"></span> · Erträge <span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        <span class="pf-mask" role="img" aria-label="verborgen"></span>
+      </span>
+    </span>
+  </li><li class="phone-row" data-role="contribution-row" data-security-id="3">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Allianz SE vinkulierte Namens-Aktien o.N.</span>
+      <span class="phone-row__ids"><span class="pf-mask" role="img" aria-label="verborgen"></span> → <span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        <span class="pf-mask" role="img" aria-label="verborgen"></span>
+      </span>
+    </span>
+  </li><li class="phone-row" data-role="contribution-row" data-security-id="47">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Larkspur Rail AG 4,00 % Anleihe 2031</span>
+      <span class="phone-row__ids"><span class="pf-mask" role="img" aria-label="verborgen"></span> → <span class="pf-mask" role="img" aria-label="verborgen"></span> · Erträge <span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        <span class="pf-mask" role="img" aria-label="verborgen"></span>
+      </span>
+    </span>
+  </li><li class="phone-row" data-role="contribution-row" data-security-id="32">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Wrenfield Gardens AG</span>
+      <span class="phone-row__ids">am Ende nicht mehr im Bestand · Abfluss aus der Position <span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        <span class="pf-mask" role="img" aria-label="verborgen"></span>
+      </span>
+    </span>
+  </li><li class="phone-row" data-role="contribution-row" data-security-id="50">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Tamarisk Systems Inc.</span>
+      <span class="phone-row__ids">zu Beginn nicht im Bestand · Zufluss in die Position <span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        <span class="pf-mask" role="img" aria-label="verborgen"></span>
+      </span>
+    </span>
+  </li><li class="phone-row" data-role="contribution-row" data-security-id="2">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Microsoft Corporation Registered Shares DL-,00000625</span>
+      <span class="phone-row__ids"><span class="pf-mask" role="img" aria-label="verborgen"></span> → <span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        <span class="pf-mask" role="img" aria-label="verborgen"></span>
+      </span>
+    </span>
+  </li><li class="phone-row" data-role="contribution-row" data-security-id="34">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Saltmarsh Logistics SE</span>
+      <span class="phone-row__ids">weder zu Beginn noch am Ende im Bestand · Abfluss aus der Position <span class="pf-mask" role="img" aria-label="verborgen"></span> · 235 Tage mit 0 bewertet</span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        <span class="pf-mask" role="img" aria-label="verborgen"></span>
+      </span>
+    </span>
+  </li><li class="phone-row" data-role="contribution-row" data-security-id="4">
+    <span class="phone-row__body">
+      <span class="phone-row__name">iShares Core MSCI World UCITS ETF USD (Acc)</span>
+      <span class="phone-row__ids"><span class="pf-mask" role="img" aria-label="verborgen"></span> → <span class="pf-mask" role="img" aria-label="verborgen"></span></span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-negative">
+        <span class="pf-mask" role="img" aria-label="verborgen"></span>
+      </span>
+    </span>
+  </li><li class="phone-row" data-role="contribution-row" data-security-id="33">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Tamarisk Mining Ltd</span>
+      <span class="phone-row__ids">am Ende nicht mehr im Bestand</span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-negative">
+        <span class="pf-mask" role="img" aria-label="verborgen"></span>
+      </span>
+    </span>
+  </li><li class="phone-row" data-role="contribution-row" data-security-id="40">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Larkspur Robotics Inc</span>
+      <span class="phone-row__ids">zu Beginn nicht im Bestand · Zufluss in die Position <span class="pf-mask" role="img" aria-label="verborgen"></span> · Kosten <span class="pf-mask" role="img" aria-label="verborgen"></span> · 171 Tage mit 0 bewertet</span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-negative">
+        <span class="pf-mask" role="img" aria-label="verborgen"></span>
+      </span>
+    </span>
+  </li>
+  <li class="phone-row contribution-phone-rows__more">
+    <span class="phone-row__body">
+      <span class="phone-row__ids">31 kleinere Positionen sind ausgeblendet; die Summe enthält sie.</span>
+      <span><button type="button" class="link-button contribution-show-all" data-role="contribution-show-all" aria-expanded="false">
+
+    Alle 41 anzeigen
+
+</button></span>
+    </span>
+  </li>
+  <li class="phone-row contribution-phone-rows__rest" data-role="contribution-phone-rest">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Keiner Position zugeordnet</span>
+      <span class="phone-row__ids">
+        Zinsen <span class="pf-mask" role="img" aria-label="verborgen"></span> · Gebühren/Steuern <span class="pf-mask" role="img" aria-label="verborgen"></span> · Währung <span class="pf-mask" role="img" aria-label="verborgen"></span> · Dollar Cash: 201 Tage mit 0 bewertet · Tagesgeld CHF: 28 Tage mit 0 bewertet · US Broker: 320 Tage mit 0 bewertet · USD Settlement: 4 Tage mit 0 bewertet
+      </span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        <span class="pf-mask" role="img" aria-label="verborgen"></span>
+      </span>
+    </span>
+  </li>
+  <li class="phone-row contribution-phone-rows__sum" data-role="contribution-phone-sum">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Summe = Ergebnis im Zeitraum</span>
+      <span class="phone-row__ids">Positionen und Restposten</span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        <span class="pf-mask" role="img" aria-label="verborgen"></span> <small class="value-suffix">EUR</small>
+      </span>
+    </span>
+  </li>
+</ul>
+      <p class="summary-basis" data-role="contribution-basis">
+        je Position in EUR, einschließlich der Währungsbewegung
+      </p>
+      <div id="contribution-unvalued-note" class="data-note data-note--attention data-note--clamped" data-role="contribution-unvalued">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+  </span>
+  <span class="data-note__word">Achtung</span>
+
+    <div class="data-note__body">
+      <div id="contribution-unvalued-note-text" class="data-note__text">
+
+    4 Positionen zählten an einigen Tagen des Zeitraums null:
+    <span><b>Saltmarsh Logistics SE</b> (235 Tage, kein Kurs gespeichert)</span><span>, <b>Harborline Freight Inc</b> (319 Tage, kein Wechselkurs gespeichert)</span><span>, <b>Placeholder Anleihe 2031 3,25%</b> (41 Tage, kein Kurs gespeichert)</span><span>, <b>Larkspur Robotics Inc</b> (171 Tage, kein Wechselkurs gespeichert)</span>.
+    Sie bleiben in der Summe, so wie im Ergebnis darüber.
+
+
+    Ein Verrechnungskonto zählte an einigen Tagen des Zeitraums null:
+    <span><b>Tagesgeld CHF</b> (<span class="pf-mask" role="img" aria-label="verborgen"></span> CHF, 28 Tage, kein Wechselkurs gespeichert)</span>.
+    Mit dem ersten Wechselkurs am 26.07.2026 kam sein ganzer Saldo in den „Währungseffekt auf Bargeld“ und damit ins Ergebnis — das ist kein Währungsgewinn.
+
+
+    3 Verrechnungskonten zählen bis zum Ende des Zeitraums null:
+    <span><b>Dollar Cash</b> (<span class="pf-mask" role="img" aria-label="verborgen"></span> USD, 201 Tage, kein Wechselkurs gespeichert)</span><span>, <b>US Broker</b> (<span class="pf-mask" role="img" aria-label="verborgen"></span> USD, 320 Tage, kein Wechselkurs gespeichert)</span><span>, <b>USD Settlement</b> (<span class="pf-mask" role="img" aria-label="verborgen"></span> USD, 4 Tage, kein Wechselkurs gespeichert)</span>.
+
+</div>
+
+    </div>
+    <button type="button" class="link-button data-note__more" aria-expanded="false" aria-controls="contribution-unvalued-note-text" data-more="mehr" data-less="weniger">mehr</button>
+
+</div>
+
+</div>
+
+    </section></div></main></div></div></div>
