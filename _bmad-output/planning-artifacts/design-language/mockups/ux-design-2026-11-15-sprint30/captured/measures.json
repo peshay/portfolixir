@@ -1,0 +1,358 @@
+{
+ "perf-total-1200.html": {
+  "width": 980,
+  "height": 1589,
+  "viewport": 1200
+ },
+ "totalChart": {
+  "width": 924,
+  "ticks": [
+   "76.033",
+   "79.247",
+   "82.462",
+   "85.677",
+   "88.892"
+  ]
+ },
+ "perf-category-1200.html": {
+  "width": 980,
+  "height": 1435,
+  "viewport": 1200
+ },
+ "stackChart": {
+  "width": 560,
+  "inside": true,
+  "upx": "--chart-upx: 1.7144;",
+  "gutterPx": 33,
+  "labels": [
+   {
+    "text": "0",
+    "left": 37,
+    "right": 42,
+    "width": 5
+   },
+   {
+    "text": "20.000",
+    "left": 37,
+    "right": 69,
+    "width": 32
+   },
+   {
+    "text": "40.000",
+    "left": 37,
+    "right": 69,
+    "width": 32
+   },
+   {
+    "text": "60.000",
+    "left": 37,
+    "right": 69,
+    "width": 32
+   },
+   {
+    "text": "80.000",
+    "left": 37,
+    "right": 69,
+    "width": 32
+   }
+  ],
+  "negative": 0
+ },
+ "perf-total-390.html": {
+  "width": 390,
+  "height": 1830,
+  "viewport": 390
+ },
+ "security-chart-1200.html": {
+  "width": 954,
+  "height": 330,
+  "viewport": 1200
+ },
+ "positions-1200.html": {
+  "width": 980,
+  "height": 2511,
+  "viewport": 1200
+ },
+ "positions": {
+  "wrapper": 924,
+  "table": 922,
+  "cols": [
+   {
+    "label": "Depot",
+    "width": 70
+   },
+   {
+    "label": "Wertpapier",
+    "width": 193
+   },
+   {
+    "label": "Stückzahl",
+    "width": 123
+   },
+   {
+    "label": "Ø Kosten",
+    "width": 113
+   },
+   {
+    "label": "Letzter Kurs",
+    "width": 113
+   },
+   {
+    "label": "Marktwert",
+    "width": 114
+   },
+   {
+    "label": "G&V",
+    "width": 113
+   },
+   {
+    "label": "G&V %",
+    "width": 83
+   }
+  ],
+  "rows": [
+   {
+    "name": "Larkspur Rail AG 4,00 % Anleihe 2031",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Alder Creek Timber Fund",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Alder Creek Timber Fund Class B",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Allianz SE vinkulierte Namens-Aktien o.N.",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Alpine Test Werke AG",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Apple Inc. Registered Shares o.N.",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Birkenhain Wasser Anleihe 2029 1,50%",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Bitcoin",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Juniper Rail AG ISIN XS0000000132",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Juniper Rail AG ISIN XS0000000140",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Kestrel Anleihe 2030 2,75%",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Kestrel Industrial Group NV",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Larkspur Robotics Inc",
+    "height": 99,
+    "notes": 1
+   },
+   {
+    "name": "Meridian Global Equity ETF",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Microsoft Corporation Registered Shares DL-,00000625",
+    "height": 65,
+    "notes": 0
+   },
+   {
+    "name": "NVIDIA Corporation Registered Shares DL-,001",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Nordic Timber Holdings AB",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Orchid Bay Pharmaceuticals plc ISIN XS0000000066",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Orchid Bay Pharmaceuticals plc ISIN XS0000000074",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Ostsee Logistik 4,10% 2028/2033",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Pinecrest Utilities SA ISIN XS0000000082",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Pinecrest Utilities SA ISIN XS0000000090",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Placeholder Anleihe 2031 3,25%",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Quarry Lane Materials AG ISIN XS0000000108",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Quarry Lane Materials AG ISIN XS0000000116",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Tamarisk Systems Inc.",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Thornbury Water Fund ISIN XS0000000165",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Thornbury Water Fund ISIN XS0000000173",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Vanguard FTSE All-World UCITS ETF USD Acc",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Wexmoor Instruments AG",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "iShares Core MSCI World UCITS ETF USD (Acc)",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Cobalt Ridge Logistics SE",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Helios Solar Systems SE",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Helios Solar Systems SE",
+    "height": 65,
+    "notes": 1
+   },
+   {
+    "name": "Harborline Freight Inc",
+    "height": 99,
+    "notes": 1
+   },
+   {
+    "name": "Larkspur Robotics Inc",
+    "height": 99,
+    "notes": 1
+   },
+   {
+    "name": "Wexmoor Instruments AG",
+    "height": 49,
+    "notes": 0
+   },
+   {
+    "name": "Birchwood Global Savings Fund",
+    "height": 64,
+    "notes": 1
+   }
+  ]
+ },
+ "kpis-allocation-1200.html": {
+  "width": 980,
+  "height": 43,
+  "viewport": 1200
+ },
+ "risk-head-1200.html": {
+  "width": 980,
+  "height": 34,
+  "viewport": 1200
+ },
+ "crash-1200.html": {
+  "width": 980,
+  "height": 753,
+  "viewport": 1200
+ },
+ "crash-catalogue-1200.html": {
+  "width": 980,
+  "height": 804,
+  "viewport": 1200
+ },
+ "crash-390.html": {
+  "width": 390,
+  "height": 1092,
+  "viewport": 390
+ },
+ "crashWindows390": {
+  "wrapper": 358,
+  "table": 756
+ },
+ "kpi-strip-1200.html": {
+  "width": 980,
+  "height": 187,
+  "viewport": 1200
+ },
+ "txHead": "workspace-page",
+ "tx-filter-390.html": {
+  "width": 390,
+  "height": 8655,
+  "viewport": 390
+ },
+ "perf-total-privacy-390.html": {
+  "width": 390,
+  "height": 1942,
+  "viewport": 390,
+  "htmlAttrs": [
+   "lang=de",
+   "data-privacy=on",
+   "data-privacy-label=verborgen",
+   "data-theme=system",
+   "data-accent=violet"
+  ]
+ }
+}

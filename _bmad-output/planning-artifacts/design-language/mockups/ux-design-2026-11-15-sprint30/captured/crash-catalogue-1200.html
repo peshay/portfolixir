@@ -1,0 +1,359 @@
+<div class="phx-connected"><div id="app-shell" class="app-shell"><div class="app-frame"><main class="app-main app-main--workspace"><div class="workspace-page"><section class="workspace-section crash-section" id="risk-crashes" aria-labelledby="risk-crashes-title">
+  <header class="section-head">
+    <div class="section-title">
+      <h2 id="risk-crashes-title">Crashes</h2>
+      <details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+  <summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+  <p role="tooltip">Ein Fenster öffnet, sobald der Crash-Benchmark 10 % oder mehr unter seinem Höchststand schließt; es beginnt am letzten Tag auf dem Hoch und endet im tiefsten Schluss vor der Erholung, bei gleichen Tiefs am frühesten.<br>Erkannt in der Währung des Benchmarks, gelistet in EUR zum Wechselkurs jedes Schlusstags; Splits bereinigt.<br>Kurs an einem Tag: der letzte Schluss am oder vor ihm, höchstens 7 Tage alt. Ohne Kurs oder Wechselkurs keine Antwort, nie eine Null.<br>Erholer: vom eigenen Tief zwischen Hoch und Tief bis drei Kalendermonate nach dem Tief; Tage bis Vorkrisenkurs in Kalendertagen.<br>Gleichstand nach Wert, dann Name, dann ISIN. Benchmarks stehen in keiner Liste.<br>Kein Urteil: die Listen vergleichen Kurse, sie sagen nicht, was zu kaufen ist.</p>
+</details>
+    </div>
+  </header>
+
+  <div class="data-note data-note--note" data-role="crash-no-benchmark">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"></path></svg>
+  </span>
+  <span class="data-note__word">Hinweis</span>
+
+    <div class="data-note__body">
+    Kein Crash-Benchmark gewählt: die Regel erkennt keine Fenster, manuelle gelten weiter.
+    <button type="button" class="link-button" data-role="crash-choose-benchmark">
+      Crash-Benchmark wählen
+    </button>
+  </div>
+
+</div>
+
+
+    <div class="control-bar control-bar--fold-900 control-bar--floor-330 crash-bar" data-role="crash-bar">
+
+  <div class="control-bar__controls">
+    <form class="control-bar__group " id="crash-window-form">
+
+  <label class="control-bar__label" for="crash-window">Fenster</label>
+
+    <select id="crash-window" name="crash">
+      <option value="m:1" selected="">
+        Synthetic dip · 06.10.2026–26.10.2026 · manuell
+      </option>
+    </select>
+
+</form><span class="control-bar__group ">
+
+  <span class="control-bar__label" id="crash-list-label">Liste</span>
+
+    <div class="segmented-control" data-role="crash-list" role="group" aria-labelledby="crash-list-label">
+      <a href="/risk?crash=m%3A1&amp;crash_list=losers&amp;crash_universe=catalogue" class="segmented-control__option is-active" aria-current="true" data-list="losers">
+        Verlierer
+      </a><a href="/risk?crash=m%3A1&amp;crash_list=winners&amp;crash_universe=catalogue" class="segmented-control__option" data-list="winners">
+        Gewinner
+      </a><a href="/risk?crash=m%3A1&amp;crash_list=rebounders&amp;crash_universe=catalogue" class="segmented-control__option" data-list="rebounders">
+        Erholer
+      </a>
+    </div>
+
+</span><span class="control-bar__group ">
+
+  <span class="control-bar__label" id="crash-universe-label">Wertpapiere</span>
+
+    <div class="segmented-control" data-role="crash-universe" role="group" aria-labelledby="crash-universe-label">
+
+        <a href="/risk?crash=m%3A1&amp;crash_list=losers&amp;crash_universe=depot" class="segmented-control__option" data-universe="depot">
+          Im Depot
+        </a>
+
+        <a href="/risk?crash=m%3A1&amp;crash_list=losers&amp;crash_universe=catalogue" class="segmented-control__option is-active" aria-current="true" data-universe="catalogue">
+          Ganzer Katalog
+        </a>
+
+    </div>
+
+</span>
+  </div>
+</div>
+
+    <p class="crash-window" data-role="crash-window">
+  <b>Synthetic dip</b>
+
+  <span class="badge crash-badge--manual">manuell</span>
+
+  <span>
+    Hoch <b>06.10.2026</b>
+    →
+    Tief
+    <b>26.10.2026</b>
+
+  </span>
+
+
+
+
+      <a href="/portfolio?from=2026-10-06&amp;to=2026-10-26" class="crash-window__link" data-role="crash-holdings-link">
+        Im Depot ansehen →
+      </a>
+
+</p>
+
+
+
+  <div class="data-table-wrapper">
+    <table class="data-table crash-table " data-list="losers">
+      <thead>
+        <tr>
+          <th class="crash-rank">#</th>
+          <th class="crash-name">Wertpapier</th>
+          <th class="crash-plot">
+            Kursrendite Hoch → Tief, EUR
+          </th>
+          <th class="num crash-fig">%</th>
+
+
+        </tr>
+      </thead>
+      <tbody>
+        <tr data-rank="1" data-security-id="37" data-return="-0.0366492146596858638743455497382199">
+          <td class="crash-rank">1</td>
+          <td class="crash-name">
+            Sable Point Energy ASA
+          </td>
+          <td class="crash-plot" aria-hidden="true">
+            <div class="crash-track">
+              <span class="crash-track__zero" style="left:66.67%"></span>
+              <span class="crash-track__bar " style="left:5.58%;width:61.09%"></span>
+
+            </div>
+          </td>
+          <td class="num crash-fig is-negative" data-role="crash-figure">
+            -3,7 %
+          </td>
+
+
+        </tr><tr data-rank="2" data-security-id="3" data-return="-0.0310745631375029651300703724203368">
+          <td class="crash-rank">2</td>
+          <td class="crash-name">
+            Allianz SE vinkulierte Namens-Aktien o.N.<span class="badge badge--neutral" data-role="crash-held">im Depot</span>
+          </td>
+          <td class="crash-plot" aria-hidden="true">
+            <div class="crash-track">
+              <span class="crash-track__zero" style="left:66.67%"></span>
+              <span class="crash-track__bar " style="left:14.88%;width:51.79%"></span>
+
+            </div>
+          </td>
+          <td class="num crash-fig is-negative" data-role="crash-figure">
+            -3,1 %
+          </td>
+
+
+        </tr><tr data-rank="3" data-security-id="34" data-return="-0.0245711636532220676866017617060732">
+          <td class="crash-rank">3</td>
+          <td class="crash-name">
+            Saltmarsh Logistics SE
+          </td>
+          <td class="crash-plot" aria-hidden="true">
+            <div class="crash-track">
+              <span class="crash-track__zero" style="left:66.67%"></span>
+              <span class="crash-track__bar " style="left:25.71%;width:40.96%"></span>
+
+            </div>
+          </td>
+          <td class="num crash-fig is-negative" data-role="crash-figure">
+            -2,5 %
+          </td>
+
+
+        </tr><tr data-rank="4" data-security-id="5" data-return="-0.0240064323455088444750746611532277">
+          <td class="crash-rank">4</td>
+          <td class="crash-name">
+            Vanguard FTSE All-World UCITS ETF USD Acc<span class="badge badge--neutral" data-role="crash-held">im Depot</span>
+          </td>
+          <td class="crash-plot" aria-hidden="true">
+            <div class="crash-track">
+              <span class="crash-track__zero" style="left:66.67%"></span>
+              <span class="crash-track__bar " style="left:26.66%;width:40.01%"></span>
+
+            </div>
+          </td>
+          <td class="num crash-fig is-negative" data-role="crash-figure">
+            -2,4 %
+          </td>
+
+
+        </tr><tr data-rank="5" data-security-id="4" data-return="-0.0179696929059943677081936435563900">
+          <td class="crash-rank">5</td>
+          <td class="crash-name">
+            iShares Core MSCI World UCITS ETF USD (Acc)<span class="badge badge--neutral" data-role="crash-held">im Depot</span>
+          </td>
+          <td class="crash-plot" aria-hidden="true">
+            <div class="crash-track">
+              <span class="crash-track__zero" style="left:66.67%"></span>
+              <span class="crash-track__bar " style="left:36.72%;width:29.95%"></span>
+
+            </div>
+          </td>
+          <td class="num crash-fig is-negative" data-role="crash-figure">
+            -1,8 %
+          </td>
+
+
+        </tr><tr data-rank="6" data-security-id="32" data-return="0.011488038924178943100418975537235">
+          <td class="crash-rank">6</td>
+          <td class="crash-name">
+            Wrenfield Gardens AG
+          </td>
+          <td class="crash-plot" aria-hidden="true">
+            <div class="crash-track">
+              <span class="crash-track__zero" style="left:66.67%"></span>
+              <span class="crash-track__bar is-up" style="left:66.67%;width:19.14%"></span>
+
+            </div>
+          </td>
+          <td class="num crash-fig is-positive" data-role="crash-figure">
+            +1,1 %
+          </td>
+
+
+        </tr><tr data-rank="7" data-security-id="7" data-return="0.012434749395238297330560624708229">
+          <td class="crash-rank">7</td>
+          <td class="crash-name">
+            NVIDIA Corporation Registered Shares DL-,001<span class="badge badge--neutral" data-role="crash-held">im Depot</span>
+          </td>
+          <td class="crash-plot" aria-hidden="true">
+            <div class="crash-track">
+              <span class="crash-track__zero" style="left:66.67%"></span>
+              <span class="crash-track__bar is-up" style="left:66.67%;width:20.72%"></span>
+
+            </div>
+          </td>
+          <td class="num crash-fig is-positive" data-role="crash-figure">
+            +1,2 %
+          </td>
+
+
+        </tr><tr data-rank="8" data-security-id="35" data-return="0.017987804878048780487804878048780">
+          <td class="crash-rank">8</td>
+          <td class="crash-name">
+            Brightwater Utilities plc
+          </td>
+          <td class="crash-plot" aria-hidden="true">
+            <div class="crash-track">
+              <span class="crash-track__zero" style="left:66.67%"></span>
+              <span class="crash-track__bar is-up" style="left:66.67%;width:29.98%"></span>
+
+            </div>
+          </td>
+          <td class="num crash-fig is-positive" data-role="crash-figure">
+            +1,8 %
+          </td>
+
+
+        </tr>
+      </tbody>
+      <tfoot aria-hidden="true">
+        <tr>
+          <td class="crash-rank"></td>
+          <td class="crash-name"></td>
+          <td class="crash-plot">
+            <div class="crash-axis">
+              <span style="left:0.00%">
+                -4 %
+              </span><span style="left:33.33%">
+                -2 %
+              </span><span style="left:66.67%">
+                0 %
+              </span><span style="left:100.00%">
+                +2 %
+              </span>
+            </div>
+          </td>
+          <td class="crash-fig"></td>
+
+
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+<p class="summary-basis crash-basis" data-role="crash-basis">
+  Grundlage: Kursrendite in EUR von Hoch bis Tief des Fensters · kein Vergleich: kein Crash-Benchmark gewählt · nur Wertpapiere, die der Katalog heute führt.
+</p>
+
+    <p class="crash-unanswered" data-role="crash-unanswered">
+  8 von 49 Wertpapieren mit Antwort gezeigt · 38 ohne Antwort: 37 ohne Kurs am Fensterbeginn, 1 ohne Kurs am Fensterende
+    <button type="button" class="link-button">
+      anzeigen
+    </button>
+
+</p>
+
+
+
+  <details class="perf-table-disclosure crash-windows" id="crash-windows" open="">
+  <summary class="disclosure-summary">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+    Crash-Fenster · 1 manuell
+  </summary>
+  <div class="crash-windows__body">
+    <p class="crash-rule" data-role="crash-rule">
+
+        <span>Kein Crash-Benchmark gewählt.</span>
+        <button type="button" class="link-button">
+          Crash-Benchmark wählen
+        </button>
+
+      <button type="button" class="button-secondary crash-rule__add" data-role="crash-add-window">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Fenster anlegen
+      </button>
+    </p>
+
+
+
+
+    <div class="data-table-wrapper">
+      <table class="data-table crash-windows-table" id="crash-windows-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Hoch</th>
+            <th>Tief</th>
+            <th class="num">Rückgang</th>
+            <th>Erholt</th>
+            <th class="num">Lücke, Tage</th>
+            <th>Art</th>
+            <th><span class="sr-only">Aktionen</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-key="m:1" class="">
+            <td class="">Synthetic dip</td>
+            <td>06.10.2026</td>
+            <td>
+              26.10.2026
+
+            </td>
+
+              <td class="num muted">—</td>
+              <td class="muted">—</td>
+              <td class="num muted">—</td>
+
+            <td><span class="badge crash-badge--manual">manuell</span>
+</td>
+            <td class="crash-actions">
+
+                <button type="button" class="link-button" data-role="crash-manual-edit">
+                  Bearbeiten
+                </button>
+                <button type="button" class="link-button" data-role="crash-manual-delete" data-confirm="Das manuelle Fenster „Synthetic dip“ löschen?">
+                  Löschen
+                </button>
+
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+
+  </div>
+</details>
+</section></div></main></div></div></div>

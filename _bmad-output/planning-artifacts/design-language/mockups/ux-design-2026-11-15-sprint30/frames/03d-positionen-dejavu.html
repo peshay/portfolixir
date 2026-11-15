@@ -1,0 +1,1803 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>03d-positionen-dejavu</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.app-frame { padding-left: 0 !important; min-height: 0 !important; }
+.app-shell, .app-main, .app-main--workspace, .workspace-page { min-height: 0 !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-crop { margin: 0; padding: 8px 12px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12px; color: var(--color-text-muted); }
+</style>
+<style id="proposal">.workspace-section { padding: 28px; }#holdings-positions-table tbody tr:not(.mock-keep) { visibility: collapse; }:root { --font-sans: "DejaVu Sans"; }</style>
+</head>
+<body><div class="phx-connected">
+<div id="app-shell" class="app-shell">
+<div class="app-frame"><main class="app-main app-main--workspace">
+<div id="portfolio-overview" class="workspace-page portfolio-overview">
+<section id="portfolio-positions" class="workspace-section">
+      <header class="section-head">
+        <h2>Positionen</h2>
+
+        <div class="popover-container">
+          <button type="button" id="holdings-column-toggle" class="button-ghost column-picker-toggle " aria-haspopup="dialog" aria-expanded="false">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><rect x="3" y="4" width="6" height="16" rx="1"></rect><rect x="11" y="4" width="6" height="16" rx="1"></rect><rect x="19" y="4" width="2" height="16" rx="1"></rect>
+</svg>
+  Spalten
+</button>
+
+        </div>
+      </header>
+
+      <div class="summary-basis" data-role="positions-basis">
+        Eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Kurs oder, ohne Kurs, zum letzten eigenen Handelspreis.
+        <details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+  <summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+  <p role="tooltip">
+            Marktwert in EUR, wie ihn die Summe zählt.
+          </p>
+</details>
+      </div>
+
+        <div id="holdings-positions-wrapper" class="data-table-wrapper" data-storage-key="wealth.holdings.columns" data-restore-event="set_holdings_columns" data-current-columns="[&quot;depot&quot;,&quot;security&quot;,&quot;quantity&quot;,&quot;avg_cost&quot;,&quot;latest_price&quot;,&quot;market_value&quot;,&quot;unrealized_pnl_abs&quot;,&quot;unrealized_pnl_pct&quot;]">
+          <table id="holdings-positions-table" class="data-table">
+            <thead>
+              <tr>
+                <th>
+                  Depot
+                </th>
+<th class="cell-name">
+                  Wertpapier
+                </th>
+<th class="num">
+                  Stückzahl
+                </th>
+<th class="num">
+                  Ø Kosten
+                </th>
+<th class="num">
+                  Letzter Kurs
+                </th>
+<th class="num">
+                  Marktwert
+                </th>
+<th class="num">
+                  G&amp;V
+                </th>
+<th class="num">
+                  G&amp;V %
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-role="holdings-position" data-security-id="47">
+
+                <td data-column="depot">
+                  Coupon-Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Larkspur Rail AG 4,00 % Anleihe 2031
+
+                </td>
+<td data-column="quantity" class="num">
+                  100
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  99,50 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  100,25 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  10.025,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +75,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +0,8%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="24" class="mock-keep">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Alder Creek Timber Fund
+
+                </td>
+<td data-column="quantity" class="num">
+                  30
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  11,20 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  11,20 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 03.03.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  336,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-flat">
+                  0,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-flat">
+                  0,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="25">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Alder Creek Timber Fund Class B
+
+                </td>
+<td data-column="quantity" class="num">
+                  10
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  11,40 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  11,40 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 03.04.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  114,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-flat">
+                  0,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-flat">
+                  0,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="3">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Allianz SE vinkulierte Namens-Aktien o.N.
+
+                </td>
+<td data-column="quantity" class="num">
+                  60
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  100,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  116,86 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  7.011,60 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +1.011,60 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +16,9%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="12">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Alpine Test Werke AG
+
+                </td>
+<td data-column="quantity" class="num">
+                  20
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  45,60 <small class="value-suffix">CHF</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  46,10 <small class="value-suffix">CHF</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  970,53 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +10,00 <small class="value-suffix">CHF</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +1,1%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="1">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Apple Inc. Registered Shares o.N.
+
+                </td>
+<td data-column="quantity" class="num">
+                  50
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  170,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  188,87 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  9.443,50 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +943,50 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +11,1%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="42">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Birkenhain Wasser Anleihe 2029 1,50%
+
+                </td>
+<td data-column="quantity" class="num">
+                  10
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  98,50 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  0,985 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  9,85 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-negative">
+                  -975,15 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-negative">
+                  -99,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="6">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Bitcoin
+
+                </td>
+<td data-column="quantity" class="num">
+                  0,05
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  60.000,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  51.393,52 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  2.569,68 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-negative">
+                  -430,32 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-negative">
+                  -14,3%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="26">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Juniper Rail AG <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000132</span>
+
+                </td>
+<td data-column="quantity" class="num">
+                  18
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  16,50 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  16,50 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 21.01.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  297,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-flat">
+                  0,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-flat">
+                  0,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="27">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Juniper Rail AG <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000140</span>
+
+                </td>
+<td data-column="quantity" class="num">
+                  9
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  11,1333 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  11,1333 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 21.02.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  100,20 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-flat">
+                  0,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-flat">
+                  0,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="41">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Kestrel Anleihe 2030 2,75%
+
+                </td>
+<td data-column="quantity" class="num">
+                  50
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  0,985 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  97,25 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  4.862,50 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +4.813,25 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +9.773,1%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="11">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Kestrel Industrial Group NV
+
+                </td>
+<td data-column="quantity" class="num">
+                  10
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  24,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  24,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  240,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-flat">
+                  0,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-flat">
+                  0,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="40" class="mock-keep">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Larkspur Robotics Inc
+
+                </td>
+<td data-column="quantity" class="num">
+                  40
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  25,00 <small class="value-suffix">USD</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  27,50 <small class="value-suffix">USD</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  —
+                  <small class="cell-note">
+                    ohne Wechselkurs · nicht in der Summe
+                  </small>
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +100,00 <small class="value-suffix">USD</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +10,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="14" class="mock-keep">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Meridian Global Equity ETF
+
+                </td>
+<td data-column="quantity" class="num">
+                  65
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  63,7692 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  71,00 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 01.07.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  4.615,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +470,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +11,3%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="2">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Microsoft Corporation Registered Shares DL-,00000625
+
+                </td>
+<td data-column="quantity" class="num">
+                  10
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  360,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  234,52 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  2.345,20 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-negative">
+                  -1.254,80 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-negative">
+                  -34,9%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="7">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  NVIDIA Corporation Registered Shares DL-,001
+
+                </td>
+<td data-column="quantity" class="num">
+                  10
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  250,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  240,11 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  2.401,10 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-negative">
+                  -98,90 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-negative">
+                  -4,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="8">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Nordic Timber Holdings AB
+
+                </td>
+<td data-column="quantity" class="num">
+                  30
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  42,10 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  42,64 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  1.279,20 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +16,20 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +1,3%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="17">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Orchid Bay Pharmaceuticals plc <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000066</span>
+
+                </td>
+<td data-column="quantity" class="num">
+                  12
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  30,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  30,00 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 03.02.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  360,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-flat">
+                  0,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-flat">
+                  0,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="18">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Orchid Bay Pharmaceuticals plc <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000074</span>
+
+                </td>
+<td data-column="quantity" class="num">
+                  12
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  30,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  30,00 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 03.02.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  360,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-flat">
+                  0,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-flat">
+                  0,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="43">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Ostsee Logistik 4,10% 2028/2033
+
+                </td>
+<td data-column="quantity" class="num">
+                  50
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  0,991 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  99,10 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  4.955,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +4.905,45 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +9.900,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="19">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Pinecrest Utilities SA <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000082</span>
+
+                </td>
+<td data-column="quantity" class="num">
+                  8
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  25,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  25,00 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 04.02.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  200,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-flat">
+                  0,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-flat">
+                  0,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="20">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Pinecrest Utilities SA <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000090</span>
+
+                </td>
+<td data-column="quantity" class="num">
+                  3
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  26,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  26,00 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 04.05.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  78,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-flat">
+                  0,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-flat">
+                  0,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="9" class="mock-keep">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Placeholder Anleihe 2031 3,25%
+
+                </td>
+<td data-column="quantity" class="num">
+                  5
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  0,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  —
+                  <small class="cell-note">
+                    kein Preis · nicht in der Summe
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  —
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num">
+                  —
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num">
+                  —
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="21">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Quarry Lane Materials AG <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000108</span>
+
+                </td>
+<td data-column="quantity" class="num">
+                  12
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  28,65 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  28,65 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 20.01.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  343,80 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-flat">
+                  0,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-flat">
+                  0,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="22">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Quarry Lane Materials AG <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000116</span>
+
+                </td>
+<td data-column="quantity" class="num">
+                  4
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  56,10 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  56,10 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 11.02.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  224,40 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-flat">
+                  0,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-flat">
+                  0,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="50">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Tamarisk Systems Inc.
+
+                </td>
+<td data-column="quantity" class="num">
+                  10
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  4,12 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  41,80 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  418,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +376,80 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +914,6%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="44">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Thornbury Water Fund <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000165</span>
+
+                </td>
+<td data-column="quantity" class="num">
+                  5
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  100,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  120,00 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 07.04.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  600,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +100,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +20,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="45">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Thornbury Water Fund <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000173</span>
+
+                </td>
+<td data-column="quantity" class="num">
+                  5
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  110,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  105,00 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 05.05.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  525,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-negative">
+                  -25,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-negative">
+                  -4,5%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="5">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Vanguard FTSE All-World UCITS ETF USD Acc
+
+                </td>
+<td data-column="quantity" class="num">
+                  40
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  100,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  87,21 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  3.488,40 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-negative">
+                  -511,60 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-negative">
+                  -12,8%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="46">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Wexmoor Instruments AG
+
+                </td>
+<td data-column="quantity" class="num">
+                  20
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  20,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  20,40 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  408,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +8,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +2,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="4">
+
+                <td data-column="depot">
+                  Demo Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  iShares Core MSCI World UCITS ETF USD (Acc)
+
+                </td>
+<td data-column="quantity" class="num">
+                  120
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  75,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  72,02 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  8.642,40 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-negative">
+                  -357,60 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-negative">
+                  -4,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="13">
+
+                <td data-column="depot">
+                  Depot 1
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Cobalt Ridge Logistics SE
+
+                </td>
+<td data-column="quantity" class="num">
+                  30
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  40,8333 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  42,50 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 12.03.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  1.275,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +50,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +4,1%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="23">
+
+                <td data-column="depot">
+                  Depot Nord
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Helios Solar Systems SE
+
+                </td>
+<td data-column="quantity" class="num">
+                  15
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  18,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  19,20 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 14.03.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  288,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +18,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +6,7%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="23">
+
+                <td data-column="depot">
+                  Depot Süd
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Helios Solar Systems SE
+
+                </td>
+<td data-column="quantity" class="num">
+                  5
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  19,20 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  19,20 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 14.03.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  96,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-flat">
+                  0,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-flat">
+                  0,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="36" class="mock-keep">
+
+                <td data-column="depot">
+                  Dollar Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Harborline Freight Inc
+
+                </td>
+<td data-column="quantity" class="num">
+                  50
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  30,00 <small class="value-suffix">USD</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  33,00 <small class="value-suffix">USD</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  —
+                  <small class="cell-note">
+                    ohne Wechselkurs · nicht in der Summe
+                  </small>
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +150,00 <small class="value-suffix">USD</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +10,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="40">
+
+                <td data-column="depot">
+                  Dollar Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Larkspur Robotics Inc
+
+                </td>
+<td data-column="quantity" class="num">
+                  20
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  25,00 <small class="value-suffix">USD</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  27,50 <small class="value-suffix">USD</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  —
+                  <small class="cell-note">
+                    ohne Wechselkurs · nicht in der Summe
+                  </small>
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +50,00 <small class="value-suffix">USD</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +10,0%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="46">
+
+                <td data-column="depot">
+                  Family Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Wexmoor Instruments AG
+
+                </td>
+<td data-column="quantity" class="num">
+                  12
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  20,50 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  20,40 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="market_value" class="num">
+                  244,80 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-negative">
+                  -1,20 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-negative">
+                  -0,5%
+
+                </td>
+              </tr>
+<tr data-role="holdings-position" data-security-id="28" class="mock-keep">
+
+                <td data-column="depot">
+                  Sparplan Depot
+
+                </td>
+<td data-column="security" class="cell-name">
+                  Birchwood Global Savings Fund
+
+                </td>
+<td data-column="quantity" class="num">
+                  0,333333333333
+
+                </td>
+<td data-column="avg_cost" class="num">
+                  3,3333 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="latest_price" class="num">
+                  3,3333 <small class="value-suffix">EUR</small>
+                  <small class="cell-note">
+                    Handelspreis · 10.01.2025
+                  </small>
+                </td>
+<td data-column="market_value" class="num">
+                  1,11 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_abs" class="num is-flat">
+                  0,00 <small class="value-suffix">EUR</small>
+
+                </td>
+<td data-column="unrealized_pnl_pct" class="num is-flat">
+                  0,0%
+
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <ul id="holdings-phone-rows" class="phone-rows" aria-label="Positionen">
+          <li class="phone-row" data-role="holdings-position" data-security-id="47">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Larkspur Rail AG 4,00 % Anleihe 2031</span>
+              <span class="phone-row__ids">Coupon-Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">100 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="24">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Alder Creek Timber Fund</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">30 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="25">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Alder Creek Timber Fund Class B</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">10 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="3">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Allianz SE vinkulierte Namens-Aktien o.N.</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">60 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="12">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Alpine Test Werke AG</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">20 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="1">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Apple Inc. Registered Shares o.N.</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">50 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="42">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Birkenhain Wasser Anleihe 2029 1,50%</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">10 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="6">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Bitcoin</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">0,05 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="26">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Juniper Rail AG <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000132</span></span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">18 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="27">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Juniper Rail AG <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000140</span></span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">9 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="41">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Kestrel Anleihe 2030 2,75%</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">50 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="11">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Kestrel Industrial Group NV</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">10 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="40">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Larkspur Robotics Inc</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">40 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="14">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Meridian Global Equity ETF</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">65 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="2">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Microsoft Corporation Registered Shares DL-,00000625</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">10 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="7">
+            <span class="phone-row__body">
+              <span class="phone-row__name">NVIDIA Corporation Registered Shares DL-,001</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">10 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="8">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Nordic Timber Holdings AB</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">30 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="17">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Orchid Bay Pharmaceuticals plc <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000066</span></span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">12 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="18">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Orchid Bay Pharmaceuticals plc <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000074</span></span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">12 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="43">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Ostsee Logistik 4,10% 2028/2033</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">50 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="19">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Pinecrest Utilities SA <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000082</span></span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">8 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="20">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Pinecrest Utilities SA <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000090</span></span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">3 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="9">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Placeholder Anleihe 2031 3,25%</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">5 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="21">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Quarry Lane Materials AG <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000108</span></span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">12 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="22">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Quarry Lane Materials AG <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000116</span></span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">4 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="50">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Tamarisk Systems Inc.</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">10 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="44">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Thornbury Water Fund <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000165</span></span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">5 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="45">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Thornbury Water Fund <span class="twin-id"><span class="visually-hidden">ISIN</span> XS0000000173</span></span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">5 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="5">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Vanguard FTSE All-World UCITS ETF USD Acc</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">40 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="46">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Wexmoor Instruments AG</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">20 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="4">
+            <span class="phone-row__body">
+              <span class="phone-row__name">iShares Core MSCI World UCITS ETF USD (Acc)</span>
+              <span class="phone-row__ids">Demo Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">120 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="13">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Cobalt Ridge Logistics SE</span>
+              <span class="phone-row__ids">Depot 1</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">30 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="23">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Helios Solar Systems SE</span>
+              <span class="phone-row__ids">Depot Nord</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">15 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="23">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Helios Solar Systems SE</span>
+              <span class="phone-row__ids">Depot Süd</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">5 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="36">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Harborline Freight Inc</span>
+              <span class="phone-row__ids">Dollar Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">50 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="40">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Larkspur Robotics Inc</span>
+              <span class="phone-row__ids">Dollar Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">20 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="46">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Wexmoor Instruments AG</span>
+              <span class="phone-row__ids">Family Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">12 Stück</span>
+            </span>
+          </li>
+<li class="phone-row" data-role="holdings-position" data-security-id="28">
+            <span class="phone-row__body">
+              <span class="phone-row__name">Birchwood Global Savings Fund</span>
+              <span class="phone-row__ids">Sparplan Depot</span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">0,333333333333 Stück</span>
+            </span>
+          </li>
+        </ul>
+
+    </section>
+</div></main>
+</div>
+</div>
+</div>
+</body>
+</html>

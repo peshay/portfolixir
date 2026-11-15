@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02l-risiko-leer-heute</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.app-frame { padding-left: 0 !important; min-height: 0 !important; }
+.app-shell, .app-main, .app-main--workspace, .workspace-page { min-height: 0 !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-crop { margin: 0; padding: 8px 12px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12px; color: var(--color-text-muted); }
+</style>
+<style id="proposal">.workspace-section { padding: 28px; }</style>
+</head>
+<body><div class="phx-connected">
+<div id="app-shell" class="app-shell">
+<div class="app-frame"><main class="app-main app-main--workspace">
+<div class="workspace-page">
+<nav id="area-tabs" class="area-tabs" data-role="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs" data-scroll-start="" data-scroll-end="" style="--area-tabs-tail: 0px;">
+  <a href="/portfolio" class="area-tab">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true">
+<path d="M3 17 9 11l4 4 8-8">
+</path>
+</svg>
+    </span>
+    <span class="area-tab__label" data-label="Bestände">Bestände</span>
+  </a>
+<a href="/portfolio?tab=allocation" class="area-tab">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true">
+<path d="M21 12A9 9 0 1 1 12 3v9Z">
+</path>
+<path d="M21 12a9 9 0 0 0-9-9v9h9Z">
+</path>
+</svg>
+    </span>
+    <span class="area-tab__label" data-label="Allokation &amp; Ziele">Allokation &amp; Ziele</span>
+  </a>
+<a href="/cashflow" class="area-tab">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true">
+<path d="M3 20V8M9 20V4M15 20v-8M21 20v-5">
+</path>
+</svg>
+    </span>
+    <span class="area-tab__label" data-label="Cashflow">Cashflow</span>
+  </a>
+<a href="/snapshots" class="area-tab">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true">
+<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z">
+</path><circle cx="12" cy="13" r="4"></circle>
+</svg>
+    </span>
+    <span class="area-tab__label" data-label="Snapshots">Snapshots</span>
+  </a>
+<a href="/tax" class="area-tab">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect>
+<path d="M9 7h6">
+</path><circle cx="9" cy="11" r=".6"></circle><circle cx="12" cy="11" r=".6"></circle><circle cx="15" cy="11" r=".6"></circle><circle cx="9" cy="14" r=".6"></circle><circle cx="12" cy="14" r=".6"></circle><circle cx="15" cy="14" r=".6"></circle>
+<path d="M9 17h6">
+</path>
+</svg>
+    </span>
+    <span class="area-tab__label" data-label="Steuern">Steuern</span>
+  </a>
+<a href="/risk" class="area-tab is-active" aria-current="page">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true">
+<path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z">
+</path>
+</svg>
+    </span>
+    <span class="area-tab__label" data-label="Risiko">Risiko</span>
+  </a>
+<a href="/predictions" class="area-tab">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4.5"></circle><circle cx="12" cy="12" r=".6"></circle>
+</svg>
+    </span>
+    <span class="area-tab__label" data-label="Prognosen">Prognosen</span>
+  </a>
+</nav>
+<section class="workspace-section">
+<p class="empty-state" data-role="risk-empty">Noch kein Portfolio — Risiko wird über Bestände gemessen, und es gibt keine.</p>
+</section>
+</div></main>
+</div>
+</div>
+</div>
+</body>
+</html>

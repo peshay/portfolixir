@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>03b-kpi-inter</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.app-frame { padding-left: 0 !important; min-height: 0 !important; }
+.app-shell, .app-main, .app-main--workspace, .workspace-page { min-height: 0 !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-crop { margin: 0; padding: 8px 12px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12px; color: var(--color-text-muted); }
+</style>
+<style id="proposal">.workspace-section { padding: 28px; }
+@font-face { font-family: "Inter"; font-style: normal; font-display: swap; font-weight: 100 900; src: url(inter/inter-latin-ext-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Inter"; font-style: normal; font-display: swap; font-weight: 100 900; src: url(inter/inter-latin-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+</style>
+</head>
+<body><div class="phx-connected">
+<div id="app-shell" class="app-shell">
+<div class="app-frame"><main class="app-main app-main--workspace">
+<div id="dashboard-workspace" class="workspace-page">
+<div id="dashboard-overview">
+<section id="dashboard-kpi-strip" class="workspace-section kpi-strip" aria-label="Kennzahlen">
+    <div class="kpi-strip__cells">
+      <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-ttwror">
+        <span class="kpi-strip__label">TTWROR 1J</span>
+
+          <strong class="is-positive">
+            +8,0%
+          </strong>
+
+          <small class="kpi-strip__sub">IRR +9,4%</small>
+
+      </a>
+      <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-cash-quote">
+        <span class="kpi-strip__label">Cashquote</span>
+
+          <strong>21,7%</strong>
+          <small class="kpi-strip__sub">
+            19.178,75 EUR Cash
+          </small>
+
+      </a>
+
+      <a href="/transactions" class="kpi-strip__cell" data-role="kpi-last-booking">
+        <span class="kpi-strip__label">Letzte Buchung</span>
+
+          <strong>12.11.2026</strong>
+
+          <small class="kpi-strip__sub">
+            Kauf · Kestrel Industrial Group NV
+          </small>
+
+      </a>
+
+      <a href="/securities?dq=stale_quote&amp;holding=held" class="kpi-strip__cell" data-role="kpi-freshness">
+        <span class="kpi-strip__label">Kurse</span>
+
+          <strong>
+            15.11.2026
+          </strong>
+
+          <small class="kpi-strip__sub kpi-strip__sub--attention">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true">
+<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z">
+</path>
+<path d="M12 9v4">
+</path><circle cx="12" cy="17" r=".6"></circle>
+</svg>
+            <span>19 gehaltene veraltet</span>
+          </small>
+
+      </a>
+    </div>
+
+    <div class="summary-basis kpi-strip__basis" data-role="kpi-strip-basis">
+      Ansicht Alles · Rendite über 1J bis 15.11.2026 · in EUR · Kurse: der neueste über die gehaltenen Positionen
+      <details class="metric-tooltip metric-tooltip--inline" data-role="kpi-strip-info">
+        <summary aria-label="Zu diesen Kennzahlen">ⓘ</summary>
+        <p role="tooltip">
+          TTWROR — zeitgewichtete Rendite für den gewählten Zeitraum (nicht annualisiert). Ein- und Auszahlungen werden neutralisiert, sodass nur die Anlageperformance zählt.
+          IRR — geldgewichtete Rendite, annualisiert. Berücksichtigt Zeitpunkt und Höhe der Zahlungsströme im Zeitraum. Zeiträume unter einem Jahr zeigen die Perioden-MWR — dieselbe Kennzahl, nicht annualisiert.
+          Cashquote: einsetzbares Bargeld ÷ (Wertpapierwert + einsetzbares Bargeld). Reserve- und Kreditlinienkonten sind ausgeschlossen.
+        </p>
+      </details>
+    </div>
+  </section>
+</div>
+</div></main>
+</div>
+</div>
+</div>
+</body>
+</html>
