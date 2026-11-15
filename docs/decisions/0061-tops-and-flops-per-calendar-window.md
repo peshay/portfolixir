@@ -137,7 +137,12 @@ stands for the window's start:
   `no_close_at_end`, `no_fx_rate`; for `day`, also `one_close_only`) and
   listed with `include_unanswered=true`; a position whose contribution has
   unvalued days keeps ADR-0051 §10's rule (zero for those days, the
-  position named) and is marked in its row.
+  position named) and is marked in its row. A position **valued on no day
+  of the window** has a contribution of zero only by that rule, so it is
+  counted `no_valuation` under the list, not ranked (board 04: unpriced
+  funds would otherwise fill „Niedrigste“).
+- **The two dates of a `day` row** stand under the name as a small line,
+  not in a tooltip, since a phone has no hover (board 04 ⑤).
 
 ### 5. The computation basis, in every payload
 
@@ -252,3 +257,4 @@ cards.
 | Money `day` on the latest day with a close | "Tag-Beitrag seit Vortag" |
 | Five per half on the screen | a number by comment |
 | Sold positions only in the contribution | "Verkaufte auch nach Kursrendite" |
+| A position valued on no day counted, not ranked | "Unbewertete mit 0 ranken" |
