@@ -256,5 +256,54 @@
  "03g-transaktionen-inter.html": {
   "height": 1791,
   "tables": []
+ },
+ "04a-uebersicht-heute.html": {
+  "height": 1936,
+  "tables": []
+ },
+ "04b-a-karte.html": {
+  "height": 2639,
+  "tables": []
+ },
+ "04c-a-info-offen.html": {
+  "height": 702,
+  "tables": []
+ },
+ "04d-a-privat.html": {
+  "height": 702,
+  "tables": []
+ },
+ "04e-a1-390-gestapelt.html": {
+  "height": 1695,
+  "tables": []
+ },
+ "04f-a2-390-kursrendite.html": {
+  "height": 1112,
+  "tables": []
+ },
+ "04g-a2-390-beitrag.html": {
+  "height": 1163,
+  "tables": []
+ },
+ "04h-zustand-tag-wochenende.html": {
+  "height": 776,
+  "tables": []
+ },
+ "04i-zustand-sechs.html": {
+  "height": 542,
+  "tables": []
+ },
+ "04j-zustand-leer.html": {
+  "height": 187,
+  "tables": []
+ },
+ "04k-b-vermoegen.html": {
+  "height": 1811,
+  "tables": [
+   {
+    "scroll": 922,
+    "client": 922
+   }
+  ]
  }
 }
