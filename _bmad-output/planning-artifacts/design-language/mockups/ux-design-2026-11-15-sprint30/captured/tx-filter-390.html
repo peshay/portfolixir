@@ -1,0 +1,704 @@
+<div class="phx-connected"><div id="app-shell" class="app-shell"><div class="app-frame"><main class="app-main app-main--workspace"><div id="transactions-workspace" class="workspace-page">
+    <nav id="area-tabs" class="area-tabs" data-role="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs" data-scroll-start="" data-scroll-end="" style="--area-tabs-tail: 0px;">
+  <a href="/transactions" class="area-tab is-active" aria-current="page">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M4 4h16M4 12h16M4 20h16"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Historie">Historie</span>
+  </a><a href="/imports" class="area-tab">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5"></path><path d="M5 19h14"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Import">Import</span>
+  </a>
+</nav>
+
+
+
+
+
+
+
+
+    <div class="transactions-columns ">
+    <section id="transaction-list-panel" class="workspace-section">
+      <header class="section-head">
+
+        <h2 id="transaction-history-heading" class="result-focus-fallback" tabindex="-1">Transaktionshistorie</h2>
+        <div class="section-head-controls">
+          <button type="button" id="transaction-filter-sheet-toggle" class="filter-sheet-toggle" aria-haspopup="dialog" aria-expanded="true" aria-controls="transaction-filter-sheet">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 5h18l-7 9v6l-4-2v-4Z"></path></svg>
+            Filter
+
+          </button>
+
+
+          <button type="button" id="open-booking" class="button-primary" aria-haspopup="dialog" aria-expanded="false">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+            Transaktion erfassen
+          </button>
+        </div>
+      </header>
+
+
+        <div class="control-bar control-bar--fold-always control-bar--floor-330 filter-bar" id="transaction-chips" role="group" aria-label="Historie filtern">
+
+  <div class="control-bar__controls">
+    <span class="control-bar__group ">
+
+  <span class="control-bar__label" id="tx-family-account">Konto</span>
+
+    <span class="filter-chips" role="group" aria-labelledby="tx-family-account">
+
+  <button type="button" id="tx-chip-account-8" class="filter-chip " aria-pressed="false">
+    Broker Nord Verrechnung
+
+  </button>
+
+  <button type="button" id="tx-chip-account-9" class="filter-chip " aria-pressed="false">
+    Broker Süd Verrechnung
+
+  </button>
+
+  <button type="button" id="tx-chip-account-6" class="filter-chip " aria-pressed="false">
+    Broker Verrechnung 1
+
+  </button>
+
+  <button type="button" id="tx-chip-account-7" class="filter-chip " aria-pressed="false">
+    Broker Verrechnung 2
+
+  </button>
+
+  <button type="button" id="tx-chip-account-22" class="filter-chip " aria-pressed="false">
+    Coupon-Cash
+
+  </button>
+
+  <button type="button" id="tx-chip-account-1" class="filter-chip " aria-pressed="false">
+    Demo Cash
+
+  </button>
+
+  <button type="button" id="tx-chip-account-17" class="filter-chip " aria-pressed="false">
+    Dollar Cash
+
+  </button>
+
+  <button type="button" id="tx-chip-account-18" class="filter-chip " aria-pressed="false">
+    Family Cash
+
+  </button>
+
+  <button type="button" id="tx-chip-account-15" class="filter-chip " aria-pressed="false">
+    Festgeld Plus
+
+  </button>
+
+  <button type="button" id="tx-chip-account-5" class="filter-chip " aria-pressed="false">
+    Haushaltskonto
+
+  </button>
+
+  <button type="button" id="tx-chip-account-23" class="filter-chip " aria-pressed="false">
+    Round Trip Cash
+
+  </button>
+
+  <button type="button" id="tx-chip-account-20" class="filter-chip " aria-pressed="false">
+    Rücklage
+
+  </button>
+
+  <button type="button" id="tx-chip-account-19" class="filter-chip " aria-pressed="false">
+    Rücklage Giro
+
+  </button>
+
+  <button type="button" id="tx-chip-account-11" class="filter-chip " aria-pressed="false">
+    Sparplan Konto
+
+  </button>
+
+  <button type="button" id="tx-chip-account-10" class="filter-chip " aria-pressed="false">
+    Sparplan Konto (alt)
+
+  </button>
+
+  <button type="button" id="tx-chip-account-4" class="filter-chip " aria-pressed="false">
+    Tagesgeld
+
+  </button>
+
+  <button type="button" id="tx-chip-account-16" class="filter-chip " aria-pressed="false">
+    Tagesgeld CHF
+
+  </button>
+
+  <button type="button" id="tx-chip-account-12" class="filter-chip " aria-pressed="false">
+    US Broker
+
+  </button>
+
+  <button type="button" id="tx-chip-account-2" class="filter-chip " aria-pressed="false">
+    USD Settlement
+
+  </button>
+
+    </span>
+
+</span><span class="control-bar__group ">
+
+  <span class="control-bar__label" id="tx-family-type">Typ</span>
+
+    <span class="filter-chips" role="group" aria-labelledby="tx-family-type">
+
+  <button type="button" id="tx-chip-type-balance_adjustment" class="filter-chip " aria-pressed="false">
+    Saldo gesetzt
+  </button>
+
+  <button type="button" id="tx-chip-type-buy" class="filter-chip " aria-pressed="false">
+    Kauf
+  </button>
+
+  <button type="button" id="tx-chip-type-cash_transfer" class="filter-chip " aria-pressed="false">
+    Umbuchung
+  </button>
+
+  <button type="button" id="tx-chip-type-deposit" class="filter-chip " aria-pressed="false">
+    Einlage
+  </button>
+
+  <button type="button" id="tx-chip-type-dividend" class="filter-chip " aria-pressed="false">
+    Dividende
+  </button>
+
+  <button type="button" id="tx-chip-type-inbound_delivery" class="filter-chip " aria-pressed="false">
+    Einlieferung
+  </button>
+
+  <button type="button" id="tx-chip-type-interest" class="filter-chip " aria-pressed="false">
+    Zinsen
+  </button>
+
+  <button type="button" id="tx-chip-type-sell" class="filter-chip " aria-pressed="false">
+    Verkauf
+  </button>
+
+  <button type="button" id="tx-chip-type-split" class="filter-chip " aria-pressed="false">
+    Split
+  </button>
+
+    </span>
+
+</span><span class="control-bar__group ">
+
+  <span class="control-bar__label" id="tx-family-since">Geändert seit</span>
+
+
+    <span id="changed-since-chips" class="filter-chips" role="group" aria-labelledby="tx-family-since">
+
+  <button type="button" id="changed-since-chips-today" class="filter-chip " aria-pressed="false">
+    Heute
+  </button>
+
+  <button type="button" id="changed-since-chips-7d" class="filter-chip " aria-pressed="false">
+    7 Tage
+  </button>
+
+  <button type="button" id="changed-since-chips-30d" class="filter-chip " aria-pressed="false">
+    30 Tage
+  </button>
+
+</span>
+
+</span>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+          <dialog id="transaction-filter-sheet" class="filter-sheet" data-close-event="close_filter_sheet" aria-labelledby="transaction-filter-sheet-title" open="">
+            <header class="filter-sheet__head">
+              <h2 id="transaction-filter-sheet-title">Filter</h2>
+              <button type="button" class="icon-button" aria-label="Schließen">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+              </button>
+            </header>
+
+<div class="filter-sheet__families" role="group" aria-label="Historie filtern">
+  <span class="filter-sheet__family">
+    <span class="filter-chips__family">Konto</span>
+
+  <button type="button" id="sheet-chip-account-8" class="filter-chip " aria-pressed="false">
+    Broker Nord Verrechnung
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-9" class="filter-chip " aria-pressed="false">
+    Broker Süd Verrechnung
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-6" class="filter-chip " aria-pressed="false">
+    Broker Verrechnung 1
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-7" class="filter-chip " aria-pressed="false">
+    Broker Verrechnung 2
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-22" class="filter-chip " aria-pressed="false">
+    Coupon-Cash
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-1" class="filter-chip " aria-pressed="false">
+    Demo Cash
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-17" class="filter-chip " aria-pressed="false">
+    Dollar Cash
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-18" class="filter-chip " aria-pressed="false">
+    Family Cash
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-15" class="filter-chip " aria-pressed="false">
+    Festgeld Plus
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-5" class="filter-chip " aria-pressed="false">
+    Haushaltskonto
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-23" class="filter-chip " aria-pressed="false">
+    Round Trip Cash
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-20" class="filter-chip " aria-pressed="false">
+    Rücklage
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-19" class="filter-chip " aria-pressed="false">
+    Rücklage Giro
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-11" class="filter-chip " aria-pressed="false">
+    Sparplan Konto
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-10" class="filter-chip " aria-pressed="false">
+    Sparplan Konto (alt)
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-4" class="filter-chip " aria-pressed="false">
+    Tagesgeld
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-16" class="filter-chip " aria-pressed="false">
+    Tagesgeld CHF
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-12" class="filter-chip " aria-pressed="false">
+    US Broker
+
+  </button>
+
+  <button type="button" id="sheet-chip-account-2" class="filter-chip " aria-pressed="false">
+    USD Settlement
+
+  </button>
+
+  </span>
+  <span class="filter-sheet__family">
+    <span class="filter-chips__family">Typ</span>
+
+  <button type="button" id="sheet-chip-type-balance_adjustment" class="filter-chip " aria-pressed="false">
+    Saldo gesetzt
+  </button>
+
+  <button type="button" id="sheet-chip-type-buy" class="filter-chip " aria-pressed="false">
+    Kauf
+  </button>
+
+  <button type="button" id="sheet-chip-type-cash_transfer" class="filter-chip " aria-pressed="false">
+    Umbuchung
+  </button>
+
+  <button type="button" id="sheet-chip-type-deposit" class="filter-chip " aria-pressed="false">
+    Einlage
+  </button>
+
+  <button type="button" id="sheet-chip-type-dividend" class="filter-chip " aria-pressed="false">
+    Dividende
+  </button>
+
+  <button type="button" id="sheet-chip-type-inbound_delivery" class="filter-chip " aria-pressed="false">
+    Einlieferung
+  </button>
+
+  <button type="button" id="sheet-chip-type-interest" class="filter-chip " aria-pressed="false">
+    Zinsen
+  </button>
+
+  <button type="button" id="sheet-chip-type-sell" class="filter-chip " aria-pressed="false">
+    Verkauf
+  </button>
+
+  <button type="button" id="sheet-chip-type-split" class="filter-chip " aria-pressed="false">
+    Split
+  </button>
+
+  </span>
+
+  <span id="sheet-changed-since-chips" class="filter-chips__group" role="group" aria-label="Geändert seit">
+  <span class="filter-chips__family">Geändert seit</span>
+
+  <button type="button" id="sheet-changed-since-chips-today" class="filter-chip " aria-pressed="false">
+    Heute
+  </button>
+
+  <button type="button" id="sheet-changed-since-chips-7d" class="filter-chip " aria-pressed="false">
+    7 Tage
+  </button>
+
+  <button type="button" id="sheet-changed-since-chips-30d" class="filter-chip " aria-pressed="false">
+    30 Tage
+  </button>
+
+</span>
+</div>
+            <div class="filter-sheet__family">
+              <details id="sheet-more-filters" class="more-filters">
+  <summary>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 5h18l-7 9v6l-4-2v-4Z"></path></svg>
+    Weitere Filter
+
+
+  </summary>
+  <form id="sheet-transaction-filters" class="transaction-filters">
+    <label>
+      <span>Wertpapier</span>
+      <select name="filters[security_id]">
+        <option value="">Alle Wertpapiere</option>
+
+          <option value="24">Alder Creek Timber Fund</option>
+
+          <option value="25">Alder Creek Timber Fund Class B</option>
+
+          <option value="3">Allianz SE vinkulierte Namens-Aktien o.N.</option>
+
+          <option value="12">Alpine Test Werke AG</option>
+
+          <option value="1">Apple Inc. Registered Shares o.N.</option>
+
+          <option value="49">Arbolia Inc.</option>
+
+          <option value="28">Birchwood Global Savings Fund</option>
+
+          <option value="42">Birkenhain Wasser Anleihe 2029 1,50%</option>
+
+          <option value="6">Bitcoin</option>
+
+          <option value="35">Brightwater Utilities plc</option>
+
+          <option value="13">Cobalt Ridge Logistics SE</option>
+
+          <option value="36">Harborline Freight Inc</option>
+
+          <option value="23">Helios Solar Systems SE</option>
+
+          <option value="27">Juniper Rail AG</option>
+
+          <option value="26">Juniper Rail AG</option>
+
+          <option value="41">Kestrel Anleihe 2030 2,75%</option>
+
+          <option value="48">Kestrel Bay Resources Inc.</option>
+
+          <option value="11">Kestrel Industrial Group NV</option>
+
+          <option value="47">Larkspur Rail AG 4,00 % Anleihe 2031</option>
+
+          <option value="40">Larkspur Robotics Inc</option>
+
+          <option value="14">Meridian Global Equity ETF</option>
+
+          <option value="2">Microsoft Corporation Registered Shares DL-,00000625</option>
+
+          <option value="7">NVIDIA Corporation Registered Shares DL-,001</option>
+
+          <option value="8">Nordic Timber Holdings AB</option>
+
+          <option value="18">Orchid Bay Pharmaceuticals plc</option>
+
+          <option value="17">Orchid Bay Pharmaceuticals plc</option>
+
+          <option value="43">Ostsee Logistik 4,10% 2028/2033</option>
+
+          <option value="20">Pinecrest Utilities SA</option>
+
+          <option value="19">Pinecrest Utilities SA</option>
+
+          <option value="9">Placeholder Anleihe 2031 3,25%</option>
+
+          <option value="21">Quarry Lane Materials AG</option>
+
+          <option value="22">Quarry Lane Materials AG</option>
+
+          <option value="34">Saltmarsh Logistics SE</option>
+
+          <option value="33">Tamarisk Mining Ltd</option>
+
+          <option value="50">Tamarisk Systems Inc.</option>
+
+          <option value="45">Thornbury Water Fund</option>
+
+          <option value="44">Thornbury Water Fund</option>
+
+          <option value="5">Vanguard FTSE All-World UCITS ETF USD Acc</option>
+
+          <option value="46">Wexmoor Instruments AG</option>
+
+          <option value="32">Wrenfield Gardens AG</option>
+
+          <option value="4">iShares Core MSCI World UCITS ETF USD (Acc)</option>
+
+      </select>
+    </label>
+    <label>
+      <span>Von</span>
+      <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="filters[from]" value="">
+    </label>
+    <label>
+      <span>Bis</span>
+      <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="filters[to]" value="">
+    </label>
+    <label class="transaction-filters-search">
+      <span>Suche</span>
+      <input type="text" name="filters[query]" value="" placeholder="Wertpapier, Typ, Notizen…">
+    </label>
+  </form>
+</details>
+            </div>
+            <footer class="filter-sheet__foot">
+              <button type="button" id="transaction-filter-sheet-reset" class="button">
+                Zurücksetzen
+              </button>
+              <button type="button" id="transaction-filter-sheet-done" class="button-primary">
+                Fertig
+              </button>
+            </footer>
+          </dialog>
+
+
+
+
+
+
+
+
+
+
+          <ul id="transaction-phone-rows" class="phone-rows" aria-label="Transaktionen">
+
+              <li class="phone-rows__group" data-month-group="2026-11">
+                <span class="tx-group-month">November 2026</span>
+                <span class="tx-group-subtotal">
+                  5 Transaktionen
+                </span>
+              </li>
+              <li class="phone-row" data-role="phone-row" data-transaction="18">
+                <span class="phone-row__body">
+                  <span class="phone-row__name">
+                    12.11.2026 · Kauf
+                  </span>
+
+                  <span class="phone-row__ids">
+                    <span data-role="phone-subject"><bdi>Kestrel Industrial Group NV</bdi></span>
+                  </span>
+                </span>
+                <span class="phone-row__figures">
+                  <span class="phone-row__figure" data-role="phone-amount">-240,00 EUR</span>
+
+                  <span class="phone-row__figure2" data-role="phone-size">
+                    10 × 24,00 EUR
+                  </span>
+
+                </span>
+                <button type="button" id="tx-phone-kebab-18" class="row-actions__kebab" aria-label="Aktionen für Kauf, Kestrel Industrial Group NV, 12.11.2026" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+              </li><li class="phone-row" data-role="phone-row" data-transaction="15">
+                <span class="phone-row__body">
+                  <span class="phone-row__name">
+                    12.11.2026 · Saldo gesetzt
+                  </span>
+
+                  <span class="phone-row__ids">
+                    <span data-role="phone-subject"><bdi>USD Settlement</bdi></span>
+                  </span>
+                </span>
+                <span class="phone-row__figures">
+                  <span class="phone-row__figure" data-role="phone-amount">1.850,00 USD</span>
+
+
+
+                </span>
+                <button type="button" id="tx-phone-kebab-15" class="row-actions__kebab" aria-label="Aktionen für Saldo gesetzt, USD Settlement, 12.11.2026" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+              </li><li class="phone-row" data-role="phone-row" data-transaction="17">
+                <span class="phone-row__body">
+                  <span class="phone-row__name">
+                    06.11.2026 · Dividende
+                  </span>
+
+                  <span class="phone-row__ids">
+                    <span data-role="phone-subject"><bdi>Apple Inc. Registered Shares o.N.</bdi></span>
+                  </span>
+                </span>
+                <span class="phone-row__figures">
+                  <span class="phone-row__figure" data-role="phone-amount">+12,50 EUR</span>
+
+                  <span class="phone-row__figure2" data-role="phone-size">
+                    50 Stück
+                  </span>
+
+                </span>
+                <button type="button" id="tx-phone-kebab-17" class="row-actions__kebab" aria-label="Aktionen für Dividende, Apple Inc. Registered Shares o.N., 06.11.2026" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+              </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          </ul>
+
+
+
+
+
+
+    </section>
+
+
+
+    </div>
+
+  </div></main></div></div></div>

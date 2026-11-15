@@ -1,0 +1,260 @@
+{
+ "01a-gesamt-heute.html": {
+  "height": 565,
+  "tables": []
+ },
+ "01b-kategorien-heute.html": {
+  "height": 449,
+  "tables": [],
+  "svgWidth": 560,
+  "gutterPx": 33,
+  "labelWidth": 32,
+  "labelLeft": 37,
+  "labelRight": 69
+ },
+ "01c-a-markierung.html": {
+  "height": 565,
+  "tables": []
+ },
+ "01d-b-ausschnitt.html": {
+  "height": 565,
+  "tables": []
+ },
+ "01e-b-ab-0.html": {
+  "height": 565,
+  "tables": []
+ },
+ "01f-c-ausschnitt.html": {
+  "height": 565,
+  "tables": []
+ },
+ "01g-c-ab-0.html": {
+  "height": 565,
+  "tables": []
+ },
+ "01h-c-kurschart.html": {
+  "height": 374,
+  "tables": []
+ },
+ "01i-c-390-ausschnitt.html": {
+  "height": 530,
+  "tables": []
+ },
+ "01j-c-390-ab-0.html": {
+  "height": 530,
+  "tables": []
+ },
+ "01k-c-privat-390.html": {
+  "height": 532,
+  "tables": []
+ },
+ "02a-positionen-heute.html": {
+  "height": 653,
+  "tables": [
+   {
+    "scroll": 922,
+    "client": 922
+   }
+  ],
+  "rows": [
+   65,
+   99,
+   65,
+   65,
+   99,
+   64
+  ]
+ },
+ "02b-positionen-a.html": {
+  "height": 485,
+  "tables": [
+   {
+    "scroll": 922,
+    "client": 922
+   }
+  ],
+  "rows": [
+   49,
+   49,
+   49,
+   49,
+   49,
+   48
+  ]
+ },
+ "02c-positionen-b.html": {
+  "height": 458,
+  "tables": [
+   {
+    "scroll": 932,
+    "client": 922
+   }
+  ],
+  "rows": [
+   49,
+   35,
+   49,
+   49,
+   35,
+   48
+  ]
+ },
+ "02d-stapel-heute.html": {
+  "height": 449,
+  "tables": [],
+  "svgWidth": 560,
+  "gutterPx": 33,
+  "labelWidth": 32,
+  "labelLeft": 37,
+  "labelRight": 69
+ },
+ "02e-stapel-rand.html": {
+  "height": 449,
+  "tables": [],
+  "svgWidth": 560,
+  "gutterPx": 51,
+  "labelWidth": 32,
+  "labelLeft": 15,
+  "labelRight": 48
+ },
+ "02f-stapel-minus-heute.html": {
+  "height": 449,
+  "tables": [],
+  "svgWidth": 560,
+  "gutterPx": 33,
+  "labelWidth": 32,
+  "labelLeft": 37,
+  "labelRight": 69
+ },
+ "02g-stapel-minus-neu.html": {
+  "height": 449,
+  "tables": [],
+  "svgWidth": 560,
+  "gutterPx": 33,
+  "labelWidth": 38,
+  "labelLeft": 37,
+  "labelRight": 74
+ },
+ "02h-allokation-heute.html": {
+  "height": 74,
+  "tables": []
+ },
+ "02i-allokation-neu.html": {
+  "height": 75,
+  "tables": []
+ },
+ "02j-crash-fenster-390-heute.html": {
+  "height": 387,
+  "tables": [
+   {
+    "scroll": 831,
+    "client": 356
+   }
+  ]
+ },
+ "02k-crash-fenster-390-neu.html": {
+  "height": 543,
+  "tables": []
+ },
+ "02l-risiko-leer-heute.html": {
+  "height": 150,
+  "tables": []
+ },
+ "02m-risiko-leer-neu.html": {
+  "height": 817,
+  "tables": [
+   {
+    "scroll": 922,
+    "client": 922
+   },
+   {
+    "scroll": 922,
+    "client": 922
+   }
+  ]
+ },
+ "02n-namen-heute.html": {
+  "height": 541,
+  "tables": [
+   {
+    "scroll": 922,
+    "client": 922
+   },
+   {
+    "scroll": 1062,
+    "client": 922
+   }
+  ]
+ },
+ "02o-namen-neu.html": {
+  "height": 644,
+  "tables": [
+   {
+    "scroll": 922,
+    "client": 922
+   },
+   {
+    "scroll": 922,
+    "client": 922
+   },
+   {
+    "scroll": 922,
+    "client": 922
+   }
+  ]
+ },
+ "03a-kpi-dejavu.html": {
+  "height": 202,
+  "tables": []
+ },
+ "03b-kpi-inter.html": {
+  "height": 186,
+  "tables": []
+ },
+ "03c-kpi-inter-statisch.html": {
+  "height": 186,
+  "tables": []
+ },
+ "03d-positionen-dejavu.html": {
+  "height": 670,
+  "tables": [
+   {
+    "scroll": 940,
+    "client": 922
+   }
+  ],
+  "rows": [
+   65,
+   99,
+   65,
+   82,
+   99,
+   64
+  ]
+ },
+ "03e-positionen-inter.html": {
+  "height": 653,
+  "tables": [
+   {
+    "scroll": 922,
+    "client": 922
+   }
+  ],
+  "rows": [
+   65,
+   99,
+   65,
+   65,
+   99,
+   64
+  ]
+ },
+ "03f-transaktionen-dejavu.html": {
+  "height": 1812,
+  "tables": []
+ },
+ "03g-transaktionen-inter.html": {
+  "height": 1791,
+  "tables": []
+ }
+}

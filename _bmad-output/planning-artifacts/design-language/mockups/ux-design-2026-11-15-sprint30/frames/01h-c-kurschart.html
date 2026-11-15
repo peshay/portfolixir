@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01h-c-kurschart</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.app-frame { padding-left: 0 !important; min-height: 0 !important; }
+.app-shell, .app-main, .app-main--workspace, .workspace-page { min-height: 0 !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-crop { margin: 0; padding: 8px 12px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12px; color: var(--color-text-muted); }
+</style>
+<style id="proposal">
+/* I43 A: the axis break, the frame's colour under two zigzags in the muted ink. */
+.chart-axis-break rect { fill: var(--color-bg); }
+.chart-axis-break path { fill: none; stroke: var(--color-text-muted); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.chart-frame[data-axis-inside] .chart-axis-break { transform: translate(calc(56px - 8px * var(--chart-upx, 1)), 292px) scale(var(--chart-upx, 1)); }
+</style>
+</head>
+<body><div class="phx-connected">
+<div id="app-shell" class="app-shell">
+<div class="app-frame"><main class="app-main app-main--workspace">
+<section id="securities-panel" class="workspace-panel">
+<div id="securities-workspace" class="securities-workspace securities-workspace--split" style="--securities-list-height: 360px;"><aside id="security-detail-pane" class="detail-pane ">
+<section id="detail-tab-panel-chart" class="detail-tab-panel detail-tab-panel--chart">
+<div class="chart-frame" id="chart-a33b2f47953b" data-chart-id="chart-a33b2f47953b" style="--chart-upx: 1.0256;">
+  <svg class="security-chart " role="img" aria-label="Kurschart · Achse ab 37,66, nicht ab 0" viewBox="0 0 960 320" preserveAspectRatio="xMidYMid meet" width="100%">
+
+      <g class="chart-axes" stroke="currentColor" stroke-opacity="0.15">
+
+    <line x1="56" y1="292.0" x2="936" y2="292.0">
+</line>
+
+    <line x1="56" y1="223.0" x2="936" y2="223.0">
+</line>
+
+    <line x1="56" y1="154.0" x2="936" y2="154.0">
+</line>
+
+    <line x1="56" y1="85.0" x2="936" y2="85.0">
+</line>
+
+    <line x1="56" y1="16.0" x2="936" y2="16.0">
+</line>
+
+</g>
+
+      <path class="quote-area" d="M56.0,106.79 L56.0,106.79 L74.72,200.24 L93.45,273.31 L112.17,256.82 L130.89,92.24 L149.62,236.77 L168.34,121.67 L187.06,28.55 L205.79,90.3 L224.51,242.27 L243.23,128.46 L261.96,266.84 L280.68,149.8 L299.4,181.48 L318.13,144.95 L336.85,40.83 L355.57,93.86 L374.3,193.12 L393.02,125.22 L411.74,188.92 L430.47,125.55 L449.19,279.45 L467.91,205.73 L486.64,279.13 L505.36,166.29 L524.09,222.87 L542.81,232.57 L561.53,257.47 L580.26,135.57 L598.98,86.75 L617.7,72.2 L636.43,93.86 L655.15,132.98 L673.87,173.08 L692.6,45.36 L711.32,39.54 L730.04,144.95 L748.77,129.1 L767.49,172.75 L786.21,205.41 L804.94,54.09 L823.66,39.22 L842.38,131.69 L861.11,109.38 L879.83,50.53 L898.55,64.11 L917.28,158.53 L936.0,131.04 L936.0,292.0 L56.0,292.0 Z">
+</path>
+
+      <polyline class="quote-line" fill="none" stroke="currentColor" stroke-width="1.6" points="56.0,106.79 74.72,200.24 93.45,273.31 112.17,256.82 130.89,92.24 149.62,236.77 168.34,121.67 187.06,28.55 205.79,90.3 224.51,242.27 243.23,128.46 261.96,266.84 280.68,149.8 299.4,181.48 318.13,144.95 336.85,40.83 355.57,93.86 374.3,193.12 393.02,125.22 411.74,188.92 430.47,125.55 449.19,279.45 467.91,205.73 486.64,279.13 505.36,166.29 524.09,222.87 542.81,232.57 561.53,257.47 580.26,135.57 598.98,86.75 617.7,72.2 636.43,93.86 655.15,132.98 673.87,173.08 692.6,45.36 711.32,39.54 730.04,144.95 748.77,129.1 767.49,172.75 786.21,205.41 804.94,54.09 823.66,39.22 842.38,131.69 861.11,109.38 879.83,50.53 898.55,64.11 917.28,158.53 936.0,131.04"></polyline>
+
+          <path class="tx-marker tx-buy" d="M494.66,274.13 L499.16,282.63 L490.16,282.63 Z">
+            <title>Kauf am 29.04.2026 zu 42,10 EUR</title>
+          </path>
+
+      <g class="chart-axis-break" transform="translate(64.20 292) scale(1.0256)" aria-hidden="true"><rect x="-7.5" y="-6.5" width="15" height="13" rx="2"></rect>
+<path d="M-6.5,-1 l3.25,-2.8 l3.25,2.8 l3.25,-2.8 l3.25,2.8 M-6.5,4.4 l3.25,-2.8 l3.25,2.8 l3.25,-2.8 l3.25,2.8">
+</path>
+</g>
+<g class="chart-axis-labels">
+
+    <text class="chart-axis-y " x="50" y="292.0" text-anchor="end" dominant-baseline="central">
+      37,66
+    </text>
+
+    <text class="chart-axis-y " x="50" y="223.0" text-anchor="end" dominant-baseline="central">
+      39,80
+    </text>
+
+    <text class="chart-axis-y " x="50" y="154.0" text-anchor="end" dominant-baseline="central">
+      41,93
+    </text>
+
+    <text class="chart-axis-y " x="50" y="85.0" text-anchor="end" dominant-baseline="central">
+      44,06
+    </text>
+
+    <text class="chart-axis-y is-top" x="50" y="16.0" text-anchor="end" dominant-baseline="central">
+      46,20
+    </text>
+
+  <text class="chart-axis-x" x="56" y="314" text-anchor="start">
+    16.11.2025
+  </text>
+  <text class="chart-axis-x" x="936" y="314" text-anchor="end">
+    11.10.2026
+  </text>
+</g>
+
+  </svg>
+
+<div class="chart-crosshair" hidden="">
+</div>
+<div class="chart-tooltip" hidden="" role="status">
+</div>
+<div class="chart-zoom-rect" hidden="">
+</div>
+</div>
+</section></aside>
+</div>
+</section></main>
+</div>
+</div>
+</div>
+</body>
+</html>

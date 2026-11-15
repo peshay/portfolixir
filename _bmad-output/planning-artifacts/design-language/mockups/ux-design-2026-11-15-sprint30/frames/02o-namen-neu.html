@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02o-namen-neu</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.app-frame { padding-left: 0 !important; min-height: 0 !important; }
+.app-shell, .app-main, .app-main--workspace, .workspace-page { min-height: 0 !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-crop { margin: 0; padding: 8px 12px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12px; color: var(--color-text-muted); }
+</style>
+<style id="proposal">.workspace-section { padding: 28px; }
+/* #1366 lines 21 and 22: one table per reason, each under its own line;
+   the actions may wrap inside their cell, so the table keeps to its wrapper. */
+#crash-unmatched .crash-windows-table { width: 100%; }
+#crash-unmatched .crash-actions { white-space: normal; }
+#crash-unmatched .crash-actions .link-button { white-space: nowrap; }
+#crash-unmatched .hint + .data-table-wrapper { margin-bottom: 12px; }
+</style>
+</head>
+<body><div class="phx-connected">
+<div id="app-shell" class="app-shell">
+<div class="app-frame"><main class="app-main app-main--workspace">
+<div class="workspace-page">
+<section class="workspace-section crash-section" id="risk-crashes" aria-labelledby="risk-crashes-title">
+<p class="mock-crop">Kopf, Leiste, Fensterzeile und Liste wie heute; das Board lässt sie aus.</p>
+<details class="perf-table-disclosure crash-windows" id="crash-windows" open="">
+  <summary class="disclosure-summary">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true">
+<path d="m9 6 6 6-6 6">
+</path>
+</svg>
+    Crash-Fenster · 2 erkannt · 1 manuell · 3 Namen ohne Fenster
+  </summary>
+  <div class="crash-windows__body">
+    <p class="crash-rule" data-role="crash-rule"><span>Regel: Hoch → Tief ab 10 % im Schlusskurs des Crash-Benchmarks · Crash-Benchmark <b>Meridian Global Equity ETF</b> (EUR)</span>
+<button type="button" class="link-button" data-role="crash-change-benchmark">Ändern</button>
+<button type="button" class="button-secondary crash-rule__add" data-role="crash-add-window">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M12 5v14M5 12h14">
+</path>
+</svg>Fenster anlegen</button>
+</p>
+
+    <div class="data-table-wrapper">
+      <table class="data-table crash-windows-table" id="crash-windows-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Hoch</th>
+            <th>Tief</th>
+            <th class="num">Rückgang</th>
+            <th>Erholt</th>
+            <th class="num">Lücke, Tage</th>
+            <th>Art</th>
+            <th><span class="sr-only">Aktionen</span>
+</th>
+          </tr>
+        </thead>
+        <tbody>
+<tr data-key="d:1" class="">
+<td class="">Herbstdelle</td>
+<td>02.09.2026</td>
+<td>29.09.2026</td>
+<td class="num is-negative">−12,4 %</td>
+<td>27.10.2026</td>
+<td class="num">3</td>
+<td><span class="badge badge--neutral">erkannt</span>
+</td>
+<td class="crash-actions">
+<button type="button" class="link-button" data-role="crash-name-open">Umbenennen</button>
+<button type="button" class="link-button" data-role="crash-unname">Name löschen</button>
+</td>
+</tr>
+<tr data-key="d:2" class="">
+<td class="crash-unnamed">ohne Namen</td>
+<td>14.03.2026</td>
+<td>08.04.2026</td>
+<td class="num is-negative">−10,6 %</td>
+<td>22.05.2026</td>
+<td class="num">2</td>
+<td><span class="badge badge--neutral">erkannt</span>
+</td>
+<td class="crash-actions">
+<button type="button" class="link-button" data-role="crash-name-open">Name</button>
+</td>
+</tr>
+          <tr data-key="m:1" class="">
+            <td class="">Synthetic dip</td>
+            <td>06.10.2026</td>
+            <td>
+              26.10.2026
+
+            </td>
+
+              <td class="num muted">—</td>
+              <td class="muted">—</td>
+              <td class="num muted">—</td>
+
+            <td><span class="badge crash-badge--manual">manuell</span>
+</td>
+            <td class="crash-actions">
+
+                <button type="button" class="link-button" data-role="crash-manual-edit">
+                  Bearbeiten
+                </button>
+                <button type="button" class="link-button" data-role="crash-manual-delete" data-confirm="Das manuelle Fenster „Synthetic dip“ löschen?">
+                  Löschen
+                </button>
+
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+<div class="crash-unmatched mock-new" id="crash-unmatched">
+<h3>Namen ohne Fenster (3)</h3>
+<p class="hint" data-role="crash-unmatched-closes">1 Name: Die Kurse haben sich geändert, an diesem Tag beginnt kein erkanntes Fenster mehr. Ein Name wird nie geraten einem anderen Fenster zugeordnet.</p>
+<div class="data-table-wrapper">
+<table class="data-table crash-windows-table">
+<thead>
+<tr>
+<th>Name</th>
+<th>Gegeben für</th>
+<th>Hoch</th>
+<th><span class="sr-only">Aktionen</span>
+</th>
+</tr>
+</thead>
+<tbody>
+<tr data-key="n:1">
+<td>Zinsschock</td>
+<td>Meridian Global Equity ETF</td>
+<td>05.02.2026</td>
+<td class="crash-actions">
+<button type="button" class="link-button" data-role="crash-from-name-open">Als manuelles Fenster anlegen …</button>
+<button type="button" class="link-button" data-role="crash-unname">Löschen</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="hint" data-role="crash-unmatched-hidden">2 Namen: ausgeblendet, weil ein anderer Crash-Benchmark gewählt ist; sie kehren zurück, sobald ihr Benchmark wieder Crash-Benchmark ist.</p>
+<div class="data-table-wrapper">
+<table class="data-table crash-windows-table">
+<thead>
+<tr>
+<th>Name</th>
+<th>Gegeben für</th>
+<th>Hoch</th>
+<th><span class="sr-only">Aktionen</span>
+</th>
+</tr>
+</thead>
+<tbody>
+<tr data-key="n:2">
+<td>Ölpreisdelle</td>
+<td>Vanguard FTSE All-World UCITS ETF USD Acc</td>
+<td>11.06.2025</td>
+<td class="crash-actions">
+<button type="button" class="link-button" data-role="crash-from-name-open">Als manuelles Fenster anlegen …</button>
+<button type="button" class="link-button" data-role="crash-unname">Löschen</button>
+</td>
+</tr>
+<tr data-key="n:3">
+<td>Sommerflaute</td>
+<td>Vanguard FTSE All-World UCITS ETF USD Acc</td>
+<td>21.07.2025</td>
+<td class="crash-actions">
+<button type="button" class="link-button" data-role="crash-from-name-open">Als manuelles Fenster anlegen …</button>
+<button type="button" class="link-button" data-role="crash-unname">Löschen</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+  </div>
+</details>
+</section>
+</div></main>
+</div>
+</div>
+</div>
+</body>
+</html>
