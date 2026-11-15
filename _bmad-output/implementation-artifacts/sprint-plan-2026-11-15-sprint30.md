@@ -1,12 +1,12 @@
-# Sprint 30 — the shipped font, where the axis starts, three polish passes, one lock order
+# Sprint 30 — tops and flops, the shipped font, where the axis starts, three polish passes, one lock order
 
 **Status: ADOPTED by the merge of the Sprint 30 planning PR.**
 The merge is the signature (ADR-0026 step 1, as amended on 2026-10-08). It
-signs the decisions below, the three planning boards in
+signs [ADR-0061](../../docs/decisions/0061-tops-and-flops-per-calendar-window.md)
+(FR-59, idea I32, D-12), the decisions below, the four planning boards in
 `design-language/mockups/ux-design-2026-11-15-sprint30/` and the story
-workflow's two added rules (D-9). No ADR is signed or amended: nothing in
-this sprint changes a decision record's rule, a booking or a stored money
-figure. A fresh implementation session builds the sprint on the branch its
+workflow's two added rules (D-9). No other ADR is signed or amended, and
+nothing in this sprint changes a booking or a stored money figure. A fresh implementation session builds the sprint on the branch its
 environment assigns, or `agent/<provider>/sprint-30`, as **one sprint PR**
 (D-8). The severity rule of ADR-0026's amendment of 2026-11-01 applies
 unchanged.
@@ -14,26 +14,28 @@ unchanged.
 ## What you need to do
 
 1. **Merge, to adopt the plan.** Nothing in it books or corrects a stored
-   money figure. One thing changes what you may have expected:
-   - **Sprint 30 builds no new feature** (D-2). After three sprints that
-     each added a feature family (the news layer, the crash rankings, the
-     Bitcoin cycles), it ships the font the layout gate depends on (#1221),
-     settles the question you raised twice on screenshots (I43, where the
-     Total chart's axis starts), takes three polish lists as planned passes
-     (Wealth, Shell, API and MCP), fixes one suspected deadlock (#1457) and
-     two flaky tests at their cause. **"Sprint 30 mit Feature I32"** (or
-     any other idea's number) adds it as a second PR; I32 then needs your
-     one answer in item 3 first.
-2. **Look at board 01** (I43, the idea this session works out, D-6),
-   **board 02** (the Wealth polish pass) and **board 03** (the shipped
-   font). D-6 and D-7 list each proposal with the phrase that flips it;
-   silence adopts the recommendation.
-3. **Optional, for Sprint 31:** I32 (top and flop positions per period)
-   is the next idea to go deep (D-10). Its one question is yours: rank by
-   **price return** (what the security did), by **money contribution**
-   (what it did for you; a large position weighs more), or **both side by
-   side**. The plan's recommendation is both, price return first, as the
-   crash rankings show them; silence keeps it open and builds nothing.
+   money figure. Two things change what you may have expected:
+   - **One feature, I32, tops and flops per period** (D-12), as you asked
+     on 2026-11-15 („ja mach I32 noch rein“). Its record ADR-0061 is on
+     this PR, so your merge signs it. **Its one open question is answered
+     by the plan's recommendation**, since you put it in without choosing:
+     **both rankings side by side**, price return („Kursrendite“, what the
+     security did) first, money contribution („Beitrag“, what it did for
+     you) beside it. "Tops/Flops nur Kursrendite" or "Tops/Flops nur
+     Beitrag" keeps one. ADR-0061 lists its other judgement calls with
+     their flips („Tag“ is each security's last close against the one
+     before; sold positions only in the contribution).
+   - **Otherwise a consolidation sprint** (D-2): the font the layout gate
+     depends on (#1221), where the Total chart's axis starts (I43), three
+     polish lists as planned passes (Wealth, Shell, API and MCP), one
+     suspected deadlock (#1457) and two flaky tests at their cause.
+2. **Look at board 04** (I32's card on the Overview, D-12), **board 01**
+   (I43, the idea this session works out, D-6), **board 02** (the Wealth
+   polish pass) and **board 03** (the shipped font). D-6, D-7 and D-12
+   list each proposal with the phrase that flips it; silence adopts the
+   recommendation.
+3. **Optional, for Sprint 31:** none asked. The next idea to go deep is
+   I20 (usage hints in the MCP companion, D-10).
 4. **Optional, still open from earlier plans:** ADR-0056 D10 (which prompt
    version the reads follow; recommended (a), a configured active version,
    before a second labeller runs); branch protection, which on 2026-11-12
@@ -113,16 +115,20 @@ open question in its row).
 4. **Two S2s from Sprint 29 are open**: a suspected deadlock between a
    news fetch and a security merge (#1457), and a flaky scheduler test
    (#1460); a third flaky test sits on the Shell list as an S2 line.
-5. **I43 is the next deep idea** (Sprint 29 plan D-9), boarded here.
+5. **I43 is the next deep idea** (Sprint 29 plan D-9), boarded here;
+   **I32 joined the sprint** on 2026-11-15 at your word, worked out here
+   as ADR-0061.
 
 ## Why this cut
 
-- **No new feature, because the last three sprints were the largest the
-  project has run** (Sprint 29: three stacked PRs, about 160 commits, four
+- **I32, because you asked for it** (D-12), on machinery that exists:
+  `WindowReturn` for the price side, ADR-0051's contribution for the
+  money side, ADR-0058's ranking and tie order.
+- **Otherwise no new feature, because the last three sprints were the
+  largest the project has run** (Sprint 29: three stacked PRs, about 160 commits, four
   introduced S1s, all fixed) and every one left polish lines behind.
   Polish is kept, not closed away (ADR-0026, amendment of 2026-11-01): a
-  planned pass takes one screen as one test-first story. The flip is
-  yours (item 1).
+  planned pass takes one screen as one test-first story.
 - **The font first**, because the layout gate and every width floor
   depend on it, and Sprint 29's carry-forward 4 asked this plan to weigh
   it: SIL OFL 1.1 permits bundling with the MIT-licensed app if the
@@ -144,7 +150,7 @@ open question in its row).
   #1396, #899, #900, #1070, #1220, #1177, #328, #354 and #1451 to #1456
   keep their standing reasons (D-11).
 
-## Lanes (one sprint PR, in this order: M, K, F, A, W)
+## Lanes (one sprint PR, in this order: M, K, F, A, T, W)
 
 **Lane M, maintenance and the build's own tools (first).**
 
@@ -198,6 +204,19 @@ story of its own); the cascading deletes' `expect=` (a new write
 contract over API and MCP, a story of its own with its recommended
 answer on the line).
 
+**Lane T, tops and flops per period** (FR-59, idea I32; ADR-0061; board
+04). **Risk tier: money math** (a new derivation over `WindowReturn` and
+ADR-0051's contribution: the windows, the split into halves, the money
+side's `day`): its own commit group, a dedicated verification pass with
+every pinned figure recomputed independently in exact decimal, a callout
+in the briefing.
+
+| Story | Source | What it does | Board | Commits |
+|---|---|---|---|---|
+| T1 | ADR-0061 §2 to §6 | **the read**, `Portfolios.Movers` (or the name the context's conventions give): the windows of §3 with their start days (a Monday, a month's first day, 1 January, 29 February, a quarter's first day each pinned), the price side by `WindowReturn` over the scope's securities held at `T`, `day` per security, the money side by ADR-0051's view and total reads over `S + 1` to `T` and `day`'s `D`, the halves without overlap (n = 0, 1, 6, 11), ties by ADR-0058 G1's full order, the unanswered reasons, the basis. Tests first with exact `Decimal`s; **a security's `week` here equals sale hindsight's `WindowReturn` over the same dates to the last digit, and a position's contribution equals Wealth's table for the same custom window** | — | 3 |
+| T2 | ADR-0061 §9 | `GET /api/v1/views/:view_id/movers` and `GET /api/v1/movers`, an unknown `window` or field refused with 422 naming it; `portfolixir.views.movers` with its description and schema budget; contract entry 30's T part; `metrics_carry_no_verdict_test.exs` walks the payload; the docs (English and German) | — | 2 |
+| T3 | ADR-0061 §9; board 04 A | **the Overview's card „Tops und Flops“**: the window chips on the shared control bar, the two columns, „verkauft“, the unanswered count, the basis line with its ⓘ, the links (the security; „In Vermögen ansehen“ with the window as a custom range), stacked under 560 px (A1), the privacy mode as board 04 ④ draws it; loaded in the background like the Overview's other cards, with its busy marker; **every figure on the card compared with the API's answer for the same window** in the test; `DESIGN.md` gains the anatomy | 04 | 2–3 |
+
 **Lane W, Wealth: where the axis starts, and the Wealth polish pass**
 (I43; #1366). Both change rendered output, so both are boarded here.
 
@@ -210,9 +229,9 @@ answer on the line).
 
 ### D-1: what this sprint is for, and its exit criteria (recommended)
 
-The sprint leaves the app reading the same on every machine, answers the
-axis question, and empties three polish lists of what they can lose
-without a decision. Exit criteria:
+The sprint adds tops and flops per period (FR-59), leaves the app
+reading the same on every machine, answers the axis question, and
+empties three polish lists of what they can lose without a decision. Exit criteria:
 
 1. **Every page draws in the app's own Inter on a machine without Inter
    installed**, and with the font file blocked the page draws in the
@@ -231,28 +250,33 @@ without a decision. Exit criteria:
    `projection=full`**, byte for byte; the read's schema bytes shrink.
 6. **#1460's and the cascade test's flakiness is gone at its cause**: 20
    loaded runs of each green, no bound moved.
-7. **Every gate by registration; regressions counted, none an S1 at
+7. **Tops and flops reproduce** (FR-59): the price side equals
+   `WindowReturn` for the same dates, the money side equals ADR-0051's
+   read for the same window, no name is in both halves, every figure on
+   the card equals the API's, and no payload carries a verdict key.
+8. **Every gate by registration; regressions counted, none an S1 at
    promotion.**
 
-### D-2: no new feature in Sprint 30 (recommended, the flip is yours)
+### D-2: one feature, otherwise consolidation (your decision, with the plan's recommendation)
 
-**Recommended: a consolidation sprint** (the cut above). The flips:
-"Sprint 30 mit Feature I32" adds I32 as a second PR after your answer to
-item 3; any other idea's number adds that idea once its row is worked out.
-*Why:* Sprints 27 to 29 left 27 of their own findings as polish lines
-(3, 9 and 15) beside the older ones they recorded, the layout gate rests on a font the app does not ship, and a
-sprint of passes is reviewed against boards and lists, not against new
+**A consolidation sprint with one feature, I32** (D-12), as you decided on
+2026-11-15; the planning PR first proposed none. *Why the rest stays
+consolidation:* Sprints 27 to 29 left 27 of their own findings as
+polish lines (3, 9 and 15) beside the older ones they recorded, the
+layout gate rests on a font the app does not ship, and a sprint of passes is reviewed against boards and lists, not against new
 decisions, so it costs your attention little.
 
 ### D-3: the order of the work (recommended)
 
 M first (M2 and M3 change how every later story is run and integrated),
 then K (risk tier, small, before anything touches `news.ex`), then F (F1
-changes what every walk measures, so W's walks run on it), then A, then
-W. Parallel story agents as in Sprint 29, each in its own worktree from
-`scripts/worktree.sh` (now with the merge driver) and its own test
-database: A and W may be built beside F once F1 is integrated, rebased
-onto the branch before them.
+changes what every walk measures, so T's and W's walks run on it), then
+A, then T (risk tier, after A1 settled the rankings' projection pattern),
+then W. Parallel story agents as in Sprint 29, each in its own worktree
+from `scripts/worktree.sh` (now with the merge driver) and its own test
+database: A, T and W may be built beside each other once F1 is
+integrated, each rebased onto the branch before it; T1 gets its attack
+lens before integration (D-5 item 5).
 
 ### D-4: Inter, as shipped (recommended)
 
@@ -290,23 +314,27 @@ Sprint 29's carry-forwards, applied:
 5. **The attack lens before integration, kept, and pointed again in the
    closing act at the same stories**: K1 (an agent other than its author
    tries a third path into the two rows, a merge of two securities that
-   share a feed, a fetch of a feed the merge is moving) and A4's migration
-   (a violating row planted before it runs).
+   share a feed, a fetch of a feed the merge is moving), A4's migration
+   (a violating row planted before it runs) and T1 (a window across a
+   split, a 29 February, a Monday before the shares' closes, a security
+   bought and sold inside the window, ties across every key, n = 1).
 6. **A new gate gets its attack lens before it is integrated**: M2's
    invariant and F1's changed font check, each with its attack case.
 
-Lenses for this PR: correctness; edge cases and order (K1, A2, M4, M5);
+Lenses for this PR: correctness; the money lens (T1, every pinned figure
+recomputed in Python's `decimal` at the app's 34 digits); edge cases and
+order (K1, A2, M4, M5, T1);
 security (F1's static path and headers, F2's #1256 and #1262, A3's 401
 and adapters); the agent's lens (A1 to A3 against the companion's
 descriptions and the schema budget); the design critic against boards 01
-to 03 and `DESIGN.md`; the UAT persona on the review seed at the end, on
+to 04 and `DESIGN.md`; the UAT persona on the review seed at the end, on
 a machine **without** Inter installed (D-1 criterion 1). A closing-act fix
 that changes what a screen shows gets its frame on this sprint's board
 folder first. The browser job runs locally before the closing act on the
 integrated head. GitHub writes go through the MCP tools. This planning PR
 carries no closing keyword (checked before it was opened); the sprint PR
-names `Closes` for #1457, #1460 and the cascade test's issue (filed
-after this merge); #1221 and the other polish lines' issues are already
+names `Closes` for #1457, #1460, the cascade test's issue and FR-59's
+issue (both filed after this merge); #1221 and the other polish lines' issues are already
 closed as their lists' specifications, so their lines are ticked, not
 closed; the polish lists stay open while they have lines.
 
@@ -352,15 +380,16 @@ is the line's, never the stack's. **To flip:** "I43 nur Markierung" (A),
   (today, without Inter installed) and in the shipped Inter; A
   recommended, D-4.
 
-### D-8: one sprint PR (recommended)
+### D-8: one sprint PR, a cut prepared (recommended)
 
-About 60 commits: Lane M 6 to 8, K 2, F 4 to 5, A 9, W 5 to 6, the
-closing act's fixes about 25 (counted by its lenses, as Sprint 29's PRs
-ran at about one fix per build commit), the UAT persona 2, the close-out
-4. Well under the stacking threshold of about 90, so no stack. If the
-build passes 85 before the closing act, the session cuts after Lane A and
-stacks W with the closing act as `<its branch>-pr2`, as `AGENTS.md`
-allows, and says so in the PR's body.
+About 78 commits: Lane M 6 to 8, K 2, F 4 to 5, A 9, T 7 to 8, W 5 to 6,
+the closing act's fixes about 32 (counted by its lenses, as Sprint 29's
+PRs ran at about one fix per build commit), the UAT persona 2, the
+close-out 4. Under the stacking threshold of about 90, so one PR. **The
+cut is prepared after Lane A:** if the build passes 70 before the closing
+act, the session stacks T and W with their closing act as `<its
+branch>-pr2`, as `AGENTS.md` allows, so the risk-tier money math gets a
+PR of its own, and says so in the PR's body.
 
 ### D-9: two rules added to the story workflow, signed here
 
@@ -388,9 +417,10 @@ story briefs then carry them for this sprint alone.
   planned as A1.
 - **I34's step 2** is measured in M6 and planned with its numbers in
   Sprint 31.
-- **I32 is the next idea to go deep** (item 3), ahead of I20 in the
-  list's recommended order, because its question is one answer and its
-  machinery exists (ADR-0058's ranking, ADR-0051's contribution).
+- **I32 leaves the list**: worked out in this session as ADR-0061 and
+  board 04, built as Lane T (D-12); its row becomes a pointer to FR-59.
+- **The next idea to go deep is I20** (usage hints in the MCP companion),
+  first in the list's recommended order.
 - **I44** stays behind I43, as its row says: once the axes read the same,
   the drag is weighed again.
 
@@ -403,8 +433,30 @@ asks ADR-0059 and ADR-0060 deferred, each waiting for its own decision or
 a second chain source. The polish lists stay open while they have lines;
 a story that touches a screen fixes its lines.
 
+### D-12: I32 in this sprint, as ADR-0061 and board 04 (your decision; its shape recommended)
+
+You put I32 into Sprint 30 on 2026-11-15. ADR-0061 decides its shape:
+both rankings side by side, price return first (§1, the plan's
+recommendation on the idea's one open question); the scope a view or
+everything, the price side over today's holdings, the money side over
+every position ADR-0051 lists (§2); six to-date windows, „Tag“ per
+security on the price side (§3); the halves never sharing a name, ties by
+ADR-0058 G1 (§4); the basis in every payload (§5); no verdict key (§7);
+derived at every read (§8). **Board 04** draws the Overview's card (A,
+recommended, stacked under 560 px, A1) against a section on Wealth's
+Performance tab (B), the privacy mode and the states (fewer than ten held,
+an empty view, a weekend's „Tag“). *Why the Overview:* it is the glance
+the idea asks for, and Wealth's Performance tab has none of the short
+windows and already ranks money in its contribution table. **To flip:**
+ADR-0061's table; "Tops/Flops auf Vermögen" (B); "Tops/Flops umschaltbar
+am Handy" (A2); "I32 nicht in Sprint 30" removes Lane T, ADR-0061 and
+board 04 from this PR.
+
 ## Registry bookkeeping after the merge (the planning session's last step)
 
+- File FR-59's issue under #418 (I32), pointing at ADR-0061, board 04
+  and this plan's D-12; FR-59's coverage row in `epics.md` gains its
+  number.
 - File I43's issue under #418 (FR-53's chart, the board's answer C),
   pointing at board 01 and this plan's D-6.
 - File the cascade test's flake (#1357's S2 line) as its own issue under
@@ -420,6 +472,8 @@ a story that touches a screen fixes its lines.
 - [ ] Lane F: F1 the shipped Inter (#1221), F2 the Shell pass (#1357)
 - [ ] Lane A: A1 the slim rankings (I45), A2 the news lines, A3 the rest,
       A4 the taxes CHECK (#1356)
+- [ ] Lane T: T1 the read, its attack lens before integration, T2 the
+      routes and the tool, T3 the Overview's card (FR-59)
 - [ ] Lane W: W1 the axis (I43), W2 the Wealth pass (#1366)
 - [ ] Closing act: the lenses, the fixes, the re-check, the UAT persona
       without Inter installed
