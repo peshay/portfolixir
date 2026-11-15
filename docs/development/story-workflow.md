@@ -53,15 +53,29 @@ same story, or document why that surface is not applicable.
 
 ## What a story's own tests do not cover
 
-Four rules for the story's own run, before the orchestrating session
-integrates it. Each comes from a defect that reached integration or the
-closing act in Sprint 24 although every story test was green (Sprint 24
-retrospective, carry-forwards 1 to 4).
+Five rules for the story's own run, before the orchestrating session
+integrates it. The first four come from a defect that reached integration
+or the closing act in Sprint 24 although every story test was green
+(Sprint 24 retrospective, carry-forwards 1 to 4); the first was widened and
+the fifth added after Sprint 29 (Sprint 29 retrospective, carry-forwards 1
+and 2; Sprint 30 plan D-9).
 
-- **Run `test/invariants` beside the story's own tests.** *Why:* the
-  invariants are app-wide rules no single story's tests restate; a story
+- **Run `test/invariants` and the project-wide sweeps beside the story's
+  own tests**: `mix test test/invariants` and `mix test --only sweep`, the
+  sweeps being the modules tagged `:sweep` (until that tag lands:
+  `test/portfolixir/localization_test.exs`,
+  `test/portfolixir/input/text_sweep_test.exs`,
+  `test/portfolixir/input/bounded_date_sweep_test.exs` and
+  `test/portfolixir_web/field_label_test.exs`). *Why:* the invariants and
+  the sweeps are app-wide rules no single story's tests restate; a story
   that built a native date input passed its own tests and turned the suite
-  red at integration on two invariants (J3).
+  red at integration on two invariants (J3), and in Sprint 29 the full
+  suite found three sweep failures after one integration and six after
+  another, each a round the story's own run would have saved.
+- **Stop only what you started, by its process id**, never by a pattern
+  (`pkill -f`, `killall`). *Why:* parallel story agents share one machine;
+  in Sprint 29 one agent's `pkill -f "mix test"` killed every other
+  agent's run.
 - **A story that changes what a writer stores searches the whole suite for
   the shape it changes**, `test/portfolixir/seeded_upgrade/` included, and
   runs every test it finds. *Why:* a test far from the writer still
