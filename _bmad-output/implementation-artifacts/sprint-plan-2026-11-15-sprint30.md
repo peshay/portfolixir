@@ -257,8 +257,16 @@ onto the branch before them.
 ### D-4: Inter, as shipped (recommended)
 
 The variable font in latin and latin-ext subsets (board 03 A), not static
-weights (B), because the CSS uses eight weights and a static set would
-synthesise four of them. `font-display: swap`, so a slow file never
+weights (B): the CSS uses eight weights (KPI values 700, labels 650, table
+headers 740, the brand 760), and B would draw 650, 740 and 760 as 700.
+Drawing the board also found that **B is not even smaller**: the variable
+font measures 47.1 KiB in latin and 83.1 KiB in latin-ext (130.2 KiB for
+both), the static 400/600/700 set 70.8 and 105.0 KiB (`@fontsource-variable/inter`
+and `@fontsource/inter` 5.3.0, as measured on the board). ⓘ, ≈ and → are
+in neither subset and keep coming from the next font in the stack, as
+today. In DejaVu Sans the positions table at 1200 px is 940 px in a 922 px
+wrapper today (#1322 comes back in the fallback); in Inter it fits, one
+more reason the font ships. `font-display: swap`, so a slow file never
 hides text. The licence file ships beside the fonts and the docs' third-
 party notice names it. The fallback stack after Inter stays as it is.
 **JetBrains Mono** (`--font-mono`) is not shipped: it sets code and the
@@ -321,11 +329,24 @@ is the line's, never the stack's. **To flip:** "I43 nur Markierung" (A),
 ### D-7: boards 02 and 03 (recommended)
 
 - **Board 02 (Wealth):** each line's before and after as listed in W2;
-  ① A (the note's first phrase non-breaking under a max width, the Depot
-  cell on one line with an ellipsis) is recommended over B (the note
-  behind an ⓘ on the figure), because the note says why a figure is not in
-  the sum and should stay visible. **To flip ①:** "Notiz hinter ⓘ" (B).
-  The other frames are conformance repairs (before and after, no choice).
+  ① A (the note's first phrase non-breaking, the note spanning under its
+  figure cell, the Depot cell on one line with an ellipsis past 7rem, the
+  name column's floor lowered from 12rem to 9.5rem) is recommended over B
+  (the note behind an ⓘ on the figure): A brings the six noted rows from
+  64–99 px to 49 px and the table to 922 px in 922, B still needs 932 px,
+  and the note says why a figure is not in the sum, so it should stay
+  visible. Without the lower name floor a one-line Depot makes the table
+  956 px; the board says so. **To flip ①:** "Notiz hinter ⓘ" (B).
+  ② widens the stacked chart's gutter from 56 to 88 viewBox units (33 to
+  51 px at a 560 px chart; the values stay outside down to about 492 px).
+  ⑦ splits „Namen ohne Fenster“ into one table per reason (changed
+  closes; hidden because another crash benchmark is chosen), each fitting
+  922 px; the wording is the board's. ③'s negative cash day and ⑤ to ⑦'s
+  crash windows are drawn by hand on the seed's figures (the seed has no
+  negative cash day and no crash benchmark), each frame labelled so; W2
+  adds the two cases to the review seed so its tests and the UAT persona
+  meet them. The other frames are conformance repairs (before and after,
+  no choice).
 - **Board 03 (the font):** the Overview's KPI strip, the holdings table at
   1200 px and Transaktionen's filter bar at 390 px, each in DejaVu Sans
   (today, without Inter installed) and in the shipped Inter; A
