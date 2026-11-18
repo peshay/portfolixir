@@ -131,6 +131,13 @@ Each has a recommendation; the phrase after it flips the answer.
   (I49's first step), then one ADR for the transition route, after the
   redesign sprints. *Flip:* „Übergangs-Sync jetzt angehen“, which needs
   that ADR and an `AGENTS.md` amendment in a planning PR.
+  **Refined the same day by Part 5's research:** a third route needs no
+  gate at all. The operator's agent reads the old tool (Ghostfolio's API,
+  Parqet's MCP server and API, PP's export) and books into Portfolixir
+  over its own API, as the `import_converter` prompt already does for
+  files; Portfolixir stores no token of the old tool and calls no other
+  service. *Recommended now:* this agent-run transition as an MCP prompt
+  (F32, I52's companion), the in-app sync stays gated.
 - **OQ-5 — The ⓘ fault: which browser, and where?** *Answered by the
   owner, 2026-11-18:* Safari; on a later look the fault was gone, without
   a known cause. With the Chromium non-reproduction, the polish line on
@@ -154,3 +161,89 @@ Each has a recommendation; the phrase after it flips the answer.
   report with its Chromium non-reproduction, ticked as not reproducible
   after the owner's answer to OQ-5.
 - **The recommended order** in the idea list now names I35 first.
+- **An S1 found on the way, not this intake's:** CI's `advisories` job
+  turned red on a new `plug` advisory (EEF-CVE-2026-120287); filed as
+  [#1469](https://github.com/peshay/portfolixir/issues/1469).
+
+## Part 5 — Why switch: what the field looks like on 2026-11-18
+
+The owner asked what Portfolixir does better than its competitors and why
+anyone would switch. This updates the competitive research of 2026-09-30
+(`research/competitive-portfolio-trackers-and-switcher-parity-2026-09-30/`)
+with a web pass of 2026-11-18. Several vendor pages could not be opened
+from the session, so some claims rest on search results; those are marked
+unverified. It feeds I46 (what Portfolixir says it is) and I36 (the README
+and the site).
+
+**What changed since September.**
+
+- **Portfolio Performance has its own local REST API and an experimental
+  MCP endpoint** since 0.89.0 (2026-10-11), off by default: loopback only,
+  a bearer token per client, 16 tools (14 read, 2 write), responses that
+  repeat their parameters, amounts as JSON numbers, and no transaction
+  list yet
+  ([release](https://github.com/portfolio-performance/portfolio/releases/tag/0.89.0),
+  [README](https://github.com/portfolio-performance/portfolio/tree/master/name.abuchen.portfolio.rest)).
+  The pain Portfolixir was born from — PP's data out of reach of an agent —
+  is now partly answered by PP itself, as long as the desktop app runs.
+- **MCP is everywhere:** Ghostfolio (8 tools, 2 writing, OAuth 2.1 since
+  3.99.0), Wealthfolio (agent writes with a preview before saving, since
+  3.10 to 3.13), Parqet (an official hosted MCP server with read and write
+  scopes), Kubera, Snowball (top plan only), rotki. Scalable Capital opened
+  a broker MCP that prepares orders.
+- **Most of them call a language model from inside the app** (Wealthfolio,
+  Ghostfolio AI, getquin, Snowball, Sure); Wealthfolio 3.13 made sending
+  spending data to the AI provider the default.
+- **Still nobody ships MCP prompts** (checked in the code of PP, Ghostfolio
+  and Wealthfolio).
+
+**Where Portfolixir is different, and it holds up.**
+
+1. **Always on, reachable from anywhere the operator allows**, not a
+   desktop app that must be open (PP) — the owner's origin story.
+2. **Every figure states its basis** — input series, window, reference,
+   treatment of gaps — and money travels as decimal strings. PP now
+   repeats its parameters, so the lead is narrower than it was, but still
+   real.
+3. **A research log per security that is never rewritten**, and
+   predictions scored for calibration (ADR-0044, ADR-0055): a memory the
+   agent can trust. No competitor shows one.
+4. **The app never calls a model and never advises.** The data goes only
+   to the agent the operator chose.
+5. **Allocation the agent can work with**: classification trees, target
+   weights, drift and indicative corrections over API and MCP; PP's 16
+   tools have none for taxonomies or rebalancing.
+6. **MCP prompts that carry whole workflows**, including one that writes
+   import converters; nobody else ships prompts.
+
+**Where it is weaker, honestly.** No phone app (PP, Parqet, getquin,
+Delta and Snowball have one); far fewer bank and broker formats than PP's
+PDF importers; no bank or broker sync; a small community and less polish
+than the established tools; and PP's new API comes with PP's whole user
+base.
+
+**Why someone would switch**, in one sentence for I46: *"Your portfolio,
+always on, for you and your agent: every figure says how it was computed,
+the agent remembers why you bought, and the app itself never talks to a
+model."* The people it fits: PP users who already use an agent and are
+tired of an app that must be open, and people who want an agent on their
+finances without handing them to an AI provider.
+
+**Getting the data over (I49).**
+
+| Tool | Export file | Read API for transactions |
+|---|---|---|
+| Portfolio Performance | XML (the full file) and CSV | local API, no transaction list yet |
+| Ghostfolio | JSON export | yes, bearer token |
+| Wealthfolio | ZIP/JSON and CSV | server mode, endpoints undocumented (unverified) |
+| Parqet | activity CSV (unverified) | yes, OAuth, read scope, `externalId` |
+| Sharesight | report CSVs (unverified) | yes, OAuth on request |
+| Finanzfluss Copilot | transaction CSV, paid plan | none found |
+| Snowball, Delta | transaction CSV | none found |
+| getquin | unclear, no self-service export found | none found |
+
+The three that would cover most switchers: **PP's XML**, **Parqet's API**
+and **Ghostfolio's JSON**. Users of getquin, Finanzfluss and Delta are
+best served by their broker's own files. A sync the app runs itself would
+store another service's token, which the no-stored-credentials invariant
+and B3.3 rule out today; the agent-run route of OQ-4 needs neither.
