@@ -14,7 +14,8 @@ figure from them is reproduced here; only the shape of each point is kept.
 The owner's own tooling (a connected agent, the feeds, a separate labelling
 agent, a parallel research project) is named generically.
 
-Status: **open.** Part 3 waits for the owner.
+Status: **open.** OQ-5 is answered (2026-11-18) and OQ-4 widened by the
+owner; OQ-1 to OQ-4 wait for the owner.
 
 ---
 
@@ -118,14 +119,24 @@ Each has a recommendation; the phrase after it flips the answer.
   edge, and the gradient stays in the logo. A board first. *Flip:*
   „Akzent-Schalter behalten“, or „klassisches Grün/Rot für Gewinn und
   Verlust“.
-- **OQ-4 — A transition sync from Portfolio Performance.** A continuous
-  mirror of a PP file needs PP's XML format, which is `gated` today.
-  *Recommended:* keep it gated through the redesign sprints, then decide
-  with I49's research in hand. *Flip:* „PP-XML jetzt öffnen“, which needs
-  an `AGENTS.md` amendment and an ADR in a planning PR.
-- **OQ-5 — The ⓘ fault: which browser, and where?** Only the owner can
-  say. Which browser (Safari?) and which ⓘ were opened on the cycle
-  section? With that, the polish line becomes a failing test.
+- **OQ-4 — A transition path from every competing tool, not only PP.**
+  *The owner, 2026-11-18:* the import and the transition sync are meant
+  for every tool a newcomer may come from (Ghostfolio and the others), not
+  only Portfolio Performance. Two routes with different gates: a **file**
+  the old tool exports, read by the import (allowed today; a new format is
+  a story), and a **continuous read** of the old tool's API or file during
+  a transition (data acquisition beyond quotes and FX, gated by B3.3; for
+  PP's XML also the `gated` PP-XML row). *Recommended:* first the research
+  of which tools export transactions as a file and which offer a read API
+  (I49's first step), then one ADR for the transition route, after the
+  redesign sprints. *Flip:* „Übergangs-Sync jetzt angehen“, which needs
+  that ADR and an `AGENTS.md` amendment in a planning PR.
+- **OQ-5 — The ⓘ fault: which browser, and where?** *Answered by the
+  owner, 2026-11-18:* Safari; on a later look the fault was gone, without
+  a known cause. With the Chromium non-reproduction, the polish line on
+  #1357 is closed as not reproducible; it reopens with steps if Safari
+  shows it again. A stale page from before a deploy (an old script with a
+  newer server) is one possible cause, not a confirmed one.
 
 ## Part 4 — Where each item went (2026-11-18)
 
@@ -140,5 +151,6 @@ Each has a recommendation; the phrase after it flips the answer.
 - **Polish lines:** on [#1365](https://github.com/peshay/portfolixir/issues/1365),
   the cycle chart's label overlaps seen on the owner's screenshots; on
   [#1357](https://github.com/peshay/portfolixir/issues/1357), the ⓘ
-  report with its Chromium non-reproduction and OQ-5.
+  report with its Chromium non-reproduction, ticked as not reproducible
+  after the owner's answer to OQ-5.
 - **The recommended order** in the idea list now names I35 first.
