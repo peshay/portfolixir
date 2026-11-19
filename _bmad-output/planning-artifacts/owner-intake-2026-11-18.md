@@ -247,3 +247,20 @@ and **Ghostfolio's JSON**. Users of getquin, Finanzfluss and Delta are
 best served by their broker's own files. A sync the app runs itself would
 store another service's token, which the no-stored-credentials invariant
 and B3.3 rule out today; the agent-run route of OQ-4 needs neither.
+
+## Part 6 — The owner's follow-up of 2026-11-19
+
+- **The app (I53).** The page saved to the iOS home screen already works
+  well as an app. First step: recognise iOS Safari and suggest saving the
+  page to the home screen once, with a web app manifest behind it. Later:
+  native apps for macOS, iOS, watchOS and visionOS, with widgets and a
+  layout for the folding iPhone, in a repository of their own. U1's "no
+  native app" was a phase decision, so the native step needs a plan's
+  decision; widgets that need data pushed to the device meet the push gate
+  (B3.7).
+- **Import and sync routes (I54).** Automatic data comes from outside: the
+  operator's agent builds a converter or a sync and connects it to the
+  API. The documentation collects the routes known to work; bank syncs
+  might get a parallel repository. Recommended: recipes in the docs first,
+  a sibling repository only when working code arrives, with the read-only
+  line written down before it starts.
