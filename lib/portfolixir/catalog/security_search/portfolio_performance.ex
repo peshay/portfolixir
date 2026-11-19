@@ -22,6 +22,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
   alias Portfolixir.Catalog.SecuritySearch.{Market, SearchResult}
   alias Portfolixir.Catalog.SecuritySearch.Properties
   alias Portfolixir.Net.Http
+  alias Portfolixir.Net.TestPlug
 
   @endpoint "https://api.portfolio-performance.info/v1/search"
   # The only host a request or a redirect hop may reach (F27).
@@ -57,10 +58,8 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
         deadline_ms: 15_000
       )
 
-    case opts[:req] do
-      nil -> base
-      overrides when is_list(overrides) -> Req.merge(base, overrides)
-    end
+    # #1356: a caller adds no option to the request but a test's plug.
+    TestPlug.merge(base, opts)
   end
 
   # Every hit is type-matched and bounded (F29) before it leaves the adapter.

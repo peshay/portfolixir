@@ -5,8 +5,9 @@ defmodule Portfolixir.Net.TestPlug do
   (`config :portfolixir, Portfolixir.Net.TestPlug, allow: true`, which only
   the test configuration sets).
 
-  The Yahoo quotes, the ECB rates and the logo path (the logo store, the
-  Wikipedia and companieslogo.com lookups, and CoinGecko's image read) used
+  The Yahoo quotes, the ECB rates, the logo path (the logo store, the
+  Wikipedia and companieslogo.com lookups, and CoinGecko's image read) and
+  the Portfolio Performance security search used
   to merge whatever `req:` options their caller passed into the request
   `Portfolixir.Net.Http` built: another base URL, headers, a transport. Each
   stayed bound to its host allow-list, so nothing escaped, but nothing in
