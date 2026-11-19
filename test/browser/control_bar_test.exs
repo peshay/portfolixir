@@ -384,9 +384,10 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
 
     assert fixtures["css_label"]["fonts"] == ["Inter and DejaVu Sans"], output
 
-    # The walk's own check that both fonts are installed finds them, and
-    # finds a family no machine has missing, so a runner without Inter
-    # fails the walk instead of measuring the fallback twice.
+    # The walk's own check finds both fonts (Inter the fixture page loaded
+    # from the app's /fonts/, Sprint 30 F1), and finds a family no machine
+    # has missing, so a runner without DejaVu Sans fails the walk instead
+    # of measuring Inter twice.
     assert result["fonts"] == %{"missing" => ["Synthetic Missing Sans"], "own" => "Inter"}, output
     # --- PR 2 closing act, the fallback font end ---
   end

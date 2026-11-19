@@ -14,7 +14,7 @@
 
 const { launchChromium } = require("./launch");
 const { settle, visit, draw, leave } = require("./settle");
-const { FONTS, useFont, eachFont, fontsHere } = require("./fonts");
+const { FONTS, FONT_FACES, useFont, eachFont, fontsHere } = require("./fonts");
 
 const args = JSON.parse(process.argv[2]);
 const base = args.base_url;
@@ -985,8 +985,9 @@ async function everyBar(browser) {
   // --- L5 end ---
 }
 
-// The gate's own attack: pages drawn here, measured as the app's are.
-const FIXTURE_CSS = `
+// The gate's own attack: pages drawn here, measured as the app's are, at
+// the app's origin and in the app's own Inter (fonts.js, Sprint 30 F1).
+const FIXTURE_CSS = FONT_FACES + `
   :root { --font-sans: Inter, sans-serif; }
   body { margin: 0; font: 16px/1.4 sans-serif; }
   .bar { padding: 8px; }
@@ -1146,7 +1147,7 @@ async function attack(browser) {
   const page = await context.newPage();
   const fixtures = {};
   for (const [name, html] of Object.entries(FIXTURES)) {
-    await draw(page, "<!doctype html><html><head><style>" + FIXTURE_CSS + "</style></head><body>" + html + "</body></html>");
+    await draw(page, "<!doctype html><html><head><style>" + FIXTURE_CSS + "</style></head><body>" + html + "</body></html>", { origin: base });
     const { report } = await walkBars(page, name);
     fixtures[name] = {
       widths: report.flatMap((r) => r.widths),
@@ -1162,7 +1163,7 @@ async function attack(browser) {
     { selector: ".no-reason" },
     { selector: ".nowhere", reason: "an entry that matches no control" }
   ]);
-  await draw(page, "<!doctype html><html><head><style>" + FIXTURE_CSS + "</style></head><body><div class='excused'>" + FIXTURES.unlisted_class + "</div></body></html>");
+  await draw(page, "<!doctype html><html><head><style>" + FIXTURE_CSS + "</style></head><body><div class='excused'>" + FIXTURES.unlisted_class + "</div></body></html>", { origin: base });
   await walkBars(page, "excused", new Set(), null, strays);
   // The fonts' own check (fonts.js): both fonts the walk measures in are
   // found, and a family no machine has is not.

@@ -95,6 +95,54 @@
   --topbar-height: 52px;
 }
 
+/* The app's own Inter (Sprint 30 F1, issue 1221; plan D-4, board
+   ux-design-2026-11-15-sprint30/03 A): the variable font, wght 100 to 900,
+   from @fontsource-variable/inter 5.3.0 (SIL Open Font License 1.1,
+   fonts/OFL.txt), served by the instance itself from priv/static/fonts/ and
+   never from another host (font-src 'self'). Two subsets, each with the
+   unicode-range fontsource gives it: a browser loads a subset only when the
+   page needs a character in its range, so German and English text loads
+   latin alone, and latin-ext only for names such as "Łódź"; ⓘ, ≈ and → are
+   in neither and come from the next family of --font-sans, as before.
+   Italic has faces of its own (the status markers that set font-style:
+   italic), loaded only where italic text is drawn. font-display: swap, so a
+   slow or blocked file never hides text: the page draws in the fallback
+   stack after Inter until the file arrives. ?vsn= is the pinned version:
+   Plug.Static answers it with a year's immutable cache, and a new release
+   changes the URL. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("/fonts/inter-latin-ext-wght-normal.woff2?vsn=5.3.0") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("/fonts/inter-latin-wght-normal.woff2?vsn=5.3.0") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("/fonts/inter-latin-ext-wght-italic.woff2?vsn=5.3.0") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("/fonts/inter-latin-wght-italic.woff2?vsn=5.3.0") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -1865,8 +1913,8 @@ li + li {
 
   /* A title too long for the narrow row wraps onto a second line instead of
      ending in an ellipsis: whether it fits on one depends on the device's
-     font (no web font ships), so a fit by pixels held on one machine and
-     not on another. Words still break only at their own hyphens. */
+     font (no web font shipped then, and the shipped Inter can still fail
+     to load), so a fit by pixels held on one machine and not on another. Words still break only at their own hyphens. */
   .topbar-page h1 {
     font-size: 14px;
     line-height: 1.2;
@@ -10299,7 +10347,9 @@ a.sidebar-version__text:hover {
 /* Two by two under 680 px, not 560 (issue 1114, Sprint 21 pick N2 A): the
    widest value, a date, needs 680 px for four columns to hold it inside the
    content box with a wide fallback font (DejaVu Sans measured clear from
-   665 px), since the app names Inter but ships no font file. */
+   665 px), since the app named Inter but shipped no font file (it ships
+   one since Sprint 30 F1; a file that fails to load still draws the
+   fallback). */
 @media (max-width: 680px) {
   .kpi-strip__cells {
     grid-template-columns: repeat(2, minmax(0, 1fr));

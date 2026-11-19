@@ -158,8 +158,8 @@ async function topbarTitles(browser) {
     if (m.scroll > m.client || m.page > 0) {
       errors.push(path + ": the title is cut " + JSON.stringify(m));
     }
-    // The attack case: no web font ships, so the title is drawn in the
-    // device's font. A wide monospace font stands in for a wider device
+    // The attack case: a font file that fails to load draws the title in
+    // the device's font. A wide monospace font stands in for a wider device
     // font than this machine's; the title must still show whole.
     const wide = await page.evaluate(() => {
       const style = document.createElement("style");
