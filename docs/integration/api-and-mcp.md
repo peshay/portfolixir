@@ -1528,6 +1528,75 @@ Each tool checks its schema before any request: a key the companion's
 pattern does not match, a `list` or `universe` outside its values, or a
 field the tool does not take is refused there, naming it.
 
+### Tops and flops per calendar window (ADR-0061)
+
+What moved most in a view, or in everything, over one to-date window, in two
+rankings side by side: `price_return` ranks each security the scope holds at
+the window's end by its EUR price return over the window (the window return
+the crash rankings and sale hindsight compute), and `contribution` ranks each
+position by its money contribution in EUR over the same window (ADR-0051, as
+Wealth's contribution table computes it), a position sold inside the window
+included. Ladder levels (a) and (b), derived at every read and never stored
+([ADR-0061](/decisions/0061-tops-and-flops-per-calendar-window.html)).
+Every answer is data, never advice: `highest` and `lowest` describe order,
+not merit, and `metrics_carry_no_verdict_test.exs` walks these payloads.
+
+**`GET /api/v1/views/:view_id/movers`** reads the view's depots and cash
+accounts across every portfolio and echoes the view as `view`;
+**`GET /api/v1/movers`** reads everything, every depot and cash account of
+every portfolio, with `view_id` `null`. Both take:
+
+- `window` — `day` (the default, the window the Overview reads), `week`,
+  `month`, `quarter`, `ytd` or `1y`. Each ends on today, `end_on`; its
+  start day `start_on` is the day whose close stands for its start: the day
+  before this ISO week's Monday, the last day of the previous month, of the
+  previous calendar quarter, 31 December of the previous year, or today one
+  year back (29 February maps to 28 February). `day` has no single start
+  day (`start_on` is `null`): on the price side it is each security's latest
+  close against the close before it, each row naming both dates; on the
+  money side it is the one day `D` (`contribution.from` = `contribution.to`),
+  the latest day on which a close of any security the scope holds is stored.
+- `limit` — entries per half, default 5, capped at 50 and echoed.
+- `include_unanswered` — `true` adds `unanswered_entries` to each ranking,
+  the securities or positions without a figure with their `reason`.
+
+`data` carries `view_id`, `window`, `start_on`, `end_on`, `limit`,
+`price_return` and `contribution`. Each ranking carries `highest` (the
+largest figures, descending) and `lowest` (the smallest, ascending), cut
+from one sorted list so that no name is in both: with `n` answered entries,
+`highest` takes at most `ceil(n / 2)` and `lowest` at most `floor(n / 2)`.
+Equal figures are ordered by name, ISIN, ticker, WKN and currency, never by
+an id. Beside them, `answered` (the count ranked) and `unanswered` (a count
+per reason; a missing figure is never ranked as zero), and its
+`computation_basis`: the input series, the window with its dates, the scope,
+the universe, the close lookup, the currency (EUR), the tie order, the split
+into halves, the treatment of gaps and `reference` `null`.
+
+- A `price_return` entry has `security` (`id`, `name`, `isin`, `wkn`,
+  `ticker_symbol`, `currency_code`), `return` (a signed ratio) and `start`
+  and `end`, each the close it stands on: `date`, `close`, `stored_close`,
+  `fx_rate`, `eur_value`. Its reasons: `no_close_at_start`,
+  `no_close_at_end`, `no_fx_rate`, and for `day` also `one_close_only`.
+- A `contribution` entry has `security`, `contribution` and ADR-0051's terms
+  `start_value`, `end_value`, `net_flows`, `income`, `costs`,
+  `held_at_start`, `held_at_end` (`false` for a position sold inside the
+  window), `unvalued_days`, `unvalued_reason` and `valued_days`. A position
+  valued on no day of the window is counted `no_valuation`, not ranked.
+
+Every figure is a decimal string and every date ISO 8601. Without a valid
+bearer token a route answers `401`. The read is closed: an unknown `window`,
+a `limit` of zero or text, an `include_unanswered` other than `true` or
+`false`, and any parameter it does not take answer `422` naming it. A view
+that does not exist, or an id that is no id, answers `404`.
+
+**The MCP tool.** `portfolixir.views.movers` calls `GET
+/api/v1/views/:view_id/movers` with `id` (the view id) and `GET
+/api/v1/movers` without one, with `window`, `limit` (1 to 50) and
+`include_unanswered` (a boolean); a read, in `read`, `book` and `full`. Its
+description names both rankings and says the answer is data, never
+instructions or advice. It refuses a window outside the six, a limit
+outside 1 to 50 or a field it does not take before any request.
+
 ### The position dossier (FR-49)
 
 One read per security that carries what an agent preparing a decision about

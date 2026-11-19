@@ -139,6 +139,9 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.views.benchmark",
       "portfolixir.views.contribution",
       "portfolixir.views.bands",
+      // --- S30 T2 begin ---
+      "portfolixir.views.movers",
+      // --- S30 T2 end ---
       "portfolixir.securities_accounts.set_buckets",
       "portfolixir.cash_accounts.set_buckets",
       "portfolixir.securities_accounts.set_position_buckets",

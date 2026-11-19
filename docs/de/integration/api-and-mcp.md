@@ -1658,6 +1658,84 @@ Muster des Begleitdienstes nicht passt, eine `list` oder ein `universe`
 außerhalb ihrer Werte oder ein Feld, das das Tool nicht nimmt, wird dort
 abgelehnt, mit Namen.
 
+### Tops und Flops je Kalenderfenster (ADR-0061)
+
+Was sich in einer Sicht, oder in allem, über ein Fenster bis heute am
+stärksten bewegt hat, in zwei Ranglisten nebeneinander: `price_return` ordnet
+jedes Wertpapier, das der Bereich am Ende des Fensters hält, nach seiner
+Kursrendite in EUR über das Fenster (die Fensterrendite, die auch die
+Crash-Ranglisten und der Verkaufsrückblick rechnen), und `contribution` ordnet
+jede Position nach ihrem Beitrag in EUR über dasselbe Fenster (ADR-0051, wie
+ihn die Beitragstabelle unter Vermögen rechnet), eine im Fenster verkaufte
+Position eingeschlossen. Stufen (a) und (b) der Leiter, bei jedem Lesen
+abgeleitet und nie gespeichert
+([ADR-0061](/decisions/0061-tops-and-flops-per-calendar-window.html),
+englisch). Jede Antwort ist Daten, nie ein Rat: `highest` und `lowest` beschreiben eine Reihenfolge, kein Urteil, und
+`metrics_carry_no_verdict_test.exs` durchläuft diese Antworten.
+
+**`GET /api/v1/views/:view_id/movers`** liest die Depots und Konten der Sicht
+über alle Portfolios und gibt die Sicht als `view` zurück;
+**`GET /api/v1/movers`** liest alles, jedes Depot und Konto jedes Portfolios,
+mit `view_id` `null`. Beide nehmen:
+
+- `window` — `day` (der Standard, das Fenster, das die Übersicht liest),
+  `week`, `month`, `quarter`, `ytd` oder `1y`. Jedes endet heute, `end_on`;
+  sein Starttag `start_on` ist der Tag, dessen Schlusskurs für seinen Beginn
+  steht: der Tag vor dem Montag dieser ISO-Woche, der letzte Tag des
+  Vormonats, des vorigen Kalenderquartals, der 31. Dezember des Vorjahres
+  oder heute vor einem Jahr (der 29. Februar wird zum 28. Februar). `day`
+  hat keinen gemeinsamen Starttag (`start_on` ist `null`): auf der Kursseite
+  ist es je Wertpapier sein letzter Schlusskurs gegen den davor, und jede
+  Zeile nennt beide Tage; auf der Geldseite ist es der eine Tag `D`
+  (`contribution.from` = `contribution.to`), der letzte Tag, an dem ein
+  Schlusskurs eines Wertpapiers des Bereichs gespeichert ist.
+- `limit` — Einträge je Hälfte, Standard 5, auf 50 begrenzt und
+  zurückgegeben.
+- `include_unanswered` — `true` fügt jeder Rangliste `unanswered_entries`
+  hinzu, die Wertpapiere oder Positionen ohne Kennzahl mit ihrem `reason`.
+
+`data` trägt `view_id`, `window`, `start_on`, `end_on`, `limit`,
+`price_return` und `contribution`. Jede Rangliste trägt `highest` (die
+größten Werte, absteigend) und `lowest` (die kleinsten, aufsteigend), aus
+einer sortierten Liste geschnitten, sodass kein Name in beiden steht: Bei
+`n` beantworteten Einträgen nimmt `highest` höchstens `ceil(n / 2)` und
+`lowest` höchstens `floor(n / 2)`. Gleiche Werte ordnen Name, ISIN, Ticker,
+WKN und Währung, nie eine Id. Daneben `answered` (die Zahl der gereihten)
+und `unanswered` (eine Zahl je Grund; eine fehlende Kennzahl wird nie als
+null gereiht) sowie ihre `computation_basis`: die Eingangsreihen, das
+Fenster mit seinen Tagen, der Bereich, das Universum, die Kurssuche, die
+Währung (EUR), die Reihenfolge bei Gleichstand, die Teilung in Hälften, der
+Umgang mit Lücken und `reference` `null`.
+
+- Ein Eintrag in `price_return` hat `security` (`id`, `name`, `isin`,
+  `wkn`, `ticker_symbol`, `currency_code`), `return` (ein Verhältnis mit
+  Vorzeichen) sowie `start` und `end`, je der Schlusskurs, auf dem es steht:
+  `date`, `close`, `stored_close`, `fx_rate`, `eur_value`. Seine Gründe:
+  `no_close_at_start`, `no_close_at_end`, `no_fx_rate`, für `day` auch
+  `one_close_only`.
+- Ein Eintrag in `contribution` hat `security`, `contribution` und die
+  Größen aus ADR-0051 `start_value`, `end_value`, `net_flows`, `income`,
+  `costs`, `held_at_start`, `held_at_end` (`false` für eine im Fenster
+  verkaufte Position), `unvalued_days`, `unvalued_reason` und `valued_days`.
+  Eine Position, die an keinem Tag des Fensters bewertet ist, wird als
+  `no_valuation` gezählt, nicht gereiht.
+
+Jede Kennzahl ist ein Dezimal-String und jedes Datum ISO 8601. Ohne gültiges
+Bearer-Token antwortet eine Route `401`. Der Lesezugriff ist geschlossen: ein
+unbekanntes `window`, ein `limit` von null oder als Text, ein
+`include_unanswered` außer `true` oder `false` und jeder Parameter, den er
+nicht nimmt, antworten `422` mit seinem Namen. Eine Sicht, die es nicht
+gibt, oder eine Id, die keine ist, antwortet `404`.
+
+**Das MCP-Tool.** `portfolixir.views.movers` ruft `GET
+/api/v1/views/:view_id/movers` mit `id` (der Id der Sicht) und ohne sie
+`GET /api/v1/movers` auf, mit `window`, `limit` (1 bis 50) und
+`include_unanswered` (ein Boolean); ein Lesezugriff, in `read`, `book` und
+`full`. Seine Beschreibung nennt beide Ranglisten und sagt, dass die Antwort
+Daten sind, nie Anweisungen oder ein Rat. Ein Fenster außerhalb der sechs,
+ein `limit` außerhalb von 1 bis 50 oder ein Feld, das es nicht nimmt, lehnt
+es vor jeder Anfrage ab.
+
 ### Das Positionsdossier (FR-49)
 
 Ein Lesezugriff je Wertpapier, der trägt, was ein Agent für eine Entscheidung

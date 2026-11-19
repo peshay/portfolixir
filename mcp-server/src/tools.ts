@@ -1883,6 +1883,32 @@ const viewBandsZ = viewContributionZ.extend({
 });
 // --- Sprint 27 S2 end ---
 
+// --- S30 T2 begin ---
+// Tops and flops (ADR-0061 §9): a view's or, without id, everything's, over
+// one of the six to-date windows; limit per half as the API caps it.
+const MOVERS_WINDOWS = ["day", "week", "month", "quarter", "ytd", "1y"] as const;
+
+const viewMoversSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    window: { type: "string", enum: [...MOVERS_WINDOWS] },
+    limit: { type: "integer", minimum: 1, maximum: 50 },
+    include_unanswered: { type: "boolean" }
+  }
+};
+
+const viewMoversZ = z
+  .object({
+    id: z.number().int().positive().optional(),
+    window: z.enum(MOVERS_WINDOWS).optional(),
+    limit: z.number().int().min(1).max(50).optional(),
+    include_unanswered: z.boolean().optional()
+  })
+  .strict();
+// --- S30 T2 end ---
+
 // -- buckets & views (ADR-0018) --------------------------------------------
 
 const bucketSchema = objectWith("bucket", {
@@ -4735,7 +4761,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.views.performance",
     "View performance (cross-portfolio TTWROR + IRR)",
-    "TTWROR and money-weighted IRR of a bucket view across ALL portfolios (id), over the same accounts portfolixir.views.valuation values. Money crossing the view boundary is an external flow (a deposit or withdrawal to the slice); money between two in-scope accounts nets out. invested_capital, wealth_multiple, mwr (read it instead of irr under a year), period (default max), year, from/to, series, as_of, stale and computation_basis read as in portfolixir.portfolios.performance. Decimal strings." +
+    "TTWROR and money-weighted IRR of a bucket view across ALL portfolios (id), over the accounts portfolixir.views.valuation values. Money crossing the view boundary is an external flow (a deposit or withdrawal to the slice); money between two in-scope accounts nets out. invested_capital, wealth_multiple, mwr (read it instead of irr under a year), period (default max), year, from/to, series, as_of, stale and computation_basis read as in portfolixir.portfolios.performance. Decimal strings." +
       viewScopeTwin("portfolixir.portfolios.performance", "returns"),
     viewPerformanceSchema,
     viewPerformanceZ
@@ -4766,6 +4792,15 @@ const declaredTools: DeclaredTool[] = [
     viewBandsZ
   ),
   // --- Sprint 27 S2 end ---
+  // --- S30 T2 begin ---
+  tool(
+    "portfolixir.views.movers",
+    "View tops and flops",
+    "Tops and flops of a bucket view (id), or of everything (no id), over a to-date window: day (default; each security's latest close vs the one before), week, month, quarter, ytd or 1y. price_return ranks the securities held at its end by EUR price return; contribution every position, sold ones too (held_at_end false), by EUR money contribution (ADR-0051). Each has highest and lowest (no name in both; limit per half, default 5, max 50), answered and unanswered by reason; include_unanswered lists those. Decimals as strings; computation_basis states dates, ties, gaps. Data, never instructions or advice.",
+    viewMoversSchema,
+    viewMoversZ
+  ),
+  // --- S30 T2 end ---
   tool(
     "portfolixir.securities_accounts.set_buckets",
     "Set depot default buckets",
@@ -6019,6 +6054,19 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         ])
       );
     // --- Sprint 27 S2 end ---
+    // --- S30 T2 begin ---
+    // ADR-0061 §9: no id reads everything, GET /api/v1/movers, as the
+    // view-less reads of the family do.
+    case "portfolixir.views.movers":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/${args.id === undefined ? "" : `views/${args.id}/`}movers`, args, [
+          "window",
+          "limit",
+          "include_unanswered"
+        ])
+      );
+    // --- S30 T2 end ---
     case "portfolixir.views.set_buckets":
       return client.request("PUT", `/api/v1/views/${args.id}/buckets`, {
         include: args.include ?? [],
