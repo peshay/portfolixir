@@ -46,6 +46,11 @@ defmodule Portfolixir.News.Ingest do
        feed's security, a `thematic` one `assigned` to its feed's category,
        an `aggregator` one `unassigned` with no candidates.
 
+  The whole batch runs under the feed's row lock, taken after the feed's
+  security or category is held `FOR KEY SHARE`, on the feed as read under
+  that lock (#1457; `Portfolixir.LockTable`, row 23): a security merge that
+  commits while a fetch waits has the fetch store its items on the target.
+
   The day's counters go to `news_feed_days` (the server's day of the
   clock); a dropped item counts there once per feed, canonical URL, reason
   and server day, however often it is fetched (`news_feed_drops`, closing
@@ -71,6 +76,8 @@ defmodule Portfolixir.News.Ingest do
 
   require Logger
 
+  alias Portfolixir.Catalog.Security
+  alias Portfolixir.Classifications.Category
   alias Portfolixir.Clock
   alias Portfolixir.News
   alias Portfolixir.News.Feed
@@ -84,6 +91,9 @@ defmodule Portfolixir.News.Ingest do
   @cap 200
   @cap_window_seconds 24 * 60 * 60
   @retention_days 90
+  # How often a fetch locks its feed again when the feed's parent changed
+  # between the two locks (`under_feed_lock/3`).
+  @lock_attempts 3
   # Query parameters that track a reader and name no document.
   @tracking_params ~w(fbclid gclid dclid msclkid mc_cid mc_eid igshid)
   @default_ports %{"https" => 443, "http" => 80}
@@ -114,12 +124,8 @@ defmodule Portfolixir.News.Ingest do
   """
   @spec ingest(Feed.t(), [Parsed.t()], DateTime.t()) :: {:ok, summary()}
   def ingest(%Feed{} = feed, items, %DateTime{} = now) when is_list(items) do
-    {:ok, summary} =
-      Repo.transaction(fn ->
-        # One ingest per feed at a time: the cap's count and the inserts
-        # below must not interleave with another fetch of the same feed.
-        Repo.one!(from(f in Feed, where: f.id == ^feed.id, lock: "FOR UPDATE", select: f.id))
-
+    summary =
+      under_feed_lock(feed, @lock_attempts, fn feed ->
         {candidates, summary} = prepare(feed, items, now)
         {candidates, summary} = tier_and_block(candidates, summary)
         {stored, summary} = store(feed, candidates, now, summary)
@@ -134,6 +140,57 @@ defmodule Portfolixir.News.Ingest do
 
     {:ok, summary}
   end
+
+  # One ingest per feed at a time: the cap's count and the inserts must not
+  # interleave with another fetch of the same feed, so the feed's row is
+  # held `FOR UPDATE` to the commit. **Its parent first** (#1457;
+  # `Portfolixir.LockTable`, row 23): the security (or category) the feed
+  # names, `FOR KEY SHARE`, the lock the items' foreign key takes, before
+  # the feed, as every news writer takes the securities before any news
+  # row. A security merge holds both securities `FOR UPDATE` and then asks
+  # the source's feeds (row 13), and a category's delete holds the category
+  # and then checks the feeds that name it, so a fetch that held its feed
+  # first and then inserted closed a cycle with either. `fun` runs on the
+  # feed as read under its lock, never on the caller's earlier read: a
+  # merge that committed while the fetch waited has moved the feed to its
+  # target, and its items are stored there. A feed whose parent changed
+  # between the lock on the parent and the lock on the feed is not locked
+  # out of order: the attempt is rolled back, releasing both, and runs
+  # again on the parent the feed names now.
+  defp under_feed_lock(%Feed{} = feed, 0, _fun),
+    do: raise("news feed #{feed.id} was rebound #{@lock_attempts} times during one fetch")
+
+  defp under_feed_lock(%Feed{} = feed, attempts, fun) do
+    result =
+      Repo.transaction(fn ->
+        lock_parent(feed)
+
+        locked = Repo.one!(from(f in Feed, where: f.id == ^feed.id, lock: "FOR UPDATE"))
+
+        if parent(locked) == parent(feed),
+          do: fun.(locked),
+          else: Repo.rollback({:rebound, locked})
+      end)
+
+    case result do
+      {:ok, summary} -> summary
+      {:error, {:rebound, locked}} -> under_feed_lock(locked, attempts - 1, fun)
+    end
+  end
+
+  defp parent(%Feed{security_id: id}) when is_integer(id), do: {:security, id}
+  defp parent(%Feed{category_id: id}) when is_integer(id), do: {:category, id}
+  defp parent(%Feed{}), do: nil
+
+  defp lock_parent(feed) do
+    case parent(feed) do
+      {:security, id} -> key_share(from(s in Security, where: s.id == ^id, select: s.id))
+      {:category, id} -> key_share(from(c in Category, where: c.id == ^id, select: c.id))
+      nil -> []
+    end
+  end
+
+  defp key_share(query), do: query |> lock("FOR KEY SHARE") |> Repo.all()
 
   # §3, B5: each candidate's tier from the tier table, read once for the
   # batch under the domains' tier locks (E1); a `blocked` domain's
