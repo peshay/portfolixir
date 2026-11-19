@@ -13,13 +13,15 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogo do
     * `:not_found` when no candidate slug resolved to a page with an image.
     * `{:error, reason}` for HTTP/transport failures.
 
-  The `:req` option accepts the same shape `Req.merge/2` accepts (e.g. a
-  `plug:` stub) so tests never reach the public internet.
+  The `:req` option takes a test's `plug:` stub alone, where the
+  configuration allows one (`Portfolixir.Net.TestPlug`, #1356), so tests
+  never reach the public internet; any other request option is refused.
   """
 
   alias Portfolixir.Net.Http
   alias Portfolixir.Net.ParseGuard
   alias Portfolixir.Net.PathSegment
+  alias Portfolixir.Net.TestPlug
 
   @base_url "https://companieslogo.com"
   # The only hosts a request or a redirect hop may reach (F27).
@@ -135,9 +137,7 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogo do
         deadline_ms: 15_000
       )
 
-    case opts[:req] do
-      nil -> base
-      overrides when is_list(overrides) -> Req.merge(base, overrides)
-    end
+    # #1356: a caller adds no option to the request but a test's plug.
+    TestPlug.merge(base, opts)
   end
 end

@@ -14,13 +14,15 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
       when Wikipedia returns 404 for a deterministic fallback title.
     * `{:error, reason}` for other HTTP and transport failures.
 
-  The `:req` option accepts the same shape `Req.merge/2` accepts (e.g. a
-  `plug:` stub) so tests never reach the public internet.
+  The `:req` option takes a test's `plug:` stub alone, where the
+  configuration allows one (`Portfolixir.Net.TestPlug`, #1356), so tests
+  never reach the public internet; any other request option is refused.
   """
 
   alias Portfolixir.Net.Http
   alias Portfolixir.Net.ParseGuard
   alias Portfolixir.Net.PathSegment
+  alias Portfolixir.Net.TestPlug
 
   @endpoint "https://en.wikipedia.org/api/rest_v1/page/summary"
   @search_endpoint "https://en.wikipedia.org/w/rest.php/v1/search/page"
@@ -190,10 +192,8 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
         deadline_ms: 15_000
       )
 
-    case opts[:req] do
-      nil -> base
-      overrides when is_list(overrides) -> Req.merge(base, overrides)
-    end
+    # #1356: a caller adds no option to the request but a test's plug.
+    TestPlug.merge(base, opts)
   end
 
   defp image_from_summary(%{} = body, opts) do

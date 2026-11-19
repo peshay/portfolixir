@@ -27,6 +27,7 @@ defmodule Portfolixir.Catalog.LogoStore do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Net.Http
+  alias Portfolixir.Net.TestPlug
   alias Portfolixir.Net.UrlPolicy
   alias Portfolixir.Repo
 
@@ -578,10 +579,8 @@ defmodule Portfolixir.Catalog.LogoStore do
         deadline_ms: 15_000
       )
 
-    case opts[:req] do
-      nil -> base
-      overrides when is_list(overrides) -> Req.merge(base, overrides)
-    end
+    # #1356: a caller adds no option to the request but a test's plug.
+    TestPlug.merge(base, opts)
   end
 
   @doc """

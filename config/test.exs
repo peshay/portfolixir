@@ -110,6 +110,12 @@ config :portfolixir, :logo_discovery_refresh_ms, 0
 # of the retrievable log window. Raise so the next one fails the build.
 config :phoenix_live_view, :test_warnings, missing_form_id: :raise
 
+# The one request option a provider adapter takes from its caller (#1356):
+# a test's `plug:` stub, passed as `req: [plug: ...]` to the Yahoo, ECB and
+# logo adapters (`Portfolixir.Net.TestPlug`). No other configuration sets it,
+# so outside the tests a caller's plug is refused like every other option.
+config :portfolixir, Portfolixir.Net.TestPlug, allow: true
+
 # The news fetcher's adapter in tests (ADR-0056 §5): the one plug the fetcher
 # merges (closing act, SEC1). It answers with the test's own stub
 # (`Portfolixir.NewsFixtures.serve/1`) and every request no test stubbed as a

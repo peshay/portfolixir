@@ -25,6 +25,7 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
   alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Net.Http
   alias Portfolixir.Net.ParseGuard
+  alias Portfolixir.Net.TestPlug
 
   @endpoint "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
   @history_endpoint "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml"
@@ -48,12 +49,8 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
   @impl true
   def fetch_history(opts) do
     # The series is a few MB; give it more room than the daily feed.
-    overrides = Keyword.put_new(Keyword.get(opts, :req, []), :receive_timeout, 60_000)
-
     history_req =
-      opts
-      |> Keyword.put(:req, overrides)
-      |> req(max_bytes: 32 * 1024 * 1024, deadline_ms: 120_000)
+      req(opts, max_bytes: 32 * 1024 * 1024, deadline_ms: 120_000, receive_timeout: 60_000)
 
     case Http.get(history_req, url: @history_endpoint) do
       {:ok, %Req.Response{status: 200, body: body}} ->
@@ -149,16 +146,14 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
   defp req(opts, bounds \\ [max_bytes: 2 * 1024 * 1024, deadline_ms: 30_000]) do
     base =
       Http.new(
-        [
-          headers: [{"user-agent", "portfolixir/0.1 (+https://github.com/portfolixir)"}],
-          receive_timeout: 10_000,
-          allowed_hosts: @allowed_hosts
-        ] ++ bounds
+        headers: [{"user-agent", "portfolixir/0.1 (+https://github.com/portfolixir)"}],
+        receive_timeout: Keyword.get(bounds, :receive_timeout, 10_000),
+        allowed_hosts: @allowed_hosts,
+        max_bytes: Keyword.fetch!(bounds, :max_bytes),
+        deadline_ms: Keyword.fetch!(bounds, :deadline_ms)
       )
 
-    case opts[:req] do
-      nil -> base
-      overrides when is_list(overrides) -> Req.merge(base, overrides)
-    end
+    # #1356: a caller adds no option to the request but a test's plug.
+    TestPlug.merge(base, opts)
   end
 end
