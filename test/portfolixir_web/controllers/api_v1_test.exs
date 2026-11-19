@@ -39,14 +39,14 @@ defmodule PortfolixirWeb.ApiV1Test do
   # - A valid bearer token can access API resources.
   test "requires bearer token authentication for api v1", %{conn: conn} do
     conn = get(conn, "/api/v1/securities")
-    assert json_response(conn, 401) == %{"errors" => %{"detail" => "unauthorized"}}
+    assert %{"errors" => %{"detail" => "unauthorized"}} = json_response(conn, 401)
 
     conn =
       build_conn()
       |> put_req_header("authorization", "Bearer wrong")
       |> get("/api/v1/securities")
 
-    assert json_response(conn, 401) == %{"errors" => %{"detail" => "unauthorized"}}
+    assert %{"errors" => %{"detail" => "unauthorized"}} = json_response(conn, 401)
 
     conn = build_conn() |> api_conn() |> get("/api/v1/securities")
     assert json_response(conn, 200) == %{"data" => [], "limit" => 5000, "truncated" => false}

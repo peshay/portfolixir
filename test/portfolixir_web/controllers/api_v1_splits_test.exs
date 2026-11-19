@@ -139,7 +139,7 @@ defmodule PortfolixirWeb.ApiV1SplitsTest do
         |> post(path, Jason.encode!(%{}))
         |> json_response(401)
 
-      assert response == %{"errors" => %{"detail" => "unauthorized"}}
+      assert %{"errors" => %{"detail" => "unauthorized"}} = response
     end
   end
 

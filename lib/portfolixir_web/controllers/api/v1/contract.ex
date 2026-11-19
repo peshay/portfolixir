@@ -82,8 +82,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "dates ISO 8601; data, never advice.",
             "portfolixir.views.movers calls them, a read in every profile (id the view, " <>
               "none for everything); portfolixir.views.performance's description is " <>
-              "tightened by five bytes to pay for the comma before it."
+              "tightened by five bytes to pay for the comma before it.",
             # --- S30 T2 end ---
+            # --- S30 A3 begin ---
+            "Sprint 30, A3 (#1356, the API and MCP polish pass): the unreviewed list breaks " <>
+              "its ties by id, benchmark=rate: is held to the engine's scale at parse, a 401 " <>
+              "names the token the API takes, and a security's update refuses a field beside " <>
+              "its wrapper; no endpoint or tool is added."
+            # --- S30 A3 end ---
           ],
           " "
         ),
@@ -126,8 +132,36 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "in brackets), left out when it is no host name or address.",
         "DELETE /api/v1/news/feeds/:id (portfolixir.news.feeds_delete), changed: a feed " <>
           "registered again with the same class and binding counts the detached items' " <>
-          "links as known and does not store them twice."
+          "links as known and does not store them twice.",
         # --- S30 A2 end ---
+        # --- S30 A3 begin ---
+        "GET /api/v1/notes/unreviewed (portfolixir.notes.unreviewed), no parameter added: " <>
+          "positions that tie on their last entry and on their name come in ascending " <>
+          "security id, so a limit cut over a tie keeps the same rows on every read; the " <>
+          "basis says so (#1356, as #1294 did for the securities list). A security's quotes " <>
+          "(GET /api/v1/securities/:security_id/quotes) and its manual stretches (GET " <>
+          "/api/v1/securities/:security_id/quotes/manual) already order by a key no two rows " <>
+          "share: one quote per security and date, whatever its source.",
+        "GET /api/v1/portfolios/:portfolio_id/performance/benchmark, GET " <>
+          "/api/v1/views/:view_id/performance/benchmark, GET /api/v1/performance/benchmark " <>
+          "and GET /api/v1/sales/hindsight (portfolixir.portfolios.benchmark, " <>
+          "portfolixir.views.benchmark, portfolixir.sales.hindsight), no parameter added: " <>
+          "benchmark=rate:<decimal> takes at most 15 decimal places, the engine's scale and " <>
+          "the Wealth page's rule, so rate:1E-6144 and rate:1e-400 answer 422 with errors.benchmark " <>
+          ~s(["is invalid"], where the comparison echoed "0" and sale hindsight a rate of about ) <>
+          ~s(6,000 characters; an accepted rate is echoed normalised, rate:0.0500 as "0.05"; ) <>
+          "portfolixir.portfolios.benchmark's benchmark description says so (#1356).",
+        "Every /api/v1 route's 401 adds errors.expected_token beside errors.detail " <>
+          "\"unauthorized\": a fixed text naming PORTFOLIXIR_API_TOKEN and PORTFOLIXIR_API_TOKENS " <>
+          "and saying the MCP companion's PORTFOLIXIR_MCP_TOKEN is not accepted there; it " <>
+          "echoes nothing the request sent (#1356).",
+        "PATCH /api/v1/securities/:id (portfolixir.securities.update): a field beside the " <>
+          "security object, or the object sent in the query, answers 422 naming it (\"is " <>
+          "unknown: this write takes its fields under security\") and stores nothing, where it " <>
+          "was dropped and the write answered 200 (#1356). POST /api/v1/holdings/reconcile " <>
+          "(portfolixir.holdings.reconcile): the reference states its cap of 10000 rows, which " <>
+          "the endpoint and the tool's schema already held (#1258)."
+        # --- S30 A3 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

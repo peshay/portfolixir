@@ -182,7 +182,9 @@ defmodule Portfolixir.Knowledge do
   `last_entry_as_of` (nil when none) and `days_since_last_entry`.
 
   Options: `:days`, `:today` (defaults to the host date), `:limit` — the most
-  overdue rows first, so a limit keeps the most urgent ones (#776).
+  overdue rows first, so a limit keeps the most urgent ones (#776); rows that
+  tie go by name, then by id, so a limit cut over a tie is the same on every
+  read (#1356).
   """
   @spec unreviewed_positions(keyword()) :: [map()]
   def unreviewed_positions(opts \\ []) do
@@ -208,7 +210,7 @@ defmodule Portfolixir.Knowledge do
       on: l.security_id == s.id,
       where: s.id in subquery(HeldSecurities.held_ids_query()),
       where: is_nil(l.last_as_of) or l.last_as_of < ^cutoff,
-      order_by: [asc_nulls_first: l.last_as_of, asc: s.name],
+      order_by: [asc_nulls_first: l.last_as_of, asc: s.name, asc: s.id],
       select: {s, l.last_as_of}
     )
     |> maybe_limit(Keyword.get(opts, :limit))

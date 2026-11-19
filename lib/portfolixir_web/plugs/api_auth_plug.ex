@@ -13,6 +13,11 @@ defmodule PortfolixirWeb.ApiAuthPlug do
   `PORTFOLIXIR_API_PRINCIPAL` names it.
   Every entry carries the same full authority: a name attributes a write, it
   does not narrow what the token may do.
+
+  A refused token answers `401` with `errors.detail` `"unauthorized"` and
+  `errors.expected_token`, a fixed text naming the token the API takes, so a
+  client that sent the MCP companion's token learns which one to send; the
+  answer echoes nothing the request sent (#1356).
   """
 
   import Plug.Conn
@@ -20,6 +25,14 @@ defmodule PortfolixirWeb.ApiAuthPlug do
 
   alias Portfolixir.Auth.Throttle
   alias Portfolixir.RuntimeConfig
+
+  # #1356 (the operator's agent's report of 2026-11-07): an agent that sent
+  # the MCP companion's token here met a bare 401 and retried into the
+  # lockout. The refusal names the token the route takes, a fixed text that
+  # echoes nothing the request sent.
+  @expected_token "the API token: PORTFOLIXIR_API_TOKEN, or an entry of " <>
+                    "PORTFOLIXIR_API_TOKENS, as Authorization: Bearer <token>; the MCP " <>
+                    "companion's PORTFOLIXIR_MCP_TOKEN is not accepted here"
 
   def init(opts), do: opts
 
@@ -94,7 +107,7 @@ defmodule PortfolixirWeb.ApiAuthPlug do
       _unlocked ->
         conn
         |> put_status(:unauthorized)
-        |> json(%{errors: %{detail: "unauthorized"}})
+        |> json(%{errors: %{detail: "unauthorized", expected_token: @expected_token}})
         |> halt()
     end
   end

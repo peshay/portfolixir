@@ -568,16 +568,23 @@ defmodule PortfolixirWeb.ApiV1BenchmarkTest do
   end
 
   # Acceptance criteria (closing-act finding, error contract): a subnormal
-  # fixed rate inside the bound compounds like any rate — 200, not a 500
-  # from the float boundary.
-  test "a subnormal fixed rate is a rate, not a crash", %{conn: conn} do
+  # fixed rate is answered, never a 500 from the float boundary. Since
+  # #1356 the parse holds a rate to the engine's 15 decimal places, as the
+  # Wealth page's selector does, so it is a 422 on benchmark; a rate at the
+  # engine's scale still compounds.
+  test "a subnormal fixed rate is refused, not a crash", %{conn: conn} do
     world = seeded_world("Tiny")
+    path = "/api/v1/portfolios/#{world.portfolio.id}/performance/benchmark"
+
+    assert %{"errors" => %{"benchmark" => ["is invalid"]}} =
+             conn
+             |> api_conn()
+             |> get(path, %{"benchmark" => "rate:1e-400"})
+             |> json_response(422)
 
     conn
     |> api_conn()
-    |> get("/api/v1/portfolios/#{world.portfolio.id}/performance/benchmark", %{
-      "benchmark" => "rate:1e-400"
-    })
+    |> get(path, %{"benchmark" => "rate:0.000000000000001"})
     |> json_response(200)
   end
 

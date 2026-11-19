@@ -22,12 +22,7 @@ defmodule PortfolixirWeb.Api.V1.ClosedBody do
   """
   @spec check(Plug.Conn.t(), String.t() | nil, [String.t()]) :: :ok | {:error, map()}
   def check(%Plug.Conn{} = conn, wrapper, fields) when is_list(fields) do
-    outside =
-      conn
-      |> request_keys()
-      |> Enum.reject(&(&1 == wrapper))
-      |> Map.new(&{&1, [outside_message(wrapper)]})
-      |> Map.merge(in_query(conn, wrapper))
+    outside = outside(conn, wrapper)
 
     inside =
       case wrapper && body(conn)[wrapper] do
@@ -45,6 +40,29 @@ defmodule PortfolixirWeb.Api.V1.ClosedBody do
       empty when empty == %{} -> :ok
       errors -> {:error, errors}
     end
+  end
+
+  @doc """
+  The half of `check/3` beside the wrapper alone: `:ok`, or `{:error,
+  errors}` naming every key the request carries beside `wrapper` (and the
+  wrapper sent in the query). For a write whose wrapper's own fields its
+  changeset reads (a security's update, #1356), so a field sent outside the
+  wrapper is refused instead of dropped.
+  """
+  @spec beside(Plug.Conn.t(), String.t()) :: :ok | {:error, map()}
+  def beside(%Plug.Conn{} = conn, wrapper) when is_binary(wrapper) do
+    case outside(conn, wrapper) do
+      empty when empty == %{} -> :ok
+      errors -> {:error, errors}
+    end
+  end
+
+  defp outside(conn, wrapper) do
+    conn
+    |> request_keys()
+    |> Enum.reject(&(&1 == wrapper))
+    |> Map.new(&{&1, [outside_message(wrapper)]})
+    |> Map.merge(in_query(conn, wrapper))
   end
 
   @doc "The 422 of `check/3`'s errors."
