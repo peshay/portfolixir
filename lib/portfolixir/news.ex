@@ -40,6 +40,7 @@ defmodule Portfolixir.News do
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Classifications.Category
   alias Portfolixir.Journal
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.DigestConsumer
@@ -435,6 +436,10 @@ defmodule Portfolixir.News do
   # is `Portfolixir.Catalog.update_security/3`.
 
   @feed_class_kept "cannot change while the feed has stored items: their class is the feed's"
+  @feed_rebound "moved while it was being written, three times running: try again"
+  # How often a feed write locks its feed again when the feed's parent
+  # changed between the caller's read and the lock (`update_feed/4`).
+  @rebind_attempts 3
 
   @doc """
   Registers a feed, or changes one, on behalf of `actor` (`news.feeds_put`).
@@ -459,6 +464,13 @@ defmodule Portfolixir.News do
   error on `security_id`, `category_id` or `language`, checked under the
   feed's row lock, which an ingest takes too.
 
+  **The feed's parents before the feed** (#1457; `Portfolixir.LockTable`,
+  row 25): a change holds the security or category the feed names and the
+  one it binds it to `FOR KEY SHARE` before the feed's lock, as a fetch and
+  a security merge take the securities before any news row; a feed a merge
+  moved meanwhile is written as the merge left it, and one moved three
+  times during the write answers an error on its binding.
+
   Answers `{:ok, :created | :updated, feed}`; an update that changes nothing
   records no entry.
   """
@@ -478,7 +490,7 @@ defmodule Portfolixir.News do
       cond do
         not changeset.valid? -> {:error, %{changeset | action: :insert}}
         is_nil(prior) -> insert_feed(actor, changeset)
-        true -> update_feed(actor, prior, attrs)
+        true -> update_feed(actor, prior, attrs, @rebind_attempts)
       end
     end
   end
@@ -545,8 +557,33 @@ defmodule Portfolixir.News do
     |> feed_written(:created)
   end
 
-  defp update_feed(actor, prior, attrs) do
+  # #1457 (Sprint 30, K2; `Portfolixir.LockTable`, row 25): **the feed's
+  # parents first.** The security or category the feed names, and the one
+  # the write binds it to, `FOR KEY SHARE`, in id order, before the
+  # journal's lock on the feed, as a fetch takes its feed's parent before
+  # the feed (row 23). A security merge holds both securities `FOR UPDATE`
+  # and then asks the source's feeds (row 13), so a re-binding that held the
+  # feed and then had its UPDATE's foreign key ask the new security closed a
+  # cycle with it. The write acts on the feed as read under its lock; one
+  # whose parent changed between the caller's read and the lock (a merge
+  # moved it) is not written with a parent it does not hold: the attempt
+  # rolls back, releasing both, and runs again on the feed as it is now (at
+  # most three times, then an error on the binding).
+  defp update_feed(_actor, prior, attrs, 0) do
+    changeset =
+      prior
+      |> feed_changeset(attrs)
+      |> Ecto.Changeset.add_error(parent_field(prior), @feed_rebound)
+
+    {:error, %{changeset | action: :update}}
+  end
+
+  defp update_feed(actor, prior, attrs, attempts) do
     Multi.new()
+    |> Multi.run(:parent, fn _repo, changes ->
+      locked = Journal.locked_row(changes)
+      if parent(locked) == parent(prior), do: {:ok, parent(locked)}, else: {:error, locked}
+    end)
     |> Multi.update(:feed, &(&1 |> Journal.locked_row() |> feed_changeset(attrs) |> keep_fed()))
     |> Journal.record(actor,
       resource_type: "news_feed",
@@ -554,9 +591,52 @@ defmodule Portfolixir.News do
       source: :feed,
       before: prior
     )
+    |> Multi.prepend(lock_feed_parents(prior, attrs))
     |> Repo.transaction()
-    |> feed_written(:updated)
+    |> case do
+      {:error, :parent, %Feed{} = locked, _changes} ->
+        update_feed(actor, locked, attrs, attempts - 1)
+
+      written ->
+        feed_written(written, :updated)
+    end
   end
+
+  # The parents a feed write may take a foreign key on, `FOR KEY SHARE`:
+  # the feed's own (as the caller read it) and the one the write binds it
+  # to; securities, then categories, each in id order (one statement each,
+  # rows locked as returned).
+  defp lock_feed_parents(prior, attrs) do
+    bound = feed_changeset(prior, attrs)
+    bound_to = &Ecto.Changeset.get_field(bound, &1)
+
+    securities = Enum.reject([prior.security_id, bound_to.(:security_id)], &is_nil/1)
+    categories = Enum.reject([prior.category_id, bound_to.(:category_id)], &is_nil/1)
+
+    Multi.run(Multi.new(), :feed_parents, fn _repo, _changes ->
+      {:ok,
+       %{
+         securities: key_share(Security, securities),
+         categories: key_share(Category, categories)
+       }}
+    end)
+  end
+
+  defp key_share(_schema, []), do: []
+
+  defp key_share(schema, ids) do
+    ids = ids |> Enum.uniq() |> Enum.sort()
+
+    from(r in schema, where: r.id in ^ids, order_by: r.id, lock: "FOR KEY SHARE", select: r.id)
+    |> Repo.all()
+  end
+
+  defp parent(%Feed{security_id: id}) when is_integer(id), do: {:security, id}
+  defp parent(%Feed{category_id: id}) when is_integer(id), do: {:category, id}
+  defp parent(%Feed{}), do: nil
+
+  defp parent_field(%Feed{category_id: id}) when is_integer(id), do: :category_id
+  defp parent_field(%Feed{}), do: :security_id
 
   defp feed_written({:ok, %{feed: feed}}, written), do: {:ok, written, feed}
 

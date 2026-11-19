@@ -4,7 +4,8 @@ defmodule Portfolixir.LockTable do
   rows, since Sprint 28 news.assign against the security merge, and since
   Sprint 29 a news rating against a fetch, a promotion and an assignment, and
   the chain reader against itself and a rebinding, since Sprint 30 a news
-  fetch against the security merge, with
+  fetch, a feed's write and the news matcher against the security merge,
+  with
   the locks it takes in the order it takes them (Sprint 21's D-7;
   Sprint 20's retrospective). The lock-race harness (`Portfolixir.LockRace`)
   pins the pairs that meet; this table is what a new lock is checked
@@ -75,6 +76,7 @@ defmodule Portfolixir.LockTable do
   | 22 | **A news rating** (`News.Sources.put_source/4` → `News.Retier.run/3`: API, MCP, a seed; ADR-0056 E1, S29 N1) | the source row `U` (or its INSERT, `ON CONFLICT DO NOTHING`) → `adv(news tier)` of its domain `X` and of each parent domain of two labels or more `S`, ascending key → when the write changes the tier and an unpromoted item it decides changes with it: the securities those items name (their own and an ambiguous one's candidates) `KS`, id order (off an unlocked read of the items, under the tier lock, so their set cannot grow) → `adv(matcher)` → `adv(story scope)` of each item's scope and language, in order → the items `U`, id order → their UPDATE, or for a block `Stories.remove/5` (it takes again the scope lock the rating holds) and the DELETE of the unassigned ones → the full reclusters of the scopes (under the scope locks held). An item that moved into a scope whose lock it does not hold rolls the whole write back, releasing all of it, and runs again (at most three times, then `422` on `domain`). |
   | 23 | **A news fetch** (`News.Ingest.ingest/3`; ADR-0056 E1, S29 N1, S30 K1) | the feed's parent, its security or its category, `KS`, off the caller's read of the feed (#1457) → the feed `U`, read again under it (a feed whose parent changed in between rolls the attempt back, releasing both, and runs again on the parent it names now, at most three times) → `adv(news tier)` of every suffix of its items' domains `S`, ascending key, held to its commit → the tier read and the INSERTs (`FK` on the feed, held `U`, and on the parent, held `KS`) → after the commit, in transactions of their own, the matcher (`adv(matcher)` → items `U` → securities `KS`) and the reclusters (`adv(story scope)`). |
   | 24 | **A chain read's writes** (`Chains.Reader.run/2`: the scheduled run and the on-demand refresh; ADR-0059 §5, §6, S29 H3) | an on-demand refresh first claims its try: one conditional upsert of the state row (`chain_reads`, its row lock for that one statement, no transaction; the closing act) → the network reads, outside any transaction → `adv(chain read, chain)` → every security bound to the chain `S`, id order, the binding read again under it → per halving `Events.put_chain_halving/6`: the security `S` again (held), the event `NKU` (the journal's lock step) or its INSERT (`FK` on the security, `KS`) → the state row's upsert (`chain_reads`, unjournaled). Locks no booking. |
+  | 25 | **A feed's write** (`News.put_feed/3` on a stored feed: API, MCP; S30 K2) | the feed's parent as the caller read it and the parent the write binds it to `KS`: securities, then categories, each in id order (#1457) → the feed `NKU` (the journal's lock step), read again under it (a feed whose parent changed in between rolls the attempt back, releasing all of it, and runs again on the feed as it is now, at most three times, then `422` on its binding) → the COR1 check (plain reads of its items) → UPDATE (`FK` on a changed security or category, held `KS`). A create is an INSERT (`FK` on its parent). Locks no item. |
 
   ## Where two rows meet
 
@@ -172,6 +174,28 @@ defmodule Portfolixir.LockTable do
       category's delete (`Classifications.delete_category/2`: the category
       `U`, then the restrict check of the feeds that name it, `KS` on them)
       meets a thematic fetch the same way, at the category.
+    * Row 25 against row 13 (#1457, S30 K2): the merge holds both
+      securities `U` and then asks the source's feeds `NKU`; a feed's write
+      takes the feed's old and new security `KS` before the feed, so
+      whichever reaches a security first goes through and the other waits
+      there holding nothing the first asks for. A re-binding that waited on
+      a merge of its feed's security finds the feed on the target under its
+      lock, runs again on it and writes the binding asked onto the feed as
+      the merge left it. Before, the write held the feed and then its
+      UPDATE's `FK` asked the new security: a merge holding it deadlocked
+      with it, and one asking the feed after the write held it deadlocked
+      too. The old parent's `KS` also keeps a merge's move of the source's
+      feeds from overwriting a re-binding committed between its read of
+      those feeds and its lock on them. A category's delete (the category
+      `U`, then its restrict check's `KS` on the feeds) meets it at the
+      category the same way, and its `KS` on the feed does not conflict
+      with the write's `NKU`.
+    * Row 25 against row 23: both take the feed's parent `KS` (which does
+      not conflict with `KS`) before the feed, so they meet at the feed: a
+      fetch holding it `U` makes the write wait, and the write's COR1 check
+      then sees the items the fetch stored; a write holding it `NKU` makes
+      the fetch wait, which then reads the feed as written and runs again
+      on its new parent (row 23).
     * Row 22 against row 23: a rating holds its domain's tier key `X`, a
       fetch the key of every suffix of its items' domains `S`, so they meet
       exactly when the rating's row could decide one of the fetch's items:
