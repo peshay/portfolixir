@@ -3055,7 +3055,9 @@ nicht zugeordnete Rest Grau, „Sonstige“ ein neutrales Grau. Ein Band, das an
 einigen Tagen negativ ist, etwa ein für ein, zwei Tage überzogenes Konto,
 wird als zwei Flächen gezeichnet, über und unter der Nulllinie, die untere
 etwas heller; ein Band, das das Vorzeichen wechselt, liegt direkt an der
-Nulllinie und kreuzt so kein anderes Band. Eine Zeile unter dem Diagramm
+Nulllinie und kreuzt so kein anderes Band. Die Achse reicht dann einen
+runden Schritt unter null, beschriftet, sodass auch eine Delle, flacher als
+ein Schritt, an einem Wert abzulesen ist. Eine Zeile unter dem Diagramm
 sagt, was es zeigt, den Zeitraum und wann es berechnet wurde; ihr ⓘ sagt,
 wie es berechnet ist.
 
@@ -3871,7 +3873,8 @@ Depot**. Die Wahl steht in der Adresse, sodass ein Link dieselbe Liste wieder
 **erkannt** oder **manuell** ist, sein Hoch und sein Tief, den Fall des
 Crash-Benchmarks in seiner eigenen Währung und den Tag seiner Erholung. **Im
 Depot ansehen** öffnet die Bestände unter Vermögen mit dem Fenster als
-eigenem Zeitraum, vom Hoch bis zum Tief (bis heute, solange es läuft). Ein
+eigenem Zeitraum, vom Hoch bis zum Tief (bis heute, solange es läuft), in
+der Ansicht, die die Adresse der Seite nennt. Ein
 Fenster, das vor der ersten Buchung dieser Ansicht endet, zeigt keinen Link,
 sondern eine Zeile: „Die Ansicht beginnt am …: in diesem Fenster gab es kein
 Depot“, weil die Bestände einen anderen Zeitraum öffnen würden, als der Link
@@ -3936,9 +3939,20 @@ Fenster ändert:
   manueller Kurs, ein später gebuchter Split), kann ein erkanntes Fenster an
   einem anderen Tag beginnen oder verschwinden. Sein Name wird dann nie
   geraten einem anderen Fenster zugeordnet: Er steht hier mit dem Benchmark,
-  für den er vergeben wurde. **Als manuelles Fenster anlegen …** behält seinen
-  Start und fragt nach dem Tief, das nie gespeichert wurde; **Löschen**
-  entfernt den Namen.
+  für den er vergeben wurde. Ein Name, der vergeben wurde, als ein anderer
+  Crash-Benchmark gewählt war, steht ebenfalls hier, in einer eigenen
+  Tabelle unter dem Satz, dass er ausgeblendet ist und zurückkehrt, sobald
+  sein Benchmark wieder Crash-Benchmark ist. **Als manuelles Fenster
+  anlegen …** behält seinen Start und fragt nach dem Tief, das nie
+  gespeichert wurde; **Löschen** entfernt den Namen.
+
+Auf dem Telefon sind die Fenster Zeilen: der Name über Hoch und Tief, Art
+und Aktionen darunter, Rückgang und Erholung rechts.
+
+**Ohne Portfolio** hat die Seite Risiko keine Bestände zu messen, aber der
+Abschnitt Crashes steht unter ihrer Leerzeile trotzdem, über den ganzen
+Katalog: die Fenster, ihre Listen und die Wahl des Crash-Benchmarks, ohne
+die Wahl „Wertpapiere“ und ohne „Im Depot ansehen“.
 
 Der **Privatsphäre-Modus** ändert in diesem Abschnitt nichts: Er hält nur
 Prozente, Daten und Tageszahlen.

@@ -14,12 +14,14 @@ defmodule Portfolixir.ReviewSeedTest do
   alias Portfolixir.Catalog.Quote
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Classifications
+  alias Portfolixir.Crashes
   alias Portfolixir.Imports
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Income
+  alias Portfolixir.Portfolios.Performance.Bands
   alias Portfolixir.Portfolios.Performance.Contribution
   alias Portfolixir.Portfolios.Performance.SaleHindsight
   alias Portfolixir.Portfolios.PolicyRule
@@ -27,6 +29,7 @@ defmodule Portfolixir.ReviewSeedTest do
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.RealizedGains
   alias Portfolixir.Portfolios.Targets
+  alias Portfolixir.Settings
   alias Portfolixir.Tax
   alias Portfolixir.Tax.StatementSnapshot
 
@@ -503,6 +506,58 @@ defmodule Portfolixir.ReviewSeedTest do
   end
 
   # --- Sprint 26 R3 end ---
+
+  # --- Sprint 30 W2 begin ---
+
+  # User story (Sprint 30 plan D-7, W2; board
+  # ux-design-2026-11-15-sprint30/02-wealth-polish ③ and ⑤ to ⑦, drawn by
+  # hand because the seed had neither case):
+  # As the reviewer walking the Wealth polish pass on the review instance,
+  # and its UAT persona,
+  # I want the seed to carry a day of negative cash and a crash benchmark,
+  # so that the tick below zero and the detected crash windows are met on
+  # the screen, not only in the tests.
+  #
+  # Acceptance criteria:
+  # - Everything's stack at „Kategorien“ over one year has a cash band
+  #   below zero on exactly two days, shallower than its round step (the
+  #   bands read the API answers), and the money is back on the third.
+  # - A crash benchmark is chosen, a security the seed holds closes for,
+  #   and its rule detects at least one window.
+  # - A second run adds no booking and keeps the choice.
+  test "the review seed carries a negative cash day and a crash benchmark (W2)" do
+    seed!()
+
+    {:ok, bands} =
+      Bands.for_view(nil, period: "1y", level: :category)
+
+    cash = Enum.find(bands.bands, &(&1.key == "cash"))
+    assert cash, "no cash band"
+    below = Enum.filter(cash.values, &Decimal.lt?(&1, 0))
+    assert length(below) == 2, "#{length(below)} days of cash below zero"
+
+    lowest = Enum.min(below, Decimal)
+
+    totals =
+      bands.bands
+      |> Enum.map(& &1.values)
+      |> Enum.zip_with(&Enum.reduce(&1, Decimal.new(0), fn v, acc -> Decimal.add(v, acc) end))
+
+    top = Enum.max(totals, Decimal)
+    # Shallower than a fifth of the top: less than one round step.
+    assert Decimal.lt?(Decimal.abs(lowest), Decimal.div(top, 5))
+
+    benchmark = Settings.crash_benchmark_security_id()
+    assert is_integer(benchmark), "no crash benchmark chosen"
+    assert Crashes.list_windows().detected != []
+
+    rows = row_counts()
+    seed!()
+    assert row_counts() == rows
+    assert Settings.crash_benchmark_security_id() == benchmark
+  end
+
+  # --- Sprint 30 W2 end ---
 
   defp stored_class(name) do
     Repo.one!(from(s in Security, where: s.name == ^name, select: s.asset_class))

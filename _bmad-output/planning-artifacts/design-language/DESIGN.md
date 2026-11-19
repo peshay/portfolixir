@@ -2166,10 +2166,11 @@ result columns out of the scroller.
 
 - **The table fits its wrapper** (`min-width: 0; width: 100%` against the
   scroller's `max-content`), as the history and the contribution table do.
-- **The Security column keeps a 12 rem floor and breaks inside its cell.**
-  Its head and its cells carry `cell-name` wherever the picker puts the
-  column; the head takes `min-width: 12rem`, the cells `overflow-wrap:
-  anywhere`, so no stored name moves the table's width. The floor is what
+- **The Security column keeps a 9.5 rem floor and breaks inside its
+  cell** (12 rem until Sprint 30 W2, below). Its head and its cells carry
+  `cell-name` wherever the picker puts the column; the head takes
+  `min-width: 9.5rem`, the cells `overflow-wrap: anywhere`, so no stored
+  name moves the table's width. The floor is what
   the seven other columns of #1322's eight (Depot, Wertpapier, Stückzahl,
   Ø Kosten, Letzter Kurs, Marktwert, G&V, G&V %) leave of the 922 px
   scroller at 1200 px with the sidebar open on the review seed; the
@@ -2181,7 +2182,10 @@ result columns out of the scroller.
 - **A cell's note wraps between words** („Handelspreis · 03.02.2025“,
   „ohne Wechselkurs · nicht in der Summe“). On one line they made Letzter
   Kurs 196 px and Marktwert 246 px wide; elsewhere `.cell-note` stays on
-  one line.
+  one line. Since Sprint 30 W2 its first phrase never breaks and the note
+  may reach 9 rem left under its neighbour's figure, so it is one line
+  after all, and the depot is one line (the amendment of 2026-11-19, "The
+  Wealth polish pass", ①).
 - **Measured at 1200 px with the sidebar open:** #1322's eight columns
   went from 1,317 px of table in the 922 px scroller, G&V out of view, to
   922/922 with every column in view. The three default columns fit before
@@ -10538,6 +10542,7 @@ screen and the API answer alike for the same window, list and universe.
    …“ or „läuft“; for the rebounders „Erholung gemessen bis ‹date›“ with
    „(Tief + 3 Monate)“ or „vorläufig · vollständig am …“. At its end
    **„Im Depot ansehen →“**, Holdings at `/portfolio?from=<start>&to=<low>`
+   (the address's `view` first where it names one, Sprint 30 W2)
    (to today while the window runs), or, for a window that ends before the
    view's first booking, no link and one line: „Die Ansicht beginnt am …:
    in diesem Fenster gab es kein Depot.“ (F4).
@@ -10578,10 +10583,12 @@ screen and the API answer alike for the same window, list and universe.
    Löschen for a manual one; the ongoing row on the warning tint; the table
    fits the section and a long name wraps, so the actions stay in it); the
    **name / manual form** (`form.crash-edit-form`: Name, and Hoch and Tief
-   as ISO text inputs for a manual window); **„Namen ohne Fenster (n)“**
-   with the hint that a name is never re-attached by a guess, each name
-   with the benchmark it was given for („kehrt zurück, wenn er wieder
-   Crash-Benchmark ist“), „Als manuelles Fenster anlegen …“ (F1: the form
+   as ISO text inputs for a manual window); **„Namen ohne Fenster (n)“**,
+   one table per reason under its own sentence (Sprint 30 W2, board
+   `ux-design-2026-11-15-sprint30/02` ⑦): the closes changed, with the hint
+   that a name is never re-attached by a guess, or hidden because another
+   crash benchmark (or none) is chosen, returning with it; each name with
+   the benchmark it was given for, „Als manuelles Fenster anlegen …“ (F1: the form
    shows the stored high read-only and asks for the low, required) and
    „Löschen“. Every delete asks first (`data-confirm`).
 10. **No window at all**: the note (if no benchmark) and „Noch kein
@@ -11125,3 +11132,104 @@ h3`, `.movers__half`, `.movers__count`, the right-aligned figure, the badge
 after the name, `.movers__figure .drift-bar` and its 560 px rule. Every
 colour is a token.
 <!-- S30 T3 end -->
+
+## Amendment 2026-11-19 — The Wealth polish pass *(Sprint 30 W2, issue 1366; board `mockups/ux-design-2026-11-15-sprint30/02-wealth-polish`, answer A for ①, adopted by the planning PR's merge; plan D-7)*
+
+Each line of „Polish: Wealth“ whose fix changes the picture, in the
+board's numbering. The other lines change no picture: a tapped sunburst
+slice leaves no floating tooltip (the hook listens to pointer events and
+shows none for a touch; the centre is the touch device's tooltip, issue
+793), `sync_rates` is refused by the server while its sync runs, the
+no-price note links `?dq=missing_quote&holding=held`, and a test's FX
+rate no longer moves with the calendar.
+
+### ① The positions table at 1200 px
+
+- **A note's first phrase never breaks** (`span.cell-note__lead`,
+  `white-space: nowrap`: „ohne Wechselkurs“, „kein Preis“,
+  „Handelspreis“; the rest follows after „ · “).
+- **The note stays right-aligned under its figure and may reach 9 rem
+  left** past its column (`td.num .cell-note { margin-left: -9rem }`), into
+  the empty space under the neighbour's figure: no row carries notes in two
+  adjacent cells, so it adds no width to its column.
+- **The depot is one line** (`span.cell-depot`, `display: block;
+  max-width: 7rem`, an ellipsis past it, the whole name in its `title`).
+- **The Security column's floor drops from 12 rem to 9.5 rem**, the room
+  the one-line depot takes (with 12 rem the table was 956 px in 922).
+- **Measured** on the review seed at 1200 px, sidebar open, #1322's eight
+  columns: noted rows 49 px (64 to 99 before), a row whose name wraps
+  taller only by its name; the table 922.8 px in the 922 px scroller in
+  Inter, the board's „922 in 922“, with no margin to spare (the twin tag
+  „ISIN XS…“, the twelve-digit quantity and „60.000,00 EUR“ set the
+  columns' floors); in DejaVu Sans, the fallback, 940 px, where the
+  scroller stays the fallback (UX-DR15).
+  `test/browser/wealth_polish_test.exs` (`holdings`) measures it.
+
+### ② The stacked chart's gutter
+
+The stack stands beside its legend, 560 px wide at 1200 px, where its old
+gutter of 56 viewBox units was 33 px and its values (32 px for „80.000“)
+moved inside the plot over a heavy halo. **The stack's gutter is 88
+units** (51 px there): the values stand outside, right-aligned 6 units
+before the plot. 88 units carry a value of seven characters („−20.000“,
+38 px in the 9 px mono) with 4 px of air from a chart of 492 px up, so the
+stack names that width in `data-axis-inside-below="492"` and the
+`ChartScale` hook moves its values inside only below it (or when a value is
+wider than the gutter); every other chart keeps 760. The lines chart
+(„% (TTWROR)“) keeps 56: its values are short percents.
+
+### ③ A band below zero, shallower than one step
+
+Where a band dips below zero, **the plot reaches down to the next round
+step under it** (`ChartAxis.floor_below_zero/3`), labelled, so the depth
+reads against a tick („−25.000“ under a cash dip of −11.865 at steps of
+25.000). The step is the one the data's range asks for; the floor is the
+lower of the money's and the privacy mode's whole-percent floors, so both
+modes keep one picture (the stack's rule since D2) and each has its tick
+below zero. A stack that never dips keeps its range from 0.
+
+### ④ Allocation's TTWROR while a fresh walk computes
+
+While the performance walk recomputes over a superseded series
+(ADR-0032 §6; Holdings labels it with its stale banner), the summary
+line's TTWROR is the app's busy placeholder (`strong.value-slot-pending`,
+`aria-busy`, `data-waits="performance"`: the skeleton and „wird
+berechnet“, `display: inline-flex` on the line) and the line is
+`aria-busy`; a failed recomputation reads „—“.
+
+### ⑤ The crash windows at 390 px
+
+Beside the windows table, `ul#crash-windows-phone-rows.phone-rows`
+(UX-DR27; the 560 px block hides `#crash-windows-table-wrapper`): per
+window the name (or „ohne Namen“, italic, muted) over „Hoch ‹date› → Tief
+‹date›“, then the kind badge, for a detected window „Lücke, Tage: n“, and
+the actions (one component with the table's); on the right the decline
+over „erholt am …“ or „läuft“, a manual window „—“. The ongoing row on the
+warning tint. (The names without a window keep their tables on a phone.)
+
+### ⑥ Risiko without a portfolio
+
+Under the empty line, **the Crashes section over the whole catalogue**
+(`catalogue_only`): no „Wertpapiere“ group in the bar, in place of „Im
+Depot ansehen“ the hint „Ganzer Katalog“, no „im Depot“ badge; the
+windows, the crash benchmark's choice and the forms as with a portfolio.
+
+### ⑦ „Namen ohne Fenster“
+
+One table per reason, each under its own sentence with the count first
+(`[data-role="crash-unmatched-closes"]`, then
+`[data-role="crash-unmatched-hidden"]`): „1 Name: Die Kurse haben sich
+geändert, an diesem Tag beginnt kein erkanntes Fenster mehr. Ein Name wird
+nie geraten einem anderen Fenster zugeordnet.“ and „2 Namen: ausgeblendet,
+weil ein anderer Crash-Benchmark gewählt ist; sie kehren zurück, sobald
+ihr Benchmark wieder Crash-Benchmark ist.“ („… weil kein Crash-Benchmark
+gewählt ist; …“ while none is). The muted „kehrt zurück …“ beside each
+benchmark goes; the actions may wrap inside their cell, each whole, so
+each table keeps to its 922 px wrapper at 1200 px.
+
+### The review seed
+
+Step 25 of `priv/demo/finding_surfaces_seed.exs` carries the two cases
+the board drew by hand: „Demo Cash“ overdrawn by 11.865 EUR on two days
+45 days back, and „Vanguard FTSE All-World UCITS ETF USD Acc“ as the crash
+benchmark, whose seeded closes detect a window.

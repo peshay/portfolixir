@@ -2766,7 +2766,9 @@ its own blue, the unassigned rest grey, "Other" a neutral grey. A band that
 is negative on some days, such as a cash account overdrawn for a day or
 two, is drawn as two areas, above and below the zero line, the lower one a
 little lighter; a band that changes sign sits next to the zero line, so it
-never crosses the other bands. One line under the chart says what it shows,
+never crosses the other bands. The axis then reaches one round step below
+zero, labelled, so even a dip shallower than one step reads against a
+value. One line under the chart says what it shows,
 the window and when it was computed; its ⓘ holds how it is computed.
 
 Every choice is on the address, the filter included, so a link reopens the same stack. The bands
@@ -3508,7 +3510,7 @@ choice is kept in the address, so a link reopens the same list.
 **detected** or **manual**, its high and its low, the crash benchmark's fall
 in its own currency and the day it recovered. **View in holdings** opens
 Wealth's Holdings with the window as a custom range, from the high to the
-low (to today while it is ongoing). A window that ends before the first
+low (to today while it is ongoing), on the view the page's address names. A window that ends before the first
 booking of this view shows no link and one line instead, "The view begins on
 …: there was no depot in this window", because Holdings would open a
 different period than the link names; a view without any booking says so.
@@ -3567,9 +3569,19 @@ changes the windows:
 - **Names without a window**: when the closes change (a re-sync, a manual
   quote, a split booked later), a detected window may start on another day
   or vanish. Its name is then never moved to another window by a guess: it
-  is listed here with the benchmark it was given for. **Make a manual
-  window …** keeps its start and asks for the low, which was never stored;
-  **Delete** removes the name.
+  is listed here with the benchmark it was given for. A name given while
+  another crash benchmark was chosen is listed too, in a table of its own
+  under the sentence that it is hidden and returns once its benchmark is
+  the crash benchmark again. **Make a manual window …** keeps its start and
+  asks for the low, which was never stored; **Delete** removes the name.
+
+On a phone the windows are rows: the name over its high and low, the kind
+and the actions under them, the decline and the recovery on the right.
+
+**Without a portfolio** the Risk page has no holdings to measure, but the
+Crashes section is still there under its empty line, over the whole
+catalogue: the windows, their lists and the crash benchmark's choice, with
+no "Securities" choice and no "View in holdings".
 
 **Privacy mode** changes nothing in this section: it holds percentages, dates
 and day counts only.
