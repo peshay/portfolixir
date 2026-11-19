@@ -73,9 +73,16 @@ defmodule PortfolixirWeb.Browser.CrashSectionLayoutTest do
   #   device without Inter draws in, except that in DejaVu Sans the short
   #   window may be cut at 1200 px while the line is full, the window's
   #   select taking the room the line leaves.
+  # - Sprint 30 closing act, design critic, finding 2 (board 06 ②): with
+  #   the crash benchmark's long name, the losers' „ggü. ‹benchmark›“ head
+  #   wraps at 1200 px and the name column keeps at least 10rem, in Inter
+  #   and in DejaVu Sans.
   test "the Crashes section at 1200 and 390 px", %{base_url: base_url} do
     world = base_world()
-    index = create_security!(name: "Synthetic Crash Index", ticker: "SCI")
+    # The crash benchmark's name is long, as the review seed's is, so the
+    # list's „ggü. ‹benchmark›“ head must wrap (finding 2 below).
+    index =
+      create_security!(name: "Synthetic All-World Crash Index UCITS ETF USD Acc", ticker: "SCI")
 
     put_quotes!(index, [
       {~D[2022-01-03], "120"},

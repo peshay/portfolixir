@@ -14,7 +14,10 @@
 // dashed lines under each row's name line, never across it. Sprint 30 W2
 // (#1366, board 02 ⑤ and ⑦) adds: at 390 px the windows as phone rows,
 // nothing in their disclosure scrolling sideways; at 1200 px one table of
-// names without a window per reason, each in its wrapper.
+// names without a window per reason, each in its wrapper. Its closing act
+// (the design critic, finding 2) adds: at 1200 px the list's „ggü.
+// ‹benchmark›“ head wraps under a long benchmark name, and the name column
+// keeps its floor.
 //
 // Prints one JSON object on stdout: {"ok": true} or {"ok": false, "error":
 // "...", "seen": {...}}; the exit status is 0 either way unless the browser
@@ -26,6 +29,9 @@ const { visit, leave } = require("./settle");
 const { FONTS, eachFont } = require("./fonts");
 
 const args = JSON.parse(process.argv[2]);
+
+// The list's name column at 1200 px: at least 10rem (finding 2 below).
+const NAME_FLOOR = 160;
 
 async function measure(page) {
   return page.evaluate(() => {
@@ -91,6 +97,23 @@ async function measure(page) {
       ? Array.from(disclosure.querySelectorAll("#crash-windows-phone-rows li.phone-row")).filter(shown).map(box)
       : [];
     const unmatched = Array.from(section.querySelectorAll("#crash-unmatched table")).map(fit);
+    // The Sprint 30 closing act's design critic (finding 2): the list's
+    // „ggü. ‹benchmark›“ head, the lines its text spans, and the name
+    // column beside it.
+    const ppHead = section.querySelector("table.crash-table th.crash-pp");
+    const lines = (node) => {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0);
+      return new Set(rects.map((r) => Math.round(r.top))).size;
+    };
+    const heads = ppHead
+      ? {
+          pp: box(ppHead),
+          ppLines: lines(ppHead),
+          name: box(section.querySelector("table.crash-table th.crash-name"))
+        }
+      : null;
     return {
       scrollers,
       phoneRows,
@@ -104,6 +127,7 @@ async function measure(page) {
       controls,
       rows,
       list: fit(section.querySelector("table.crash-table")),
+      heads,
       windows: fit(section.querySelector("#crash-windows-table"))
     };
   });
@@ -146,6 +170,18 @@ function check(seen, width, font) {
     const lefts = seen.controls.map((c) => c.left);
     if (Math.max(...lefts) - Math.min(...lefts) > 1) errors.push(width + " px: the controls start on " + lefts.join(", "));
     if (!(select.top < list.top && list.top < universe.top)) errors.push(width + " px: the controls are not stacked");
+  }
+
+  // The Sprint 30 closing act's design critic (finding 2; board 06 ②;
+  // DESIGN.md, Crashes item 6): the „ggü. ‹benchmark›“ head wraps, so the
+  // crash benchmark's long name never squeezes the name column below its
+  // floor of 10rem at 1200 px.
+  if (width >= 1000 && seen.heads) {
+    if (seen.heads.ppLines < 2)
+      errors.push("1200 px: the „ggü.“ head does not wrap: one line, " + Math.round(seen.heads.pp.right - seen.heads.pp.left) + " px");
+    const nameWidth = seen.heads.name.right - seen.heads.name.left;
+    if (nameWidth < NAME_FLOOR)
+      errors.push("1200 px: the name column is " + Math.round(nameWidth) + " px, under its floor of " + NAME_FLOOR + " px");
   }
 
   if (width >= 1000) {

@@ -13711,6 +13711,13 @@ dialog.merge-dialog {
 .crash-table th.num {
   white-space: nowrap;
 }
+/* The „ggü.“ head wraps (above) although it is a figure's head too: the
+   rule just above has the same specificity and comes later, so it kept
+   the head on one line and squeezed the names (Sprint 30 closing act,
+   design critic, finding 2; board ux-design-2026-11-15-sprint30/06 ②). */
+.crash-table th.num.crash-pp {
+  white-space: normal;
+}
 .crash-table td.crash-pp {
   color: var(--color-text-muted);
 }
