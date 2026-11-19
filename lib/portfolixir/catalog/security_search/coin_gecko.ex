@@ -15,6 +15,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
   alias Portfolixir.Net.Http
   alias Portfolixir.Net.PathSegment
+  alias Portfolixir.Net.TestPlug
 
   @endpoint "https://api.coingecko.com/api/v3/search"
   @coins_endpoint "https://api.coingecko.com/api/v3/coins"
@@ -95,10 +96,8 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
         deadline_ms: 15_000
       )
 
-    case opts[:req] do
-      nil -> base
-      overrides when is_list(overrides) -> Req.merge(base, overrides)
-    end
+    # #1356: a caller adds no option to the request but a test's plug.
+    TestPlug.merge(base, opts)
   end
 
   defp api_key_header do

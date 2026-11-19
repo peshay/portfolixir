@@ -45,6 +45,7 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Net.Http
   alias Portfolixir.Net.PathSegment
+  alias Portfolixir.Net.TestPlug
 
   @endpoint "https://query1.finance.yahoo.com/v8/finance/chart"
   # The only hosts a request or a redirect hop may reach (F27).
@@ -168,9 +169,7 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
         deadline_ms: 30_000
       )
 
-    case opts[:req] do
-      nil -> base
-      overrides when is_list(overrides) -> Req.merge(base, overrides)
-    end
+    # #1356: a caller adds no option to the request but a test's plug.
+    TestPlug.merge(base, opts)
   end
 end
