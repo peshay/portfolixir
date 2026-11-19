@@ -171,6 +171,20 @@ defmodule Portfolixir.LockTable do
       merge finds the story moved to the target and refuses it, naming
       `cluster_id`. Before, the promotion held the members and then the
       note's `FK` asked the security, and both orders deadlocked.
+    * Row 13 against a label write (`News.Labels.put/2`, `news.label`; the
+      closing act's order lens, finding 3): `adv(news label, story, model,
+      prompt version)` → the suggested security `KS` → the story `KS` → the
+      label's INSERT or UPDATE. The merge holds both securities `U` and then
+      UPDATEs the source's stories' `security_id`, a column of a unique
+      index, so it asks each story `U`; the label write takes its suggested
+      security before its story, so whichever reaches the security first
+      goes through and the other waits there holding nothing the first
+      asks for (the merge takes no label key): a write released by a
+      merge finds the source gone and refuses naming
+      `suggested_security_id`. A write that suggests no
+      security, or another one, holds only its story, asks nothing the
+      merge holds, and the merge waits for it. Before, the write held the
+      story and then asked the security, and both orders deadlocked.
     * Row 21 against row 26 and retention (`Stories.remove/5`:
       `adv(story scope)` → items): `KS` does not conflict with `KS`, and
       all three take their advisory lock before any news row; rows 21 and
