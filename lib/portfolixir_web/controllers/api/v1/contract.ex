@@ -58,6 +58,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "each entry without its closes and without benchmark_return, the crash " <>
               "benchmark named once; projection=full answers the read as it was.",
             # --- S30 A1 end ---
+            # --- S30 A2 begin ---
+            "Sprint 30, A2 (#1356, the news lines): a security's name that a news read " <>
+              "cuts adds its ticker, else its WKN, so two names alike in their first 19 " <>
+              "characters read apart; news.get names a story's last three notes and says " <>
+              "when it left some out; news.health shows a feed's backoff; " <>
+              "portfolixir.news.digest says its 32 counts readers.",
+            # --- S30 A2 end ---
             # --- S30 T2 begin ---
             "Sprint 30, T2 (FR-59, #1465; ADR-0061 §9): GET /api/v1/views/:view_id/movers " <>
               "and GET /api/v1/movers (everything, no view) answer the tops and flops over " <>
@@ -98,8 +105,20 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "start_close) and without benchmark_return, which is reference.return; the crash " <>
           "benchmark is the top-level benchmark only, and computation_basis.projection " <>
           "states the projection. full answers the read as it was before, byte for byte; " <>
-          "any other value answers 422 with errors.projection \"is invalid: slim or full\"."
+          "any other value answers 422 with errors.projection \"is invalid: slim or full\".",
         # --- S30 A1 end ---
+        # --- S30 A2 begin ---
+        "GET /api/v1/news/digest, GET /api/v1/news/stories/:id, GET /api/v1/news/items/:id " <>
+          "and GET /api/v1/news/unlabeled (portfolixir.news.digest, portfolixir.news.get, " <>
+          "portfolixir.news.unlabeled), changed: a security's name the 20-character cut " <>
+          "shortened adds \" · \" and the security's ticker, else its WKN, cut at 10 " <>
+          "characters; a name that fits, and a category's, is answered as before.",
+        "GET /api/v1/news/stories/:id and GET /api/v1/news/items/:id (portfolixir.news.get), " <>
+          "changed: note_ids names the last three notes, ascending, and " <>
+          "note_ids_truncated: true when there are more.",
+        "GET /api/v1/news/health (portfolixir.news.health), added: each feed's failures " <>
+          "(its consecutive 429 and 5xx answers) and, while it backs off, retry_at."
+        # --- S30 A2 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

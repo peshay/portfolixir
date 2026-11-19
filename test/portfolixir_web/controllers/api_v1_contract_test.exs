@@ -96,6 +96,24 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- S30 T2 end ---
 
+    # --- S30 A2 begin ---
+    # A2 (#1356, the news lines): names that read apart, news.get's capped
+    # note_ids, news.health's backoff; no new endpoint or tool.
+    assert newest["summary"] =~ "Sprint 30, A2 (#1356, the news lines): "
+
+    news_lines =
+      Enum.filter(newest["parameters"], &String.contains?(&1, "portfolixir.news."))
+
+    for part <- [
+          "ticker, else its WKN, cut at 10",
+          "note_ids_truncated: true",
+          "failures",
+          "retry_at"
+        ],
+        do: assert(Enum.any?(news_lines, &(&1 =~ part)), part)
+
+    # --- S30 A2 end ---
+
     # Sprint 29's sprint PRs (version 29), found by version from Sprint 30
     # on. Dated strictly after entry 28, so since=2026-11-09 still returns
     # it. Each story appends its own items between its own markers.

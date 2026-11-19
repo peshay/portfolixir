@@ -49,7 +49,9 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   takes it.
 
   **Compact by §9's rule:** enums as their codes, times to the second in
-  UTC, names at most 20 characters, a field without a value left out, and
+  UTC, names at most 20 characters (a security's cut one adds its ticker,
+  else its WKN, `Portfolixir.News.Reads.security_name/1`, #1356), a field
+  without a value left out, and
   no link or excerpt in a list. **Closed:** a parameter a read does not take
   answers 422 naming it, never dropped in silence — `event_types` among
   them, which no read takes yet.
@@ -695,6 +697,7 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   defp feed_health_json(feed) do
     feed
     |> Map.put(:last_ok_at, time(feed.last_ok_at))
+    |> Map.put(:retry_at, time(feed.retry_at))
     # --- S28 N2 begin ---
     # A3: the yield is a decimal string (ADR-0003), left out without items.
     |> Map.update!(:yield_30d, &(&1 && Decimal.to_string(&1, :normal)))

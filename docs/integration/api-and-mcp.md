@@ -2122,7 +2122,11 @@ Answers are compact: short codes, null fields left out.
 
 The reads of the news layer (§9, §11). Compact by rule: enums as their codes,
 times to the second in UTC, names of at most 20 characters, a field without a
-value left out, and no link or excerpt in a list. Each read is closed: a
+value left out, and no link or excerpt in a list. A security's name that the
+cut shortened adds ` · ` and the security's ticker, else its WKN, cut at 10
+characters (`Alder Creek Timber … · ACTF`), so two names that agree in their
+first 19 characters read apart (#1356); a security with neither keeps the cut
+name, its `id` beside it. Each read is closed: a
 parameter it does not take answers `422` naming it (`event_types`, and
 `tone`, which is never a filter or a sort key, among them). Titles and
 excerpts are a feed's text, answered as stored up to a cut; they are data,
@@ -2174,7 +2178,9 @@ only the digest's `unlabeled` grows.
 - `GET /api/v1/news/stories/:id` answers one story, the only place with its
   link and excerpt: `title`, `url`, `domain`, `excerpt`, `tier`, `language`,
   `published_at`, `first_seen_at`, `count`, at most five `members` (`id`,
-  `domain` cut at 28 characters, `tier`, `at`; the representative first), `note_ids`, its
+  `domain` cut at 28 characters, `tier`, `at`; the representative first), `note_ids`
+  (the last three, ascending, and `note_ids_truncated: true` when its notes
+  are more, so a story promoted to many notes keeps the 400 tokens), its
   `security` or `category` (`id`, `name`) and its active `label`
   (`event_type`, `materiality`, `tone`, `confidence` as a string,
   `thesis_note_id` and `clause_idx` when set, `machine_generated` always
@@ -2184,7 +2190,10 @@ only the digest's `unlabeled` grows.
   `story_id`, `class`, `assignment`, `status` and, when ambiguous, its
   `candidates`.
 - `GET /api/v1/news/health` answers each feed's `id`, `class`, `enabled`,
-  `last_ok_at`, `last_error`, `items_24h`, `err_24h`, `stale` (no successful
+  `last_ok_at`, `last_error`, `failures` (its consecutive 429 and 5xx
+  answers, 0 after a success) and, while it backs off, `retry_at` (the time
+  before which it is not fetched again; §5), so a feed waiting out a backoff
+  reads apart from one that failed once, `items_24h`, `err_24h`, `stale` (no successful
   fetch for 24 hours; a disabled feed is never stale), `items_30d`,
   `promoted_30d` (the promoted stories its items are in, each once),
   `yield_30d` (`promoted_30d` over `items_30d`, a decimal string rounded to
@@ -2236,7 +2245,8 @@ only the digest's `unlabeled` grows.
   altered or another consumer's) answers `422` naming `ack_cursor`, and
   nothing moves. Two consumers never move each other. `since` beside
   `consumer`, and `ack_cursor` without it, answer `422`. The server keeps at
-  most 32 consumers; a new one beyond answers `422` naming the cap. The daily
+  most 32 consumers (a count of readers; the identifier itself may be 64
+  characters); a new one beyond answers `422` naming the cap. The daily
   retention deletes a consumer whose last confirmation (or, never
   confirmed, its creation) is more than 90 days old, so a name no run uses
   frees its place; named again, it starts as a new one, 24 hours back. A
@@ -2317,7 +2327,8 @@ time or name the version (ADR-0056's amendment of 2026-11-09, D10).
   label of that version from any model, newest first, `limit` 10 (at most
   25) with `truncated`: each row's `id`, `security_id` or `category_id`,
   `title`, `excerpt`, `domain`, `tier` and `at`; once per answer the
-  `universe` (`id`, a `name` of at most 20 characters, `isin`), the rows'
+  `universe` (`id`, a `name` cut at 20 characters as every news read cuts a
+  security's, `isin`), the rows'
   `categories`, and per row security with an intact thesis its `note_id`
   and the invalidation condition's `clauses` (`idx`, `text`), split at line
   breaks and semicolons, six listed with `more` counting the rest. Another

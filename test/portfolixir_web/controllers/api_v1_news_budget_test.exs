@@ -92,11 +92,16 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
   # one grapheme and 255 characters on the wire, is cut like any other.
   @hostile_name "H" <> String.duplicate("\u0301", 254)
 
+  # #1356 (Sprint 30, A2): a cut name carries the security's ticker, cut at
+  # 10 characters, so every holding has one longer than that and each
+  # name is answered at its widest.
+  @wide_ticker String.duplicate("W", 64)
+
   defp held!(world, n, name \\ nil) do
     security =
       create_security!(
         name: name || "Holding #{n} Synthetic Group AG",
-        ticker: nil,
+        ticker: @wide_ticker,
         asset_class: "equity"
       )
 
@@ -154,15 +159,17 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
 
   # --- S28 N2 end ---
 
-  # Every name a digest row carries is at most 20 code points, the hostile
-  # one among them (N1 attack AT1).
+  # Every name a digest row carries is cut at 20 code points, the hostile
+  # one among them (N1 attack AT1), and a cut one carries its ticker cut at
+  # 10 after a middle dot (#1356): at most 33 code points.
   defp assert_short_names!(digest) do
     names = Enum.map(json_response(digest, 200)["data"]["rows"], & &1["name"])
     assert Enum.any?(names, &String.starts_with?(&1, "H\u0301"))
-    wide = Enum.filter(names, &(length(String.codepoints(&1)) > 20))
+    assert Enum.all?(names, &String.ends_with?(&1, "… · WWWWWWWWW…"))
+    wide = Enum.filter(names, &(length(String.codepoints(&1)) > 33))
 
     assert wide == [],
-           "names wider than 20 code points: #{inspect(Enum.map(wide, &length(String.codepoints(&1))), charlists: :as_lists)}"
+           "names wider than 33 code points: #{inspect(Enum.map(wide, &length(String.codepoints(&1))), charlists: :as_lists)}"
   end
 
   # The widest an id (a bigint) and a count (an integer column) are, and the
@@ -236,7 +243,8 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
   # - the digest at its default max_rows, 14 securities active, titles of
   #   160 code points with a soft hyphen after every letter: at most 800;
   #   with tag-character titles: at most 800; one security named by one
-  #   letter and 254 combining marks, its name cut to 20 code points;
+  #   letter and 254 combining marks, its name cut to 20 code points, and
+  #   every cut name carrying its ticker cut to 10 (#1356);
   # - 20 list rows with tag-character titles: at most 1,500, and each row
   #   at most 60 (§9; closing act of Sprint 28, AG1);
   # - 20 rows with fields=std, each a link of 2,048 characters on a domain
@@ -250,7 +258,8 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
   #   stored); the item's answer too (closing act, AG1 rest);
   # - the worst case of the same, every domain of 253 characters: at most
   #   400 with its link, the story's domain cut to 40 and its members' to
-  #   28 (closing act of Sprint 28, AG1), and the excerpt cut to what
+  #   28 (closing act of Sprint 28, AG1), three note ids and
+  #   `note_ids_truncated` (#1356), and the excerpt cut to what
   #   the rest leaves; and a title and excerpt of JSON-quoted characters
   #   (`"`, `\`), each two characters on the wire: at most 400;
   # - each answer is the fixture the companion's test measures;
@@ -401,9 +410,16 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
     assert String.length(worst_item.domain) == 253
     wide_label!(worst_item.cluster_id, thesis_note_id: thesis!(worst).id, clause_idx: 6)
 
+    # #1356 (Sprint 30, A2): a story promoted to more notes than news.get
+    # names answers three, each id at its widest, and the flag.
+    Repo.update_all(from(i in Item, where: i.cluster_id == ^worst_item.cluster_id),
+      set: [status: :promoted, note_ids: Enum.to_list(1..8)]
+    )
+
     worst_get = get(conn, "/api/v1/news/stories/#{worst_item.cluster_id}")
     worst_story = json_response(worst_get, 200)["data"]
     assert length(worst_story["members"]) == 5
+    assert %{"note_ids" => [6, 7, 8], "note_ids_truncated" => true} = worst_story
     assert %{"clause_idx" => 6, "materiality" => 3} = worst_story["label"]
     assert String.length(worst_story["url"]) == 300
 

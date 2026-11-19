@@ -10,6 +10,12 @@ defmodule Portfolixir.News.Health do
 
     * `id`, `class`, `enabled`, and `last_ok_at` and `last_error` as the
       fetcher recorded them.
+    * `failures` and `retry_at` — the feed's backoff as the fetcher
+      recorded it (§5): the consecutive 429 and 5xx answers, and the time
+      before which the scheduler does not fetch it again (`nil` when it is
+      not backing off). *Why (#1356, Sprint 30 A2):* without them a client
+      could not tell a feed waiting out a backoff from one that failed
+      once.
     * `items_24h` — the feed's items first seen within the 24 hours before
       `now` (an item first seen exactly 24 hours ago is out, as the cap of
       A3 counts).
@@ -75,6 +81,8 @@ defmodule Portfolixir.News.Health do
           enabled: boolean(),
           last_ok_at: DateTime.t() | nil,
           last_error: String.t() | nil,
+          failures: non_neg_integer(),
+          retry_at: DateTime.t() | nil,
           items_24h: non_neg_integer(),
           err_24h: non_neg_integer(),
           stale: boolean(),
@@ -116,6 +124,8 @@ defmodule Portfolixir.News.Health do
           enabled: feed.enabled,
           last_ok_at: feed.last_ok_at,
           last_error: feed.last_error,
+          failures: feed.failures,
+          retry_at: feed.retry_at,
           items_24h: Map.get(items_24h, feed.id, 0),
           err_24h: Map.get(errors, feed.id, 0),
           stale: stale?(feed, day_ago),

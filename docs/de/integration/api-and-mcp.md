@@ -2321,7 +2321,12 @@ Codes, leere Felder weggelassen.
 
 Die Lesezugriffe der News-Schicht (§9, §11). Knapp nach Regel: Aufzählungen als
 ihre Codes, Zeiten auf die Sekunde in UTC, Namen mit höchstens 20 Zeichen, ein
-Feld ohne Wert weggelassen und kein Link und kein Auszug in einer Liste. Jeder
+Feld ohne Wert weggelassen und kein Link und kein Auszug in einer Liste. Der
+Name eines Wertpapiers, den der Schnitt gekürzt hat, trägt nach ` · ` das
+Tickersymbol des Wertpapiers, sonst seine WKN, auf 10 Zeichen gekürzt
+(`Alder Creek Timber … · ACTF`), sodass zwei Namen, die in ihren ersten 19
+Zeichen übereinstimmen, unterscheidbar bleiben (#1356); ein Wertpapier ohne
+beides behält den gekürzten Namen, seine `id` daneben. Jeder
 Lesezugriff ist geschlossen: Ein Parameter, den er nicht nimmt, ergibt `422`,
 das ihn nennt (darunter `event_types` und `tone`, das nie ein Filter oder ein
 Sortierschlüssel ist). Titel und Auszüge sind Text eines Feeds, so
@@ -2382,7 +2387,9 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   ihrem Link und Auszug: `title`, `url`, `domain`, `excerpt`, `tier`,
   `language`, `published_at`, `first_seen_at`, `count`, höchstens fünf
   `members` (`id`, `domain` auf 28 Zeichen gekürzt, `tier`, `at`; der Repräsentant zuerst),
-  `note_ids`, ihr `security` oder `category` (`id`, `name`) und ihr aktives
+  `note_ids` (die letzten drei, aufsteigend, und `note_ids_truncated: true`,
+  wenn sie mehr Notizen hat, sodass eine in viele Notizen übernommene Story
+  die 400 Token hält), ihr `security` oder `category` (`id`, `name`) und ihr aktives
   `label` (`event_type`, `materiality`, `tone`, `confidence` als String,
   `thesis_note_id` und `clause_idx`, wenn gesetzt, `machine_generated` immer
   `true`); `prompt_version` wählt die Version. Das Label zählt zu den 400
@@ -2391,7 +2398,11 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   `story_id`, `class`, `assignment`, `status` und, wenn mehrdeutig, seinen
   `candidates`.
 - `GET /api/v1/news/health` beantwortet je Feed `id`, `class`, `enabled`,
-  `last_ok_at`, `last_error`, `items_24h`, `err_24h`, `stale` (24 Stunden kein
+  `last_ok_at`, `last_error`, `failures` (seine aufeinanderfolgenden 429-
+  und 5xx-Antworten, 0 nach einem Erfolg) und, solange er zurückweicht,
+  `retry_at` (die Zeit, vor der er nicht erneut abgerufen wird; §5), sodass
+  ein Feed, der einen Backoff abwartet, sich von einem unterscheidet, der
+  einmal scheiterte, `items_24h`, `err_24h`, `stale` (24 Stunden kein
   erfolgreicher Abruf; ein abgeschalteter Feed ist nie veraltet), `items_30d`,
   `promoted_30d` (die übernommenen Storys, in denen seine Einträge stehen,
   jede einmal), `yield_30d` (`promoted_30d` geteilt durch `items_30d`, ein
@@ -2450,7 +2461,8 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   hat (gefälscht, verändert oder der eines anderen Verbrauchers), ergibt
   `422` mit `ack_cursor`, und nichts rückt vor. Zwei Verbraucher verschieben
   einander nie. `since` neben `consumer` und `ack_cursor` ohne ihn ergeben
-  `422`. Der Server hält höchstens 32 Verbraucher; ein neuer darüber hinaus
+  `422`. Der Server hält höchstens 32 Verbraucher (eine Zahl von Lesern; der
+  Bezeichner selbst darf 64 Zeichen lang sein); ein neuer darüber hinaus
   ergibt `422` mit der Obergrenze. Die tägliche Aufbewahrung löscht einen
   Verbraucher, dessen letzte Bestätigung (oder, nie bestätigt, seine
   Anlage) mehr als 90 Tage zurückliegt, sodass ein Name, den kein Lauf mehr
@@ -2541,7 +2553,8 @@ oder nennen Sie die Version (Ergänzung von ADR-0056 vom 2026-11-09, D10).
   dieser Version von irgendeinem Modell, neueste zuerst, `limit` 10
   (höchstens 25) mit `truncated`: je Zeile `id`, `security_id` oder
   `category_id`, `title`, `excerpt`, `domain`, `tier` und `at`; einmal je
-  Antwort das `universe` (`id`, `name` mit höchstens 20 Zeichen, `isin`), die
+  Antwort das `universe` (`id`, `name` auf 20 Zeichen gekürzt, wie jeder
+  News-Lesezugriff den eines Wertpapiers kürzt, `isin`), die
   `categories` der Zeilen und je Wertpapier der Zeilen mit intakter These
   ihre `note_id` und die `clauses` (`idx`, `text`) der
   Invalidierungsbedingung, getrennt an Zeilenumbrüchen und Semikolons, sechs

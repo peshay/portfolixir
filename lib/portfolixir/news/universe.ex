@@ -46,6 +46,7 @@ defmodule Portfolixir.News.Universe do
           aliases: [Portfolixir.News.Alias.t()],
           cik: String.t() | nil,
           isin: String.t() | nil,
+          ticker_symbol: String.t() | nil,
           wkn: String.t() | nil
         }
 
@@ -92,6 +93,7 @@ defmodule Portfolixir.News.Universe do
       aliases: security.news_aliases || [],
       cik: security.news_cik,
       isin: security.isin,
+      ticker_symbol: security.ticker_symbol,
       wkn: security.wkn
     }
   end

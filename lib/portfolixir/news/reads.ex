@@ -4,7 +4,8 @@ defmodule Portfolixir.News.Reads do
   stories, a story's items and the unassigned and ambiguous remainder, one
   story or item, and the digest. Compact by §9's rule: a list carries no
   link and no excerpt (only `story/2` and `item/1` do), names are short
-  (`short_name/1`), and a page is capped with a `truncated` flag and a
+  (`short_name/1`; a security's cut name adds its ticker or WKN,
+  `security_name/1`), and a page is capped with a `truncated` flag and a
   cursor. Titles and excerpts are cut by the width the companion spells
   them in (`clip_spelled/2`, C5): 160 for a title in a list and in a story
   or item, 45 in the digest (100 before S28 N2, 50 before its closing act),
@@ -75,7 +76,15 @@ defmodule Portfolixir.News.Reads do
 
   @fetch_lag_seconds 120
   @short_name_max 20
+  # #1356 (Sprint 30, A2): the ticker or WKN a cut security name carries.
+  @name_tag_max 10
   @members_max 5
+  # #1356 (Sprint 30, A2): the notes news.get names, the newest; more set
+  # `note_ids_truncated`. Three, because the widest story (every domain at
+  # 253, a link of 2,048, five members, the widest label and name) leaves
+  # its excerpt one character already, and three ids at a bigint's 19
+  # digits with the flag keep it ten tokens under the 400; five did not.
+  @get_note_ids_max 3
   # S28 N2: a digest row's title is cut at 50 (it was 100 in Sprint 27), so
   # the row's materiality and event types fit §9's 800 tokens at the default
   # max_rows; the whole title is list's and get's. The closing act (AG1)
@@ -141,6 +150,33 @@ defmodule Portfolixir.News.Reads do
   """
   @spec short_name(String.t()) :: String.t()
   def short_name(name) when is_binary(name), do: clip_spelled(name, @short_name_max)
+
+  @doc """
+  A security's name as a news answer gives it (#1356, Sprint 30 A2): its
+  `short_name/1`, and when that cut the name, after a middle dot, its
+  ticker, else its WKN, cut at 10 characters as the companion spells them.
+  *Why:* two names that agree in their first 19 characters cut to the same
+  short name ("Alder Creek Timber Fund" and "… Class B"), and only the ids
+  told them apart; the ticker or WKN the operator knows them by does. A
+  security with neither keeps the cut name, its id beside it. A name that
+  fits is answered as it is, so most names cost nothing more.
+  """
+  @spec security_name(%{
+          required(:name) => String.t(),
+          optional(:ticker_symbol) => String.t() | nil,
+          optional(:wkn) => String.t() | nil
+        }) :: String.t()
+  def security_name(%{name: name} = security) when is_binary(name) do
+    short = short_name(name)
+    tag = present(security[:ticker_symbol]) || present(security[:wkn])
+
+    if short != name and is_binary(tag),
+      do: short <> " · " <> clip_spelled(tag, @name_tag_max),
+      else: short
+  end
+
+  defp present(value) when is_binary(value) and value != "", do: value
+  defp present(_value), do: nil
 
   # --- closing act, Fix-2: the spelled width (AG1, C5) ----------------------
 
@@ -593,11 +629,11 @@ defmodule Portfolixir.News.Reads do
       first_seen_at: cluster.earliest_first_seen_at,
       count: cluster.member_count,
       members: members,
-      note_ids: Map.get(story_notes([cluster.id]), cluster.id, []),
       security: named(Security, cluster.security_id),
       category: named(Category, cluster.category_id),
       label: cluster.id |> Labels.active_label(prompt_version) |> label_json()
     }
+    |> put_note_ids(Map.get(story_notes([cluster.id]), cluster.id, []))
     |> fit_excerpt(representative.excerpt)
   end
 
@@ -652,15 +688,25 @@ defmodule Portfolixir.News.Reads do
            assignment: item.assignment,
            candidates: item.candidates,
            status: item.status,
-           note_ids: item.note_ids,
            security: named(Security, item.security_id),
            category: named(Category, item.category_id)
          }
+         |> put_note_ids(item.note_ids)
          |> fit_excerpt(item.excerpt)}
     end
   end
 
+  # The fields `security_name/1` reads.
+  @named_security [:name, :ticker_symbol, :wkn]
+
   defp named(_schema, nil), do: nil
+
+  defp named(Security, id) do
+    case Repo.one(from(s in Security, where: s.id == ^id, select: map(s, @named_security))) do
+      nil -> nil
+      security -> %{id: id, name: security_name(security)}
+    end
+  end
 
   defp named(schema, id) do
     case Repo.one(from(r in schema, where: r.id == ^id, select: r.name)) do
@@ -668,6 +714,17 @@ defmodule Portfolixir.News.Reads do
       name -> %{id: id, name: short_name(name)}
     end
   end
+
+  # At most `@get_note_ids_max` notes, the newest, ascending; more set
+  # `note_ids_truncated` (#1356, Sprint 30 A2), so a story promoted to many
+  # notes keeps news.get's 400 tokens and says that it left notes out.
+  defp put_note_ids(answer, note_ids) when length(note_ids) > @get_note_ids_max do
+    answer
+    |> Map.put(:note_ids, note_ids |> Enum.sort() |> Enum.take(-@get_note_ids_max))
+    |> Map.put(:note_ids_truncated, true)
+  end
+
+  defp put_note_ids(answer, note_ids), do: Map.put(answer, :note_ids, Enum.sort(note_ids))
 
   # -- the digest -------------------------------------------------------------
 
@@ -906,8 +963,7 @@ defmodule Portfolixir.News.Reads do
 
   defp digest_rows(stories, key, schema) do
     grouped = Enum.group_by(stories, &Map.fetch!(&1, key))
-    ids = Map.keys(grouped)
-    names = Map.new(Repo.all(from(r in schema, where: r.id in ^ids, select: {r.id, r.name})))
+    names = row_names(schema, Map.keys(grouped))
 
     grouped
     |> Enum.map(fn {id, group} ->
@@ -916,7 +972,7 @@ defmodule Portfolixir.News.Reads do
 
       %{
         id: id,
-        name: short_name(Map.get(names, id, "")),
+        name: Map.get(names, id, ""),
         count: length(group),
         materiality: materiality,
         event_types: event_types,
@@ -930,6 +986,20 @@ defmodule Portfolixir.News.Reads do
       }
     end)
     |> Enum.sort_by(& &1.key)
+  end
+
+  # A row's name: a security's as `security_name/1` gives it (#1356), a
+  # category's short.
+  defp row_names(Security, ids) do
+    from(s in Security, where: s.id in ^ids, select: {s.id, map(s, @named_security)})
+    |> Repo.all()
+    |> Map.new(fn {id, security} -> {id, security_name(security)} end)
+  end
+
+  defp row_names(schema, ids) do
+    from(r in schema, where: r.id in ^ids, select: {r.id, r.name})
+    |> Repo.all()
+    |> Map.new(fn {id, name} -> {id, short_name(name)} end)
   end
 
   # --- closing act, AT5 begin ---

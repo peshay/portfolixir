@@ -277,8 +277,10 @@ itself.
 ### 9. The agent's surface
 
 Answers are compact by rule: enums as short codes, no URLs or excerpts in
-lists, null fields left out, short names of at most 20 characters, stable
-integer ids for follow-up calls, and a `truncated` flag with a cursor
+lists, null fields left out, short names of at most 20 characters (a
+security's name the cut shortened carries its ticker, else its WKN, after
+it, cut at 10, so two names alike in their first 19 characters read apart:
+the Sprint 30 plan, A2, #1356), stable integer ids for follow-up calls, and a `truncated` flag with a cursor
 instead of a large page. Eight tools, because every schema costs context
 in every session:
 

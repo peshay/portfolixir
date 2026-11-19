@@ -146,6 +146,31 @@ describe("the news read tools", () => {
     assert.equal((tool(DIGEST)?.inputSchema as any).properties.max_rows.maximum, 40);
   });
 
+  // User story (#1356, the news lines; Sprint 30 plan, A2):
+  // As the operator's agent reading the news tools once at connect time,
+  // I want each read's description to say what the polish pass changed,
+  // so that I neither read a count of consumers as a length nor take two
+  // securities with one cut name for one.
+  //
+  // Acceptance criteria:
+  // - news.digest says it keeps 32 readers, never "(max 32)" beside the
+  //   identifier, whose length its schema's pattern holds (a cut name's
+  //   ticker or WKN shows in the answer itself).
+  // - news.get says it names the last 3 note_ids (the answer adds
+  //   note_ids_truncated when it left some out).
+  // - news.health names failures and retry_at.
+  it("say what the polish pass of #1356 changed", () => {
+    const digest = tool(DIGEST)?.description ?? "";
+    assert.doesNotMatch(digest, /\(max 32\)/);
+    assert.match(digest, /per reader \(32 readers max\)/);
+
+    const get = tool(GET)?.description ?? "";
+    assert.match(get, /note_ids \(last 3\)/);
+
+    const health = tool(HEALTH)?.description ?? "";
+    assert.match(health, /failures, retry_at,/);
+  });
+
   // User story (ADR-0054 §4, ADR-0056 §9 and §14 item 2):
   // As the operator whose agent reads foreign headlines,
   // I want a news read to reach the agent as compact JSON, with every
@@ -290,15 +315,16 @@ describe("the news read tools", () => {
   // it from 422s.
   //
   // Acceptance criteria:
-  // - The description says: one stable identifier per reader (at most 32);
-  //   page with next_page as page; once handled, the last page's cursor as
-  //   ack_cursor on the next call, which also reads on; without it the
-  //   call reads again; restarted: true means start over from this page.
+  // - The description says: one stable identifier per reader (32 readers
+  //   max, a count of readers, #1356); page with next_page as page; once
+  //   handled, the last page's cursor as ack_cursor on the next call;
+  //   without it the call reads again; restarted: true means start over
+  //   from this page.
   // - consumer carries the identifier pattern in the input schema, and a
   //   name outside it is refused before any request.
   it("teaches the consumer's flow and refuses a name the server would refuse", async () => {
     const description = tool(DIGEST)?.description ?? "";
-    assert.match(description, /one stable identifier per reader \(max 32\)/);
+    assert.match(description, /one stable identifier per reader \(32 readers max\)/);
     assert.match(description, /next_page as page/);
     assert.match(description, /last page's cursor as ack_cursor on your next call/);
     assert.match(description, /without it you read again/);
