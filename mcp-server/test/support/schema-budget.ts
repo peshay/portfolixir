@@ -746,8 +746,23 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     book: 202_340,
     full: 238_398,
     raisedBy: { tools: ["portfolixir.views.movers"], read: 1_073, book: 1_073, full: 1_073 }
-  }
+  },
   // --- S30 T2 end ---
+  // --- S30 A3 begin ---
+  {
+    since: "2026-11-15",
+    why:
+      "Sprint 30, A3 (#951, #1356): the G02 notes and descriptions of nineteen write tools " +
+      "carry the API's cap as maxLength, 340 bytes more in book and full, paid for by " +
+      "shortening the outcome-unknown note every write a retry can duplicate carries (\"it may have " +
+      "committed, so re-read before retrying; a retry can duplicate it\"), 18 bytes each; " +
+      "each ceiling is lowered to the figure measured on A1's, A2's and T2's tools: read " +
+      "123,133, book 202,263 and full 238,303",
+    read: 123_133,
+    book: 202_263,
+    full: 238_303
+  }
+  // --- S30 A3 end ---
 ];
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];

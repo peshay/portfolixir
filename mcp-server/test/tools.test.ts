@@ -1813,6 +1813,71 @@ describe("Portfolixir MCP tools", () => {
     assert.throws(() => append?.zodSchema.parse(note("a".repeat(20001))));
   });
 
+  // #951 (E25 S6, G02; #1356): every other free-text note and description a
+  // write stores is capped in code points by the API (10000, a category's
+  // description 2000), and the schemas carry the cap where the agent reads
+  // them, with the same code-point check before the call.
+  it("caps the G02 notes and descriptions in code points", () => {
+    const find = (name: string) => listTools().find((tool) => tool.name === name);
+    const at = (name: string, path: string[]) => {
+      let node: any = find(name)?.inputSchema;
+      for (const key of path) node = node?.properties?.[key];
+      return node;
+    };
+
+    const caps: Array<[string, string[], number]> = [
+      ["portfolixir.portfolios.create", ["portfolio", "notes"], 10000],
+      ["portfolixir.cash_accounts.create", ["cash_account", "notes"], 10000],
+      ["portfolixir.cash_accounts.update", ["cash_account", "notes"], 10000],
+      ["portfolixir.cash_accounts.set_balance", ["notes"], 10000],
+      ["portfolixir.securities_accounts.create", ["securities_account", "notes"], 10000],
+      ["portfolixir.securities_accounts.update", ["securities_account", "notes"], 10000],
+      ["portfolixir.transactions.create", ["transaction", "notes"], 10000],
+      ["portfolixir.transactions.update", ["transaction", "notes"], 10000],
+      ["portfolixir.securities.create", ["security", "note"], 10000],
+      ["portfolixir.securities.update", ["security", "note"], 10000],
+      ["portfolixir.classifications.create", ["classification", "description"], 10000],
+      ["portfolixir.classifications.update", ["classification", "description"], 10000],
+      ["portfolixir.classifications.categories.create", ["category", "description"], 2000],
+      ["portfolixir.classifications.categories.update", ["category", "description"], 2000],
+      ["portfolixir.tax_profiles.create", ["note"], 10000],
+      ["portfolixir.tax_profiles.update", ["note"], 10000],
+      ["portfolixir.allowance_orders.put", ["note"], 10000],
+      ["portfolixir.tax_snapshots.create", ["note"], 10000],
+      ["portfolixir.tax_snapshots.update", ["note"], 10000]
+    ];
+
+    for (const [name, path, max] of caps) {
+      assert.equal(at(name, path)?.maxLength, max, `${name} ${path.join(".")}`);
+    }
+
+    // The companion counts code points, as the server does: 10000 astral
+    // characters are 20000 UTF-16 units and still inside the cap.
+    const create = find("portfolixir.transactions.create");
+    const booking = (notes: string) => ({
+      transaction: {
+        type: "deposit",
+        date: "2026-01-02",
+        portfolio_id: 1,
+        cash_account_id: 1,
+        gross_amount: "10.00",
+        currency_code: "EUR",
+        notes
+      }
+    });
+    assert.doesNotThrow(() => create?.zodSchema.parse(booking("\u{1F4C8}".repeat(10000))));
+    assert.throws(() => create?.zodSchema.parse(booking("a".repeat(10001))));
+
+    const category = find("portfolixir.classifications.categories.update");
+    const describe = (description: string) => ({
+      classification_id: 1,
+      id: 1,
+      category: { description }
+    });
+    assert.doesNotThrow(() => category?.zodSchema.parse(describe("\u{1F4C8}".repeat(2000))));
+    assert.throws(() => category?.zodSchema.parse(describe("a".repeat(2001))));
+  });
+
   // E25 S6, F20: a tax statement's source is the system's to state.
   it("offers no source on the tax statement write tools", () => {
     for (const name of ["portfolixir.tax_snapshots.create", "portfolixir.tax_snapshots.update"]) {

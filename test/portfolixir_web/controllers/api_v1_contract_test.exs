@@ -136,6 +136,9 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert a3_item.("PATCH /api/v1/securities/:id (portfolixir.securities.update)") =~
              "this write takes its fields under security"
 
+    assert a3_item.("The MCP write tools of every G02 note and description") =~
+             "carry the API's cap as maxLength"
+
     # --- S30 A3 end ---
 
     # Sprint 29's sprint PRs (version 29), found by version from Sprint 30

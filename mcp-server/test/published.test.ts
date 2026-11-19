@@ -442,8 +442,8 @@ describe("the companion's published tool surface", () => {
   //
   // Acceptance criteria:
   // - policy_rules.retire, plans.activate and securities.isin_change are
-  //   destructive and idempotent, and carry no "a blind retry can store a
-  //   duplicate" note.
+  //   destructive and idempotent, and carry no "a retry can duplicate it"
+  //   note.
   // - Every POST-routed tool is either read-only, one of the named removing
   //   or modifying writes, or a write that only adds.
   it("hints the POST-routed writes that change stored rows as destructive, by name", async () => {

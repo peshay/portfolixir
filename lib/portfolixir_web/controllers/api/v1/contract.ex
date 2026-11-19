@@ -87,8 +87,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- S30 A3 begin ---
             "Sprint 30, A3 (#1356, the API and MCP polish pass): the unreviewed list breaks " <>
               "its ties by id, benchmark=rate: is held to the engine's scale at parse, a 401 " <>
-              "names the token the API takes, and a security's update refuses a field beside " <>
-              "its wrapper; no endpoint or tool is added."
+              "names the token the API takes, a security's update refuses a field beside its " <>
+              "wrapper, and the G02 free-text fields carry maxLength in the MCP schemas; no " <>
+              "endpoint or tool is added."
             # --- S30 A3 end ---
           ],
           " "
@@ -160,7 +161,17 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "unknown: this write takes its fields under security\") and stores nothing, where it " <>
           "was dropped and the write answered 200 (#1356). POST /api/v1/holdings/reconcile " <>
           "(portfolixir.holdings.reconcile): the reference states its cap of 10000 rows, which " <>
-          "the endpoint and the tool's schema already held (#1258)."
+          "the endpoint and the tool's schema already held (#1258).",
+        "The MCP write tools of every G02 note and description (portfolixir.portfolios.create, " <>
+          "cash_accounts.create, .update and .set_balance, securities_accounts.create and " <>
+          ".update, transactions.create and .update, securities.create and .update, " <>
+          "classifications.create and .update, classifications.categories.create and .update, " <>
+          "tax_profiles.create and .update, allowance_orders.put, tax_snapshots.create and " <>
+          ".update) carry the API's cap as maxLength, 10000 and a category's description 2000, " <>
+          "and the companion refuses a longer value in code points before the call, as the G01 " <>
+          "fields do; the API bounds are unchanged. Every write a retry can duplicate ends its " <>
+          "description with a shorter outcome-unknown note: it may have committed, so re-read " <>
+          "before retrying; a retry can duplicate it (#951)."
         # --- S30 A3 end ---
       ],
       removed_endpoints: [],
