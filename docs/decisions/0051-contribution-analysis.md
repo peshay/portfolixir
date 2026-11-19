@@ -786,3 +786,22 @@ baseline day.
 
 **To flip:** "Basistag nicht mitzählen" (`unvalued_days` counts window
 days only again, and the baseline case reads as a clean figure).
+
+**A close of 0 or below counts as no price for the count** (Sprint 30
+closing act, money lens, finding 1, S1). A close of 0 or below, which a
+release before the plausibility bounds could store, is no price for the
+price side (`WindowReturn`, ADR-0046), but the walk reads it as a price
+and values the units at it: a position held at 1 unit, closed at 10, then
+at a legacy 0 on the baseline day and at 11 on the window's day, starts at
+0 and reads **11**, its whole value, where it moved by 1, unmarked by the
+count above, because a price was there. So §10's count reads a price of 0
+or below as no price: such a day counts in `unvalued_days` with
+`unvalued_reason` `no_price`, the baseline day and a window day alike, and
+a window day valued only at such a price is no valued day (ADR-0061 §4).
+The walk's figures are unchanged: which closes it reads as prices, and the
+value it gives them, stay as they are, and changing that moves the walk's
+figures and needs its own decision. The change rides computation version
+6, which this amendment introduced and which reaches `main` in the same
+merge, so no version-6 table without it is ever served. **To flip:**
+"Nullkurs als Kurs zählen" (a close of 0 or below counts as a price for the
+count again, and such a row reads unmarked).

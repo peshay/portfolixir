@@ -460,6 +460,63 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
     assert text_of(view, "[data-role='contribution-sum-figure']") == "+210.00 EUR"
   end
 
+  # Sprint 30 closing act, money lens, finding 1 (ADR-0051 §10 as amended
+  # 2026-11-19): a legacy close of 0, stored by a release before the
+  # plausibility bounds, on the start value's day. The walk values the units
+  # at it, so the start value is 0 and the whole value reads as the
+  # contribution, exactly as for a position with no close at all; a close
+  # of 0 or below is no price (ADR-0046), so the row is marked the same way.
+  test "a legacy zero close on the start value's day is marked", %{conn: conn} do
+    world = base_world(name: "Zero Close World", cash_name: "Giro", depot_name: "Depot")
+    nova = create_security!(name: "Nova Zero Fund", ticker: "NZRF")
+    first_day = Date.shift(today(), year: -1)
+
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: nova.id,
+        type: "inbound_delivery",
+        date: days_ago(500),
+        quantity: "5",
+        currency_code: "EUR"
+      })
+
+    put_quotes!(nova, [{Date.add(first_day, -5), "40"}, {first_day, "41"}, {today(), "42"}])
+    legacy_zero_close!(nova, Date.add(first_day, -1))
+
+    # Its move is 5 x (42 - 40) = 10; it reads 5 x 42 - 5 x 0 = 210, marked.
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    assert text_of(view, row(nova)) =~ "Nova Zero Fund 1 day at zero"
+    assert text_of(view, row(nova)) =~ "+210.00"
+
+    note = text_of(view, "#performance-contribution .data-note--attention")
+    assert note =~ "Nova Zero Fund (1 day, no price stored)"
+    assert text_of(view, "[data-role='contribution-sum-figure']") == "+210.00 EUR"
+  end
+
+  # A close the plausibility bounds now refuse, written as an older release
+  # could have stored it.
+  defp legacy_zero_close!(security, date) do
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    {1, _} =
+      Portfolixir.Repo.insert_all(Portfolixir.Catalog.Quote, [
+        %{
+          security_id: security.id,
+          date: date,
+          close: Decimal.new("0"),
+          source: "manual",
+          inserted_at: now,
+          updated_at: now
+        }
+      ])
+
+    :ok
+  end
+
   # A EUR portfolio whose "Tagesgeld CHF" received 2000 CHF 60 days ago,
   # while CHF's first stored rate (EUR/CHF 0.8) is from 42 days ago: the walk
   # counts the balance zero for 18 days, then at 2500 EUR (board J2's data).

@@ -2327,13 +2327,17 @@ defmodule Portfolixir.Portfolios.Performance do
   end
 
   # The two ways `security_value/3` counts a held position zero: no price at
-  # all, or no rate path from the price's currency to the base.
+  # all, or no rate path from the price's currency to the base. A price of 0
+  # or below (a legacy close from before the plausibility bounds) is no price
+  # for the count, as for `WindowReturn` (ADR-0046), although the walk still
+  # values the units at it (ADR-0051 §10 as amended 2026-11-19).
   defp unvalued_reason(security_id, context) do
     case Map.get(context.pricing, security_id) do
-      %{price: %{close: %Decimal{}, currency: currency}} ->
-        case conversion_rate(currency, context.base, context.fx) do
-          {:ok, _rate} -> nil
-          {:error, _reason} -> :no_rate
+      %{price: %{close: %Decimal{} = close, currency: currency}} ->
+        cond do
+          Decimal.compare(close, @zero) != :gt -> :no_price
+          match?({:ok, _rate}, conversion_rate(currency, context.base, context.fx)) -> nil
+          true -> :no_rate
         end
 
       _unpriced ->
