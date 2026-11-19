@@ -24,6 +24,16 @@
 #   They are harmless in the main checkout, whose `deps` is a directory the
 #   .gitignore already ignores. The pre-commit hook `no-symlinks`
 #   (scripts/check_no_symlinks.py) refuses a tracked symlink in any case.
+# * The gettext merge driver, scripts/merge_gettext.py, is registered where
+#   every worktree starts: `merge.gettext.name` and `merge.gettext.driver`
+#   in the repository's local config, and the two lines that route
+#   `priv/gettext` to it in `info/attributes`, both in the common git
+#   directory every worktree shares, each written only when absent (an
+#   existing value is the owner's and stays). Nothing is committed: a driver
+#   needs a command on the machine (docs/development/guide.md, "Integrating
+#   gettext catalogues"). *Why:* the resolver existed since Sprint 22, but
+#   nothing registered it, so a Sprint 29 session wrote a second one
+#   (Sprint 29 retrospective, carry-forward 3; Sprint 30 plan M3).
 # * Each worktree that runs `mix test` at the same time as another needs a
 #   test database of its own. The helper prints the commands; `--db <name>`
 #   runs them in the new worktree.
@@ -89,17 +99,34 @@ for shared in deps mcp-server/node_modules; do
   fi
 done
 
-exclude="$(git -C "$path" rev-parse --path-format=absolute --git-path info/exclude)"
-mkdir -p "$(dirname "$exclude")"
-touch "$exclude"
-for pattern in /deps /_build node_modules /mcp-server/node_modules; do
-  if ! grep -qxF -- "$pattern" "$exclude"; then
-    # Keep the file's last line intact if it lacks a final newline.
-    if [[ -s "$exclude" && -n "$(tail -c 1 "$exclude")" ]]; then
-      echo >> "$exclude"
+# Appends a line to a file when the file lacks it, keeping the file's last
+# line intact if it has no final newline.
+append_once() {
+  local file="$1" line="$2"
+  mkdir -p "$(dirname "$file")"
+  touch "$file"
+  if ! grep -qxF -- "$line" "$file"; then
+    if [[ -s "$file" && -n "$(tail -c 1 "$file")" ]]; then
+      echo >> "$file"
     fi
-    echo "$pattern" >> "$exclude"
+    echo "$line" >> "$file"
   fi
+}
+
+exclude="$(git -C "$path" rev-parse --path-format=absolute --git-path info/exclude)"
+for pattern in /deps /_build node_modules /mcp-server/node_modules; do
+  append_once "$exclude" "$pattern"
+done
+
+if ! git -C "$path" config --local --get merge.gettext.name > /dev/null; then
+  git -C "$path" config --local merge.gettext.name "gettext catalogue merge"
+fi
+if ! git -C "$path" config --local --get merge.gettext.driver > /dev/null; then
+  git -C "$path" config --local merge.gettext.driver "python3 scripts/merge_gettext.py %O %A %B"
+fi
+attributes="$(git -C "$path" rev-parse --path-format=absolute --git-path info/attributes)"
+for line in "priv/gettext/**/*.po merge=gettext" "priv/gettext/*.pot merge=gettext"; do
+  append_once "$attributes" "$line"
 done
 
 name="${database:-portfolixir_test_<n>}"
