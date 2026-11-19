@@ -56,12 +56,31 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- S30 A1 begin ---
             "Sprint 30, A1 (I45): portfolixir.crashes.rankings answers slim by default, " <>
               "each entry without its closes and without benchmark_return, the crash " <>
-              "benchmark named once; projection=full answers the read as it was."
+              "benchmark named once; projection=full answers the read as it was.",
             # --- S30 A1 end ---
+            # --- S30 T2 begin ---
+            "Sprint 30, T2 (FR-59, #1465; ADR-0061 §9): GET /api/v1/views/:view_id/movers " <>
+              "and GET /api/v1/movers (everything, no view) answer the tops and flops over " <>
+              "one to-date window, window day (the default), week, month, quarter, ytd or " <>
+              "1y: price_return ranks the securities the scope holds at the window's end by " <>
+              "EUR price return, contribution every position ADR-0051 lists, a sold one " <>
+              "included, by EUR money contribution; each ranking answers highest and lowest " <>
+              "(no name in both), answered, unanswered counted by reason and its " <>
+              "computation_basis; limit per half (default 5, capped at 50 and echoed) and " <>
+              "include_unanswered (true lists the unanswered); an unknown window, a " <>
+              "malformed limit or include_unanswered, and any other parameter answer 422 " <>
+              "naming it; a view that does not exist answers 404. Decimals as strings, " <>
+              "dates ISO 8601; data, never advice."
+            # --- S30 T2 end ---
           ],
           " "
         ),
-      endpoints: [],
+      endpoints: [
+        # --- S30 T2 begin ---
+        "GET /api/v1/views/:view_id/movers",
+        "GET /api/v1/movers"
+        # --- S30 T2 end ---
+      ],
       tools: [],
       parameters: [
         # --- S30 A1 begin ---

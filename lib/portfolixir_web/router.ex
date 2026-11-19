@@ -445,6 +445,12 @@ defmodule PortfolixirWeb.Router do
     get("/performance/benchmark", ViewBenchmarkController, :total)
     get("/performance/contribution", ViewContributionController, :total)
     get("/performance/bands", ViewBandsController, :total)
+    # --- S30 T2 begin ---
+    # ADR-0061 §9 (Sprint 30, T2): the tops and flops per calendar window, a
+    # view's and everything's; closed (an unknown parameter answers 422).
+    get("/views/:view_id/movers", MoversController, :show)
+    get("/movers", MoversController, :total)
+    # --- S30 T2 end ---
     # #901 (ADR-0051 §6): the category result's view form, beside the
     # portfolio read's view= narrowing.
     get("/views/:view_id/category-results", CategoryResultController, :show)
