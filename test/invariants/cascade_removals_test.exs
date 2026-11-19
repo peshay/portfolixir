@@ -9,6 +9,15 @@ defmodule Portfolixir.Invariants.CascadeRemovalsTest do
 
   alias Portfolixir.Journal.Cascades
 
+  # The lib sources and those naming `delete_portfolio`, read once when this
+  # file is compiled (every `mix test` run compiles it anew), not inside a
+  # test: under load the scan waited on the file server, one call per
+  # directory and per file, past the test's 60 s (#1467).
+  @lib_sources Path.wildcard("lib/**/*.ex")
+  @delete_portfolio_sources for path <- @lib_sources,
+                                File.read!(path) =~ "delete_portfolio",
+                                do: path
+
   # User story:
   # As the maintainer of the audit journal,
   # I want every foreign key that deletes or rewrites rows of a journal-armed
@@ -81,8 +90,11 @@ defmodule Portfolixir.Invariants.CascadeRemovalsTest do
       for arity <- 0..4,
           do: refute(function_exported?(Portfolixir.Portfolios, :delete_portfolio, arity))
 
-      refute Enum.any?(Path.wildcard("lib/**/*.ex"), &(File.read!(&1) =~ "delete_portfolio")),
-             "a portfolio delete path exists — list what it removes per row first"
+      assert @lib_sources != [], "no lib source found: the scan would pass vacuously"
+
+      assert @delete_portfolio_sources == [],
+             "a portfolio delete path exists — list what it removes per row first:\n" <>
+               Enum.join(@delete_portfolio_sources, "\n")
     end
   end
 
