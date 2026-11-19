@@ -392,6 +392,22 @@ class CommandLineTests(unittest.TestCase):
         self.assertFalse(os.path.exists(out))
         self.assertEqual(self._read(ours), ours_text)
 
+    def test_a_refusal_prints_the_recovery_from_the_three_stages(self):
+        # Under git the refused file holds ours alone, without theirs'
+        # entries and without markers, so `git add` as it stands drops them
+        # (Sprint 30 closing act, correctness lens, finding 3): the refusal
+        # says how to merge again from the three index stages.
+        base = self._write("base.po", catalogue(ACCOUNTS))
+        ours = self._write("ours.po", catalogue(entry("Cash accounts", "Konten")))
+        theirs = self._write("theirs.po", catalogue(entry("Cash accounts", "Geldkonten")))
+        status, stderr = self._main(base, ours, theirs)
+        self.assertEqual(status, 1)
+        self.assertIn("do not `git add`", stderr)
+        for stage in ("git show :1:PATH > base.po", "git show :2:PATH > ours.po", "git show :3:PATH > theirs.po"):
+            self.assertIn(stage, stderr)
+        self.assertIn("python3 scripts/merge_gettext.py base.po ours.po theirs.po -o PATH", stderr)
+        self.assertIn("git add PATH", stderr)
+
     def test_an_unreadable_catalogue_exits_two_naming_the_file(self):
         base = self._write("base.po", catalogue(ACCOUNTS))
         broken = self._write("broken.po", "nonsense\n")
@@ -447,6 +463,53 @@ class GitMergeDriverTests(unittest.TestCase):
             self.assertEqual(
                 handle.read(), catalogue(ACCOUNTS, entry("Ours", "Unseres"), entry("Theirs", "Ihres"))
             )
+
+    def test_a_refused_merge_keeps_theirs_entries_through_the_printed_recovery(self):
+        # The hazard (Sprint 30 closing act, correctness lens, finding 3):
+        # the refused file is ours alone, theirs' new entry missing, with no
+        # conflict marker. The recovery the refusal prints and the guide
+        # states merges again from the three stages and keeps it.
+        self._git("init", "-q", "-b", "main")
+        script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "merge_gettext.py")
+        self._git("config", "merge.gettext.name", "gettext catalogue merge")
+        self._git("config", "merge.gettext.driver", f'"{sys.executable}" "{script}" %O %A %B')
+        with open(os.path.join(self.directory, ".git", "info", "attributes"), "w", encoding="utf-8") as handle:
+            handle.write("*.po merge=gettext\n")
+        self._commit_catalogue(catalogue(ACCOUNTS), "base")
+        self._git("checkout", "-q", "-b", "story")
+        self._commit_catalogue(catalogue(entry("Cash accounts", "Geldkonten"), entry("Theirs", "Ihres")), "story")
+        self._git("checkout", "-q", "main")
+        ours_text = catalogue(entry("Cash accounts", "Konten"))
+        self._commit_catalogue(ours_text, "main")
+        merged = self._git("merge", "-q", "--no-edit", "story")
+        self.assertNotEqual(merged.returncode, 0)
+        self.assertIn("git show :3:PATH", merged.stdout + merged.stderr)
+        path = os.path.join(self.directory, "de.po")
+        with open(path, encoding="utf-8", newline="") as handle:
+            self.assertEqual(handle.read(), ours_text)
+
+        for stage, name in ((1, "base.po"), (2, "ours.po"), (3, "theirs.po")):
+            shown = self._git("show", f":{stage}:de.po")
+            self.assertEqual(shown.returncode, 0, shown.stderr)
+            with open(os.path.join(self.directory, name), "w", encoding="utf-8", newline="") as handle:
+                handle.write(shown.stdout)
+        # Resolve the named msgid in one side: theirs keeps ours' text.
+        theirs_path = os.path.join(self.directory, "theirs.po")
+        with open(theirs_path, encoding="utf-8", newline="") as handle:
+            resolved = handle.read().replace('msgstr "Geldkonten"', 'msgstr "Konten"')
+        with open(theirs_path, "w", encoding="utf-8", newline="") as handle:
+            handle.write(resolved)
+        rerun = subprocess.run(
+            [sys.executable, script, "base.po", "ours.po", "theirs.po", "-o", "de.po"],
+            cwd=self.directory,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(rerun.returncode, 0, rerun.stderr)
+        self.assertEqual(self._git("add", "de.po").returncode, 0)
+        with open(path, encoding="utf-8", newline="") as handle:
+            self.assertEqual(handle.read(), catalogue(entry("Cash accounts", "Konten"), entry("Theirs", "Ihres")))
 
 
 if __name__ == "__main__":

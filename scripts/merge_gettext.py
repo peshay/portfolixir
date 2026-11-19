@@ -10,7 +10,10 @@ OUT, or into OURS when no OUT is given: git's merge-driver convention, so
 ``merge.gettext.driver = python3 scripts/merge_gettext.py %O %A %B`` works.
 Exit status 0 is a clean merge, 1 a refusal (a conflict or a fuzzy entry, each
 named on stderr), 2 an unreadable catalogue or bad arguments. On 1 and 2
-nothing is written.
+nothing is written. Under git a refusal leaves the file as OURS alone, without
+THEIRS' entries or a conflict marker; the refusal prints how to merge again
+from the three index stages (``docs/development/guide.md``, "Integrating
+gettext catalogues").
 
 Why it exists: Sprint 22 integrated several stories' German catalogues by
 hand; a fuzzy-matched msgid kept an old German text and the merge dropped the
@@ -356,6 +359,19 @@ def merge(base_text: str, ours_text: str, theirs_text: str) -> str:
     return render(result)
 
 
+# Under git a refused driver leaves the file as ours alone: theirs' entries
+# are not in it and there is no conflict marker, so a `git add` as it stands
+# drops them (Sprint 30 closing act, correctness lens, finding 3). PATH is
+# the conflicted file's path; the driver is called with temporary names.
+RECOVERY = (
+    "under git the file now holds ours alone, without theirs' entries or any conflict marker;",
+    "do not `git add` it as it is. Merge again from the three stages (PATH is the file):",
+    "  git show :1:PATH > base.po; git show :2:PATH > ours.po; git show :3:PATH > theirs.po",
+    "  resolve each entry named above in ours.po or theirs.po (one msgstr on both sides, no fuzzy flag)",
+    "  python3 scripts/merge_gettext.py base.po ours.po theirs.po -o PATH && git add PATH",
+)
+
+
 def _read(path: str) -> str:
     with open(path, encoding="utf-8", newline="") as handle:
         return handle.read()
@@ -388,6 +404,8 @@ def main(argv: list[str] | None = None) -> int:
         for problem in refused.problems:
             print(f"merge_gettext: {args.ours}: {problem}", file=sys.stderr)
         print("merge_gettext: refused; nothing was written", file=sys.stderr)
+        for line in RECOVERY:
+            print(f"merge_gettext: {line}", file=sys.stderr)
         return 1
     with open(args.output or args.ours, "w", encoding="utf-8", newline="") as handle:
         handle.write(merged)

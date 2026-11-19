@@ -152,6 +152,27 @@ If pre-commit is not installed:
   driver nothing registered was not used: a Sprint 29 session wrote a
   second resolver because the first was not registered (Sprint 29
   retrospective, carry-forward 3).
+- **When the driver refuses, merge again from the three stages; never
+  `git add` the file as git left it.** Git marks the catalogue conflicted,
+  but the working file is exactly ours: theirs' entries are not in it and
+  there is no conflict marker to edit. With `PATH` the conflicted
+  catalogue, from the repository root:
+
+  ```bash
+  git show :1:PATH > base.po     # the common ancestor
+  git show :2:PATH > ours.po     # HEAD (in a rebase, the branch rebased onto)
+  git show :3:PATH > theirs.po   # the commit being merged, picked or replayed
+  # In ours.po or theirs.po, resolve each entry the refusal named: one
+  # msgstr on both sides, no fuzzy flag, a deleted entry deleted on both.
+  python3 scripts/merge_gettext.py base.po ours.po theirs.po -o PATH
+  git add PATH
+  rm base.po ours.po theirs.po
+  ```
+
+  The refusal prints these steps too. *Why:* the driver writes nothing when
+  it refuses, so git keeps ours in place, and "fix the named msgid, then
+  `git add`" dropped every entry theirs added (Sprint 30 closing act,
+  correctness lens, finding 3).
 - **After merging, run `mix gettext.extract --merge`, then
   `mix gettext.extract --check-up-to-date`**, and read its exit status
   directly. *Why:* the tool unites the `#:` references both sides moved, and
