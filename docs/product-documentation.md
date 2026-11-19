@@ -2799,7 +2799,10 @@ amount and a **Show all N** control; the sum row always covers every
 position. A position that counted zero on some days of the period, because
 no price or no exchange rate was stored, keeps its place in the table and in
 the sum, carries the number of those days on its row, and is named in a note
-under the table. A period with nothing in it shows a sentence instead of a
+under the table. The day before the period counts among those days, since
+its close is the start value: a position whose first price or exchange rate
+came on the period's first day starts at zero, and its whole value is its
+contribution, so its row says so. A period with nothing in it shows a sentence instead of a
 table of zeros, and on a phone, or wherever the window leaves the table too
 little room for its columns, the table becomes two-line rows. There a
 row's flow names its side — "inflow into the position 2,000.00", "outflow

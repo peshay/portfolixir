@@ -678,9 +678,11 @@ defmodule Portfolixir.Portfolios.Performance.MoversTest do
              {"Unquoted Trust", "no_close_at_start"}
            ]
 
-    # Money over 9 to 12 November: Fresh 0 -> 21 (unvalued on the 9th), Single
-    # 0 -> 5 (unvalued 9th to 11th), Steady 10 -> 11, Stale 8 -> 8. Franc has
-    # no rate path and Unquoted no price on any day: no_valuation.
+    # Money over 9 to 12 November: Fresh 0 -> 21 (unvalued on the 8th, the
+    # baseline, and the 9th), Single 0 -> 5 (unvalued 8th to 11th), Steady
+    # 10 -> 11, Stale 8 -> 8. Franc has no rate path and Unquoted no price on
+    # any day: no_valuation. The baseline counts since ADR-0051's amendment
+    # of 2026-11-19 (#1472).
     money = week.contribution
     assert money.answered == 4
     assert names(money.highest) == ["Fresh Listing", "Single Print"]
@@ -689,7 +691,7 @@ defmodule Portfolixir.Portfolios.Performance.MoversTest do
     assert figures(money.lowest, :contribution) == ~w(0 1)
 
     assert {entry(money.highest, fresh).unvalued_days, entry(money.highest, single).unvalued_days} ==
-             {1, 3}
+             {2, 4}
 
     assert entry(money.highest, fresh).unvalued_reason == :no_price
     assert entry(money.lowest, steady).unvalued_days == 0

@@ -89,8 +89,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "its ties by id, benchmark=rate: is held to the engine's scale at parse, a 401 " <>
               "names the token the API takes, a security's update refuses a field beside its " <>
               "wrapper, and the G02 free-text fields carry maxLength in the MCP schemas; no " <>
-              "endpoint or tool is added."
+              "endpoint or tool is added.",
             # --- S30 A3 end ---
+            # --- S30 S1FIX begin ---
+            "Sprint 30, #1472: a contribution row's unvalued_days counts the day before the " <>
+              "window, whose close is the start value, when the position counted zero there."
+            # --- S30 S1FIX end ---
           ],
           " "
         ),
@@ -171,8 +175,18 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "and the companion refuses a longer value in code points before the call, as the G01 " <>
           "fields do; the API bounds are unchanged. Every write a retry can duplicate ends its " <>
           "description with a shorter outcome-unknown note: it may have committed, so re-read " <>
-          "before retrying; a retry can duplicate it (#951)."
+          "before retrying; a retry can duplicate it (#951).",
         # --- S30 A3 end ---
+        # --- S30 S1FIX begin ---
+        "GET /api/v1/portfolios/:portfolio_id/performance/contribution and GET " <>
+          "/api/v1/views/:view_id/performance/contribution (portfolixir.portfolios.contribution, " <>
+          "portfolixir.views.contribution): a position's unvalued_days counts the day before " <>
+          "the window, whose close is the start value, as well as the window days on which it " <>
+          "was held and counted zero, and unvalued_reason names that day's reason, so a " <>
+          "position whose first price or first rate arrived on the window's first day is " <>
+          "named instead of reading its whole value as a clean contribution (#1472, ADR-0051's " <>
+          "amendment of 2026-11-19, computation version 6). Every figure is unchanged."
+        # --- S30 S1FIX end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

@@ -2094,8 +2094,9 @@ defmodule Portfolixir.Portfolios.Performance do
     costs: Decimal.new("0"),
     held_at_start: false,
     held_at_end: false,
-    # window day => :no_price | :no_rate, for each day the position was held
-    # and counted zero (ADR-0051 §10)
+    # day => :no_price | :no_rate, for the baseline day and each window day
+    # the position was held and counted zero (ADR-0051 §10, as amended
+    # 2026-11-19)
     unvalued: %{},
     # window day => true, for each day the position was held and valued: a
     # position valued on no day of the window is told apart by it (ADR-0061
@@ -2279,13 +2280,21 @@ defmodule Portfolixir.Portfolios.Performance do
     end)
   end
 
-  defp observe_day(%{baseline: day} = kept, held, %{day: day} = context),
-    do: record_values(kept, held, context, :start_value, :held_at_start)
+  # The baseline day's close is the start value, so a held position the
+  # walk counted zero there is named with the day, as on a window day
+  # (ADR-0051 §10 as amended 2026-11-19, #1472): its whole value would
+  # otherwise read as the window's contribution, unmarked. It is no window
+  # day, so it never counts as valued (ADR-0061 §4).
+  defp observe_day(%{baseline: day} = kept, held, %{day: day} = context) do
+    kept
+    |> record_unvalued(held, context, :baseline)
+    |> record_values(held, context, :start_value, :held_at_start)
+  end
 
   defp observe_day(kept, held, context) do
     if in_window?(kept.window, context.day) do
       kept
-      |> record_unvalued(held, context)
+      |> record_unvalued(held, context, :window)
       |> record_end(held, context)
     else
       kept
@@ -2299,13 +2308,20 @@ defmodule Portfolixir.Portfolios.Performance do
 
   # A held position the walk valued at zero today is named with the day and
   # the reason (ADR-0051 §10). It keeps contributing zero, exactly as the
-  # walk counts it, so the identity holds. A held position it valued is
-  # marked valued for the day (ADR-0061 §4).
-  defp record_unvalued(kept, held, context) do
+  # walk counts it, so the identity holds. A held position it valued on a
+  # window day is marked valued for the day (ADR-0061 §4); the baseline
+  # day counts only when it was unvalued.
+  defp record_unvalued(kept, held, context, day_kind) do
     Enum.reduce(held, kept, fn {security_id, _quantity}, acc ->
-      case unvalued_reason(security_id, context) do
-        nil -> update_position(acc, security_id, &put_in(&1, [:valued, context.day], true))
-        reason -> update_position(acc, security_id, &put_in(&1, [:unvalued, context.day], reason))
+      case {unvalued_reason(security_id, context), day_kind} do
+        {nil, :baseline} ->
+          acc
+
+        {nil, :window} ->
+          update_position(acc, security_id, &put_in(&1, [:valued, context.day], true))
+
+        {reason, _day_kind} ->
+          update_position(acc, security_id, &put_in(&1, [:unvalued, context.day], reason))
       end
     end)
   end
