@@ -220,7 +220,8 @@ defmodule Portfolixir.News.Ingest do
 
   # §2: the stored `aggregator` items are matched against the universe by
   # the alias grammar, after the insert's commit (the matcher locks the
-  # items and the securities it names in a transaction of its own). Every
+  # securities it names, then the items, in a transaction of its own;
+  # `Portfolixir.LockTable`, row 26). Every
   # other class is bound by construction and skipped by the matcher.
   # The matcher folds the items it assigns into their stories itself.
   defp assign_aggregator(items, now) do

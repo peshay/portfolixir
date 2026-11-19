@@ -27,8 +27,8 @@ defmodule Portfolixir.News.MatcherLockTest do
   # so that the item reads ambiguous, as the aliases now say.
   #
   # Acceptance criteria:
-  # - An alias change committed after the matcher has locked its items and
-  #   before it writes leaves the item `ambiguous` with both candidates.
+  # - An alias change committed after the matcher has read the universe
+  #   and before it writes leaves the item `ambiguous` with both candidates.
   test "an alias change between the matcher's lock and its write is not overwritten" do
     owner = Actor.owner_ui()
 
@@ -80,14 +80,26 @@ defmodule Portfolixir.News.MatcherLockTest do
       )
       |> Repo.insert!()
 
-    locked? = fn metadata ->
+    # #1457 (Sprint 30, K2): the matcher holds the securities it matches
+    # before it locks the items, off a first, unlocked read of the items and
+    # the universe, and runs each attempt in a savepoint, which it rolls
+    # back to when the universe compiled under the items' locks names a
+    # security it does not hold. An alias change interleaved here, on the
+    # matcher's own connection, inside that savepoint would be rolled back
+    # with it, which a commit on another connection never is; so it runs
+    # right after the first read of the universe, the earliest point the
+    # change can miss: the first step holds only Northwind, and the match
+    # under the items' locks, which reads the change, runs again holding
+    # Harbourline too. The race on two connections is
+    # `test/portfolixir/lock_race/news_matcher_order_test.exs`.
+    first_universe_read? = fn metadata ->
       query = to_string(metadata[:query])
-      query =~ "FOR UPDATE" and query =~ "news_items"
+      metadata[:source] == "securities" and not (query =~ "FOR ")
     end
 
     {{:ok, _counts}, {:ok, _}} =
       Interleave.run(
-        locked?,
+        first_universe_read?,
         fn ->
           Catalog.update_security(owner, harbourline, %{
             news_aliases: [alias_of("Northwind Harbour")]
