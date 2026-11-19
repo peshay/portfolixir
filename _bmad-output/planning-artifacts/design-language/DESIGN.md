@@ -10561,9 +10561,21 @@ screen and the API answer alike for the same window, list and universe.
    so every column stays in the section; same-named securities carry the
    identifier that tells them apart (`SecurityNames.put_twin_ids/2`).
 7. **The basis line** (`p.summary-basis.crash-basis`): the figure and its
-   dates, the reference („gestrichelt ‹benchmark› über dieselben Tage (…)“,
-   or „kein Vergleich: kein Crash-Benchmark gewählt“), survivorship („nur
-   Wertpapiere, die der Katalog heute führt“).
+   dates, the reference („gestrichelt: Crash-Benchmark, dieselben Tage
+   (…)“, for the rebounders „gestrichelt: Crash-Benchmark (…)“, or „kein
+   Vergleich: Crash-Benchmark ohne Kurs“, „kein Vergleich: kein
+   Crash-Benchmark gewählt“), survivorship („nur Wertpapiere im
+   Katalog.“). *Amended 2026-11-19 (Sprint 30 closing act, design critic,
+   finding 5; board `ux-design-2026-11-15-sprint30/06` ③):* one sentence
+   of at most 25 words in every list, reference and language, the open
+   prose rule's, with no exception of its own: the line names the crash
+   benchmark by its role, its stored name standing in the „ggü. ‹name›“
+   head and the windows' rule line; that a comparison needs the
+   benchmark's price or exchange rate on those days is a line of the
+   section's ⓘ. The figures: „Grundlage: Kursrendite in EUR, Hoch bis Tief
+   des Fensters“, „Grundlage: Anstieg in EUR vom eigenen Tief bis zum Ende
+   der Erholungsspanne“, while the span is open „… bis zum letzten Schluss
+   (‹Datum›), Spanne offen“. The API's `computation_basis` is untouched.
 8. **The answered and unanswered** (`p.crash-unanswered`): „8 von 214
    Wertpapieren mit Antwort gezeigt · 31 ohne Antwort: …“ per reason, and
    „anzeigen“, which names each unanswered security with its reason.

@@ -3546,8 +3546,9 @@ converted to EUR at that day's exchange rate. A security without a close at
 the window's start or end, or without an exchange rate, has no answer: it is
 never shown as a zero, the line under the list counts it per reason, and
 "show" lists it. Equal figures are ordered by name, then ISIN. The basis line
-under the list says what was measured and ends with "only securities the
-catalogue still holds": a security that failed and was removed is in no
+under the list says what was measured, names the dashed line "crash
+benchmark" (its name heads the column of differences), and ends with "only
+securities in the catalogue": a security that failed and was removed is in no
 list, so the lists, and the rebounders most of all, read better than the
 market did.
 

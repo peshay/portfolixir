@@ -3914,8 +3914,9 @@ Wertpapier ohne Kurs am Start oder Ende des Fensters oder ohne Wechselkurs
 hat keine Antwort: Es wird nie als Null gezeigt, die Zeile unter der Liste
 zählt es je Grund, und „anzeigen“ listet es. Gleiche Zahlen werden nach
 Namen, dann ISIN geordnet. Die Grundlagenzeile unter der Liste sagt, was
-gemessen wurde, und endet mit „nur Wertpapiere, die der Katalog heute
-führt“: Ein Wertpapier, das scheiterte und entfernt wurde, steht in keiner
+gemessen wurde, nennt die gestrichelte Linie „Crash-Benchmark“ (sein Name
+steht über der Spalte der Abstände) und endet mit „nur Wertpapiere im
+Katalog“: Ein Wertpapier, das scheiterte und entfernt wurde, steht in keiner
 Liste, sodass die Listen, und die Erholer am meisten, besser aussehen, als
 der Markt war.
 
