@@ -1702,7 +1702,9 @@ mit `view_id` `null`. Beide nehmen:
   ist es je Wertpapier sein letzter Schlusskurs gegen den davor, und jede
   Zeile nennt beide Tage; auf der Geldseite ist es der eine Tag `D`
   (`contribution.from` = `contribution.to`), der letzte Tag, an dem ein
-  Schlusskurs eines Wertpapiers des Bereichs gespeichert ist.
+  Schlusskurs eines Wertpapiers des Bereichs gespeichert ist, höchstens
+  7 Tage vor heute wie der letzte Schlusskurs der Kursseite; ohne einen
+  solchen Tag ist die Geld-Rangliste leer, und ihre Basis sagt es.
 - `limit` — Einträge je Hälfte, Standard 5, auf 50 begrenzt und
   zurückgegeben.
 - `include_unanswered` — `true` fügt jeder Rangliste `unanswered_entries`

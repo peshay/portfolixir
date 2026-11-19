@@ -38,8 +38,9 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
   positive close before it, `P`, whatever its age, by
   `WindowReturn.price_return(security, P, E)`; the row carries both dates.
   On the money side `day` is the window `[D, D]`, `D` the latest day on or
-  before `T` on which a positive close of any security the scope holds at
-  `T` is stored (no close at all: no window, an empty ranking).
+  before `T`, and at most 7 days before it, as `E` is, on which a positive
+  close of any security the scope holds at `T` is stored (no such close:
+  no window, an empty ranking; ADR-0061's amendment of 2026-11-19).
 
   ## The rankings (§4)
 
@@ -289,7 +290,8 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
     |> Map.put(:computation_basis, contribution_basis(request, from, to, table_basis))
   end
 
-  # week to 1y: S + 1 to T. day: [D, D], or no window without a close.
+  # week to 1y: S + 1 to T. day: [D, D], or no window without a close
+  # standing for T.
   defp money_window(held, %{window: "day", end_on: today}) do
     case last_close_day(held, today) do
       nil -> {nil, nil}
@@ -302,12 +304,16 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
 
   defp last_close_day([], _today), do: nil
 
+  # D is bounded as E is (ADR-0061's amendment of 2026-11-19): a close older
+  # than the staleness bound stands for no day of T's, so it moves nothing
+  # on the money side either.
   defp last_close_day(held, today) do
     ids = Enum.map(held, & &1.id)
+    oldest = Date.add(today, -WindowReturn.staleness_days())
 
     Repo.one(
       from(q in SecurityQuote,
-        where: q.security_id in ^ids and q.date <= ^today and q.close > 0,
+        where: q.security_id in ^ids and q.date <= ^today and q.date >= ^oldest and q.close > 0,
         select: max(q.date)
       )
     )
@@ -522,7 +528,10 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
           "a position valued on no day of the window (valued_days 0) is counted " <>
           "no_valuation and never ranked as a zero" <>
           if(request.window == "day" and is_nil(from),
-            do: "; no security the scope holds has a stored close, so there is no day D",
+            do:
+              "; no security the scope holds has a positive close stored on or before " <>
+                "end_on and within #{WindowReturn.staleness_days()} calendar days of it, so " <>
+                "there is no day D",
             else: ""
           ),
       reference: nil,
@@ -531,9 +540,10 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
   end
 
   defp contribution_window_text("day") do
-    "the one day D (from = to = day_on): the latest day on or before end_on on which a " <>
-      "positive close of any security the scope holds at end_on is stored; on a Monday " <>
-      "before the shares' closes, D is the Sunday and only what closed then moved"
+    "the one day D (from = to = day_on): the latest day on or before end_on, and at most " <>
+      "#{WindowReturn.staleness_days()} calendar days before it, as the price side's E, on " <>
+      "which a positive close of any security the scope holds at end_on is stored; on a " <>
+      "Monday before the shares' closes, D is the Sunday and only what closed then moved"
   end
 
   defp contribution_window_text(_window) do

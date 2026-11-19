@@ -693,6 +693,50 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
     assert_decimal(hd(week.price_return.highest).return, "0.5")
   end
 
+  # Attack (S3, beside #1472): the money side's D had no age bound, so with
+  # only a three-month-old close stored the price side said no_close_at_end
+  # while the money side showed that old day's move. ADR-0061's amendment of
+  # 2026-11-19 bounds D by E's 7 days.
+  #
+  # Independent figures: the edge's E and P are 12 and 10, 12 / 10 - 1 =
+  # 0.2; its money on D = 5 November is 2 x (12 - 10) = 4 (Python decimal,
+  # 34 digits).
+  test "day: D is no older than the 7 days E may be" do
+    today = ~D[2026-11-12]
+
+    {old_world, old_view} = world!("Old")
+    old = security!(%{name: "Old Close"})
+    deliver_untraded!(old_world, old, "2", date: ~D[2026-07-01])
+    put_quotes!(old, [{~D[2026-08-10], "10"}, {~D[2026-08-12], "12"}])
+
+    stale = read!(old_view.id, "day", today: today)
+    assert stale.price_return.unanswered.no_close_at_end == 1
+    money = stale.contribution
+    assert {money.from, money.to} == {nil, nil}
+    assert {money.highest, money.lowest, money.answered} == {[], [], 0}
+    assert money.computation_basis.window.day_on == nil
+    assert money.computation_basis.gaps =~ "within 7 calendar days"
+
+    # The edge: a close exactly 7 days before T is D, as it is E.
+    {edge_world, edge_view} = world!("Edge")
+    edge = security!(%{name: "Edge Close"})
+    deliver_untraded!(edge_world, edge, "2", date: ~D[2026-10-01])
+    put_quotes!(edge, [{~D[2026-11-04], "10"}, {~D[2026-11-05], "12"}])
+
+    at_edge = read!(edge_view.id, "day", today: today)
+    assert_decimal(hd(at_edge.price_return.highest).return, "0.2")
+
+    assert {at_edge.contribution.from, at_edge.contribution.to} ==
+             {~D[2026-11-05], ~D[2026-11-05]}
+
+    assert_decimal(hd(at_edge.contribution.highest).contribution, "4")
+
+    # One day further, the same closes stand for nothing on either side.
+    past_edge = read!(edge_view.id, "day", today: Date.add(today, 1))
+    assert past_edge.price_return.unanswered.no_close_at_end == 1
+    assert {past_edge.contribution.from, past_edge.contribution.to} == {nil, nil}
+  end
+
   # -- an unvalued baseline day (#1472) -------------------------------------------------
 
   # Attack (#1472): a position held over the whole window whose first close,
