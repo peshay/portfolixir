@@ -12,6 +12,7 @@ defmodule Portfolixir.Ledger.HeldSecuritiesTest do
   import Portfolixir.WorldFixtures
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Knowledge
   alias Portfolixir.Knowledge.Events
@@ -19,6 +20,7 @@ defmodule Portfolixir.Ledger.HeldSecuritiesTest do
   alias Portfolixir.Ledger.HeldSecurities
   alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.Projection
+  alias Portfolixir.Ledger.Splits
   alias Portfolixir.Ledger.Transaction
 
   @today ~D[2026-09-20]
@@ -209,5 +211,79 @@ defmodule Portfolixir.Ledger.HeldSecuritiesTest do
 
     held_only = Events.upcoming(days: 7, today: @today, held_only: true)
     assert held_only |> Enum.map(& &1.security_id) |> Enum.sort() == held
+  end
+
+  # User story (FR-59, ADR-0061 §2, Sprint 30 plan T1):
+  # As the tops and flops ranking what a view holds at a window's end,
+  # I want the securities a scope holds on a given day,
+  # so that a security sold after that day is still held on it and one sold
+  # before it is not, whatever today holds.
+  #
+  # Acceptance criteria:
+  # - `in_scope_on/2` projects the bookings dated on or before the day; a
+  #   view counts only the positions in its depots, `nil` every depot.
+  # - A security is held when its summed quantity is positive: a sold-out
+  #   or oversold position is not.
+  # - A split scales the quantity before it (the canonical fold).
+  # - A view that does not exist is refused.
+  test "what a scope holds on a day: dated, positive, view or everything" do
+    world = base_world(name: "Dated World", cash_name: "Dated Cash", depot_name: "Dated Depot")
+    other = add_depot(world.portfolio, cash_name: "Other Cash", depot_name: "Other Depot")
+    other_world = %{world | cash: other.cash, depot: other.depot}
+
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Dated Core"})
+
+    :ok =
+      Buckets.set_depot_default_buckets(Actor.owner_ui(), world.depot, [bucket.id])
+
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Dated View", include_all: false})
+
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+
+    kept = create_security!(name: "Kept Fund", ticker: "KPT")
+    sold = create_security!(name: "Sold Later", ticker: "SLD")
+    oversold = create_security!(name: "Oversold Co", ticker: "OVS")
+    split = create_security!(name: "Split Later", ticker: "SPT")
+    away = create_security!(name: "Other Depot Fund", ticker: "ODF")
+
+    deposit!(world, "5000", ~D[2026-11-01])
+    deposit!(other_world, "500", ~D[2026-11-01])
+    buy!(world, kept, quantity: "1", date: ~D[2026-11-02])
+    buy!(world, sold, quantity: "2", date: ~D[2026-11-02])
+    sell!(world, sold, quantity: "2", date: ~D[2026-11-10])
+    buy!(world, oversold, quantity: "1", date: ~D[2026-11-02])
+    sell!(world, oversold, quantity: "3", date: ~D[2026-11-04])
+    buy!(world, split, quantity: "2", date: ~D[2026-11-02])
+
+    {:ok, _txs} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: split.id,
+        date: ~D[2026-11-05],
+        ratio_numerator: 2,
+        ratio_denominator: 1
+      })
+
+    sell!(world, split, quantity: "4", date: ~D[2026-11-08])
+    buy!(other_world, away, quantity: "1", date: ~D[2026-11-02])
+
+    # On the 9th: Sold Later is still held (sold on the 10th), Split Later
+    # is sold out (2 split into 4, then 4 sold), Oversold Co is negative.
+    assert {:ok, on_ninth} = HeldSecurities.in_scope_on(view.id, ~D[2026-11-09])
+    assert on_ninth == Enum.sort([kept.id, sold.id])
+
+    assert {:ok, ids} = HeldSecurities.in_scope_on(view.id, ~D[2026-11-12])
+    assert ids == [kept.id]
+
+    # On the 7th the split's four are held; before the first booking nothing.
+    assert {:ok, on_seventh} = HeldSecurities.in_scope_on(view.id, ~D[2026-11-07])
+    assert on_seventh == Enum.sort([kept.id, sold.id, split.id])
+    assert {:ok, []} = HeldSecurities.in_scope_on(view.id, ~D[2026-11-01])
+
+    # Everything: every depot, the other one included.
+    assert {:ok, everything} = HeldSecurities.in_scope_on(nil, ~D[2026-11-09])
+    assert everything == Enum.sort([kept.id, sold.id, away.id])
+
+    assert {:error, :view_not_found} = HeldSecurities.in_scope_on(9_999_999, ~D[2026-11-09])
   end
 end
