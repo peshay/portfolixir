@@ -2096,7 +2096,11 @@ defmodule Portfolixir.Portfolios.Performance do
     held_at_end: false,
     # window day => :no_price | :no_rate, for each day the position was held
     # and counted zero (ADR-0051 §10)
-    unvalued: %{}
+    unvalued: %{},
+    # window day => true, for each day the position was held and valued: a
+    # position valued on no day of the window is told apart by it (ADR-0061
+    # §4); a map, not a count, so a day held in two portfolios counts once
+    valued: %{}
   }
 
   # The remainder lines (ADR-0051 §3), each summed from its own bookings.
@@ -2295,11 +2299,12 @@ defmodule Portfolixir.Portfolios.Performance do
 
   # A held position the walk valued at zero today is named with the day and
   # the reason (ADR-0051 §10). It keeps contributing zero, exactly as the
-  # walk counts it, so the identity holds.
+  # walk counts it, so the identity holds. A held position it valued is
+  # marked valued for the day (ADR-0061 §4).
   defp record_unvalued(kept, held, context) do
     Enum.reduce(held, kept, fn {security_id, _quantity}, acc ->
       case unvalued_reason(security_id, context) do
-        nil -> acc
+        nil -> update_position(acc, security_id, &put_in(&1, [:valued, context.day], true))
         reason -> update_position(acc, security_id, &put_in(&1, [:unvalued, context.day], reason))
       end
     end)
@@ -2542,7 +2547,8 @@ defmodule Portfolixir.Portfolios.Performance do
 
   # Amounts add up; a position is held at an end when any portfolio holds it;
   # a day is unvalued when any portfolio counted it zero, and a missing price
-  # names the day before a missing rate does (without a price, no rate helps).
+  # names the day before a missing rate does (without a price, no rate helps);
+  # a day is valued when any portfolio valued it.
   defp merge_position(a, b) do
     Map.merge(a, b, fn
       held, x, y when held in [:held_at_start, :held_at_end] ->
@@ -2550,6 +2556,9 @@ defmodule Portfolixir.Portfolios.Performance do
 
       :unvalued, x, y ->
         Map.merge(x, y, fn _day, r, s -> if :no_price in [r, s], do: :no_price, else: r end)
+
+      :valued, x, y ->
+        Map.merge(x, y)
 
       _amount, x, y ->
         Decimal.add(x, y)

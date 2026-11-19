@@ -407,11 +407,20 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
             {"contribution core",
              fn -> Contribution.for_view(view.id, period: period, today: @today) end}
           ] do
-        {"#{name} #{label(period)}", read.()}
+        {"#{name} #{label(period)}", read.() |> without_valued_days()}
       end
 
     walks ++ per_period
   end
+
+  # Sprint 30 T1 (ADR-0061 §4) added each contribution row's `valued_days`,
+  # a count of days, not a figure; the pins hold the figures captured
+  # before it, so the count is set aside here and pinned by the
+  # contribution tests.
+  defp without_valued_days({:ok, %{positions: positions} = read}),
+    do: {:ok, %{read | positions: Enum.map(positions, &Map.delete(&1, :valued_days))}}
+
+  defp without_valued_days(read), do: read
 
   defp headline(reads) do
     {:ok, max} = reads["performance pin max"]
