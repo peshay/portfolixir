@@ -348,6 +348,12 @@ defmodule Portfolixir.Ledger.Transaction do
     |> declare_constraints()
   end
 
+  # The taxes sign rule's message, answered by the changeset's check and by
+  # the database's (`transactions_taxes_non_negative_check`).
+  @negative_taxes_message "must be greater than or equal to 0 — a refunded tax is booked as a " <>
+                            "separate tax_refund transaction whose positive gross_amount " <>
+                            "credits the cash account"
+
   # The foreign keys, the per-kind CHECKs and the unique indexes every writer
   # of a transaction declares, so a refusal by the database is a changeset
   # error, never a raised constraint error.
@@ -392,6 +398,12 @@ defmodule Portfolixir.Ledger.Transaction do
     |> check_constraint(:import_hash,
       name: :transactions_import_hash_kind_check,
       message: "is never set on a balance anchor or a split"
+    )
+    # Sprint 30 A4 (#1356): the database's half of the taxes sign rule, for a
+    # value that reaches it past `validate_decimal_signs/1`.
+    |> check_constraint(:taxes,
+      name: :transactions_taxes_non_negative_check,
+      message: @negative_taxes_message
     )
     |> unique_constraint(:date,
       name: :transactions_one_split_per_portfolio_security_day_index,
@@ -647,16 +659,12 @@ defmodule Portfolixir.Ledger.Transaction do
   # The taxes rule keeps ONE representation of a refund; the message names it
   # (issue #686 gap D1) so every surface — API, MCP, any future form — hands
   # the remedy over at the exact moment the caller's intent is unambiguous.
+  # The database holds the same rule, answered with the same message
+  # (`declare_constraints/1`).
   defp validate_decimal_signs(changeset) do
     changeset
     |> validate_number(:fees, greater_than_or_equal_to: 0)
-    |> validate_number(:taxes,
-      greater_than_or_equal_to: 0,
-      message:
-        "must be greater than or equal to 0 — a refunded tax is booked as a " <>
-          "separate tax_refund transaction whose positive gross_amount credits " <>
-          "the cash account"
-    )
+    |> validate_number(:taxes, greater_than_or_equal_to: 0, message: @negative_taxes_message)
     |> validate_number(:settlement_amount, greater_than_or_equal_to: 0)
     |> validate_number(:security_amount, greater_than_or_equal_to: 0)
     |> validate_gross_amount_sign()

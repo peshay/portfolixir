@@ -991,6 +991,19 @@ instance one carried over from Portfolio Performance, where its feed was
 synced one (*Portfolio Performance* or *CoinGecko*) in its master data, or
 `feed` set over the API; its stored quotes stay as they are either way.
 
+**Taxes are never negative, in the database too** (#1356, from the release
+that carries Sprint 30 on). The upgrade adds a database check that a
+transaction's taxes are zero or more, as every form, the API and the import
+already require (a refunded tax is its own *Tax refund* transaction).
+Before it adds the check it looks for a transaction whose taxes are already
+negative; no writer of the application can store one, so an instance holds
+one only if something wrote past it. If it finds one, the upgrade stops with
+an error naming each such transaction by id and changes no row. Restore the
+backup taken before the upgrade, start the previous release on it, set each
+named transaction's taxes to zero or to their positive amount (and book a
+refund as a *Tax refund*) on the transactions page or with
+`PATCH /api/v1/transactions/:id`, take a new backup and upgrade again.
+
 Upgrading from 0.15.x or earlier, four changes of the security pass reach an
 instance that already runs. Check them before the `up`:
 

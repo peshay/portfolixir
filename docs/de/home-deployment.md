@@ -1055,6 +1055,21 @@ synchronisierte Kursquelle (*Portfolio Performance* oder *CoinGecko*), oder
 über die API `feed`; seine gespeicherten Kurse bleiben in beiden Fällen, wie
 sie sind.
 
+**Steuern sind nie negativ, auch in der Datenbank** (#1356, ab dem Release
+mit Sprint 30). Das Upgrade fügt eine Datenbankprüfung hinzu, dass die Steuern
+einer Buchung null oder mehr betragen, wie es jedes Formular, die API und der
+Import bereits verlangen (eine erstattete Steuer ist eine eigene
+Buchung *Steuererstattung*). Bevor es die Prüfung hinzufügt, sucht es nach
+einer Buchung, deren Steuern schon negativ sind; kein Schreibweg der Anwendung
+kann eine solche speichern, eine Instanz hält sie also nur, wenn etwas an ihr
+vorbei geschrieben hat. Findet es eine, hält das Upgrade mit einem Fehler an,
+der jede solche Buchung mit ihrer ID nennt, und ändert keine Zeile. Spiele die
+vor dem Upgrade genommene Sicherung zurück, starte darauf das vorige Release,
+setze die Steuern jeder genannten Buchung auf null oder auf ihren positiven
+Betrag (und buche eine Erstattung als *Steuererstattung*) auf der
+Buchungsseite oder mit `PATCH /api/v1/transactions/:id`, nimm eine neue
+Sicherung und führe das Upgrade erneut aus.
+
 Beim Upgrade von 0.15.x oder älter erreichen vier Änderungen des
 Sicherheitsdurchgangs eine Instanz, die schon läuft. Prüfe sie vor dem `up`:
 
