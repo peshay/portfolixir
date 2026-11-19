@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
   # its proceeds, a flagged benchmark, a classification and predictions.
   # async: false: "After the sale" and the predictions read every row.
   use PortfolixirWeb.ConnCase, async: false
+  @moduletag :sweep
 
   import Phoenix.LiveViewTest
   import Portfolixir.WorldFixtures

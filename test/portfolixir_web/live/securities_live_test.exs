@@ -1,5 +1,6 @@
 defmodule PortfolixirWeb.SecuritiesLiveTest do
   use PortfolixirWeb.ConnCase
+  @moduletag :sweep
 
   import Phoenix.LiveViewTest
 

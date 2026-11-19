@@ -4,6 +4,7 @@ defmodule Portfolixir.Input.BoundedDateSweepTest do
   # casts meets the shared bounded date, so a date field added later without
   # it fails here by name.
   use ExUnit.Case, async: true
+  @moduletag :sweep
 
   alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Input.BoundedDate

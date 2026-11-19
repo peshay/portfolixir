@@ -1,5 +1,6 @@
 defmodule PortfolixirWeb.FieldLabelTest do
   use ExUnit.Case, async: true
+  @moduletag :sweep
 
   alias Portfolixir.Buckets.Bucket
   alias Portfolixir.Catalog.IdentifierAlias

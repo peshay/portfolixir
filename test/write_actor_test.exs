@@ -1,5 +1,6 @@
 defmodule Portfolixir.WriteActorTest do
   use Portfolixir.DataCase, async: true
+  @moduletag :sweep
 
   alias Portfolixir.Journal.Allowlist
 

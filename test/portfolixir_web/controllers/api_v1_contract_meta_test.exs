@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.ApiV1ContractMetaTest do
   # tool inventory in both directions, so a surface change without a
   # manifest entry fails the build.
   use ExUnit.Case, async: true
+  @moduletag :sweep
 
   alias PortfolixirWeb.Api.V1.Contract
 

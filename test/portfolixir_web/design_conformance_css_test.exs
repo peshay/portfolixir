@@ -1,5 +1,6 @@
 defmodule PortfolixirWeb.DesignConformanceCssTest do
   use ExUnit.Case, async: true
+  @moduletag :sweep
 
   @app_css "priv/static/app.css"
 

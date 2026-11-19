@@ -1,5 +1,6 @@
 defmodule PortfolixirWeb.ColumnPickerConvergenceTest do
   use PortfolixirWeb.ConnCase
+  @moduletag :sweep
 
   import Phoenix.LiveViewTest
 

@@ -5,6 +5,7 @@ defmodule Portfolixir.Catalog.QuotesAuthoredTest do
   # to provider data. Only the sync writers and the security merge's gap-fill
   # (ADR-0050 §13, recorded in the merge manifest) stay outside the journal.
   use Portfolixir.DataCase, async: false
+  @moduletag :sweep
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog

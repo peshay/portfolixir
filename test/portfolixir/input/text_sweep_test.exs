@@ -5,6 +5,7 @@ defmodule Portfolixir.Input.TextSweepTest do
   # the changeset checks by membership; a column added later without either
   # fails here by name.
   use Portfolixir.DataCase, async: true
+  @moduletag :sweep
 
   # Written only by the application itself, never from a caller's text.
   @internal_schemas [
