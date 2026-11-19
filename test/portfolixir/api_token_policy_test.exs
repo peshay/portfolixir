@@ -83,7 +83,8 @@ defmodule Portfolixir.ApiTokenPolicyTest do
       # A short token's name is not quoted: on a pair written token=name it
       # would be the token (#1262).
       {"mcp=short", ~r/PORTFOLIXIR_API_TOKENS entry 1.*32 bytes.*3 characters.*name=token/},
-      {"mcp=" <> String.pad_trailing("replace-me", 40, "x"), ~r/"mcp".*placeholder/},
+      {"mcp=" <> String.pad_trailing("replace-me", 40, "x"),
+       ~r/entry 1: the token is a placeholder/},
       {"mcp=#{mcp},scripts=#{mcp}", ~r/PORTFOLIXIR_API_TOKENS.*"scripts".*same token/}
     ]
 

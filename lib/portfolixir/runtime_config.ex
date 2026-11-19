@@ -326,13 +326,22 @@ defmodule Portfolixir.RuntimeConfig do
   the 32-byte floor checks length only, and since #974 the lock slows no
   guess, so a configured token with fewer than
   #{@min_token_distinct_chars} distinct characters is named, by its variable
-  or its name and never by its value, in a warning. A warning, never a
-  refusal: an entropy floor would refuse tokens that work today. Pure;
-  `Portfolixir.Application` logs it.
+  or its name and never by its value, in a warning. A name of
+  #{@min_token_bytes} characters, the longest a name may be, could be a token
+  written `token=name` (Sprint 30 closing act, security lens, finding 2), so
+  that token is named by its place among the configured tokens
+  (`PORTFOLIXIR_API_TOKENS`' entries in order, then `PORTFOLIXIR_API_TOKEN`)
+  instead. A warning, never a refusal: an entropy floor would refuse tokens
+  that work today. Pure; `Portfolixir.Application` logs it.
   """
   @spec weak_tokens_warning([{String.t() | nil, String.t()}] | nil) :: :ok | {:warn, String.t()}
   def weak_tokens_warning(principals) when is_list(principals) do
-    case for({name, token} <- principals, few_distinct?(token), do: describe_principal(name)) do
+    weak =
+      for {{name, token}, place} <- Enum.with_index(principals, 1),
+          few_distinct?(token),
+          do: describe_principal(name, place)
+
+    case weak do
       [] ->
         :ok
 
@@ -480,7 +489,7 @@ defmodule Portfolixir.RuntimeConfig do
         if List.keymember?(named, name, 0) do
           raise ArgumentError,
                 "PORTFOLIXIR_API_PRINCIPAL and PORTFOLIXIR_API_TOKENS both name " <>
-                  "#{inspect(name)}; each name is one token"
+                  "#{quote_name(name)}; each name is one token"
         end
 
         name
@@ -540,11 +549,12 @@ defmodule Portfolixir.RuntimeConfig do
     end
   end
 
-  # A token below the floor is told by its entry's position and the length
-  # of its name, never by the name: a pair written token=name whose token
-  # passes the name rule (32 lowercase hex characters, say) would print the
-  # token as the name (#1262). A placeholder token is at least 32 bytes, so
-  # its pair is not a swapped one, and its name is quoted.
+  # A refused token is told by its entry's position and the length of its
+  # name, never by the name: a pair written token=name whose token passes the
+  # name rule (32 lowercase hex characters, say) would print the token as the
+  # name (#1262), below the floor or, with a 32-character name that starts
+  # like a placeholder, above it (Sprint 30 closing act, security lens,
+  # finding 2).
   defp named_token!(name, token, position) do
     cond do
       byte_size(token) < @min_token_bytes ->
@@ -557,8 +567,10 @@ defmodule Portfolixir.RuntimeConfig do
 
       placeholder?(token) ->
         raise ArgumentError,
-              "PORTFOLIXIR_API_TOKENS: the token named #{inspect(name)} is a placeholder " <>
-                "value; generate a real token with `openssl rand -base64 48`"
+              "PORTFOLIXIR_API_TOKENS entry #{position}: the token is a placeholder value, " <>
+                "and its name has #{String.length(name)} characters (not shown: it may be a " <>
+                "token); if the pair is written token=name, write it as name=token, " <>
+                "otherwise generate a real token with `openssl rand -base64 48`"
 
       true ->
         token
@@ -576,7 +588,7 @@ defmodule Portfolixir.RuntimeConfig do
 
       {name, _count} ->
         raise ArgumentError,
-              "PORTFOLIXIR_API_TOKENS names #{inspect(name)} twice; each name is one token"
+              "PORTFOLIXIR_API_TOKENS names #{quote_name(name)} twice; each name is one token"
     end
   end
 
@@ -584,25 +596,43 @@ defmodule Portfolixir.RuntimeConfig do
   # guess, so it is refused rather than resolved by order.
   defp reject_repeated_tokens!(principals) do
     principals
-    |> Enum.reduce_while(%{}, fn {name, token}, seen ->
+    |> Enum.with_index(1)
+    |> Enum.reduce_while(%{}, fn {{name, token}, place}, seen ->
       case Map.fetch(seen, token) do
-        {:ok, first} -> {:halt, {:repeated, first, name}}
-        :error -> {:cont, Map.put(seen, token, name)}
+        {:ok, first} -> {:halt, {:repeated, first, {name, place}}}
+        :error -> {:cont, Map.put(seen, token, {name, place})}
       end
     end)
     |> case do
-      {:repeated, first, second} ->
+      {:repeated, {first, first_place}, {second, second_place}} ->
         raise ArgumentError,
-              "PORTFOLIXIR_API_TOKENS gives #{describe_principal(second)} the same token as " <>
-                "#{describe_principal(first)}; each token has one name"
+              "PORTFOLIXIR_API_TOKENS gives #{describe_principal(second, second_place)} the " <>
+                "same token as #{describe_principal(first, first_place)}; each token has one name"
 
       _distinct ->
         :ok
     end
   end
 
-  defp describe_principal(nil), do: "PORTFOLIXIR_API_TOKEN"
-  defp describe_principal(name), do: inspect(name)
+  # A principal by its variable or its name; a name that could be a token (as
+  # long as the token floor) by its place among the configured tokens instead.
+  defp describe_principal(nil, _place), do: "PORTFOLIXIR_API_TOKEN"
+
+  defp describe_principal(name, place) do
+    if Regex.match?(@name_shaped, name),
+      do: inspect(name),
+      else:
+        "configured token #{place} (PORTFOLIXIR_API_TOKENS' entries in order, then " <>
+          "PORTFOLIXIR_API_TOKEN; its name of #{String.length(name)} characters is not " <>
+          "shown: it may be a token)"
+  end
+
+  # A valid name, quoted only when it is shorter than a token can be.
+  defp quote_name(name) do
+    if Regex.match?(@name_shaped, name),
+      do: inspect(name),
+      else: "a name of #{String.length(name)} characters (not shown: it may be a token)"
+  end
 
   defp placeholder?(token, prefixes \\ @placeholder_prefixes) do
     lowered = String.downcase(token)

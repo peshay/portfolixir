@@ -15,6 +15,9 @@ defmodule Portfolixir.ApiTokenRefusalRedactionTest do
   # 48 bytes -> 64 base64 characters, no "=", the shape of the documented
   # generator `openssl rand -base64 48`.
   @unpadded Base.encode64(for i <- 1..48, into: <<>>, do: <<rem(i * 53 + 7, 256)>>)
+  # A synthetic token that passes the name rule (32 lowercase hex characters,
+  # what `openssl rand -hex 16` prints).
+  @hex_token "3f9a1c0b7e2d4a6f8b1c3e5d7f9a0b2c"
   # PORTFOLIXIR_API_TOKEN as Compose passes it (named "mcp"), sound, unrelated.
   @default String.duplicate("t3Zx", 12)
 
@@ -131,6 +134,66 @@ defmodule Portfolixir.ApiTokenRefusalRedactionTest do
     assert error.message =~ "32 characters"
     assert error.message =~ "name=token"
     refute error.message =~ hex, "the boot error carries the token: " <> error.message
+  end
+
+  # User story (Sprint 30 closing act, security lens, finding 2; #1262):
+  # As the operator whose boot log is kept and may be shared,
+  # I want a pair written token=name whose name is 32 characters, the
+  # longest a name may be, never to print the token, whether the boot
+  # refuses it or warns about it,
+  # so that a swapped pair the length floor cannot tell apart never puts my
+  # token into the log.
+  #
+  # Acceptance criteria:
+  # - A swapped pair whose name starts like a placeholder is refused naming
+  #   the variable, the entry's position and the name's length, never the
+  #   name.
+  # - A swapped pair the boot accepts, whose name has few distinct
+  #   characters, is named in the startup warning by its place, never by its
+  #   name.
+  # - A refusal for a name given twice, or for a token given under two
+  #   names, never quotes a name of 32 characters.
+  test "a swapped pair whose 32-character name starts like a placeholder never prints the token" do
+    error =
+      assert_raise ArgumentError, fn ->
+        RuntimeConfig.api_tokens!(nil, @hex_token <> "=secret-reader-agent-workstation1")
+      end
+
+    assert error.message =~ "PORTFOLIXIR_API_TOKENS entry 1"
+    assert error.message =~ "placeholder"
+    assert error.message =~ "32 characters"
+    refute error.message =~ @hex_token, "the boot error carries the token: " <> error.message
+  end
+
+  test "a swapped pair the boot accepts is warned about by its place, never by its name" do
+    weak_name = "reader-reader-reader-reader-read"
+    assert byte_size(weak_name) == RuntimeConfig.min_token_bytes()
+
+    principals =
+      RuntimeConfig.api_tokens!(@default, "scripts=#{@unpadded}, #{@hex_token}=#{weak_name}")
+
+    assert principals == [{"scripts", @unpadded}, {@hex_token, weak_name}, {nil, @default}]
+
+    assert {:warn, message} = RuntimeConfig.weak_tokens_warning(principals)
+    assert message =~ "configured token 2"
+    refute message =~ @hex_token, "the warning carries the token: " <> message
+    refute message =~ weak_name
+  end
+
+  test "a refusal naming a repeated name or token never quotes a 32-character name" do
+    for {named, principal} <- [
+          {"#{@hex_token}=#{@unpadded}, #{@hex_token}=#{body(@padded)}", nil},
+          {"#{@hex_token}=#{@unpadded}, scripts=#{@unpadded}", nil},
+          {"scripts=#{@unpadded}, #{@hex_token}=#{@unpadded}", nil},
+          {"#{@hex_token}=#{@unpadded}", @hex_token}
+        ] do
+      error =
+        assert_raise ArgumentError, fn ->
+          RuntimeConfig.api_tokens!(@default, named, principal)
+        end
+
+      refute error.message =~ @hex_token, "the boot error carries the token: " <> error.message
+    end
   end
 
   # A URL-safe token of exactly the floor's length (what
