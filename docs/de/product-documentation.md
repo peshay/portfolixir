@@ -2479,6 +2479,41 @@ Deutsch). Es gibt bewusst keinen Aktivitäts-Feed: die forensischen Details
 gehören dem Audit-Journal, und die Karte Abgeschlossene Trades zeigt, was
 ein Verkauf realisiert hat, nie die Buchung selbst.
 
+Zwischen der Kennzahlenleiste und der Karte Abgeschlossene Trades beantwortet
+die Karte **Tops und Flops** (FR-59, ADR-0061) „was hat sich bewegt, und was
+hieß das für mich?“ für denselben Umfang wie die Wert-Karte — die
+Standard-Ansicht, sonst **Alles**. Eine Leiste **Zeitraum** wählt das
+Fenster: **Tag**, **Woche**, **Monat**, **Quartal**, **YTD** oder **1J**,
+jeweils bis heute; die Wahl steht in der Adresse (`/?movers_period=week`),
+so öffnen ein Neuladen oder ein weitergegebener Link dasselbe Fenster, und
+ohne sie öffnet die Karte auf **Tag**. Zwei Spalten stehen nebeneinander, je
+mit **Höchste** über **Niedrigste**, je fünf (unter zehn teilt sich die
+Liste, und kein Name steht in beiden Hälften): **Kursrendite**, jedes heute im
+Umfang gehaltene Wertpapier mit seiner Rendite in EUR aus den gespeicherten
+Schlusskursen — bei **Tag** seit dem vorigen Schlusskurs jedes Wertpapiers,
+die beiden Daten unter dem Namen („Do 12.11.2026 → Fr 13.11.2026“), sonst
+„letzter Kurs …“, wo dieser Schlusskurs vor heute liegt — und **Beitrag**,
+jede Position mit dem, was sie über das Fenster in EUR beigetragen oder
+gekostet hat, gezählt wie **Beitrag je Position** in Vermögen, eine im
+Fenster verkaufte Position eingeschlossen und als **verkauft** markiert.
+Unter jeder Liste steht, was keine Zahl hat: „2 ohne Kursrendite: 1 ohne
+Kurs zu Beginn, 1 ohne Wechselkurs“ und „1 Position an keinem Tag des
+Zeitraums bewertet“; nichts wird mit einer Null gerankt, die es nicht hat.
+Eine Basiszeile nennt Ansicht, Fenster und Daten, die Methode steht hinter
+dem ⓘ. Jeder Name öffnet sein Wertpapier; **In Vermögen ansehen →** öffnet
+Vermögen mit dem Fenster des Beitrags als benutzerdefiniertem Zeitraum
+(`/portfolio?from=…&to=…`). Unter 560 px stehen die Spalten untereinander,
+die Kursrendite zuerst. Im Privatsphäre-Modus ist jeder Beitrag verborgen,
+Vorzeichenfarbe, Reihenfolge und Balken bleiben; die Prozente bleiben. Die
+Karte lädt im Hintergrund, mit ihrem Platzhalter, solange sie lädt; eine
+Ansicht ohne Bestände behält die Leiste und sagt „Keine Bestände in dieser
+Ansicht.“. Ihr Agent liest dieselben Ranglisten über
+[API und MCP](integration/api-and-mcp.html#tops-und-flops-je-kalenderfenster-adr-0061)
+(`GET /api/v1/views/:view_id/movers`, `GET /api/v1/movers`,
+`portfolixir.views.movers`); die Zahlen der Karte sind deren Zahlen für
+dasselbe Fenster. Eine Rangliste ordnet Zahlen; sie sagt nicht, was zu
+kaufen oder zu verkaufen ist.
+
 [![Die Übersicht: die Wert-Karte, die Kennzahlenleiste, die Karte Abgeschlossene Trades mit vier Rundläufen, die Ziel-Abweichungen, die fälligen Termine und die Datenqualitätszeile](../screenshots/dashboard.png)](../screenshots/dashboard.png)
 
 *Die Übersicht auf dem synthetischen Demo-Datensatz. Jeder Screenshot in
