@@ -198,8 +198,14 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
   #   both widths, Prognosen' on the predictions the seed records and the
   #   drift filter on the seed's plan with the table opened.
   # - The page never scrolls sideways.
+  #
+  # Sprint 30 T3 (board ux-design-2026-11-15-sprint30/04-tops-flops, A and
+  # A1): the Overview's card „Tops und Flops“, its window as one group of
+  # the shared bar; the case also measures the card, its two rankings side
+  # by side at 1200 px and stacked, the price return first, at 390 px,
+  # every row inside it, in both fonts.
   for bar <-
-        ~w(journal sale_comparison securities_chips transaction_chips prediction_filters drift_filter) do
+        ~w(journal sale_comparison securities_chips transaction_chips prediction_filters drift_filter movers) do
     test "the #{bar} bar starts its labelled controls on one edge", %{base_url: base_url} do
       seed!()
 
@@ -300,8 +306,11 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
     # crash-bar: the Crashes section on Wealth › Risk (Sprint 29 C6), on
     # the component since Lane L's integration, on the review seed's
     # manual window (step 23).
+    # movers-bar: the Overview's card „Tops und Flops“ (Sprint 30 T3,
+    # ADR-0061 §9, board 04 A), its window as the group „Zeitraum“, on
+    # the review seed's Overview.
     for bar <- ~w(stack-bar journal-chips hindsight-compare securities-filter-chips
-                  transaction-chips prediction-filters drift-filter crash-bar) do
+                  transaction-chips prediction-filters drift-filter crash-bar movers-bar) do
       assert bar in found, "the walk did not find the bar #{bar}:\n" <> output
     end
 
