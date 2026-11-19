@@ -175,6 +175,10 @@ defmodule Portfolixir.News do
   # --- N4 ---
 
   @rematch_days 7
+  # How often a match runs again when the universe, read again under the
+  # items' locks, names a security its first step did not hold
+  # (`match_attempt/4`).
+  @match_attempts 3
   @open_assignments [:unassigned, :ambiguous]
 
   @type assigned_counts :: %{
@@ -228,6 +232,15 @@ defmodule Portfolixir.News do
   call writes an outcome read from aliases older than a re-match that
   already ran, so no index is passed in.
 
+  **The securities before the items** (#1457; `Portfolixir.LockTable`,
+  row 26, news.assign's order): the securities the items match are held
+  `FOR KEY SHARE`, in id order, off an unlocked read of the items, before
+  the matcher's lock and the items' row locks, as a security merge and a
+  security's delete take their securities before the items they write. A
+  universe that, compiled again under the items' locks, names a security
+  not held runs the match again holding it too (at most three times, then
+  it raises, writing nothing).
+
   Items are a staging area written by a system job (B7), so nothing here is
   journaled.
   """
@@ -240,7 +253,10 @@ defmodule Portfolixir.News do
       {:ok, %{assigned: 0, unassigned: 0, ambiguous: 0}}
     else
       now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
-      {:ok, {counts, scopes}} = Repo.transaction(fn -> assign_locked(ids, now) end)
+
+      {:ok, {counts, scopes}} =
+        Repo.transaction(fn -> match_attempt(ids, now, first_match(ids), @match_attempts) end)
+
       Enum.each(scopes, fn {scope, language} -> recluster(scope, language, now) end)
       {:ok, counts}
     end
@@ -315,27 +331,71 @@ defmodule Portfolixir.News do
 
   # --- S29 N1 end ---
 
-  defp assign_locked(ids, now) do
-    Repo.query!(@matcher_lock_sql, [@matcher_lock])
+  # #1457 (Sprint 30, K2; `Portfolixir.LockTable`, row 26): news.assign's
+  # order (row 21). The securities the items match are held `FOR KEY SHARE`,
+  # in id order, off an unlocked read of the items and the universe, before
+  # the matcher's lock and the items' row locks: a security merge holds both
+  # securities `FOR UPDATE` and then UPDATEs the items ambiguous between them
+  # (row 13), and a security's delete holds its security and then UPDATEs
+  # the items that list it (`forget_security/2`), so a matcher that held the
+  # items and then asked the securities closed a cycle with either. ORD5
+  # stands: the universe that decides is compiled again once the items are
+  # locked. Should it then name a security the first step did not hold (an
+  # alias committed in between), the attempt is rolled back to its
+  # savepoint, releasing every lock it took, and runs again holding that
+  # one too (at most three times): no security is locked out of order. A
+  # savepoint, not a transaction of its own, because an identity change
+  # inside a caller's transaction (a merge's) re-matches inside it.
+  defp first_match(ids) do
+    index = Universe.aggregator_index()
 
-    items =
-      Repo.all(
-        from(i in Item,
-          where:
-            i.id in ^ids and i.class == ^:aggregator and i.assignment in ^@open_assignments and
-              is_nil(i.cluster_id),
-          order_by: i.id,
-          lock: "FOR UPDATE"
-        )
-      )
+    ids
+    |> open_items(false)
+    |> Enum.flat_map(&Matcher.matches(&1.title, index))
+    |> MapSet.new()
+  end
+
+  defp match_attempt(_ids, _now, _wanted, 0),
+    do: raise("the news universe changed #{@match_attempts} times during one match")
+
+  defp match_attempt(ids, now, wanted, attempts) do
+    Repo.query!("SAVEPOINT news_match")
+    existing = hold_securities(MapSet.to_list(wanted))
+    Repo.query!(@matcher_lock_sql, [@matcher_lock])
+    items = open_items(ids, true)
 
     # ORD5: compiled after the items are locked, so the aliases read are
     # those committed by then; an identity change committed earlier has had
     # its re-match, which this match can no longer overwrite.
     index = Universe.aggregator_index()
     matched = Enum.map(items, &{&1, Matcher.matches(&1.title, index)})
-    existing = existing_securities(matched)
+    hits = matched |> Enum.flat_map(&elem(&1, 1)) |> MapSet.new()
 
+    if MapSet.subset?(hits, wanted) do
+      Repo.query!("RELEASE SAVEPOINT news_match")
+      write_outcomes(matched, existing, now)
+    else
+      Repo.query!("ROLLBACK TO SAVEPOINT news_match")
+      match_attempt(ids, now, MapSet.union(wanted, hits), attempts - 1)
+    end
+  end
+
+  # The open aggregator items among `ids`, in id order; `FOR UPDATE` when
+  # `lock?`.
+  defp open_items(ids, lock?) do
+    query =
+      from(i in Item,
+        where:
+          i.id in ^ids and i.class == ^:aggregator and i.assignment in ^@open_assignments and
+            is_nil(i.cluster_id),
+        order_by: i.id
+      )
+
+    query = if lock?, do: lock(query, "FOR UPDATE"), else: query
+    Repo.all(query)
+  end
+
+  defp write_outcomes(matched, existing, now) do
     initial = {%{assigned: 0, unassigned: 0, ambiguous: 0}, MapSet.new()}
 
     Enum.reduce(matched, initial, fn {item, hits}, {counts, scopes} ->
@@ -350,18 +410,6 @@ defmodule Portfolixir.News do
     do: MapSet.put(scopes, {{:security, id}, item.language})
 
   defp scope_of(_outcome, _item, scopes), do: scopes
-
-  defp existing_securities(matched) do
-    case matched |> Enum.flat_map(&elem(&1, 1)) |> Enum.uniq() do
-      [] ->
-        MapSet.new()
-
-      ids ->
-        from(s in Security, where: s.id in ^ids, lock: "FOR KEY SHARE", select: s.id)
-        |> Repo.all()
-        |> MapSet.new()
-    end
-  end
 
   defp write_outcome(item, outcome, now) do
     {assignment, security_id, candidates} =
@@ -1086,6 +1134,8 @@ defmodule Portfolixir.News do
 
   # FOR KEY SHARE, in id order (one statement, rows locked as returned):
   # the ids that exist, held to commit.
+  defp hold_securities([]), do: MapSet.new()
+
   defp hold_securities(ids) do
     ids = ids |> Enum.uniq() |> Enum.sort()
 
