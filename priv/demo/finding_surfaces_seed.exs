@@ -2323,9 +2323,11 @@ end
 #        band dips to −11.865 on two days, less than one axis step. Both
 #        bookings carry the note below, which is how a re-run finds them.
 #     b. "Vanguard FTSE All-World UCITS ETF USD Acc" as the crash benchmark:
-#        its seeded weekly closes (quotes_seed.exs, a fixed random seed)
-#        fall more than 10 % once in the last year, so the rule detects a
-#        window beside the manual one of step 23. Chosen only while none is.
+#        its seeded weekly closes (quotes_seed.exs, a fixed random seed
+#        drawn in the byte order of the names, whatever the database's
+#        collation) fall more than 10 % once in the last year, so the rule
+#        detects a window beside the manual one of step 23. Chosen only
+#        while none is.
 overdraft_marker = "review seed: overdraft"
 demo_portfolio = Enum.find(Portfolios.list_portfolios(), &(&1.name == "Demo Depot"))
 
