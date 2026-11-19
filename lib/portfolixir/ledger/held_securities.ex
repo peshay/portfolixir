@@ -135,10 +135,47 @@ defmodule Portfolixir.Ledger.HeldSecurities do
   end
 
   defp held_in_scope(scope) do
+    scope
+    |> quantities_in_scope([])
+    |> Enum.reject(fn {_security_id, quantity} -> Decimal.eq?(quantity, 0) end)
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.sort()
+  end
+
+  @doc """
+  The ids of the securities a scope holds **on** `on`, ascending: `view_id`
+  a view (as `in_view/1` reads its depots, overrides included) or `nil` for
+  every depot, each position projected from the bookings dated on or before
+  `on` (`Portfolixir.Ledger.positions_for_portfolio/2`'s `as_of:`), and a
+  security held when its quantity summed over the scope's positions is
+  **positive**. The tops and flops' price universe (ADR-0061 §2: a positive
+  quantity on the window's end date) reads it.
+  `{:error, :view_not_found}` for a view that does not exist.
+  """
+  @spec in_scope_on(pos_integer() | nil, Date.t()) ::
+          {:ok, [pos_integer()]} | {:error, :view_not_found}
+  def in_scope_on(view_id, %Date{} = on) when is_integer(view_id) or is_nil(view_id) do
+    case Buckets.load_global_scope(view_id) do
+      {:error, :view_not_found} ->
+        {:error, :view_not_found}
+
+      scope ->
+        {:ok,
+         scope
+         |> quantities_in_scope(as_of: on)
+         |> Enum.filter(fn {_security_id, quantity} -> Decimal.gt?(quantity, 0) end)
+         |> Enum.map(&elem(&1, 0))
+         |> Enum.sort()}
+    end
+  end
+
+  # The quantity per security summed over every position in the scope, of
+  # every portfolio, projected with `opts` (`as_of:`).
+  defp quantities_in_scope(scope, opts) do
     Portfolios.list_portfolios()
     |> Enum.flat_map(fn portfolio ->
       portfolio.id
-      |> Ledger.positions_for_portfolio()
+      |> Ledger.positions_for_portfolio(opts)
       |> Enum.filter(fn {{account_id, security_id}, _quantity} ->
         Buckets.position_in_scope?(scope, account_id, security_id)
       end)
@@ -146,9 +183,6 @@ defmodule Portfolixir.Ledger.HeldSecurities do
     |> Enum.reduce(%{}, fn {{_account_id, security_id}, quantity}, acc ->
       Map.update(acc, security_id, quantity, &Decimal.add(&1, quantity))
     end)
-    |> Enum.reject(fn {_security_id, quantity} -> Decimal.eq?(quantity, 0) end)
-    |> Enum.map(&elem(&1, 0))
-    |> Enum.sort()
   end
 
   @doc """
