@@ -1137,6 +1137,54 @@ defmodule Portfolixir.DocsTest do
     refute env_example =~ "0 means the login ends when the browser closes"
   end
 
+  # User story (#1264, the Shell polish list #1357; Sprint 30 plan, F2):
+  # As an operator who works on one page for a long time,
+  # I want the handbook to say that only a page load renews the login,
+  # so that being sent to the login from a page I never reloaded is expected,
+  # and I know a reload renews it.
+  #
+  # Acceptance criteria:
+  # - The EN and DE deployment pages say, beside PORTFOLIXIR_SESSION_DAYS,
+  #   that a page load renews the login, that a page used only through its
+  #   controls does not, and that a reload renews it.
+  # - The former "using the instance renews it" wording is gone.
+  test "the handbook says only a page load renews the login, in English and German" do
+    en = normalized_text("docs/home-deployment.md")
+    assert en =~ "The window slides: every page load renews it"
+    assert en =~ "a page used only through its controls, never reloaded, does not renew it"
+    assert en =~ "reload the page to renew the login"
+    refute en =~ "using the instance renews it"
+
+    de = normalized_text("docs/de/home-deployment.md")
+    assert de =~ "Das Fenster wandert: jeder Seitenaufruf verlängert es"
+    assert de =~ "eine Seite, die nur über ihre Bedienelemente genutzt und nie neu geladen wird"
+    assert de =~ "lade die Seite neu, um die Anmeldung zu verlängern"
+    refute de =~ "die Nutzung der Instanz verlängert es"
+  end
+
+  # User story (#1319, the Shell polish list #1357; Sprint 30 plan, F2; the
+  # owner's recommended answer of 2026-11-01):
+  # As a designer reading the accessibility floor,
+  # I want it to name the sign the app prints, the house hyphen-minus,
+  # so that the floor, DESIGN.md and Format agree.
+  #
+  # Acceptance criteria:
+  # - EXPERIENCE.md's colour-independence rule and its carriers table say
+  #   "an explicit sign (the house hyphen-minus)"; no U+2212 minus remains
+  #   in either line.
+  test "the accessibility floor names the house hyphen-minus as the explicit sign" do
+    experience = "_bmad-output/planning-artifacts/design-language/EXPERIENCE.md"
+    lines = experience |> File.read!() |> String.split("\n")
+
+    floor = Enum.find(lines, &String.starts_with?(&1, "- **Colour independence (binding):**"))
+    carrier = Enum.find(lines, &String.starts_with?(&1, "| Gain / loss |"))
+
+    for line <- [floor, carrier] do
+      assert line =~ "an explicit sign (the house hyphen-minus)", line
+      refute line =~ "\u2212", line
+    end
+  end
+
   # User story (E25 S1, F57):
   # As an operator configuring the reverse proxy,
   # I want the proxy contract to have the proxy set or append the forwarding

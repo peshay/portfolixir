@@ -1723,27 +1723,6 @@ li + li {
   font-size: 12px;
 }
 
-.chart {
-  display: block;
-  width: 100%;
-  height: auto;
-  min-height: 180px;
-}
-
-.chart rect {
-  fill: var(--color-chart-surface);
-}
-
-.chart line {
-  stroke: var(--color-border-strong);
-}
-
-.chart polyline,
-.chart circle {
-  stroke: var(--color-accent);
-  fill: var(--color-accent);
-}
-
 @media (max-width: 900px) {
   .app-sidebar {
     width: min(82vw, 300px);
