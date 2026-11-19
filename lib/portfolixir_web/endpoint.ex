@@ -60,8 +60,12 @@ defmodule PortfolixirWeb.Endpoint do
     # theme-boot.js is the root layout's theme script for the pages the
     # static policy serves, the error page (the closing act, E25).
     # apple-touch-icon.png is the iPhone home-screen icon, which iOS fetches
-    # before any login (Sprint 25 W1).
-    only: ~w(apple-touch-icon.png app.css favicon.ico favicon.svg images theme-boot.js)
+    # before any login (Sprint 25 W1). fonts holds the app's own Inter and
+    # its licence (Sprint 30 F1, #1221), which the login page draws in too;
+    # app.css asks for each file with ?vsn=<the pinned font version>, which Plug.Static
+    # answers with a year's immutable cache, and no page asks another host
+    # (font-src 'self'; test/invariants/no_external_font_host_test.exs).
+    only: ~w(apple-touch-icon.png app.css favicon.ico favicon.svg fonts images theme-boot.js)
   )
 
   plug(Plug.Static,

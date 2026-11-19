@@ -752,7 +752,7 @@ Avoid: introducing a fourth accent, using accent colors for gain/loss, gradients
 
 ## Typography *(carries the heading-ramp half of UX-DR14 — the spacing half is under Layout & Spacing, the locale-pill floor under Inventory → Top bar)*
 
-Two families, both already shipped: **Inter** ({typography.body.fontFamily}) for everything human-readable, **JetBrains Mono** for machine-flavored data — chart axes, tooltips, code-like identifiers. Money values use `font-variant-numeric: tabular-nums` so columns align — in every state, including mid-count-up, where proportional figures produce a visible wobble at constant digit count.
+Two families: **Inter** ({typography.body.fontFamily}) for everything human-readable, **JetBrains Mono** for machine-flavored data — chart axes, tooltips, code-like identifiers. **The app ships Inter** *(Sprint 30 F1, #1221; board `ux-design-2026-11-15-sprint30/03-shipped-font` A, plan D-4)*: the variable font, wght 100–900, in the latin and latin-ext subsets, normal and italic, as woff2 under `priv/static/fonts/` with its licence (`OFL.txt`, SIL Open Font License 1.1), from `@fontsource-variable/inter` 5.3.0; one `@font-face` per file in `app.css` with its subset's `unicode-range` and `font-display: swap`, served by the instance itself and never from another host (`font-src 'self'`). Every weight below lies in the variable range; static weights would draw 650, 740 and 760 as 700. A browser loads latin-ext only for a character in its range, and ⓘ, ≈ and → are in neither subset and come from the next family of `--font-sans`. The fallback stack after Inter stays: it is what a page draws in while the file loads or when it cannot. JetBrains Mono is named, not shipped: it sets code and the journal's raw values only, where no width floor is measured, and draws in the next mono of `--font-mono` where it is not installed. Money values use `font-variant-numeric: tabular-nums` so columns align — in every state, including mid-count-up, where proportional figures produce a visible wobble at constant digit count.
 
 The ramp is density-first:
 
@@ -9925,14 +9925,19 @@ between the markers `control-bar begin` and `control-bar end` in
   longer fit; a new width is one more rule, which sets the layout's
   variables on the controls.
 - **Measured in every font** *(PR 2's closing act, board 06 ⑮)*: the app
-  ships no web font, so `--font-sans` draws Inter where it is installed
+  shipped no web font, so `--font-sans` drew Inter where it was installed
   and the device's own sans elsewhere; CI's runner drew DejaVu Sans, the
   widest of the common ones, and broke the folds and floors measured in
-  Inter alone. A fold or a floor is at least **16 px above the wider** of
-  the bar's widths in Inter and in DejaVu Sans, and
-  `test/browser/control_bar.js`, `crash_section_layout.js` and
-  `closing_act_layout.js` measure every bar in both (`test/browser/fonts.js`;
-  CI's browser job installs Inter), failing where either is missing.
+  Inter alone. Since Sprint 30 F1 (#1221) the app ships Inter, and the
+  rule stays: a font file that cannot load draws the fallback
+  (`font-display: swap`), so the walks still measure DejaVu Sans, and they
+  require the page's own Inter, loaded from its `/fonts/`, instead of an
+  installed one (CI's browser job installs only `fonts-dejavu-core`). A
+  fold or a floor is at least **16 px above the wider** of the bar's
+  widths in Inter and in DejaVu Sans, and `test/browser/control_bar.js`,
+  `crash_section_layout.js` and `closing_act_layout.js` measure every bar
+  in both (`test/browser/fonts.js`), failing where the page did not load
+  its Inter or DejaVu Sans is missing.
 
 A chip family in a group is one control: its chips wrap inside the control
 column, and the family's label shares its first chip's baseline, so a

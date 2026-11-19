@@ -427,3 +427,12 @@ If this app is useful to you, you can [support its ongoing maintenance via bunq]
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE).
+
+### Third-party notices
+
+- **Inter**, the typeface the web UI draws in, ships with the app as
+  variable woff2 files in `priv/static/fonts/` (from
+  `@fontsource-variable/inter` 5.3.0). Copyright 2016 The Inter Project
+  Authors (<https://github.com/rsms/inter>), licensed under the SIL Open Font
+  License 1.1: see [priv/static/fonts/OFL.txt](priv/static/fonts/OFL.txt),
+  which the instance also serves beside the fonts at `/fonts/OFL.txt`.

@@ -15,7 +15,8 @@
 // - `visit(page, url)` leaves the page's current document once it has
 //   settled, then goes to `url` (Playwright's `goto`).
 // - `draw(page, html)` the same, then writes `html` as the page's document
-//   (Playwright's `setContent`).
+//   (Playwright's `setContent`); `draw(page, html, {origin})` serves it at
+//   the app's origin, so it loads the app's fonts.
 // - `follow(page, action)` waits the same way, then runs `action`, a click
 //   or a tap on a link that loads another page.
 // - `leave(target)` waits for each page of a page, a context or the
@@ -143,9 +144,31 @@ async function visit(page, url, options) {
 
 // Writes `html` as the page's document once the current one has settled.
 // The window stays, so the wait's marks on it are cleared.
-async function draw(page, html, options) {
+//
+// With `{origin}` in `options` (the app's base URL), the document is served
+// at that origin instead (`origin` + DRAW_PATH, answered by the walk's own
+// route, never by the server), so what it loads from the app, the shipped
+// fonts under /fonts/ (fonts.js), comes from the app as a page's own would:
+// a font is fetched in CORS mode and the static assets answer only their
+// own origin (cross-origin-resource-policy: same-origin), so a document at
+// about:blank cannot load it.
+const DRAW_PATH = "/__walk-draw";
+
+async function draw(page, html, options = {}) {
   await beforeLeaving(page);
-  await page.setContent(html, options);
+  const { origin, ...rest } = options;
+  if (origin) {
+    const url = origin + DRAW_PATH;
+    const answer = (route) => route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: html });
+    await page.route(url, answer);
+    try {
+      await page.goto(url, rest);
+    } finally {
+      await page.unroute(url, answer);
+    }
+  } else {
+    await page.setContent(html, rest);
+  }
   await page.evaluate(() => {
     window.__settleQuiet = false;
     window.__settleGaveUp = false;
