@@ -18,6 +18,7 @@ defmodule Portfolixir.Net.CallerRequestOptionsTest do
   alias Portfolixir.Catalog.QuoteSync.Yahoo
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecuritySearch.CoinGecko
+  alias Portfolixir.Catalog.SecuritySearch.PortfolioPerformance
   alias Portfolixir.Fx.RateSync.Ecb
 
   defp calls do
@@ -28,6 +29,9 @@ defmodule Portfolixir.Net.CallerRequestOptionsTest do
       {"ECB rate history", &Ecb.fetch_history(req: &1)},
       {"CoinGecko image (the logo lookup's crypto path)",
        &CoinGecko.fetch_image_url("synthetic-coin", req: &1)},
+      # The security search was left out of #1356 (Sprint 30 closing act,
+      # security lens, finding 3).
+      {"Portfolio Performance search", &PortfolioPerformance.search("synthetic", req: &1)},
       {"Wikipedia summary", &Wikipedia.lookup("Synthetic", req: &1)},
       {"Wikipedia search", &Wikipedia.search_logo("Synthetic", req: &1)},
       {"companieslogo page", &CompaniesLogo.fetch_image_url("Synthetic Corp", req: &1)},
@@ -70,7 +74,7 @@ defmodule Portfolixir.Net.CallerRequestOptionsTest do
 
   # User story (#1356):
   # As the operator whose instance asks Yahoo, the ECB, Wikipedia,
-  # companieslogo.com and CoinGecko,
+  # companieslogo.com, CoinGecko and the Portfolio Performance search,
   # I want each adapter to send only the request it builds itself,
   # so that no caller can add a host, a header or a transport to it.
   #
