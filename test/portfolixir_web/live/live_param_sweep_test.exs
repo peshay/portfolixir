@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.LiveParamSweepTest do
   @moduledoc false
   use ExUnit.Case, async: true
+  @moduletag :sweep
 
   alias PortfolixirWeb.LiveSource
 

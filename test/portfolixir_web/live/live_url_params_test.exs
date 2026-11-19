@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.LiveUrlParamsTest do
   @moduledoc false
   use PortfolixirWeb.ConnCase, async: true
+  @moduletag :sweep
 
   import Phoenix.LiveViewTest
   import Portfolixir.WorldFixtures

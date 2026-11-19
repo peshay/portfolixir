@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.LiveComponentPayloadTest do
   # Synchronous: the sweep holds its sandbox connection for seconds, and the
   # test pool is small; run alone, it starves no other test of a connection.
   use PortfolixirWeb.ConnCase, async: false
+  @moduletag :sweep
 
   import Phoenix.LiveViewTest
   import Portfolixir.WorldFixtures

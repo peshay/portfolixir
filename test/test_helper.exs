@@ -18,6 +18,11 @@
 # test job leaves them out; CI's `browser` job installs that Playwright and
 # its Chromium and runs them with `mix test test/browser --only browser`
 # (Sprint 24 M1), as AGENTS.md's Required Local Checks do.
+#
+# The project-wide sweeps (`@moduletag :sweep`: every module that walks every
+# route, template, schema or lib/** file) stay in the normal run; the tag
+# only selects them, `mix test --only sweep`, which a story agent runs beside
+# `mix test test/invariants` (story workflow; test/invariants/sweep_tag_test.exs).
 ExUnit.start(assert_receive_timeout: 2_000, exclude: [:browser])
 
 # A warning or an error that reaches the console log without a test capturing

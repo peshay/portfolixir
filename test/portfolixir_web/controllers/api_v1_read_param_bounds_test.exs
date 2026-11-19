@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.ApiV1ReadParamBoundsTest do
   # (PortfolixirWeb.Api.V1.DateParam) and a text filter through the text rule
   # (PortfolixirWeb.Api.V1.TextParam).
   use PortfolixirWeb.ConnCase, async: true
+  @moduletag :sweep
 
   import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1, buy!: 3]
 

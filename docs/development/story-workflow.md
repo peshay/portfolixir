@@ -62,16 +62,15 @@ and 2; Sprint 30 plan D-9).
 
 - **Run `test/invariants` and the project-wide sweeps beside the story's
   own tests**: `mix test test/invariants` and `mix test --only sweep`, the
-  sweeps being the modules tagged `:sweep` (until that tag lands:
-  `test/portfolixir/localization_test.exs`,
-  `test/portfolixir/input/text_sweep_test.exs`,
-  `test/portfolixir/input/bounded_date_sweep_test.exs` and
-  `test/portfolixir_web/field_label_test.exs`). *Why:* the invariants and
-  the sweeps are app-wide rules no single story's tests restate; a story
-  that built a native date input passed its own tests and turned the suite
-  red at integration on two invariants (J3), and in Sprint 29 the full
-  suite found three sweep failures after one integration and six after
-  another, each a round the story's own run would have saved.
+  sweeps being the modules tagged `@moduletag :sweep`, every test module
+  that walks every route, template, schema or `lib/**` file
+  (`test/invariants/sweep_tag_test.exs` refuses one left untagged).
+  *Why:* the invariants and the sweeps are app-wide rules no single
+  story's tests restate; a story that built a native date input passed its
+  own tests and turned the suite red at integration on two invariants
+  (J3), and in Sprint 29 the full suite found three sweep failures after
+  one integration and six after another, each a round the story's own run
+  would have saved.
 - **Stop only what you started, by its process id**, never by a pattern
   (`pkill -f`, `killall`). *Why:* parallel story agents share one machine;
   in Sprint 29 one agent's `pkill -f "mix test"` killed every other

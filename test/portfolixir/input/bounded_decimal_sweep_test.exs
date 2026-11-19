@@ -7,6 +7,7 @@ defmodule Portfolixir.Input.BoundedDecimalSweepTest do
   # from the database itself, so a numeric column added later without a
   # changeset below fails here by name.
   use Portfolixir.DataCase, async: true
+  @moduletag :sweep
 
   alias Portfolixir.Catalog.Quote
   alias Portfolixir.Catalog.Security

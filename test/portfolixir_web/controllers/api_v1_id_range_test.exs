@@ -8,6 +8,7 @@ defmodule PortfolixirWeb.ApiV1IdRangeTest do
   remember to list it.
   """
   use PortfolixirWeb.ConnCase, async: true
+  @moduletag :sweep
 
   import Portfolixir.WorldFixtures
 

@@ -1,5 +1,6 @@
 defmodule Portfolixir.LocalizationTest do
   use ExUnit.Case, async: true
+  @moduletag :sweep
 
   # ADR-0024: "Portfolios" and "Create one portfolio" left the UI — the
   # accounts page and the wizard speak of depots and cash accounts.

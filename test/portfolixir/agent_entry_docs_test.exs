@@ -5,6 +5,7 @@ defmodule Portfolixir.AgentEntryDocsTest do
   # are held to the measured ones by the companion's own test
   # (mcp-server/test/llms-entry.test.ts).
   use ExUnit.Case, async: true
+  @moduletag :sweep
 
   import Phoenix.LiveViewTest, only: [render_component: 2]
 

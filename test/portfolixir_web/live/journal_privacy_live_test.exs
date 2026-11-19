@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.JournalPrivacyLiveTest do
   # bar while the mode is on, and keep the ids, dates, kinds, text and
   # ratios. Every name and figure is synthetic.
   use PortfolixirWeb.ConnCase, async: false
+  @moduletag :sweep
 
   import Ecto.Query
   import Phoenix.LiveViewTest
