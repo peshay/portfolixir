@@ -588,7 +588,12 @@ defmodule PortfolixirWeb.DashboardLive do
       <%!-- Sprint 30 T3 (ADR-0061 §9; board 04, A): which names moved the
            scope the card and the strip above it name, directly under them
            and before the trades, which count over every depot. --%>
-      <MoversCard.card window={@movers_window} card={@movers} privacy_mode={@privacy_mode} />
+      <MoversCard.card
+        window={@movers_window}
+        card={@movers}
+        privacy_mode={@privacy_mode}
+        active_view={@active_view}
+      />
 
       <.closed_trades_card :if={@has_sells} card={@closed_trades} />
 
