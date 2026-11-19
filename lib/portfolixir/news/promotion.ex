@@ -79,8 +79,8 @@ defmodule Portfolixir.News.Promotion do
   (`{:error, :story_changed}`) and the form shows the story as it is now.
 
   The write runs in one transaction under the story's scope lock
-  (`Portfolixir.News.Stories.lock/2`, the clustering's), with its members
-  locked: no re-cluster or retention run moves a member between the read
+  (`Portfolixir.News.Stories.lock/2`, the clustering's), taken after the
+  story's security `FOR KEY SHARE`, with its members locked: no re-cluster or retention run moves a member between the read
   and the link. The story must be one of the note's own security; another
   security's, a category's and an id naming none are refused naming
   `cluster_id`.
@@ -98,6 +98,7 @@ defmodule Portfolixir.News.Promotion do
   import Ecto.Query
 
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
   alias Portfolixir.Knowledge
   alias Portfolixir.Knowledge.SecurityNote
@@ -137,8 +138,16 @@ defmodule Portfolixir.News.Promotion do
     end
   end
 
+  # The story's security `FOR KEY SHARE` before the scope lock and any news
+  # row (`Portfolixir.LockTable`, row 13 against a promotion): a security
+  # merge holds both securities `FOR UPDATE` and then UPDATEs the source's
+  # items and stories, so a promotion that held the members and then had
+  # the note's foreign key ask the security closed a cycle with it (Sprint
+  # 30 closing act, order lens, finding 2). A story the merge moved between
+  # the read and the lock is refused by the read under it.
   defp promote(actor, attrs, cluster_id, shown) do
     with {:ok, story} <- own_story(cluster_id, attrs["security_id"]),
+         _held = lock_security(story.security_id),
          :ok <- Stories.lock({:security, story.security_id}, story.language),
          {:ok, story} <- own_story(cluster_id, attrs["security_id"]),
          members = lock_members(story),
@@ -280,6 +289,12 @@ defmodule Portfolixir.News.Promotion do
   end
 
   # --- closing act, E1 rule 5 end ---
+
+  defp lock_security(security_id) do
+    Repo.one(
+      from(s in Security, where: s.id == ^security_id, lock: "FOR KEY SHARE", select: s.id)
+    )
+  end
 
   defp lock_members(story) do
     Repo.all(

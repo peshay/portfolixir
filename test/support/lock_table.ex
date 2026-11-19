@@ -160,6 +160,17 @@ defmodule Portfolixir.LockTable do
       the other waits there holding nothing the first asks for (S28 N3/N4
       attack, AT4: before, the assignment held the item and then asked the
       target, and both orders deadlocked).
+    * Row 13 against a promotion (`News.Promotion.append_note/4`; the
+      closing act's order lens, finding 2): the merge holds both securities
+      `U` and then UPDATEs the source's items and stories; the promotion
+      takes its story's security `KS` before `adv(story scope)` and its
+      members `U`, so whichever reaches the security first goes through and
+      the other waits there holding nothing the first asks for. A merge
+      released by a committed promotion finds the note on its source and
+      refuses on its `research_notes` guard; a promotion released by a
+      merge finds the story moved to the target and refuses it, naming
+      `cluster_id`. Before, the promotion held the members and then the
+      note's `FK` asked the security, and both orders deadlocked.
     * Row 21 against row 26 and retention (`Stories.remove/5`:
       `adv(story scope)` → items): `KS` does not conflict with `KS`, and
       all three take their advisory lock before any news row; rows 21 and
@@ -246,9 +257,9 @@ defmodule Portfolixir.LockTable do
       does, so it meets a merge (or a delete) holding a security `U` there,
       and an assignment or a match at `adv(matcher)`, holding nothing the
       other asks for.
-    * Row 22 against a promotion (`News.Promotion.append_note/4`:
-      `adv(story scope)` → members `U` → the note's INSERT, `FK` on the
-      security `KS`) and retention (`Stories.remove/5`): both take the scope
+    * Row 22 against a promotion (`News.Promotion.append_note/4`: the
+      story's security `KS` → `adv(story scope)` → members `U` → the note's
+      INSERT, `FK` on the security, held `KS`) and retention (`Stories.remove/5`): both take the scope
       lock before any item; the rating takes its scope locks before its
       items, so whichever holds the scope first commits wholly first (E1:
       a member promoted first keeps its tier, one re-rated first is
