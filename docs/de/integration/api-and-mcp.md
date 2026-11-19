@@ -1436,7 +1436,15 @@ Query-Parameter, jeder optional:
 - `limit` — Vorgabe 8, eine positive ganze Zahl; über 50 wird sie bei 50
   gekappt, und das `limit` der Antwort sagt es;
 - `include_unanswered` — `true` fügt `unanswered_entries` hinzu; `false`
-  oder fehlend lässt sie weg.
+  oder fehlend lässt sie weg;
+- `projection` — `slim` (Vorgabe; ein leerer Wert zählt als fehlend), wie
+  `GET /api/v1/securities` es nimmt: Die Antwort ist **standardmäßig
+  schlank**, jeder Eintrag ohne die Kurse hinter seiner Zahl und ohne
+  `benchmark_return`, dessen Zahl `reference.return` ist, einmal; der
+  Crash-Benchmark wird einmal genannt, als `benchmark`, und
+  `computation_basis.projection` sagt es. `projection=full` liefert die ganze
+  Prüfspur, das Lesen, wie es vor der schlanken Vorgabe antwortete, Byte für
+  Byte (I45).
 
 **Verlierer und Gewinner** ordnen die **EUR-Kursrendite jedes Wertpapiers
 von `start` bis `trough`** mit der Fensterrendite-Funktion, die auch der
@@ -1496,13 +1504,15 @@ keinen Rang (ADR-0058 §5, Ergänzung vom 2026-11-12, Teil 2).
 - `entries` — höchstens `limit`, je mit `rank` (ab 1; in jedem Schlüssel
   gleiche Einträge teilen ihn, der nächste nimmt seine Position), `security` (`{id,
   name, isin, currency_code}`), `held` (`true`, wenn ein Depot es heute hält,
-  sodass eine Katalogliste es markieren kann), `return`, `start` und `end`
-  (je Kurs: `stands_for`, `date`, `close`, `stored_close`, `source`,
-  `fx_rate`, `eur_value`), `benchmark_return` und `vs_benchmark_pp`, die
-  Differenz `(return − benchmark_return) × 100` in Prozentpunkten,
-  ungerundet; bei Erholern auch `low` (`{date, close}`), `start_close`
-  (`{stands_for, date, close}`), `back_on`, `days_back` und `not_yet`. Jede
-  Zahl ist ein Dezimal-String;
+  sodass eine Katalogliste es markieren kann), `return` und
+  `vs_benchmark_pp`, die Differenz `(return − benchmark_return) × 100` in
+  Prozentpunkten, ungerundet, wobei `benchmark_return` `reference.return`
+  ist; bei Erholern auch `back_on`, `days_back` und `not_yet`. Unter
+  `projection=full` trägt jeder Eintrag auch `start` und `end` (je Kurs:
+  `stands_for`, `date`, `close`, `stored_close`, `source`, `fx_rate`,
+  `eur_value`) und `benchmark_return`, bei Erholern `low` (`{date, close}`)
+  und `start_close` (`{stands_for, date, close}`). Jede Zahl ist ein
+  Dezimal-String;
 - `answered` — wie viele Wertpapiere des Universums eine Antwort haben;
 - `unanswered` — die übrigen nach Grund gezählt, jeder Schlüssel immer
   vorhanden: `no_close_at_start` (kein Kurs, der für den Start steht; bei
@@ -1513,7 +1523,10 @@ keinen Rang (ADR-0058 §5, Ergänzung vom 2026-11-12, Teil 2).
   wird nie als Null geordnet;
 - `unanswered_entries` — nur mit `include_unanswered=true`: je `{security,
   held, reason}`, in der obigen Gleichstandsordnung;
-- `computation_basis` — `benchmark`, `reason`, `reference`, `window`,
+- `computation_basis` — `projection` (in der schlanken Antwort: was sie
+  weglässt, und dass `projection=full` es liefert; die volle Antwort hat
+  keinen Schlüssel `projection` und trägt `benchmark`, den Crash-Benchmark
+  noch einmal, wie bisher), `reason`, `reference`, `window`,
   `rule` und `threshold` (`null` bei einem manuellen Fenster), `dates` (die
   der Regel, oder von einer Person gewählt), `universe`, `list`, `figure`,
   `input_series`, `currency` (`EUR`), `detection_currency`, `currency_note`,
@@ -1523,9 +1536,9 @@ keinen Rang (ADR-0058 §5, Ergänzung vom 2026-11-12, Teil 2).
 
 **Ohne Crash-Benchmark** (F2 des Nachtrags) antworten die Listen eines
 manuellen Fensters ohne Referenz: `benchmark` und `reference` sind `null`,
-`reference_reason` ist `no_crash_benchmark`, `benchmark_return` und
-`vs_benchmark_pp` jedes Eintrags sind `null`, und die Basis sagt
-`benchmark: null` mit `reason`. Die Rangfolge bleibt dieselbe: Ein
+`reference_reason` ist `no_crash_benchmark`, `vs_benchmark_pp` jedes
+Eintrags ist `null` (und unter `projection=full` sein `benchmark_return`,
+während die Basis `benchmark: null` sagt), und die Basis sagt `reason`. Die Rangfolge bleibt dieselbe: Ein
 manuelles Fenster ist die eigene Spanne des Betreibers, und die Wertpapiere
 darin zu ordnen braucht keine Marktlinie.
 
@@ -1541,7 +1554,9 @@ rebounders"]`; ein `universe` außer `catalogue`, `held` oder `view:<id>`
 `["is invalid: catalogue, held or view:<id>"]`; ein `limit` von null, negativ oder keine
 Zahl `errors.limit` `["is invalid: a positive integer, at most 50"]`; ein
 `include_unanswered` außer `true` oder `false` `errors.include_unanswered`
-`["is invalid: true or false"]`; jeder andere Parameter `422`, das ihn nennt.
+`["is invalid: true or false"]`; eine `projection` außer `slim` oder `full`
+`errors.projection` `["is invalid: slim or full"]`; jeder andere Parameter
+`422`, das ihn nennt.
 Ein Schlüssel, der kein jetzt erkanntes und kein manuelles Fenster nennt,
 ergibt `404`, ebenso ein `view:<id>`, dessen Ansicht es nicht gibt.
 

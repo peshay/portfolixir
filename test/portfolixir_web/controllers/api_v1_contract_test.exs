@@ -49,9 +49,42 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 29's sprint PRs (version 29). Dated strictly after entry 28, so
-    # since=2026-11-09 still returns it. Each story appends its own items
+    # Sprint 30's sprint PR (version 30). Dated strictly after entry 29, so
+    # since=2026-11-12 still returns it. Each story appends its own items
     # between its own markers.
+    assert newest["version"] == 30
+    assert newest["date"] == "2026-11-15"
+
+    # --- S30 A1 begin ---
+    # A1 (I45): the crash rankings' slim default and projection=full; no new
+    # endpoint or tool.
+    assert newest["summary"] =~ "Sprint 30, A1 (I45): "
+
+    assert [projection] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(
+                 &1,
+                 "GET /api/v1/crashes/:key/rankings (portfolixir.crashes.rankings) takes projection"
+               )
+             )
+
+    for part <- [
+          "slim, the default",
+          "benchmark_return",
+          "reference.return",
+          "computation_basis.projection",
+          "byte for byte",
+          "is invalid: slim or full"
+        ],
+        do: assert(projection =~ part, part)
+
+    # --- S30 A1 end ---
+
+    # Sprint 29's sprint PRs (version 29), found by version from Sprint 30
+    # on. Dated strictly after entry 28, so since=2026-11-09 still returns
+    # it. Each story appends its own items between its own markers.
+    newest = Enum.find(data["entries"], &(&1["version"] == 29))
     assert newest["version"] == 29
     assert newest["date"] == "2026-11-12"
 

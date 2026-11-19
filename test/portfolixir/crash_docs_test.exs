@@ -19,6 +19,9 @@ defmodule Portfolixir.CrashDocsTest do
   #   `completes_on`, `not_yet`, `days_back` in calendar days; the lists
   #   without a crash benchmark (F2); every refusal (401, 404, 422 with what
   #   it names); survivorship; and that the answer is data, never advice.
+  # - Both say the rankings answer slim by default and projection=full
+  #   answers the whole audit trail, byte for byte as before (I45, Sprint
+  #   30 A1), and name the projection's refusal.
   # - Both name the five tools with their profiles: crashes.delete admin,
   #   in `full` only.
   # - The handbooks (EN, DE) describe the Crashes section on the Risk tab:
@@ -116,6 +119,10 @@ defmodule Portfolixir.CrashDocsTest do
       ~s(["is invalid: catalogue, held or view:<id>"]),
       ~s(["is invalid: a positive integer, at most 50"]),
       ~s(["is invalid: true or false"]),
+      # I45 (Sprint 30, A1): the slim default and projection=full.
+      "`projection`",
+      "`projection=full`",
+      ~s(["is invalid: slim or full"]),
       ~s(["must be after start"]),
       ~s(["must not be in the future"]),
       "`from_name`",
@@ -138,7 +145,9 @@ defmodule Portfolixir.CrashDocsTest do
              "calendar days",
              "The ranking is unchanged",
              "a security that failed and was removed is in no list",
-             "admin, in `full` only"
+             "admin, in `full` only",
+             "slim by default",
+             "byte for byte"
            ]},
           {de_api(),
            [
@@ -146,7 +155,9 @@ defmodule Portfolixir.CrashDocsTest do
              "Kalendertage",
              "Die Rangfolge bleibt dieselbe",
              "ein Wertpapier, das scheiterte und entfernt wurde, steht in keiner Liste",
-             "Admin, nur in `full`"
+             "Admin, nur in `full`",
+             "standardmäßig schlank",
+             "Byte für Byte"
            ]}
         ],
         fragment <- fragments do

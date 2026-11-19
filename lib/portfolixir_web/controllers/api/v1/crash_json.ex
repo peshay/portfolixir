@@ -32,9 +32,39 @@ defmodule PortfolixirWeb.Api.V1.CrashJSON do
     }
   end
 
-  @doc "`GET /api/v1/crashes/:key/rankings`: `Portfolixir.Crashes.rankings/3`'s answer."
-  @spec rankings(map()) :: map()
-  def rankings(payload) do
+  # I45 (Sprint 30, A1): what the slim answer leaves out of each entry, the
+  # closes behind its figure and the benchmark's return, which `reference`
+  # carries once.
+  @full_only_entry_keys [:start, :end, :low, :start_close, :benchmark_return]
+
+  @slim_basis "slim, the default: each entry carries rank, security, held, return and " <>
+                "vs_benchmark_pp (rebounders also back_on, days_back and not_yet), without its " <>
+                "closes (start and end; for rebounders low and start_close) and without " <>
+                "benchmark_return, which is reference.return; the crash benchmark is named " <>
+                "once, as benchmark; projection=full answers them all"
+
+  @doc """
+  `GET /api/v1/crashes/:key/rankings`: `Portfolixir.Crashes.rankings/3`'s
+  answer, slim by default (I45): each entry without its closes and without
+  `benchmark_return`, the basis without the benchmark the answer already
+  names and with the projection stated. `:full` is the answer as it read
+  before the slim default, unchanged.
+  """
+  @spec rankings(map(), :slim | :full) :: map()
+  def rankings(payload, projection \\ :slim)
+
+  def rankings(payload, :slim) do
+    payload
+    |> rankings(:full)
+    |> Map.update!(:entries, fn entries ->
+      Enum.map(entries, &Map.drop(&1, @full_only_entry_keys))
+    end)
+    |> Map.update!(:computation_basis, fn basis ->
+      basis |> Map.delete(:benchmark) |> Map.put(:projection, @slim_basis)
+    end)
+  end
+
+  def rankings(payload, :full) do
     {basis, payload} = Map.pop!(payload, :basis)
 
     payload

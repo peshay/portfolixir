@@ -450,7 +450,8 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   # Acceptance criteria:
   # - No key of the rendered rankings payload of
   #   GET /api/v1/crashes/:key/rankings, for every list, with the
-  #   unanswered listed, against a crash benchmark and without one, contains
+  #   unanswered listed, against a crash benchmark and without one, in the
+  #   slim default and under projection=full (I45, Sprint 30 A1), contains
   #   a forbidden word; nor does the windows read, GET /api/v1/crashes.
   test "the crash rankings carry no verdict key", %{conn: conn} do
     index = create_security!(name: "Verdict Crash Index", ticker: "VCI")
@@ -473,11 +474,14 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
       })
 
     keys_read =
-      for benchmark <- [nil, index], list <- Rankings.lists() do
+      for benchmark <- [nil, index], list <- Rankings.lists(), projection <- ["slim", "full"] do
         {:ok, _setting} =
           Settings.set_crash_benchmark(Actor.owner_ui(), benchmark && benchmark.id)
 
-        path = "/api/v1/crashes/m:#{window.id}/rankings?list=#{list}&include_unanswered=true"
+        path =
+          "/api/v1/crashes/m:#{window.id}/rankings?list=#{list}&include_unanswered=true" <>
+            "&projection=#{projection}"
+
         %{"data" => payload} = conn |> get(path) |> json_response(200)
         assert [_entry | _rest] = payload["entries"]
         assert [_unanswered | _rest] = payload["unanswered_entries"]

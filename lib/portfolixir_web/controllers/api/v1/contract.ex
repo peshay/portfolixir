@@ -45,6 +45,42 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 30,
+      # Sprint 30's sprint PR. Dated after entry 29, because since=
+      # compares strictly after a date. Each story of the sprint appends its
+      # own summary sentence and items between its own markers.
+      date: ~D[2026-11-15],
+      summary:
+        Enum.join(
+          [
+            # --- S30 A1 begin ---
+            "Sprint 30, A1 (I45): portfolixir.crashes.rankings answers slim by default, " <>
+              "each entry without its closes and without benchmark_return, the crash " <>
+              "benchmark named once; projection=full answers the read as it was."
+            # --- S30 A1 end ---
+          ],
+          " "
+        ),
+      endpoints: [],
+      tools: [],
+      parameters: [
+        # --- S30 A1 begin ---
+        "GET /api/v1/crashes/:key/rankings (portfolixir.crashes.rankings) takes projection, " <>
+          "as securities.list does: slim, the default (an empty value too), answers each " <>
+          "entry with rank, security, held, return and vs_benchmark_pp (rebounders also " <>
+          "back_on, days_back and not_yet), without its closes (start, end, low, " <>
+          "start_close) and without benchmark_return, which is reference.return; the crash " <>
+          "benchmark is the top-level benchmark only, and computation_basis.projection " <>
+          "states the projection. full answers the read as it was before, byte for byte; " <>
+          "any other value answers 422 with errors.projection \"is invalid: slim or full\"."
+        # --- S30 A1 end ---
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 29,
       # Sprint 29's sprint PRs. Dated after entry 28, because since=
       # compares strictly after a date. Each story of the sprint appends its
