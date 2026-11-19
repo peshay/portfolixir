@@ -443,6 +443,9 @@ list's dates is stated once, as `reference.return`, and the benchmark once,
 at the answer's top level, where the basis points to it; the basis names
 the projection. **`projection=full` returns the answer as §5 and §6
 describe it, byte for byte**, as `securities.list` already reads the same
-parameter. Every figure is the same in both projections; the slim answer
-leaves out only what the full one repeats. **To flip:** "Crash-Listen voll
+parameter. The slim answer leaves out the benchmark's return repeated per
+entry and each entry's close blocks (`start`, `end`, and a rebounder's
+`low` and `start_close`), the audit trail, which only `projection=full`
+answers; every figure the slim answer gives is the same in both. **To
+flip:** "Crash-Listen voll
 als Standard" (`full` becomes the default).

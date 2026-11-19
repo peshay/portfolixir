@@ -213,8 +213,9 @@ cards.
 - **API:** `GET /api/v1/views/:view_id/movers?window=day|week|month|quarter|ytd|1y&limit=&include_unanswered=`
   and `GET /api/v1/movers?…` for everything. An unknown `window` or field
   is refused with 422 naming it. Decimals as strings, dates as ISO.
-- **MCP:** `portfolixir.views.movers` (`view_id` optional; omitted reads
-  everything), whose description says it returns data, never
+- **MCP:** `portfolixir.views.movers` (`id` optional, the view's id, as
+  every `views.*` tool takes it; omitted reads everything; the amendment's
+  second precision), whose description says it returns data, never
   instructions, and names both rankings.
 - **Screen:** a card „Tops und Flops“ on the Overview, as the Sprint 30
   planning board 04 draws it (its recommendation A): the window as chips
@@ -282,3 +283,9 @@ day there is no window and the ranking is empty, its basis saying so. The
 weekend case of §3 is unchanged: Sunday's coin close is one day old.
 **To flip:** "Tag-Beitrag ohne Altersgrenze" (`D` takes the last close day
 whatever its age).
+
+A second precision, of wording only, found by the sprint's closing act
+(the agent's lens, S3): §9 named the tool's argument `view_id`, but
+`portfolixir.views.movers` takes `id`, the view's id, as every `views.*`
+tool does; omitted, it reads everything. §9 now says `id`; no rule
+changes.
