@@ -1633,9 +1633,9 @@ Lesezugriffe sagen nie Anweisungen oder einen Rat:
 - `portfolixir.crashes.list` — `GET /api/v1/crashes`, kein Parameter; ein
   Lesezugriff, in `read`, `book` und `full`.
 - `portfolixir.crashes.rankings` — `GET /api/v1/crashes/:key/rankings` mit
-  `key` (Pflicht), `list`, `universe`, `limit` (1 bis 50) und
-  `include_unanswered` (ein Boolean); ein Lesezugriff, in `read`, `book` und
-  `full`.
+  `key` (Pflicht), `list`, `universe`, `limit` (1 bis 50),
+  `include_unanswered` (ein Boolean) und `projection` (`slim` oder `full`);
+  ein Lesezugriff, in `read`, `book` und `full`.
 - `portfolixir.crashes.put` — mit `key` läuft es über `PUT` und benennt
   dieses erkannte Fenster oder ändert dieses manuelle; ohne läuft es über
   `POST` und zieht ein manuelles Fenster oder macht `window.from_name` zu

@@ -686,8 +686,23 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 122_071,
     book: 201_275,
     full: 237_333
-  }
+  },
   // --- S29 H closing act end ---
+  // --- S30 A1 begin ---
+  {
+    since: "2026-11-15",
+    why:
+      "Sprint 30, A1 (I45): portfolixir.crashes.rankings takes projection (slim, the " +
+      "default, or full) and says what each answers, paid for by tightening the same " +
+      "description (its reason names, provisional and the universe's any depot left to the " +
+      "answer and its basis), so it measures 1,215 bytes where it measured 1,219, and each " +
+      "ceiling is lowered by those 4 bytes to the figure measured: read 122,067, book " +
+      "201,271 and full 237,329",
+    read: 122_067,
+    book: 201_271,
+    full: 237_329
+  }
+  // --- S30 A1 end ---
 ];
 
 describe("the schema budget", () => {
