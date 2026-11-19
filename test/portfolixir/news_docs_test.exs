@@ -128,4 +128,25 @@ defmodule Portfolixir.NewsDocsTest do
       assert normalized(path) =~ fragment, "#{path}: #{fragment}"
     end
   end
+
+  # User story (#1356; the lifecycle audit of 2026-11-09, #13):
+  # As the owner who reviews decisions, not diffs,
+  # I want ADR-0056 §5 to say what the fetcher does to a sec.gov feed
+  # without the operator's user agent,
+  # so that the record and the code agree and the health read is no
+  # surprise.
+  #
+  # Acceptance criteria:
+  # - §5 says the fetcher refuses every fetch of such a feed with
+  #   `user_agent_missing`, the feed staying enabled, and no longer that the
+  #   feed "stays disabled" (a wording fix, no rule changes).
+  test "ADR-0056 §5 says a sec.gov feed without a user agent refuses every fetch" do
+    adr = normalized("docs/decisions/0056-news-layer-fetched-matched-stored-labelled-outside.md")
+    [_, section] = String.split(adr, "### 5. Fetching and failure", parts: 2)
+    [section | _] = String.split(section, "### 6.", parts: 2)
+
+    assert section =~ "refuses every fetch"
+    assert section =~ "`user_agent_missing`"
+    refute section =~ "stays disabled"
+  end
 end

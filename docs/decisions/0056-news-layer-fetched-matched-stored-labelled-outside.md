@@ -196,8 +196,11 @@ reviewed against a sample after two weeks of use.
   that host was seen to hang.
 - **The user agent** is set by the operator in `PORTFOLIXIR_NEWS_USER_AGENT`.
   The SEC asks for a contact address in it; the repository carries none,
-  so a `regulatory` feed on `sec.gov` stays disabled with the error
-  `user_agent_missing` until the variable is set.
+  so the fetcher refuses every fetch of a `regulatory` feed on `sec.gov`,
+  before any request leaves, with the error `user_agent_missing` until the
+  variable is set; the feed stays enabled, and the health read shows it
+  with that error (Sprint 30, A2, #1356: the wording follows the code; the
+  rule is unchanged).
 
 ### 6. Health: a dead collector is visibly dead within a day
 
@@ -1226,7 +1229,7 @@ the link's domain and opens the link, and prints no link in full.
 | Read ISO-8859-1, US-ASCII and a UTF-8 BOM | triage P1, P2 | **Answered and built** — #1442 (merged as #1445), no change to this record |
 | An entry for a story whose links are all long | triage C1 | **Answered** — E2 |
 | A rating after ingest reaches the stored items | triage C2 | **Answered** — E1 |
-| Name the refused redirect's host in `last_error` | triage R1 | **Recorded** — a line on "Polish: API and MCP" (#1356), S3 |
+| Name the refused redirect's host in `last_error` | triage R1 | **Recorded** — a line on "Polish: API and MCP" (#1356), S3; built in Sprint 30 (A2): `url_not_allowed:<reason>:<host>`, the host normalized |
 | Resolve aggregator redirects at ingest | the report's premise | **Deferred**, unchanged — "news follow" (§2, D9) |
 
 D5 and D10 stay open questions, unchanged by this amendment.

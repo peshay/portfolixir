@@ -2073,6 +2073,9 @@ Answers are compact: short codes, null fields left out.
   change: `422` on the field.
 - `DELETE /api/v1/news/feeds/:id` removes a feed and its day counters; its
   items stay, detached, until retention. Answers `id` and `items_detached`.
+  A feed registered again with the same class and binding (`security_id`,
+  `category_id`) counts the detached items' links as known and does not
+  store them twice (#1356).
 - `PUT /api/v1/news/sources` rates a domain by hand from a `source` object,
   `domain` and `tier` (`primary`, `secondary`, `awareness`, `blocked`); no
   later seed overwrites it. Two puts of a new domain that race both land,
@@ -2190,7 +2193,10 @@ only the digest's `unlabeled` grows.
   `story_id`, `class`, `assignment`, `status` and, when ambiguous, its
   `candidates`.
 - `GET /api/v1/news/health` answers each feed's `id`, `class`, `enabled`,
-  `last_ok_at`, `last_error`, `failures` (its consecutive 429 and 5xx
+  `last_ok_at`, `last_error` (a short code; a redirect the policy refused
+  names the refused hop's host, lower case and without a trailing dot, an
+  IPv6 literal in brackets, never the rest of the Location:
+  `url_not_allowed:host_not_allowed:elsewhere.example.com`), `failures` (its consecutive 429 and 5xx
   answers, 0 after a success) and, while it backs off, `retry_at` (the time
   before which it is not fetched again; §5), so a feed waiting out a backoff
   reads apart from one that failed once, `items_24h`, `err_24h`, `stale` (no successful

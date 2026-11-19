@@ -63,7 +63,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "cuts adds its ticker, else its WKN, so two names alike in their first 19 " <>
               "characters read apart; news.get names a story's last three notes and says " <>
               "when it left some out; news.health shows a feed's backoff; " <>
-              "portfolixir.news.digest says its 32 counts readers.",
+              "portfolixir.news.digest says its 32 counts readers. A feed deleted and " <>
+              "registered again stores none of its items twice, and a refused redirect " <>
+              "names the refused hop's host in the feed's last_error.",
             # --- S30 A2 end ---
             # --- S30 T2 begin ---
             "Sprint 30, T2 (FR-59, #1465; ADR-0061 §9): GET /api/v1/views/:view_id/movers " <>
@@ -117,7 +119,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "changed: note_ids names the last three notes, ascending, and " <>
           "note_ids_truncated: true when there are more.",
         "GET /api/v1/news/health (portfolixir.news.health), added: each feed's failures " <>
-          "(its consecutive 429 and 5xx answers) and, while it backs off, retry_at."
+          "(its consecutive 429 and 5xx answers) and, while it backs off, retry_at.",
+        "GET /api/v1/news/health (portfolixir.news.health), changed: a feed whose " <>
+          "redirect the URL policy refused reads last_error url_not_allowed:<reason>:<host>, " <>
+          "the refused hop's host in lower case without a trailing dot (an IPv6 literal " <>
+          "in brackets), left out when it is no host name or address.",
+        "DELETE /api/v1/news/feeds/:id (portfolixir.news.feeds_delete), changed: a feed " <>
+          "registered again with the same class and binding counts the detached items' " <>
+          "links as known and does not store them twice."
         # --- S30 A2 end ---
       ],
       removed_endpoints: [],

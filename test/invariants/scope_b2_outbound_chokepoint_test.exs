@@ -1094,7 +1094,8 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
         refute_received {:requested, _, _}
       end
 
-      assert {:error, "url_not_allowed:host_not_allowed"} =
+      # #1356 (Sprint 30, A2): the refused hop's host is named, normalized.
+      assert {:error, "url_not_allowed:host_not_allowed:elsewhere.example.com"} =
                Fetcher.fetch(feed.("https://news.example.com/start.xml"))
 
       assert_received {:requested, "news.example.com", "/start.xml"}

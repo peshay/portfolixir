@@ -108,7 +108,9 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
           "ticker, else its WKN, cut at 10",
           "note_ids_truncated: true",
           "failures",
-          "retry_at"
+          "retry_at",
+          "url_not_allowed:<reason>:<host>",
+          "does not store them twice"
         ],
         do: assert(Enum.any?(news_lines, &(&1 =~ part)), part)
 

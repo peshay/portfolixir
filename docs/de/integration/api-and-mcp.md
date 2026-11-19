@@ -2265,7 +2265,10 @@ Codes, leere Felder weggelassen.
   gespeicherten Einträgen ändern sich nicht: `422` auf dem Feld.
 - `DELETE /api/v1/news/feeds/:id` entfernt einen Feed und seine
   Tageszähler; seine Einträge bleiben, abgehängt, bis zur Aufbewahrungsfrist.
-  Antwortet `id` und `items_detached`.
+  Antwortet `id` und `items_detached`. Ein Feed, der mit derselben Klasse und
+  Bindung (`security_id`, `category_id`) erneut registriert wird, zählt die
+  Links der abgehängten Einträge als bekannt und speichert sie nicht doppelt
+  (#1356).
 - `PUT /api/v1/news/sources` bewertet eine Domain von Hand aus einem
   `source`-Objekt, `domain` und `tier` (`primary`, `secondary`, `awareness`,
   `blocked`); kein späterer Seed überschreibt das. Zwei gleichzeitige
@@ -2398,7 +2401,11 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   `story_id`, `class`, `assignment`, `status` und, wenn mehrdeutig, seinen
   `candidates`.
 - `GET /api/v1/news/health` beantwortet je Feed `id`, `class`, `enabled`,
-  `last_ok_at`, `last_error`, `failures` (seine aufeinanderfolgenden 429-
+  `last_ok_at`, `last_error` (ein kurzer Code; eine Weiterleitung, die die
+  Richtlinie abwies, nennt den Host des abgewiesenen Schritts, klein
+  geschrieben und ohne abschließenden Punkt, ein IPv6-Literal in eckigen
+  Klammern, nie den Rest der Location:
+  `url_not_allowed:host_not_allowed:elsewhere.example.com`), `failures` (seine aufeinanderfolgenden 429-
   und 5xx-Antworten, 0 nach einem Erfolg) und, solange er zurückweicht,
   `retry_at` (die Zeit, vor der er nicht erneut abgerufen wird; §5), sodass
   ein Feed, der einen Backoff abwartet, sich von einem unterscheidet, der

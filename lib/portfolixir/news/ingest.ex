@@ -21,8 +21,11 @@ defmodule Portfolixir.News.Ingest do
        canonical URL, `Portfolixir.News.Retention`) is dropped the same way,
        dated or not (closing act, COR2);
     4. **keys the item by its canonical URL** (`canonical_url/1`): a URL the
-       feed already stored, or one repeated in the same answer, is `known`
-       and neither stored nor counted again;
+       feed already stored, one an item a deleted feed of the same class and
+       binding left detached holds (a feed deleted and registered again,
+       #1356: the identity is the binding and the link, never the feed's
+       row), or one repeated in the same answer, is `known` and neither
+       stored nor counted again;
     5. **rates each item by the tier table** (§3, B5;
        `Portfolixir.News.Sources`, read once for the batch, under the
        domains' tier locks held until the items commit, so a rating
@@ -409,14 +412,41 @@ defmodule Portfolixir.News.Ingest do
 
   defp known_urls(_feed, []), do: MapSet.new()
 
+  # #1356 (Sprint 30, A2): an item's identity is its feed's class and
+  # binding and its link, never the feed's row. A URL is known when this
+  # feed stored it, or when an item a deleted feed of the same class and
+  # binding left detached (`feed_id` NULL, `Portfolixir.News.delete_feed/2`)
+  # holds it: a feed deleted and registered again does not store its items
+  # twice. Both read the `(feed_id, canonical_url)` index, the detached
+  # rows by `feed_id IS NULL`.
   defp known_urls(feed, urls) do
-    from(i in Item,
-      where: i.feed_id == ^feed.id and i.canonical_url in ^urls,
-      select: i.canonical_url
-    )
-    |> Repo.all()
-    |> MapSet.new()
+    own =
+      from(i in Item,
+        where: i.feed_id == ^feed.id and i.canonical_url in ^urls,
+        select: i.canonical_url
+      )
+
+    detached =
+      from(i in Item,
+        where: is_nil(i.feed_id) and i.canonical_url in ^urls and i.class == ^feed.class,
+        select: i.canonical_url
+      )
+      |> same_binding(feed)
+
+    MapSet.new(Repo.all(own) ++ Repo.all(detached))
   end
+
+  # The binding an item of the feed's class takes by construction (§2); an
+  # aggregator item has none at ingest, so its class and link are its
+  # identity.
+  defp same_binding(query, %Feed{class: class, security_id: security_id})
+       when class in [:issuer, :regulatory],
+       do: where(query, [i], i.security_id == ^security_id)
+
+  defp same_binding(query, %Feed{class: :thematic, category_id: category_id}),
+    do: where(query, [i], i.category_id == ^category_id)
+
+  defp same_binding(query, %Feed{class: :aggregator}), do: query
 
   # -- storing -----------------------------------------------------------------
 

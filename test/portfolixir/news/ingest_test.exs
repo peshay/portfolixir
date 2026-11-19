@@ -9,6 +9,7 @@ defmodule Portfolixir.News.IngestTest do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Clock
+  alias Portfolixir.News
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.FeedDay
   alias Portfolixir.News.Ingest
@@ -599,6 +600,81 @@ defmodule Portfolixir.News.IngestTest do
       assert [story] = stories(larkspur.id, "en")
       assert story.member_count == 1
       assert [%{canonical_url: "https://search.example.com/r?u=6"}] = story.items
+    end
+  end
+
+  # User story (#1356; ADR-0056 §4):
+  # As the operator who removes a feed and registers it again,
+  # I want the items it stored before to count as known,
+  # so that a story's count does not double until retention.
+  #
+  # Acceptance criteria:
+  # - A feed deleted and registered again under the same URL, class and
+  #   binding stores none of the items its earlier registration left
+  #   detached: they are `known`, and each story keeps one member.
+  # - The same holds for an aggregator feed, whose items have no binding of
+  #   their own at ingest.
+  # - A feed bound to another security stores them for that security: the
+  #   identity is the binding and the link, never the feed's row.
+  describe "a feed registered again (#1356)" do
+    @again "https://newsroom.example.com/again.xml"
+
+    defp registered_again!(attrs) do
+      first = feed!(Map.put(attrs, :url, @again))
+      assert {:ok, %{stored: 2}} = Ingest.ingest(first, [parsed(1), parsed(2)], @now)
+      assert {:ok, %{items_detached: 2}} = News.delete_feed(Actor.owner_ui(), first.id)
+      feed!(Map.put(attrs, :url, @again))
+    end
+
+    defp copies(link),
+      do: Repo.aggregate(from(i in Item, where: i.canonical_url == ^link), :count)
+
+    test "an issuer feed stores none of its items twice" do
+      security = security!()
+      again = registered_again!(%{class: "issuer", security_id: security.id})
+      later = DateTime.add(@now, 3600, :second)
+
+      assert {:ok, %{stored: 1, known: 2}} =
+               Ingest.ingest(again, [parsed(1), parsed(2), parsed(3)], later)
+
+      assert copies("https://newsroom.example.com/news/1") == 1
+      assert copies("https://newsroom.example.com/news/3") == 1
+
+      %Item{cluster_id: cluster_id} =
+        Repo.get_by!(Item, canonical_url: "https://newsroom.example.com/news/1")
+
+      assert Repo.get!(Cluster, cluster_id).member_count == 1
+    end
+
+    test "an aggregator feed stores none of its items twice" do
+      url = "https://search.example.com/again.xml"
+      wire = %{source_domain: "wire.example.com"}
+      first = feed!(%{class: "aggregator", url: url})
+
+      assert {:ok, %{stored: 2}} =
+               Ingest.ingest(first, [parsed(1, wire), parsed(2, wire)], @now)
+
+      assert {:ok, %{items_detached: 2}} = News.delete_feed(Actor.owner_ui(), first.id)
+      again = feed!(%{class: "aggregator", url: url})
+
+      assert {:ok, %{stored: 1, known: 2}} =
+               Ingest.ingest(again, [parsed(1, wire), parsed(2, wire), parsed(3, wire)], @now)
+
+      assert copies("https://newsroom.example.com/news/1") == 1
+    end
+
+    test "a feed bound to another security stores them for its own" do
+      security = security!()
+      registered_again = registered_again!(%{class: "issuer", security_id: security.id})
+      assert {:ok, _deleted} = News.delete_feed(Actor.owner_ui(), registered_again.id)
+
+      other = security!("Southwind Ferries AG")
+      elsewhere = feed!(%{class: "issuer", security_id: other.id, url: @again})
+
+      assert {:ok, %{stored: 2, known: 0}} =
+               Ingest.ingest(elsewhere, [parsed(1), parsed(2)], @now)
+
+      assert copies("https://newsroom.example.com/news/1") == 2
     end
   end
 end
