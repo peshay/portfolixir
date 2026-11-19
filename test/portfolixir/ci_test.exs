@@ -2528,6 +2528,8 @@ defmodule Portfolixir.CITest do
   # - A CI job `browser` installs that lockfile with `npm ci`, installs the
   #   pinned version's Chromium, prepares the database and runs
   #   `mix test test/browser --only browser`, on the pinned Node and Elixir.
+  # - It installs DejaVu Sans, the fallback the layout walks measure in, and
+  #   not Inter, which the app ships (Sprint 30 F1, #1221).
   # - The advisories job audits test/browser at the companion's level, and
   #   AGENTS.md's Required Local Checks name the same audit.
   # - Dependabot watches the lockfile.
@@ -2554,9 +2556,11 @@ defmodule Portfolixir.CITest do
       for command <- [
             "npm ci --ignore-scripts --prefix test/browser",
             "npx --prefix test/browser playwright install --with-deps chromium",
-            # The fonts the layout walks measure every bar in
-            # (test/browser/fonts.js; Sprint 29 PR 2's closing act).
-            "apt-get install -y --no-install-recommends fonts-inter fonts-dejavu-core",
+            # The fallback font the layout walks measure every bar in
+            # (test/browser/fonts.js; Sprint 29 PR 2's closing act); Inter
+            # the app ships since Sprint 30 F1 (#1221), so the job installs
+            # none and the walks prove the page loads its own.
+            "apt-get install -y --no-install-recommends fonts-dejavu-core",
             "MIX_ENV=test mix ecto.migrate",
             "mix test test/browser --only browser"
           ] do
@@ -2566,6 +2570,9 @@ defmodule Portfolixir.CITest do
 
     assert steps == Enum.sort(steps), "the browser job's steps run out of order"
     refute browser =~ "continue-on-error"
+
+    refute browser =~ "fonts-inter",
+           "the browser job installs Inter, so no walk proves the app ships it"
 
     [_before, advisories] = String.split(ci, ~r/^  advisories:$/m, parts: 2)
     advisories = advisories |> String.split(~r/^  [a-z-]+:$/m) |> hd()

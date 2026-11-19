@@ -371,10 +371,13 @@ jobs:
       # DejaVu Sans, the fallback a device without Inter draws in, and fail
       # where either is missing (test/browser/fonts.js; Sprint 29 PR 2's
       # closing act: without Inter this job drew the app in DejaVu Sans
-      # alone, and folds measured in Inter alone broke there). The step
-      # before refreshed the package lists.
-      - name: Install the fonts the layout walks measure in
-        run: sudo apt-get install -y --no-install-recommends fonts-inter fonts-dejavu-core
+      # alone, and folds measured in Inter alone broke there). Since Sprint
+      # 30 F1 (#1221) the app ships Inter and the walks require the page's
+      # own, loaded from /fonts/, so only the fallback is installed here: a
+      # job without Inter on the machine is what proves the page brings it.
+      # The step before refreshed the package lists.
+      - name: Install the fallback font the layout walks measure in
+        run: sudo apt-get install -y --no-install-recommends fonts-dejavu-core
 
       - name: Prepare database
         run: |
