@@ -27,8 +27,9 @@ describe("the crash tools", () => {
   //
   // Acceptance criteria:
   // - crashes.list sends GET /api/v1/crashes; crashes.rankings sends GET
-  //   /api/v1/crashes/:key/rankings with list, universe, limit and
-  //   include_unanswered as given, the key encoded; universe takes
+  //   /api/v1/crashes/:key/rankings with list, universe, limit,
+  //   include_unanswered and projection (slim or full, I45) as given, the
+  //   key encoded; universe takes
   //   catalogue, held (today's holdings in any depot; the closing act,
   //   #1421) or view:<id>.
   // - crashes.put sends PUT /api/v1/crashes/:key with the window when a key
@@ -52,6 +53,7 @@ describe("the crash tools", () => {
       include_unanswered: true
     });
     await callTool(client, RANKINGS, { key: "d:12:2020-02-19", universe: "held" });
+    await callTool(client, RANKINGS, { key: "d:12:2020-02-19", projection: "full" });
     await callTool(client, PUT, { key: "d:12:2020-02-19", window: { name: "Spring fall" } });
     await callTool(client, PUT, { key: "m:4", window: { trough: "2020-03-16" } });
     await callTool(client, PUT, {
@@ -73,6 +75,7 @@ describe("the crash tools", () => {
           undefined
         ],
         ["GET", "/api/v1/crashes/d%3A12%3A2020-02-19/rankings?universe=held", undefined],
+        ["GET", "/api/v1/crashes/d%3A12%3A2020-02-19/rankings?projection=full", undefined],
         ["PUT", "/api/v1/crashes/d%3A12%3A2020-02-19", { window: { name: "Spring fall" } }],
         ["PUT", "/api/v1/crashes/m%3A4", { window: { trough: "2020-03-16" } }],
         [
@@ -99,6 +102,7 @@ describe("the crash tools", () => {
       [RANKINGS, { key: "d:12:2020-02-19", universe: "held:3" }],
       [RANKINGS, { key: "d:12:2020-02-19", limit: 51 }],
       [RANKINGS, { key: "d:12:2020-02-19", order: "asc" }],
+      [RANKINGS, { key: "d:12:2020-02-19", projection: "compact" }],
       [RANKINGS, { key: "12:2020-02-19" }],
       [RANKINGS, { key: "m:4/../../securities/1" }],
       [PUT, { key: "m:4" }],
@@ -159,6 +163,12 @@ describe("the crash tools", () => {
     assert.match(tool(PUT)?.description ?? "", /unknown field answers 422 naming it/);
     assert.match(tool(RANKINGS)?.description ?? "", /[Ss]urvivorship/);
     assert.match(tool(RANKINGS)?.description ?? "", /computation_basis/);
+    // I45 (Sprint 30, A1): the slim default and what projection=full adds.
+    assert.match(tool(RANKINGS)?.description ?? "", /[Ss]lim by default; projection=full adds/);
+    assert.deepEqual(
+      (tool(RANKINGS)?.inputSchema as { properties: Record<string, unknown> }).properties.projection,
+      { type: "string", enum: ["slim", "full"] }
+    );
     assert.match(tool(LIST)?.description ?? "", /computation_basis/);
 
     const hints = (name: string) => tool(name)?.annotations;

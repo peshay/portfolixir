@@ -1506,8 +1506,9 @@ never instructions or advice:
 - `portfolixir.crashes.list` — `GET /api/v1/crashes`, no parameter; a read,
   in `read`, `book` and `full`.
 - `portfolixir.crashes.rankings` — `GET /api/v1/crashes/:key/rankings` with
-  `key` (required), `list`, `universe`, `limit` (1 to 50) and
-  `include_unanswered` (a boolean); a read, in `read`, `book` and `full`.
+  `key` (required), `list`, `universe`, `limit` (1 to 50),
+  `include_unanswered` (a boolean) and `projection` (`slim` or `full`); a
+  read, in `read`, `book` and `full`.
 - `portfolixir.crashes.put` — with a `key` it routes to `PUT` and names that
   detected window or edits that manual one; without one it routes to `POST`
   and draws a manual window, or makes `window.from_name` one. In `book` and
