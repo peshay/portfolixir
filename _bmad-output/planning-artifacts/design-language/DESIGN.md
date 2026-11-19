@@ -9585,7 +9585,10 @@ and the MCP tools answer, for the section's period and the page's view.
   (always named, since „Kategorien“ is the screen's default, FR-56),
   `tree=<classification id>`, `category=<id>|unclassified` (the filter, at
   every level), `sort=change`, each only when not the default, in that
-  order. A link to a stacked level opens the Value series, so a link handed
+  order. *Amended 2026-11-19 (Sprint 30 W1, I43):* `axis=zero` („ab 0“)
+  right after the level, only when chosen; every link of the bar keeps it,
+  so a way through *Categories* back to *Total* finds it, and any other
+  value reads as the default. A link to a stacked level opens the Value series, so a link handed
   over reopens the same stack, filter and level. *Amended 2026-11-09
   (Sprint 28 S5, #1432, plan amendment D-A1):* the period rides the
   address too, last: `period=` for a token, `year=` for a calendar year,
@@ -9611,7 +9614,12 @@ and the MCP tools answer, for the section's period and the page's view.
    **Classification** as a select (at the category level, and at the
    securities level with a filter), **Sort** (Size · Change). At *Total*
    without a filter the bar holds the level alone, and the chart under it
-   is today's value chart, byte for byte. *Amended 2026-11-09 (Sprint 28
+   is today's value chart, byte for byte. *Amended 2026-11-19 (Sprint 30
+   W1, I43; board `mockups/ux-design-2026-11-15-sprint30/01-axis-start`,
+   answer C):* in the Value series the bar holds the level and **Axis**
+   („Ausschnitt · ab 0“), and the chart is today's value chart at
+   „Ausschnitt“, byte for byte, plus the axis-break mark (the amendment of
+   2026-11-19, "Where the axis starts"). *Amended 2026-11-09 (Sprint 28
    S2):* the breadcrumb is the filter's path through its tree, „Alle
    Kategorien“ › each ancestor › the filtered category (or „Nicht
    zugeordnet“), every step but the last a link that leads one level up and
@@ -9947,7 +9955,7 @@ family of several lines keeps its label on its first line.
 
 | Bar | File | Fold, floor | Groups |
 |---|---|---|---|
-| The stacked chart's bar | `live/portfolio/stacked_chart.ex` | 780, 380 (the floor moved from 330 to 340 by PR 2's closing act, whose walk found the German label column and level control needing 334 px, board 06 ⑭; then to 380 and the fold from 760 to 780, measured in both fonts: the German label column 333 px in Inter and 357 px in DejaVu Sans, the German line 704 and 753 px, board 06 ⑮; at a 390 px window, a 358 px bar, the labels stand above) | Ebene, Klassifizierung, Sortieren |
+| The stacked chart's bar | `live/portfolio/stacked_chart.ex` | 780, 380 (the floor moved from 330 to 340 by PR 2's closing act, whose walk found the German label column and level control needing 334 px, board 06 ⑭; then to 380 and the fold from 760 to 780, measured in both fonts: the German label column 333 px in Inter and 357 px in DejaVu Sans, the German line 704 and 753 px, board 06 ⑮; at a 390 px window, a 358 px bar, the labels stand above; Sprint 30 W1's „Achse“ at *Gesamt* keeps both, `stack_axis_layout` in `test/browser/control_bar.js`) | Ebene, Achse (at *Gesamt* without a filter in *Wert*, I43), Klassifizierung, Sortieren |
 | The journal (board 06 ①) | `live/journal_live.ex` | always, 330 | Akteur, Vorgang (chips), Art (select, its label now visible), Seit (field), the scenarios checkbox in the control column; one bar where there were two, the form around it |
 | „Nach dem Verkauf“, Vergleich (board 06 ②) | `live/sale_hindsight_section.ex` | 860, 560 (the fold moved from 760 to 840 by L3's walk, which measured the line wrapping the benchmark select under the comparison up to a 793 px bar; then to 860, the English line with a benchmark 798 px in Inter and 834 px in DejaVu Sans, board 06 ⑮) | Vergleich (segmented), „Fester Zins % p. a.“ (field and Anwenden) or the benchmark select (label hidden) in the control column; labels above below 560 px, where the full-width comparison does not fit beside a label column |
 | Wertpapiere, the chip row (board 06 ③) | `live/securities_live.ex` | always, 330 | Bestand, Datenqualität (both named now), Währung, Anlageklasse, Geändert seit, „Weitere Filter“ in the control column; the phone's filter sheet unchanged |
@@ -10915,3 +10923,92 @@ does), so L5's walk passes them:
 The review seed's coin bound to Litecoin (step 24) brings the chart, the
 bands and the card onto the review instance, and the walk opens its chart
 as the card does (`?tab=chart&cycles=1`).
+
+## Amendment 2026-11-19 — Where the axis starts *(Sprint 30 W1, idea I43; board `mockups/ux-design-2026-11-15-sprint30/01-axis-start`, answer C, adopted by the planning PR's merge; plan D-6, D-1 criterion 2)*
+
+The shared line chart (`PortfolixirWeb.Components.SecurityChart`) spans its
+axis from the window's lowest value, padded, to its highest; the stacked
+chart (`StackedChart`) starts at 0. The same window read as a fall at
+*Gesamt* and as a dent in the stack at *Kategorien*. The answer is both
+halves of the board: a mark wherever an axis does not start at 0, and a
+switch on Wealth's Total. The stack is never cut above 0: its areas would
+no longer read as shares.
+
+### The rule
+
+**Wherever an axis that reads an amount does not start at 0, its foot
+carries the axis-break mark.** In an amount: above 0. In percent of the
+window's first value (the privacy mode, a security's percent view), where
+the amount 0 is −100 %: above −100 %. An axis that starts at 0 or below
+(0 is then on it), the logarithmic scale (it has no 0) and a series that
+already is a percentage (TTWROR, with its zero line; the snapshot
+comparison) carry none. So the mark stands on Wealth's Total at
+„Ausschnitt“, on a security's price chart (main chart and the Overview's
+small one), and on the privacy mode's percent axes of both; never on the
+stack.
+
+### Anatomy
+
+1. **The mark** (`g.chart-axis-break`, `aria-hidden`, after the series and
+   before the axis labels): the group sits at the plot's lower left corner
+   (`translate(56 292)`); inside it `g.chart-axis-break__mark`, a
+   15 × 13 patch (`rect`, `rx` 2) in `--color-bg`, the frame's colour,
+   under two zigzags (`path`, two peaks each) in `--color-text-muted`,
+   1.4 px, round caps and joins. It is sized in CSS pixels through
+   `--chart-upx`, so it is 15 × 13 px at every chart width. While the
+   values stand in the gutter it is centred 8 px inside the plot, so it
+   breaks the bottom grid line where the plot begins and leaves the lowest
+   value label beside it; while they stand inside the plot
+   (`data-axis-inside`, J5 A rule ③; at 390 px) it moves into the empty
+   gutter, its right edge on the plot's edge. The lowest value stays.
+2. **The words**: the mark is decorative, so the chart's accessible name
+   says it: „‹name› · Achse ab ‹lowest value label›, nicht ab 0“ („Wert im
+   Zeitverlauf · Achse ab 76.033, nicht ab 0“; in the privacy mode the
+   label in percent, „… ab -0,8%, …“, no amount).
+3. **The switch** („Achse“, `data-role="stack-axis"`, a segmented control
+   in the stacked chart's bar after „Ebene“, the bar's group
+   `#stack-axis-label`): „Ausschnitt · ab 0“, default „Ausschnitt“. It
+   stands only at *Gesamt* without a filter in *Wert*: not in
+   „% (TTWROR)“ (a return is no amount, and its line has its zero line),
+   not at a stacked level, not in the privacy mode (its axis reads in
+   percent; „ab 0“ would be −100 %). A security's price chart has no
+   switch: a price from 0 rarely shows anything, and its axis never falls
+   below 0 (board 07 ⑨).
+4. **„ab 0“** draws the line on the stack's axis (`ChartAxis`, shared by
+   both charts): from 0, or the lowest value where it is below 0, to the
+   highest value plus 5 % of the span, the ticks the multiples of the
+   stack's round step (1, 2, 2.5 or 5 times a power of ten), „0“ among
+   them, printed with the step's places; no mark. The line then runs on the
+   top edge of the stack at *Kategorien* for the same window, day by day
+   (`wealth_axis_start_live_test.exs` compares every drawn day to a
+   hundredth of a viewBox unit).
+
+### The URL
+
+`axis=zero` right after `level=`, only when chosen (the amendment of
+2026-11-07, "Placement and URL"); „Ausschnitt“ is never on the address, and
+any other value reads as „Ausschnitt“. The bar's links, the series switch
+and the period keep it.
+
+### At 390 px *(board ⑤)*
+
+The bar's fold 780 and floor 380 hold: at *Gesamt* with „Achse“ it is one
+line at 1200 and 900 px, the label column at 1024 px and the labels above
+at 390 and 320 px, in Inter and in DejaVu Sans
+(`stack_axis_layout`, `test/browser/control_bar.js`); the same walk
+measures the mark at 15 × 13 px on the bottom grid line, in the gutter at
+390 px.
+
+### The `app.css` rules (between `S30 W1 begin` / `end`)
+
+`.security-chart .chart-axis-break__mark` (`transform-box: fill-box`,
+centred, `translate(8px × --chart-upx) scale(--chart-upx)`; under
+`.chart-frame[data-axis-inside]` the translate is −8 px),
+`.security-chart .chart-axis-break rect` and `… path`. The chart export
+bakes `transform`, `transform-box` and `transform-origin` already
+(`_CHART_EXPORT_PROPS`).
+
+### What it does not change
+
+The API and the MCP tools: an axis is how a figure is drawn, not a
+figure. The stack's own axis, picture and privacy mode. The TTWROR series.

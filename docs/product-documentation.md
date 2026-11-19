@@ -2696,6 +2696,21 @@ bar above the chart stacks the value by what it is made of (I23, FR-53):
 - **Sort**: *Size* puts the largest band on the window's last day at the
   bottom; *Change* the band with the largest change without deposits and
   withdrawals.
+- **Axis** (at *Total* without a filter; I43): *Window*, the default,
+  spans the axis from the window's lowest value to its highest, so a small
+  dent fills the chart; *From 0* draws the line from 0 on the stack's own
+  axis, in its round steps, so it runs exactly along the top edge of the
+  stack at *Categories* for the same window. The choice is on the address
+  (`axis=zero`) and kept by the bar's links and the period; the
+  % (TTWROR) series and the privacy mode have no such switch.
+
+Wherever an axis in an amount does not start at 0 (the value line at
+*Window*, a security's price chart, the percent axis of the privacy mode)
+a small double zigzag (≈) at the foot of the axis says so, and the chart's
+spoken name adds "axis from ‹lowest value›, not from 0". An axis that
+starts at 0 or below, the logarithmic scale and a return series carry none.
+The axis is how a figure is drawn, not a figure, so the API and the MCP
+tools are unchanged.
 
 The legend beside the chart is a table that reads like the stack, the top
 band first: each band's value on the window's last day, its share and its

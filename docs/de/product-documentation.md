@@ -2977,6 +2977,23 @@ er besteht (I23, FR-53):
 - **Sortieren**: *Größe* legt das am letzten Tag des Zeitraums größte Band
   nach unten; *Veränderung* das Band mit der größten Veränderung ohne Ein-
   und Auszahlungen.
+- **Achse** (bei *Gesamt* ohne Filter; I43): *Ausschnitt*, die Vorgabe,
+  spannt die Achse vom kleinsten bis zum größten Wert des Zeitraums, sodass
+  schon eine kleine Delle das Diagramm füllt; *ab 0* zeichnet die Linie ab 0
+  auf der Achse des Stapels, in dessen runden Schritten, sodass sie genau
+  auf der Oberkante des Stapels bei *Kategorien* für denselben Zeitraum
+  verläuft. Die Wahl steht in der Adresse (`axis=zero`), die Links der
+  Leiste und der Zeitraum behalten sie; die Reihe % (TTWROR) und der
+  Privatsphäre-Modus haben keinen solchen Schalter.
+
+Wo eine Achse in einem Betrag nicht bei 0 beginnt (die Wertlinie bei
+*Ausschnitt*, der Kurschart eines Wertpapiers, die Prozentachse des
+Privatsphäre-Modus), sagt es eine kleine doppelte Zickzacklinie (≈) am Fuß
+der Achse, und der gesprochene Name des Diagramms ergänzt „Achse ab
+‹kleinster Wert›, nicht ab 0“. Eine Achse, die bei 0 oder darunter beginnt,
+die logarithmische Skala und eine Renditereihe tragen keine. Die Achse ist
+die Art, wie eine Zahl gezeichnet wird, keine Zahl; die API und die
+MCP-Werkzeuge bleiben daher unverändert.
 
 Die Legende neben dem Diagramm ist eine Tabelle, die sich wie der Stapel
 liest, oberstes Band zuerst: Wert jedes Bands am letzten Tag des Zeitraums,
