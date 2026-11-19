@@ -382,8 +382,15 @@ defmodule Portfolixir.News.Labels do
         "news_label|#{cluster_id}|#{model}|#{version}"
       ])
 
-      with {:ok, story} <- lock_story(changeset, cluster_id),
-           :ok <- check_suggested(changeset),
+      # The suggested security `FOR KEY SHARE` before the story
+      # (`Portfolixir.LockTable`, row 13 against a label write): a security
+      # merge holds both securities `FOR UPDATE` and then UPDATEs the
+      # source's stories, whose `security_id` is in a unique index, so it
+      # asks each story `FOR UPDATE`. A write that held the story and then
+      # asked the security closed a cycle with it (Sprint 30 closing act,
+      # order lens, finding 3).
+      with :ok <- check_suggested(changeset),
+           {:ok, story} <- lock_story(changeset, cluster_id),
            :ok <- check_thesis(changeset, story) do
         prior = Repo.get_by(Label, cluster_id: cluster_id, model: model, prompt_version: version)
 

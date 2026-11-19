@@ -6,6 +6,10 @@ defmodule Portfolixir.LockRace.NewsMergeThirdPathTest do
   # items and stories (`News.reassign_security/3`). Finding 2: a promotion
   # held its story's members `FOR UPDATE` and then INSERTed the note, whose
   # foreign key asked the security `FOR KEY SHARE`; it now takes the
+  # security first. Finding 3: a label write held its story `FOR KEY SHARE`
+  # and then asked the suggested security `FOR KEY SHARE`, while the
+  # merge's UPDATE of the story's `security_id` (a column of a unique
+  # index) asks the story `FOR UPDATE`; it now checks the suggested
   # security first. A deadlock fails the race.
   #
   # async: false -- the races share a scratch database. Every name and host
@@ -92,6 +96,11 @@ defmodule Portfolixir.LockRace.NewsMergeThirdPathTest do
 
   defp securities_update?(_metadata), do: false
 
+  defp story_lock?(%{query: query}) when is_binary(query),
+    do: query =~ ~s(FROM "news_clusters") and query =~ "FOR KEY SHARE"
+
+  defp story_lock?(_metadata), do: false
+
   defp item_lock?(%{query: query}) when is_binary(query),
     do: query =~ ~s(FROM "news_items") and query =~ "FOR UPDATE"
 
@@ -143,5 +152,58 @@ defmodule Portfolixir.LockRace.NewsMergeThirdPathTest do
     # another security's story.
     assert {:ok, _record, :applied} = merged
     assert {:error, %{"cluster_id" => [_refused]}} = promoted
+  end
+
+  test "a label write holding its story, suggesting the source, then a merge", %{db: db} do
+    w = world("Label Merge Quay")
+
+    attrs = %{
+      "cluster_id" => w.story.id,
+      "model" => "synthetic-model-1",
+      "prompt_version" => "v1",
+      "event_type" => "earnings",
+      "materiality" => 2,
+      "tone" => 1,
+      "confidence" => "0.85",
+      "suggested_security_id" => w.source.id
+    }
+
+    {labelled, merged} =
+      LockRace.race!(
+        db,
+        {fn -> News.put_label(agent(), attrs) end, &story_lock?/1},
+        fn -> merge(w) end
+      )
+
+    assert {:ok, _written, _label} = labelled
+    assert {:ok, _record, :applied} = merged
+  end
+
+  test "a merge holding the securities, then a label write suggesting the source", %{db: db} do
+    w = world("Merge Label Quay")
+
+    attrs = %{
+      "cluster_id" => w.story.id,
+      "model" => "synthetic-model-1",
+      "prompt_version" => "v1",
+      "event_type" => "earnings",
+      "materiality" => 2,
+      "tone" => 1,
+      "confidence" => "0.85",
+      "suggested_security_id" => w.source.id
+    }
+
+    {merged, labelled} =
+      LockRace.race!(
+        db,
+        {fn -> merge(w) end, &securities_update?/1},
+        fn -> News.put_label(agent(), attrs) end
+      )
+
+    # The label write waits at the security, holding no row; the merge
+    # deletes the source, and the write, released, refuses the suggestion.
+    assert {:ok, _record, :applied} = merged
+    assert {:error, changeset} = labelled
+    assert {"names no security", _} = changeset.errors[:suggested_security_id]
   end
 end
