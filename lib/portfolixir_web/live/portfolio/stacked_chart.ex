@@ -16,7 +16,10 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
       report of 2026-11-11). Every choice is a link that patches the address,
       so a link handed over reopens the same stack; a level keeps the
       filter. At the level Total without a filter the bar holds the level
-      alone, and the chart under it is today's value chart, unchanged. The
+      alone, and in the value series the axis (I43, Sprint 30 W1: „Achse:
+      Ausschnitt · ab 0“, `axis=zero` on the address), and the chart under
+      it is today's value chart, with the axis-break mark at „Ausschnitt“,
+      or drawn from 0 on this stack's axis at „ab 0“. The
       bar is the first user of "labelled controls start on one edge"
       (DESIGN.md, amendment of 2026-11-08), built as the shared
       `PortfolixirWeb.ControlBar.bar/1` (issue 1435): a container query
@@ -69,6 +72,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
 
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ClassificationName
+  alias PortfolixirWeb.Components.ChartAxis
   alias PortfolixirWeb.ControlBar
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.PrivacyMode
@@ -88,12 +92,16 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   attr(:crumbs, :list, required: true)
   attr(:classifications, :list, required: true)
   attr(:classification_id, :any, default: nil)
+  # I43 (Sprint 30 W1, board 01, answer C): the Total line's axis switch,
+  # `:window` or `:zero` chosen, or nil where the bar carries none.
+  attr(:axis, :atom, default: nil, values: [nil, :window, :zero])
 
   @doc """
   The bar above the value chart. `paths` holds the address of every choice:
-  `:total`, `:category`, `:security`, `:size` and `:change`; `crumbs` is the
-  breadcrumb as `{label, path | nil}`, each step up the filter's tree a
-  link, the last one the place shown.
+  `:total`, `:category`, `:security`, `:size` and `:change`, and with an
+  `axis` `:window` and `:zero`; `crumbs` is the breadcrumb as
+  `{label, path | nil}`, each step up the filter's tree a link, the last
+  one the place shown.
   """
   def bar(assigns) do
     ~H"""
@@ -123,6 +131,24 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
             class={["segmented-control__option", @stack.level == level && "is-active"]}
             data-level={level}
             aria-current={if @stack.level == level, do: "true"}
+          >
+            <%= label %>
+          </.link>
+        </div>
+      </:group>
+      <:group :if={@axis} label={gettext("Axis")} label_id="stack-axis-label">
+        <div
+          class="segmented-control"
+          data-role="stack-axis"
+          role="group"
+          aria-labelledby="stack-axis-label"
+        >
+          <.link
+            :for={{axis, label} <- axis_options()}
+            patch={Map.fetch!(@paths, axis)}
+            class={["segmented-control__option", @axis == axis && "is-active"]}
+            data-axis={axis}
+            aria-current={if @axis == axis, do: "true"}
           >
             <%= label %>
           </.link>
@@ -172,6 +198,10 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
       category: gettext("Categories"),
       security: gettext("Securities")
     ]
+
+  # „Ausschnitt · ab 0“ (I43, board 01): the window's own span, or from 0.
+  defp axis_options,
+    do: [window: pgettext("axis", "Window"), zero: pgettext("axis", "From 0")]
 
   # "Veränderung" in German, as the board and the basis line say it, where
   # the shared "Change" reads "Änderung" (the closing act's design critic,
@@ -783,19 +813,11 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
 
   # The smallest round step, 1, 2, 2.5 or 5 times a power of ten, at
   # least `raw`: the lines' axis and the stack's (the closing act's design
-  # critic, D2) read in the same steps.
-  defp round_step(raw) do
-    magnitude = :math.pow(10, Float.floor(:math.log10(raw)))
-    Enum.find([1, 2, 2.5, 5, 10], &(&1 * magnitude >= raw)) * magnitude
-  end
+  # critic, D2) read in the same steps, and since I43 the Total line's at
+  # „ab 0“ (`ChartAxis`).
+  defp round_step(raw), do: ChartAxis.round_step(raw)
 
-  defp places(step) do
-    cond do
-      step >= 1 and Float.round(step * 1.0) == step -> 0
-      Float.round(step * 10.0) == step * 10 -> 1
-      true -> 2
-    end
-  end
+  defp places(step), do: ChartAxis.places(step)
 
   # --- Sprint 28 S4 end ---
 
@@ -1092,13 +1114,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   # index's total (whole percents only), or one percent of the range when
   # no total is above zero (no label is drawn then, and no tick sits on a
   # round amount). `{tick values, step in the unit}`.
-  defp round_ticks(lo, hi, {unit, min_step}) do
-    step = max(round_step((hi - lo) / unit / 5), min_step)
-    first = Float.ceil(lo / unit / step - 1.0e-9)
-    last = Float.floor(hi / unit / step + 1.0e-9)
-    ticks = for k <- trunc(first)..trunc(last)//1, do: k * step * unit
-    {ticks, step}
-  end
+  defp round_ticks(lo, hi, unit), do: ChartAxis.round_ticks(lo, hi, unit)
 
   defp unit(nil, _lo, _hi), do: {1.0, 0.0}
   defp unit({_date, total, _first?}, _lo, _hi), do: {Decimal.to_float(total) / 100, 1.0}
@@ -1169,14 +1185,13 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
     stacked
   end
 
+  # From 0 (or the lowest negative edge) to the top edge plus a twentieth
+  # of the span: the axis the Total line takes at „ab 0“ (I43, `ChartAxis`).
   defp range(stacked) do
     edges = Enum.flat_map(stacked, fn {_key, _part, edges} -> edges end)
-    lo = edges |> Enum.map(&elem(&1, 0)) |> Enum.min(fn -> 0.0 end) |> min(0.0)
-    top = edges |> Enum.map(&elem(&1, 1)) |> Enum.max(fn -> 0.0 end) |> max(0.0)
-
-    hi = if top == lo, do: lo + 1.0, else: top + (top - lo) * 0.05
-
-    {lo, hi}
+    lowest = edges |> Enum.map(&elem(&1, 0)) |> Enum.min(fn -> 0.0 end)
+    highest = edges |> Enum.map(&elem(&1, 1)) |> Enum.max(fn -> 0.0 end)
+    ChartAxis.zero_range(lowest, highest)
   end
 
   defp path([{x, y} | rest]) do

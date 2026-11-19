@@ -27,6 +27,23 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       chart that is not a security's draws none)
     * `:currency_code` — string label for the Y axis
     * `:aria_label` — accessible name of the rendered svg
+    * `:axis_start` — `:window` (default) or `:zero`, where a linear axis
+      in an amount starts (I43, below)
+
+  **Where the axis starts** (I43, Sprint 30 W1; board
+  `ux-design-2026-11-15-sprint30/01-axis-start`, answer C): the axis spans
+  the window's values, so it rarely starts at 0. Wherever an axis that
+  reads an amount does not start at 0, its foot carries the axis-break mark
+  (≈, `g.chart-axis-break`), decorative, and the chart's accessible name
+  says it in words („… · axis from 76,033, not from 0“). In percent of the
+  window's first value (the privacy mode, a security's percent view) the
+  amount 0 is −100 %, so the mark stays while the axis starts above it. An
+  axis that starts at 0 or below, the logarithmic scale (it has no 0) and a
+  series already in percent (TTWROR, its zero line) carry none.
+  `axis_start: :zero` („ab 0“, Wealth's Total) spans a linear amount axis
+  from 0 to the highest value plus 5 % in round steps, the stacked chart's
+  axis (`ChartAxis`); it does not apply to a percent axis or the
+  logarithmic scale.
 
   **The privacy mode** (Sprint 26 P2, I22, board 02): while it is on, a
   series in a currency (`:value_mode` `:absolute`) is drawn in its percent
@@ -61,6 +78,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias PortfolixirWeb.Components.ChartAxis
   alias PortfolixirWeb.Components.CycleChart
   alias PortfolixirWeb.EventTypeLabel
   alias PortfolixirWeb.Format
@@ -107,6 +125,9 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   attr(:axis_from, :any, default: nil)
   attr(:axis_to, :any, default: nil)
   # --- S29 H8 end ---
+  # I43 (Sprint 30 W1): where a linear amount axis starts, the window's
+  # lowest value padded (`:window`, the default) or 0 (`:zero`, „ab 0“).
+  attr(:axis_start, :atom, default: :window, values: [:window, :zero])
   attr(:currency_code, :string, default: "")
   # nil resolves to the localized "Price chart" at render time — a compile-time
   # attr default cannot go through gettext with the caller's locale.
@@ -131,7 +152,8 @@ defmodule PortfolixirWeb.Components.SecurityChart do
         percent_mode?: assigns.percent_mode?,
         extra_values: range_extending_values(assigns),
         axis: {assigns.axis_from, assigns.axis_to},
-        price_axis?: assigns.price_axis? and assigns.value_mode == :absolute
+        price_axis?: assigns.price_axis? and assigns.value_mode == :absolute,
+        from_zero?: assigns.axis_start == :zero and assigns.value_mode == :absolute
       )
 
     plot_left = @padding_left
@@ -140,6 +162,8 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     plot_bottom = @height - @padding_bottom
 
     payload = build_payload(geometry, assigns, plot_left, plot_top, plot_right, plot_bottom)
+    percent_axis? = assigns.percent_mode? or assigns.value_mode == :percent_values
+    axis_break? = axis_break?(geometry, assigns.value_mode)
     chart_id = "chart-" <> Base.encode16(:crypto.strong_rand_bytes(6), case: :lower)
 
     assigns =
@@ -152,9 +176,11 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       |> assign(:plot_right, plot_right)
       |> assign(:plot_bottom, plot_bottom)
       |> assign(:chart_id, chart_id)
-      |> assign(:percent_axis?, assigns.percent_mode? or assigns.value_mode == :percent_values)
+      |> assign(:percent_axis?, percent_axis?)
+      |> assign(:axis_break?, axis_break?)
       |> assign(:payload_json, Jason.encode!(payload, escape: :html_safe))
       |> assign(:aria_label, assigns.aria_label || gettext("Price chart"))
+      |> then(&assign(&1, :aria_label, aria_label(&1)))
 
     ~H"""
     <div class="chart-frame" id={@chart_id} phx-hook="ChartCrosshair" data-chart-id={@chart_id}>
@@ -255,6 +281,23 @@ defmodule PortfolixirWeb.Components.SecurityChart do
             scale={cycle_scale(@geometry, {@plot_left, @plot_top, @plot_right, @plot_bottom})}
             clip={"#{@chart_id}-plot"}
           />
+
+          <%!-- I43 (board 01, answer C): the axis-break mark at the axis'
+               foot, where an amount axis does not start at 0. Its patch is
+               the frame's colour, its zigzags sized in CSS pixels through
+               `--chart-upx`; it sits inside the plot's corner, or in the
+               empty gutter while the values stand inside the plot. --%>
+          <g
+            :if={@axis_break?}
+            class="chart-axis-break"
+            transform={"translate(#{@plot_left} #{@plot_bottom})"}
+            aria-hidden="true"
+          >
+            <g class="chart-axis-break__mark">
+              <rect x="-7.5" y="-6.5" width="15" height="13" rx="2" />
+              <path d="M-6.5,-1 l3.25,-2.8 l3.25,2.8 l3.25,-2.8 l3.25,2.8 M-6.5,4.4 l3.25,-2.8 l3.25,2.8 l3.25,-2.8 l3.25,2.8" />
+            </g>
+          </g>
 
           <%!-- J5 A (board 05, rule ③): the labels follow the series, so on
                a narrow chart, where the values sit inside the plot, their
@@ -586,11 +629,19 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     {y_min, y_max} = pad_range(raw_min, raw_max)
 
     log_scale? = log_scale? and not percent_mode?
+    from_zero? = Keyword.get(opts, :from_zero?, false) and not percent_mode? and not log_scale?
 
     {y_min, y_max} =
-      if log_scale?,
-        do: {safe_log(log_floor(y_min, raw_min)), safe_log(y_max)},
-        else: {axis_floor(y_min, raw_min, rebase?, Keyword.get(opts, :price_axis?, false)), y_max}
+      cond do
+        log_scale? ->
+          {safe_log(log_floor(y_min, raw_min)), safe_log(y_max)}
+
+        from_zero? ->
+          ChartAxis.zero_range(raw_min, raw_max)
+
+        true ->
+          {axis_floor(y_min, raw_min, rebase?, Keyword.get(opts, :price_axis?, false)), y_max}
+      end
 
     %{
       quotes: indexed,
@@ -601,7 +652,9 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       y_min: y_min,
       y_max: y_max,
       log_scale?: log_scale?,
-      percent_mode?: percent_mode?
+      percent_mode?: percent_mode?,
+      rebased?: rebase?,
+      round_ticks: if(from_zero?, do: ChartAxis.round_ticks(y_min, y_max, {1.0, 0.0}))
     }
   end
 
@@ -674,6 +727,29 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   end
 
   # --- S29 H7 end ---
+
+  # I43: the mark says that an axis reading an amount does not start at 0:
+  # above 0, or, in percent of the window's first value, above −100 %. Not
+  # on the logarithmic scale (no 0) nor on a series already in percent.
+  defp axis_break?(:empty, _value_mode), do: false
+  defp axis_break?(_geometry, :percent_values), do: false
+  defp axis_break?(%{log_scale?: true}, _value_mode), do: false
+  defp axis_break?(%{rebased?: true, y_min: y_min}, _value_mode), do: y_min > -100.0
+  defp axis_break?(%{percent_mode?: true}, _value_mode), do: false
+  defp axis_break?(%{y_min: y_min}, _value_mode), do: y_min > 0.0
+
+  # The mark is decorative, so the chart's name says it in words, with the
+  # lowest value label as the axis prints it.
+  defp aria_label(%{axis_break?: true} = assigns) do
+    [{floor, _y} | _] = y_ticks(assigns)
+
+    gettext("%{chart} · axis from %{floor}, not from 0",
+      chart: assigns.aria_label,
+      floor: tick_text(floor, assigns)
+    )
+  end
+
+  defp aria_label(assigns), do: assigns.aria_label
 
   defp pad_range(min, max) when min == max do
     pad = if min == 0.0, do: 1.0, else: abs(min) * 0.05
@@ -963,13 +1039,13 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       <%= for {{value, y}, index} <- Enum.with_index(@y_ticks),
               not (@percent_mode? and is_nil(@geometry.base)) do %>
         <text
-          class={["chart-axis-y", index == length(@y_ticks) - 1 && "is-top"]}
+          class={["chart-axis-y", top_tick?(index, y, assigns) && "is-top"]}
           x={@plot_left - 6}
           y={y}
           text-anchor="end"
           dominant-baseline="central"
         >
-          <%= if @percent_axis?, do: format_percent(value), else: format_axis_value(value) %>
+          <%= tick_text(value, assigns) %>
         </text>
       <% end %>
       <text class="chart-axis-x" x={@plot_left} y={@height - 6} text-anchor="start">
@@ -980,6 +1056,19 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       </text>
     </g>
     """
+  end
+
+  # I43 „ab 0“: the stack's round ticks, each at its height on the axis,
+  # the top one `is-top` when it sits within 12 units of the plot's top, as
+  # on the stack.
+  defp y_ticks(%{geometry: %{round_ticks: {ticks, _step}} = geometry} = assigns) do
+    plot_h = assigns.plot_bottom - assigns.plot_top
+    range = geometry.y_max - geometry.y_min
+
+    for value <- ticks do
+      y = assigns.plot_bottom - plot_h * ((value - geometry.y_min) / range)
+      {value, Float.round(y * 1.0, 2)}
+    end
   end
 
   defp y_ticks(assigns) do
@@ -1000,6 +1089,23 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       {value, y_pixel}
     end
   end
+
+  defp top_tick?(_index, y, %{geometry: %{round_ticks: {_ticks, _step}}} = assigns),
+    do: y - assigns.plot_top < 12
+
+  defp top_tick?(index, _y, assigns), do: index == length(assigns.y_ticks) - 1
+
+  defp tick_text(value, %{percent_axis?: true}), do: format_percent(value)
+
+  # „ab 0“ prints its ticks as the stack does: „0“, the others with the
+  # places of the step.
+  defp tick_text(value, %{geometry: %{round_ticks: {_ticks, step}}}) do
+    if value == 0,
+      do: Format.decimal(Decimal.new(0), 0),
+      else: Format.decimal(Decimal.from_float(value * 1.0), ChartAxis.places(step))
+  end
+
+  defp tick_text(value, _assigns), do: format_axis_value(value)
 
   # A tick is a float of the chart's geometry; it becomes a Decimal only to
   # be printed, its places chosen by its size, whatever its sign: none from

@@ -1790,7 +1790,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     view |> element("[data-role='stack-level'] a[data-level='total']") |> render_click()
     assert has_element?(view, "#performance-figure[data-chart-mode='value']")
     # ADR-0024: the value series describes the wealth number, not a portfolio.
-    assert has_element?(view, "svg.security-chart[aria-label='Value over time']")
+    # I43 (Sprint 30 W1): an axis that does not start at 0 adds „· axis from
+    # ‹floor›, not from 0“ to the name.
+    assert has_element?(view, "svg.security-chart[aria-label^='Value over time']")
     refute view |> element("#performance-figure") |> render() =~ "chart-zeroline"
 
     # The choice survives a period switch.

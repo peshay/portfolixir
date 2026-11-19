@@ -571,7 +571,15 @@ defmodule PortfolixirWeb.PortfolioLive do
 
     if named,
       do: named_stack(params, classifications),
-      else: %{level: :total, tree: nil, category: nil, sort: :size, scale: :ttwror, named: false}
+      else: %{
+        level: :total,
+        tree: nil,
+        category: nil,
+        sort: :size,
+        scale: :ttwror,
+        axis: :window,
+        named: false
+      }
   end
 
   defp named_stack(params, classifications) do
@@ -596,8 +604,19 @@ defmodule PortfolixirWeb.PortfolioLive do
 
     sort = if level != :total and params["sort"] == "change", do: :change, else: :size
     scale = if params["scale"] == "ttwror", do: :ttwror, else: :value
+    # I43 (Sprint 30 W1): where the Total line's axis starts, „ab 0“ only
+    # by name; anything else is the default, „Ausschnitt“.
+    axis = if params["axis"] == "zero", do: :zero, else: :window
 
-    %{level: level, tree: tree, category: category, sort: sort, scale: scale, named: true}
+    %{
+      level: level,
+      tree: tree,
+      category: category,
+      sort: sort,
+      scale: scale,
+      axis: axis,
+      named: true
+    }
   end
 
   # The filter on the address: a category's id or the unassigned rest.
@@ -635,6 +654,16 @@ defmodule PortfolixirWeb.PortfolioLive do
         "Benchmarks are drawn over the view's own line, at the level Total without a filter."
       )
 
+  # I43 (board 01, answer C): the axis switch stands where the chart under
+  # the bar is the Total value line in an amount: „Gesamt“ without a filter,
+  # „Wert“, not in the privacy mode, whose axis reads in percent. nil hides
+  # it.
+  defp axis_switch(%{level: :total, category: nil, scale: :value, axis: axis}) do
+    if PrivacyMode.on?(), do: nil, else: axis
+  end
+
+  defp axis_switch(_stack), do: nil
+
   # The stack draws bands: every level but the plain total, which is today's
   # value line; the total with a filter is the filter's own band (FR-56).
   defp stacked?(%{level: :total, category: nil}), do: false
@@ -652,7 +681,9 @@ defmodule PortfolixirWeb.PortfolioLive do
   # the sort and the TTWROR series (FR-57), each only when it is not the
   # default, in this order so the links compare equal; the period last
   # (#1432). A stack whose level the address does not name is the carried
-  # view alone: the TTWROR series at „Gesamt“.
+  # view alone: the TTWROR series at „Gesamt“. I43 (board 01): `axis=zero`
+  # right after the level, only when chosen; it rides every link of the
+  # bar, so a way through „Kategorien“ back to „Gesamt“ keeps it.
   defp stack_path(view, %{named: false}, period),
     do: pairs_path(view_pairs(view) ++ period_pairs(period))
 
@@ -660,6 +691,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     pairs =
       view_pairs(view) ++
         [{"level", Atom.to_string(stack.level)}] ++
+        if(stack.axis == :zero, do: [{"axis", "zero"}], else: []) ++
         if(stack.tree && stacked?(stack),
           do: [{"tree", Integer.to_string(stack.tree)}],
           else: []
@@ -695,8 +727,11 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp stack_choice(stack, sort) when sort in [:size, :change],
     do: %{stack | sort: sort, named: true}
 
+  defp stack_choice(stack, axis) when axis in [:window, :zero],
+    do: %{stack | axis: axis, named: true}
+
   defp stack_paths(view, stack, period) do
-    Map.new([:total, :category, :security, :size, :change], fn choice ->
+    Map.new([:total, :category, :security, :size, :change, :window, :zero], fn choice ->
       {choice, stack_path(view, stack_choice(stack, choice), period)}
     end)
   end
@@ -1097,8 +1132,11 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp focus_crumb_after_drill(socket, _before, _now), do: socket
 
+  # The axis (I43) is the line's, never the bands'.
   defp bands_request(socket),
-    do: {socket.assigns.stack, socket.assigns.period, socket.assigns[:active_view_id]}
+    do:
+      {Map.delete(socket.assigns.stack, :axis), socket.assigns.period,
+       socket.assigns[:active_view_id]}
 
   # Each band's colour (the owner, 2026-11-07): a category the colour the
   # allocation sunburst draws it in for the same tree and view, so it looks
@@ -2453,6 +2491,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               crumbs={stack_crumbs(@carried_view, @stack, @bands, @bands_ancestors, @period)}
               classifications={@classifications}
               classification_id={stack_classification_id(@stack, @bands)}
+              axis={axis_switch(@stack)}
             />
             <%= if stacked?(@stack) do %>
               <%= cond do %>
@@ -2493,6 +2532,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 mode={@chart_mode}
                 currency={@performance.base_currency}
                 overlays={benchmark_overlays(@chart_mode, @comparisons, @performance.series)}
+                axis_start={@stack.axis}
               />
             <% end %>
             <%!-- UX-DR26: a deliberate limit is stated where the overlay is
@@ -4119,6 +4159,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       assigns
       |> assign_new(:mode, fn -> "ttwror" end)
       |> assign_new(:overlays, fn -> [] end)
+      |> assign_new(:axis_start, fn -> :window end)
 
     {quotes, value_mode, zero_line?, aria_label, currency_code} =
       case assigns.mode do
@@ -4157,6 +4198,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         currency_code={@currency_code}
         overlays={Enum.map(@overlays, &%{&1 | points: downsample(&1.points)})}
         overlays_extend_range?={true}
+        axis_start={if @mode == "value", do: @axis_start, else: :window}
       />
       <%!-- Board 02 (Sprint 26 P2): the value in percent is no return,
            since a deposit raises it; the line says so. --%>

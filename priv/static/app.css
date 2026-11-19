@@ -4507,6 +4507,39 @@ input[pattern]:invalid:not(:placeholder-shown) {
   font-size: calc(13px * var(--chart-upx, 1));
 }
 
+/* S30 W1 begin: I43 (board ux-design-2026-11-15-sprint30/01-axis-start,
+   answer C), the axis-break mark where an amount axis does not start at 0.
+   The group sits at the plot's lower left corner (the markup's translate);
+   the mark, a 15 x 13 patch in the frame's colour under two zigzags in the
+   muted ink, is centred 8 CSS px inside the plot, so it breaks the bottom
+   grid line where the plot begins and leaves the lowest value label beside
+   it. While the values stand inside the plot (J5 A, rule ③) the gutter is
+   empty and the mark moves into it, its right edge on the plot's edge.
+   Sized in CSS pixels through --chart-upx, as the axis labels are; without
+   script the factor is 1. */
+.security-chart .chart-axis-break__mark {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: translate(calc(8px * var(--chart-upx, 1)), 0) scale(var(--chart-upx, 1));
+}
+
+.chart-frame[data-axis-inside] .security-chart .chart-axis-break__mark {
+  transform: translate(calc(-8px * var(--chart-upx, 1)), 0) scale(var(--chart-upx, 1));
+}
+
+.security-chart .chart-axis-break rect {
+  fill: var(--color-bg);
+}
+
+.security-chart .chart-axis-break path {
+  fill: none;
+  stroke: var(--color-text-muted);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* S30 W1 end */
+
 .decimal-positive {
   color: var(--color-positive);
 }
