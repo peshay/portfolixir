@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sprint 30 · Crashes — die Auswahl des Fensters</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<!-- Written by render-05.js. Each frame under frames/ is a static page that
+     links app.css; the block below is artboard chrome only. No script runs
+     here. Synthetic data only. -->
+<style id="board">
+body { margin: 0; padding: 24px; background: var(--color-bg); color: var(--color-text); font-family: var(--font-sans); }
+.mock-board { max-width: 2010px; margin: 0 auto 28px; }
+.mock-head h1 { margin: 0 0 6px; font-size: 22px; }
+.mock-head p { max-width: 150ch; font-size: 13px; line-height: 1.55; }
+.mock-board > h2 { margin: 0 0 4px; font-size: 17px; font-weight: 760; }
+.mock-board > h2 small { font-size: 12px; font-weight: 700; color: var(--color-accent); background: var(--color-accent-soft); padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 2px; }
+p.mock-note { margin: 0 0 12px; max-width: 150ch; font-size: 13px; color: var(--color-text-muted); line-height: 1.5; }
+.mock-row { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.mock-fig { margin: 0; }
+.mock-tag { display: block; max-width: 980px; margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
+.mock-tag b { display: inline-block; margin-right: 6px; padding: 1px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; background: var(--color-bg-muted); color: var(--color-text-muted); }
+.mock-frame { width: max-content; border: 1px solid var(--color-border-strong); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow-panel); background: var(--color-bg); }
+.mock-frame iframe { display: block; border: 0; }
+</style>
+</head>
+<body>
+<div class="mock-board mock-head"><h1>Sprint 30 · Vermögen › Risiko, Crashes: die Auswahl des Fensters</h1>
+<p><strong>Anlass:</strong> der Browser-Job von CI nach F1 (die App liefert Inter) und M1 (Playwright 1.65.0). Der Rundgang <code>crash_section_layout.js</code> verlangt, dass ein manuelles Fenster mit kurzem Namen bei 1200 px ganz in der Auswahl steht (Board 06 ⑫ von Sprint 29). Die Auswahl war auf 20,5rem (328 px) begrenzt; „Synthetic dip · 15.08.2022–29.08.2022 · manuell“ brauchte 325 px, 3 px Luft. Die Headless-Shell von Playwright 1.65 (Chromium-Revision 1254, die CI startet) setzt die ausgelieferte variable Inter in ganzen Pixeln je Zeichen: dort braucht derselbe Text 332 px und wird gekürzt. Der Rundgang bleibt, wie er ist.</p>
+<p><strong>Neu:</strong> keine feste Obergrenze; die Auswahl ist so breit wie ihre längste Option, höchstens so breit wie der Platz, den sie bekommt. Auf der einen Zeile ist das der Rest der Zeile, den die Gruppe „Fenster“ seit Board 06 ⑮ schon nimmt (von 16rem bis zu ihrer eigenen Breite), in der Labelspalte und unter 560 px die Spalte. Die Zeile bricht weiter an den 16rem der Gruppe um, nie an der Auswahl; Falz 900 und Boden 330 bleiben. Gemessen in diesem Chromium: bei 1200 px 328 → 355,4 px Auswahl, der kurze Name braucht 332 px (23,4 px Luft statt -4). Im Rundgang: 332 in 357 px (Revision 1254, Headless-Shell), 325 in 356,7 px (Revision 1243).</p>
+<p><strong>Umkehrbar per Kommentar:</strong> „Crashes-Auswahl in der Labelspalte bis 20,5rem“ (② wie heute; der kurze Name bleibt dort in Revision 1254 gekürzt).</p></div>
+
+<section class="mock-board">
+  <h2>① 1200 px, Inter: eine Zeile, 924 px Leiste <small>empfohlen</small></h2>
+  <p class="mock-note">Heute endet die Zeile 27,4 px vor der Leiste, und die Auswahl kürzt den kurzen Namen an ihrer Obergrenze. Neu nimmt sie den Rest der Zeile; die längste Option, das lange manuelle Fenster, ist breiter als der Rest, also endet die Zeile an der Leiste. Ein Name, der auch dort nicht passt, wird gekürzt; die geöffnete Liste zeigt ihn ganz.</p>
+  <div class="mock-row"><figure class="mock-fig"><span class="mock-tag"><b>Heute</b>Auswahl bis 20,5rem: „… · manuel“</span><div class="mock-frame"><iframe src="frames/05a-1200-heute.html" width="980" height="90" title="05a-1200-heute.html"></iframe></div></figure><figure class="mock-fig"><span class="mock-tag"><b>Neu</b>Auswahl bis zum Rest der Zeile: „… · manuell“</span><div class="mock-frame"><iframe src="frames/05b-1200-neu.html" width="980" height="90" title="05b-1200-neu.html"></iframe></div></figure></div>
+</section>
+
+<section class="mock-board">
+  <h2>② 1100 px, Inter: die Labelspalte (A), 828 px Leiste <small>empfohlen</small></h2>
+  <p class="mock-note">Unter dem Falz 900 steht jedes Feld in der Spalte nach den Labels, in seiner eigenen Breite. Heute schneidet die Obergrenze auch hier bei 328 px ab, obwohl die Spalte Platz hat; neu ist die Auswahl so breit wie ihre längste Option (683 px), wie sie es unter 560 px schon war.</p>
+  <div class="mock-row"><figure class="mock-fig"><span class="mock-tag"><b>Heute</b>bis 20,5rem</span><div class="mock-frame"><iframe src="frames/05c-1100-heute.html" width="880" height="164" title="05c-1100-heute.html"></iframe></div></figure><figure class="mock-fig"><span class="mock-tag"><b>Neu</b>bis zur Spalte</span><div class="mock-frame"><iframe src="frames/05d-1100-neu.html" width="880" height="164" title="05d-1100-neu.html"></iframe></div></figure></div>
+</section>
+
+<section class="mock-board">
+  <h2>③ 1200 px, DejaVu Sans, die Ersatzschrift: unverändert</h2>
+  <p class="mock-note">In DejaVu Sans ist die Zeile schon heute voll (Board 06 ⑮): die Gruppe „Fenster“ bekommt nur den Rest, die Auswahl 311,8 px; neu 311,8 px. Der kurze Name bleibt dort gekürzt, solange die Zeile voll ist, wie der Rundgang es erlaubt.</p>
+  <div class="mock-row"><figure class="mock-fig"><span class="mock-tag"><b>Heute</b>DejaVu Sans</span><div class="mock-frame"><iframe src="frames/05e-1200-dejavu-heute.html" width="980" height="90" title="05e-1200-dejavu-heute.html"></iframe></div></figure><figure class="mock-fig"><span class="mock-tag"><b>Neu</b>DejaVu Sans</span><div class="mock-frame"><iframe src="frames/05f-1200-dejavu-neu.html" width="980" height="90" title="05f-1200-dejavu-neu.html"></iframe></div></figure></div>
+</section>
+</body>
+</html>

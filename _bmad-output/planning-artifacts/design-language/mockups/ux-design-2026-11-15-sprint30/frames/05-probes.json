@@ -1,0 +1,46 @@
+{
+ "05a-1200-heute.html": {
+  "height": 90,
+  "select": 328,
+  "needed": 332,
+  "lineEnd": 27.4,
+  "inter": true
+ },
+ "05b-1200-neu.html": {
+  "height": 90,
+  "select": 355.4,
+  "needed": 332,
+  "lineEnd": 0,
+  "inter": true
+ },
+ "05c-1100-heute.html": {
+  "height": 164,
+  "select": 328,
+  "needed": 332,
+  "lineEnd": 566.2,
+  "inter": true
+ },
+ "05d-1100-neu.html": {
+  "height": 164,
+  "select": 683,
+  "needed": 332,
+  "lineEnd": 566.2,
+  "inter": true
+ },
+ "05e-1200-dejavu-heute.html": {
+  "height": 90,
+  "select": 311.8,
+  "needed": 346,
+  "lineEnd": 0,
+  "inter": false
+ },
+ "05f-1200-dejavu-neu.html": {
+  "height": 90,
+  "select": 311.8,
+  "needed": 346,
+  "lineEnd": 0,
+  "inter": false
+ },
+ "needed": 332,
+ "browser": "158.0.8127.18"
+}
