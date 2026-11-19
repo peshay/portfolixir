@@ -249,7 +249,9 @@ Beschreibung) behält Tabulatoren und Zeilenumbrüche, aber kein anderes
 Steuerzeichen, auch kein NUL, und ist höchstens 10000 Zeichen lang (der
 `body` eines Research-Log-Eintrags 20000, die `description` einer Kategorie
 2000), gezählt in Codepunkten; auch die Datenbank lehnt einen längeren Wert
-ab. Kein Text, einzeilig oder frei, trägt ein **unsichtbares Zeichen** (E25):
+ab. Die Schemas der MCP-Tools tragen jede Freitext-Grenze als `maxLength`, und
+der Begleitdienst prüft sie in Codepunkten, bevor er die API aufruft (#951).
+Kein Text, einzeilig oder frei, trägt ein **unsichtbares Zeichen** (E25):
 irgendeinen der standardmäßig ignorierbaren Codepunkte von Unicode — ein
 Tag-Zeichen und den Rest seines Blocks (U+E0000–U+E00FF, U+E01F0–U+E0FFF),
 ein Steuerzeichen der Schreibrichtung (U+061C, U+200E, U+200F,

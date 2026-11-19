@@ -132,6 +132,9 @@ const optionalString = () => z.string().optional();
 // UTF-16 units, so the zod check counts code points itself.
 const FREE_TEXT_MAX = 10000;
 const ENTRY_BODY_MAX = 20000;
+// #951 (G02): every other free-text note and description carries the API's
+// cap as maxLength and the same check, a category's description 2000.
+const CATEGORY_DESCRIPTION_MAX = 2000;
 const codePoints = (value: string) => [...value].length;
 const cappedText = (max: number) =>
   z.string().refine((value) => codePoints(value) <= max, {
@@ -182,7 +185,7 @@ const securityZ = z.object({
     currency_code: z.string(),
     exchange_code: optionalString(),
     asset_class: optionalString(),
-    note: optionalString(),
+    note: cappedText(FREE_TEXT_MAX).optional(),
     feed: optionalString(),
     feed_url: optionalString(),
     provider: optionalString(),
@@ -227,7 +230,7 @@ const portfolioZ = z.object({
   portfolio: z.object({
     name: z.string(),
     base_currency_code: z.string(),
-    notes: optionalString()
+    notes: cappedText(FREE_TEXT_MAX).optional()
   })
 });
 
@@ -240,7 +243,7 @@ const cashAccountZ = z.object({
     portfolio_id: z.number().int().positive().optional(),
     name: z.string(),
     currency_code: z.string(),
-    notes: optionalString(),
+    notes: cappedText(FREE_TEXT_MAX).optional(),
     liquidity_role: liquidityRoleZ.optional()
   })
 });
@@ -252,7 +255,7 @@ const securitiesAccountZ = z.object({
     portfolio_id: z.number().int().positive().optional(),
     cash_account_id: z.number().int().positive(),
     name: z.string(),
-    notes: optionalString()
+    notes: cappedText(FREE_TEXT_MAX).optional()
   })
 });
 
@@ -390,7 +393,7 @@ const transactionZ = z.object({
       security_amount: optionalString(),
       settlement_amount: optionalString(),
       settlement_fx_rate: optionalString(),
-      notes: optionalString()
+      notes: cappedText(FREE_TEXT_MAX).optional()
     })
     .superRefine((tx, ctx) => {
       // The backend validates per-kind required fields; these two guards are
@@ -543,7 +546,7 @@ const securitySchema = objectWith("security", {
     currency_code: { type: "string" },
     exchange_code: { type: "string" },
     asset_class: { type: "string" },
-    note: { type: "string" },
+    note: { type: "string", maxLength: FREE_TEXT_MAX },
     feed: { type: "string" },
     feed_url: { type: "string" },
     provider: { type: "string" },
@@ -624,7 +627,7 @@ const portfolioSchema = objectWith("portfolio", {
   properties: {
     name: { type: "string" },
     base_currency_code: { type: "string" },
-    notes: { type: "string" }
+    notes: { type: "string", maxLength: FREE_TEXT_MAX }
   }
 });
 
@@ -635,7 +638,7 @@ const cashAccountSchema = objectWith("cash_account", {
     portfolio_id: { type: "integer", minimum: 1 },
     name: { type: "string" },
     currency_code: { type: "string" },
-    notes: { type: "string" },
+    notes: { type: "string", maxLength: FREE_TEXT_MAX },
     liquidity_role: { type: "string", enum: ["free_cash", "credit_line", "reserve"] }
   }
 });
@@ -647,7 +650,7 @@ const securitiesAccountSchema = objectWith("securities_account", {
     portfolio_id: { type: "integer", minimum: 1 },
     cash_account_id: { type: "integer", minimum: 1 },
     name: { type: "string" },
-    notes: { type: "string" }
+    notes: { type: "string", maxLength: FREE_TEXT_MAX }
   }
 });
 
@@ -672,7 +675,7 @@ const transactionSchema = objectWith("transaction", {
     security_amount: { type: "string" },
     settlement_amount: { type: "string" },
     settlement_fx_rate: { type: "string" },
-    notes: { type: "string" }
+    notes: { type: "string", maxLength: FREE_TEXT_MAX }
   }
 });
 
@@ -682,7 +685,7 @@ const classificationSchema = objectWith("classification", {
   properties: {
     name: { type: "string" },
     position: positionProperty,
-    description: { type: "string" }
+    description: { type: "string", maxLength: FREE_TEXT_MAX }
   }
 });
 
@@ -690,7 +693,7 @@ const classificationZ = z.object({
   classification: z.object({
     name: z.string(),
     position: position.optional(),
-    description: optionalString()
+    description: cappedText(FREE_TEXT_MAX).optional()
   })
 });
 
@@ -706,7 +709,7 @@ const categorySchema = {
       properties: {
         name: { type: "string" },
         color: { type: "string" },
-        description: { type: "string" },
+        description: { type: "string", maxLength: CATEGORY_DESCRIPTION_MAX },
         parent_id: { type: "integer", minimum: 1 },
         position: positionProperty
       }
@@ -719,7 +722,7 @@ const categoryZ = z.object({
   category: z.object({
     name: z.string(),
     color: optionalString(),
-    description: optionalString(),
+    description: cappedText(CATEGORY_DESCRIPTION_MAX).optional(),
     parent_id: z.number().int().positive().optional(),
     position: position.optional()
   })
@@ -768,7 +771,7 @@ const classificationUpdateSchema = {
       properties: {
         name: { type: "string" },
         position: positionProperty,
-        description: { type: "string" }
+        description: { type: "string", maxLength: FREE_TEXT_MAX }
       }
     }
   }
@@ -779,7 +782,7 @@ const classificationUpdateZ = z.object({
   classification: z.object({
     name: optionalString(),
     position: position.optional(),
-    description: optionalString()
+    description: cappedText(FREE_TEXT_MAX).optional()
   })
 });
 
@@ -795,7 +798,7 @@ const categoryUpdateSchema = {
       properties: {
         name: { type: "string" },
         color: { type: "string" },
-        description: { type: "string" },
+        description: { type: "string", maxLength: CATEGORY_DESCRIPTION_MAX },
         parent_id: { type: "integer", minimum: 1 },
         position: positionProperty
       }
@@ -809,7 +812,7 @@ const categoryUpdateZ = z.object({
   category: z.object({
     name: optionalString(),
     color: optionalString(),
-    description: optionalString(),
+    description: cappedText(CATEGORY_DESCRIPTION_MAX).optional(),
     parent_id: z.number().int().positive().optional(),
     position: position.optional()
   })
@@ -943,7 +946,7 @@ const securityUpdateSchema = {
         },
         exchange_code: { type: "string" },
         asset_class: { type: "string" },
-        note: { type: "string" },
+        note: { type: "string", maxLength: FREE_TEXT_MAX },
         feed: { type: "string" },
         feed_url: { type: "string" },
         provider: { type: "string" },
@@ -989,7 +992,7 @@ const securityUpdateZ = z.object({
     currency_code: optionalString(),
     exchange_code: optionalString(),
     asset_class: optionalString(),
-    note: optionalString(),
+    note: cappedText(FREE_TEXT_MAX).optional(),
     feed: optionalString(),
     feed_url: optionalString(),
     provider: optionalString(),
@@ -1032,7 +1035,7 @@ const transactionUpdateSchema = {
         security_amount: { type: "string" },
         settlement_amount: { type: "string" },
         settlement_fx_rate: { type: "string" },
-        notes: { type: "string" }
+        notes: { type: "string", maxLength: FREE_TEXT_MAX }
       }
     }
   }
@@ -1059,7 +1062,7 @@ const transactionUpdateZ = z.object({
       security_amount: optionalString(),
       settlement_amount: optionalString(),
       settlement_fx_rate: optionalString(),
-      notes: optionalString()
+      notes: cappedText(FREE_TEXT_MAX).optional()
     })
     .superRefine((tx, ctx) => {
       // Closes the create-guard bypass: re-typing an existing booking into an
@@ -1093,7 +1096,7 @@ const cashAccountUpdateSchema = {
           description:
             "ADR-0050 §11: Frozen once a transaction (either leg) or a linked depot references the account — a change then answers 422 with errors.currency_code counting the references, and nothing is written. Resending the stored currency is no change."
         },
-        notes: { type: "string" },
+        notes: { type: "string", maxLength: FREE_TEXT_MAX },
         liquidity_role: { type: "string", enum: ["free_cash", "credit_line", "reserve"] }
       }
     }
@@ -1105,7 +1108,7 @@ const cashAccountUpdateZ = z.object({
   cash_account: z.object({
     name: optionalString(),
     currency_code: optionalString(),
-    notes: optionalString(),
+    notes: cappedText(FREE_TEXT_MAX).optional(),
     liquidity_role: liquidityRoleZ.optional()
   })
 });
@@ -1121,7 +1124,7 @@ const securitiesAccountUpdateSchema = {
       properties: {
         cash_account_id: { type: "integer", minimum: 1 },
         name: { type: "string" },
-        notes: { type: "string" }
+        notes: { type: "string", maxLength: FREE_TEXT_MAX }
       }
     }
   }
@@ -1132,7 +1135,7 @@ const securitiesAccountUpdateZ = z.object({
   securities_account: z.object({
     cash_account_id: z.number().int().positive().optional(),
     name: optionalString(),
-    notes: optionalString()
+    notes: cappedText(FREE_TEXT_MAX).optional()
   })
 });
 
@@ -1676,7 +1679,7 @@ const cashBalanceSchema = {
     id: { type: "integer", minimum: 1 },
     date: { type: "string", format: "date", description: boundedDate() },
     amount: { type: "string" },
-    notes: { type: "string" }
+    notes: { type: "string", maxLength: FREE_TEXT_MAX }
   }
 };
 
@@ -1684,7 +1687,7 @@ const cashBalanceZ = z.object({
   id: z.number().int().positive(),
   date: z.string(),
   amount: z.string(),
-  notes: optionalString()
+  notes: cappedText(FREE_TEXT_MAX).optional()
 });
 
 const incomeSchema = {
@@ -2267,7 +2270,7 @@ const taxProfileCreateSchema = {
     church_tax_liable: { type: "boolean" },
     church_tax_rate: { type: "string", description: "Decimal string fraction; 0 when not liable" },
     assessment_type: { type: "string", enum: ["single", "joint"] },
-    note: { type: "string" }
+    note: { type: "string", maxLength: FREE_TEXT_MAX }
   }
 };
 
@@ -2277,7 +2280,7 @@ const taxProfileCreateZ = z.object({
   church_tax_liable: z.boolean().optional(),
   church_tax_rate: z.string().optional(),
   assessment_type: z.enum(["single", "joint"]).optional(),
-  note: z.string().optional()
+  note: cappedText(FREE_TEXT_MAX).optional()
 });
 
 const taxProfileUpdateSchema = {
@@ -2290,7 +2293,7 @@ const taxProfileUpdateSchema = {
     church_tax_liable: { type: "boolean" },
     church_tax_rate: { type: "string" },
     assessment_type: { type: "string", enum: ["single", "joint"] },
-    note: { type: "string" }
+    note: { type: "string", maxLength: FREE_TEXT_MAX }
   }
 };
 
@@ -2300,7 +2303,7 @@ const taxProfileUpdateZ = z.object({
   church_tax_liable: z.boolean().optional(),
   church_tax_rate: z.string().optional(),
   assessment_type: z.enum(["single", "joint"]).optional(),
-  note: z.string().optional()
+  note: cappedText(FREE_TEXT_MAX).optional()
 });
 
 const taxProfileIdSchema = {
@@ -2337,7 +2340,7 @@ const allowanceOrderPutSchema = {
     institution: { type: "string", minLength: 1 },
     tax_year: { type: "integer", minimum: 1990, maximum: 2200 },
     amount_granted: taxMoney,
-    note: { type: "string" }
+    note: { type: "string", maxLength: FREE_TEXT_MAX }
   }
 };
 
@@ -2346,7 +2349,7 @@ const allowanceOrderPutZ = z.object({
   institution: z.string().min(1),
   tax_year: z.number().int().min(1990).max(2200),
   amount_granted: z.string(),
-  note: z.string().optional()
+  note: cappedText(FREE_TEXT_MAX).optional()
 });
 
 const allowanceOrderIdSchema = {
@@ -2424,7 +2427,7 @@ const taxSnapshotCreateSchema = {
       type: "string",
       description: "Decimal string fraction; omit to take the holder's profile in force at as_of"
     },
-    note: { type: "string" },
+    note: { type: "string", maxLength: FREE_TEXT_MAX },
     ...taxSnapshotMoneyProperties
   }
 };
@@ -2435,7 +2438,7 @@ const taxSnapshotCreateZ = z.object({
   tax_year: z.number().int().min(1990).max(2200),
   as_of: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   church_tax_rate: z.string().optional(),
-  note: z.string().optional(),
+  note: cappedText(FREE_TEXT_MAX).optional(),
   ...taxSnapshotMoneyZ
 });
 
@@ -2446,7 +2449,7 @@ const taxSnapshotUpdateSchema = {
   properties: {
     snapshot_id: { type: "integer", minimum: 1 },
     church_tax_rate: { type: "string" },
-    note: { type: "string" },
+    note: { type: "string", maxLength: FREE_TEXT_MAX },
     ...taxSnapshotMoneyProperties
   }
 };
@@ -2454,7 +2457,7 @@ const taxSnapshotUpdateSchema = {
 const taxSnapshotUpdateZ = z.object({
   snapshot_id: z.number().int().positive(),
   church_tax_rate: z.string().optional(),
-  note: z.string().optional(),
+  note: cappedText(FREE_TEXT_MAX).optional(),
   ...taxSnapshotMoneyZ
 });
 
@@ -5318,9 +5321,11 @@ function routedMethod(name: string): string {
 // (#1045) answer outcome unknown as well; the server instructions name them,
 // not this note, which has no room. The API's idempotency key is a later
 // story; until then the re-read is the guard.
+// #951 paid for its maxLength caps by shortening this note (the schema
+// budget).
 const OUTCOME_UNKNOWN_NOTE =
-  " A timeout or lost connection answers outcome unknown (ApiOutcomeUnknownError): the write " +
-  "may have committed, so re-read before retrying; a blind retry can store a duplicate.";
+  " A timeout or lost connection answers outcome unknown (ApiOutcomeUnknownError): it " +
+  "may have committed, so re-read before retrying; a retry can duplicate it.";
 
 const toolDefinitions: ToolDefinition[] = declaredTools.map((tool) => {
   const method = routedMethod(tool.name);

@@ -224,7 +224,9 @@ research-log entry, an event's or a rule version's `note`, a description)
 keeps tabs and line breaks but no other control character, a NUL included,
 and is at most 10000 characters long (a research-log entry's `body` 20000, a
 category's `description` 2000), counted in code points; the database refuses
-a longer value as well. No text, one-line or free, carries an **invisible
+a longer value as well. The MCP tools' schemas carry each free-text cap as
+`maxLength`, and the companion checks it in code points before it calls the
+API (#951). No text, one-line or free, carries an **invisible
 character** (E25): any of Unicode's default-ignorable code points — a tag
 character and the rest of its block (U+E0000–U+E00FF, U+E01F0–U+E0FFF), a
 bidirectional control (U+061C, U+200E, U+200F, U+202A–U+202E,
