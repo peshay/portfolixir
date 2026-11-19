@@ -649,7 +649,11 @@ function moversCard(o) {
   const info = `<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info"${o.infoOpen ? ' open data-place="below"' : ''}><summary aria-label="Über diesen Abschnitt">ⓘ</summary><p role="tooltip">${INFO_LINES.join('<br>')}</p></details>`;
   const head = `<div class="section-head"><div class="section-title"><h2 id="movers-title">Tops und Flops</h2>${info}</div><a class="kpi-summary__link" href="${o.href}" data-role="movers-wealth-link">In Vermögen ansehen →</a></div>`;
   const bar = controlBar(o.period, o.layout === 'cols' ? null : o.layout);
-  const basis = `<p class="summary-basis" data-role="movers-basis">${o.basis}</p>`;
+  // Where the view Wealth remembers is not the card's, one sentence under
+  // the basis line names both (the built card, commit "fix(dashboard): the
+  // movers card names Wealth's other view instead of linking it").
+  const wealthView = o.wealthView ? `<p class="hint${o.wealthViewNew ? ' mock-new' : ''}" data-role="movers-wealth-view">Vermögen ist gerade auf die Ansicht „<bdi>${esc(o.wealthView)}</bdi>“ eingegrenzt; diese Karte zeigt „<bdi>${esc(o.view)}</bdi>“.</p>` : '';
+  const basis = `<p class="summary-basis" data-role="movers-basis">${o.basis}</p>${wealthView}`;
   if (o.empty) return `<section id="dashboard-movers" class="workspace-section movers mock-new" aria-labelledby="movers-title">${head}${bar}<p class="empty-state" data-role="movers-empty">Keine Bestände in dieser Ansicht.</p></section>`;
   const rs = halves(o.returns, 'r');
   const cs = halves(o.contrib, 'v');
@@ -729,6 +733,17 @@ B4.six = tagged(writeFrame('04i-zustand-sechs', cardOnly(OVERVIEW, moversCard({
   returns: SIX.map(([id, name, r]) => ({ id, name, r })),
   contrib: [...SIX.map(([id, name, , v]) => ({ id, name, v })), { id: 38, name: 'Linden Bay Bond 2029', v: 41.2, sold: true }]
 })), { css: MOVERS_CSS }), 'Zustand · sechs Wertpapiere: je Hälfte drei; sieben Positionen mit einer verkauften: vier über drei · Zahlen erfunden');
+// Board 06 (Sprint 30's closing act, design critic): 04i as drawn, the
+// link carrying `view=`, and as built, the link without it and the
+// sentence naming Wealth's other view under the basis line.
+const SIX_CARD = {
+  period: 'month', layout: 'cols', view: 'Nur Neuzugang',
+  basis: 'Ansicht Nur Neuzugang · Monat: Schlusskurs 31.10.2026 bis 15.11.2026 · in EUR, aus gespeicherten Schlusskursen und Buchungen',
+  returns: SIX.map(([id, name, r]) => ({ id, name, r })),
+  contrib: [...SIX.map(([id, name, , v]) => ({ id, name, v })), { id: 38, name: 'Linden Bay Bond 2029', v: 41.2, sold: true }]
+};
+writeFrame('06g-bewegte-ansicht-heute', cardOnly(OVERVIEW, moversCard({ ...SIX_CARD, href: '/portfolio?view=nur-neuzugang&amp;from=2026-11-01&amp;to=2026-11-15' })), { css: MOVERS_CSS });
+writeFrame('06h-bewegte-ansicht-neu', cardOnly(OVERVIEW, moversCard({ ...SIX_CARD, href: '/portfolio?from=2026-11-01&amp;to=2026-11-15', wealthView: 'Alles', wealthViewNew: true })), { css: MOVERS_CSS });
 B4.empty = tagged(writeFrame('04j-zustand-leer', cardOnly(OVERVIEW, moversCard({ period: 'ytd', layout: 'cols', href: '/portfolio?from=2026-01-01&amp;to=2026-11-15', empty: true })), { css: MOVERS_CSS }), 'Zustand · eine Ansicht ohne Bestände');
 
 // ⑥ B, not recommended: the same rankings on Vermögen › Performance, under

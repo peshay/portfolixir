@@ -1,0 +1,35 @@
+{
+ "06a-ab-0-heute.html": {
+  "height": 775
+ },
+ "06b-ab-0-neu.html": {
+  "height": 775
+ },
+ "06c-crash-kopf-heute.html": {
+  "height": 618,
+  "ppWidth": 395,
+  "ppLines": 1,
+  "nameWidth": 93,
+  "rowMax": 120
+ },
+ "06d-crash-kopf-neu.html": {
+  "height": 565,
+  "ppWidth": 201,
+  "ppLines": 3,
+  "nameWidth": 219,
+  "rowMax": 70
+ },
+ "06e-crash-grundlage-heute.html": {
+  "height": 355
+ },
+ "06f-crash-grundlage-neu.html": {
+  "height": 391
+ },
+ "06g-bewegte-ansicht-heute.html": {
+  "height": 542
+ },
+ "06h-bewegte-ansicht-neu.html": {
+  "height": 579
+ },
+ "browser": "158.0.8127.18"
+}

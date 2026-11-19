@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06h-bewegte-ansicht-neu</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.app-frame { padding-left: 0 !important; min-height: 0 !important; }
+.app-shell, .app-main, .app-main--workspace, .workspace-page { min-height: 0 !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-crop { margin: 0; padding: 8px 12px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12px; color: var(--color-text-muted); }
+</style>
+<style id="proposal">.workspace-section { padding: 28px; }
+/* I32: the card „Tops und Flops“ on the Overview. Its parts are the page's
+   own: .section-head with the I1 ⓘ and the „→“ link of the trades card,
+   the shared control bar, .attention-list rows, the contribution table's
+   bar under its figure (contribution_table.ex) and the „ohne Bestand“
+   badge's neutral look for „verkauft“. New are only the grid and the two
+   small labels. */
+.movers { container: movers / inline-size; }
+.movers .section-head { margin-bottom: 0; }
+.movers > .summary-basis { margin: 0; font-size: 12px; color: var(--color-text-muted); }
+.movers__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5, 20px) 48px; align-items: start; }
+.movers__grid--one { grid-template-columns: minmax(0, 1fr); }
+@container movers (max-width: 640px) { .movers__grid { grid-template-columns: minmax(0, 1fr); } }
+.movers__col h3 { margin: 0; padding-bottom: 6px; font-size: 15px; border-bottom: 1px solid var(--color-border); }
+.movers__half { margin: 12px 0 6px; font-size: 11px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-text-muted); }
+.movers__col > .movers__half:first-child { margin-top: 0; }
+.movers__count { margin: 12px 0 0; font-size: 12px; color: var(--color-text-muted); }
+.movers .attention-item .num { text-align: right; }
+.movers .attention-name .badge { margin-left: 6px; vertical-align: 1px; }
+.movers__figure .drift-bar { display: block; flex: none; width: 110px; min-width: 110px; margin: 5px 0 0 auto; }
+</style>
+</head>
+<body><div class="phx-connected">
+<div id="app-shell" class="app-shell">
+<div class="app-frame"><main class="app-main app-main--workspace">
+<div id="dashboard-workspace" class="workspace-page">
+<div id="dashboard-overview">
+
+  <div id="dashboard-load-error" role="status">
+
+  </div>
+
+  <section id="dashboard-movers" class="workspace-section movers mock-new" aria-labelledby="movers-title">
+<div class="section-head">
+<div class="section-title">
+<h2 id="movers-title">Tops und Flops</h2>
+<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+<summary aria-label="Über diesen Abschnitt">ⓘ</summary>
+<p role="tooltip">Kursrendite: letzter gespeicherter Schlusskurs im Zeitraum ÷ Schlusskurs vor dem Zeitraum − 1, beide in EUR zum gespeicherten Wechselkurs ihres Tages; Erträge und Kosten zählen nicht.<br>Beitrag: Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten je Position, wie „Beitrag je Position“ in Vermögen; eine im Zeitraum verkaufte Position zählt mit.<br>Je fünf höchste und niedrigste; unter zehn teilt sich die Liste, kein Name steht in beiden Hälften. Ein Beitrag, der 0,00 liest, steht in keiner Hälfte.<br>Ohne Schlusskurs vor dem Zeitraum, ohne Kurs darin oder ohne Wechselkurs: keine Kursrendite. Ein Tag ohne Kurs zählt beim Beitrag null, wie in Vermögen.<br>Tag: seit dem vorigen Schlusskurs jedes Wertpapiers; die beiden Daten stehen an der Zeile.</p>
+</details>
+</div>
+<a class="kpi-summary__link" href="/portfolio?from=2026-11-01&amp;to=2026-11-15" data-role="movers-wealth-link">In Vermögen ansehen →</a>
+</div>
+<div class="control-bar control-bar--fold-560 control-bar--floor-380" data-role="movers-bar">
+<div class="control-bar__controls">
+<span class="control-bar__group"><span class="control-bar__label" id="movers-period-label">Zeitraum</span>
+<div class="segmented-control" data-role="movers-period" role="group" aria-labelledby="movers-period-label">
+<a href="/?movers_period=day" class="segmented-control__option">Tag</a>
+<a href="/?movers_period=week" class="segmented-control__option">Woche</a>
+<a href="/?movers_period=month" class="segmented-control__option is-active" aria-current="true">Monat</a>
+<a href="/?movers_period=quarter" class="segmented-control__option">Quartal</a>
+<a href="/?movers_period=ytd" class="segmented-control__option">YTD</a>
+<a href="/?movers_period=1y" class="segmented-control__option">1J</a>
+</div></span>
+</div>
+</div>
+<p class="summary-basis" data-role="movers-basis">Ansicht Nur Neuzugang · Monat: Schlusskurs 31.10.2026 bis 15.11.2026 · in EUR, aus gespeicherten Schlusskursen und Buchungen</p>
+<p class="hint mock-new" data-role="movers-wealth-view">Vermögen ist gerade auf die Ansicht „<bdi>Alles</bdi>“ eingegrenzt; diese Karte zeigt „<bdi>Nur Neuzugang</bdi>“.</p>
+<div class="movers__grid">
+<div class="movers__col" data-role="movers-return">
+<h3>Kursrendite</h3>
+<h4 class="movers__half">Höchste</h4>
+<ul class="attention-list">
+<li>
+<a href="/securities/11" class="attention-item" data-role="movers-row"><span class="attention-name">Kestrel Industrial Group NV</span><span class="num is-positive">+6,3%</span></a>
+</li>
+<li>
+<a href="/securities/46" class="attention-item" data-role="movers-row"><span class="attention-name">Wexmoor Instruments AG</span><span class="num is-positive">+3,1%</span></a>
+</li>
+<li>
+<a href="/securities/50" class="attention-item" data-role="movers-row"><span class="attention-name">Tamarisk Systems Inc.</span><span class="num is-positive">+1,2%</span></a>
+</li>
+</ul>
+<h4 class="movers__half">Niedrigste</h4>
+<ul class="attention-list">
+<li>
+<a href="/securities/37" class="attention-item" data-role="movers-row"><span class="attention-name">Sable Point Energy ASA</span><span class="num is-negative">−4,8%</span></a>
+</li>
+<li>
+<a href="/securities/35" class="attention-item" data-role="movers-row"><span class="attention-name">Brightwater Utilities plc</span><span class="num is-negative">−1,9%</span></a>
+</li>
+<li>
+<a href="/securities/12" class="attention-item" data-role="movers-row"><span class="attention-name">Alpine Test Werke AG</span><span class="num is-negative">−0,4%</span></a>
+</li>
+</ul>
+</div>
+<div class="movers__col" data-role="movers-contribution">
+<h3>Beitrag</h3>
+<h4 class="movers__half">Höchste</h4>
+<ul class="attention-list">
+<li>
+<a href="/securities/11" class="attention-item" data-role="movers-row"><span class="attention-name">Kestrel Industrial Group NV</span><span class="num movers__figure"><span class="is-positive">+312,00 EUR</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width: 45.0%"></span></span></span></a>
+</li>
+<li>
+<a href="/securities/46" class="attention-item" data-role="movers-row"><span class="attention-name">Wexmoor Instruments AG</span><span class="num movers__figure"><span class="is-positive">+96,50 EUR</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width: 13.9%"></span></span></span></a>
+</li>
+<li>
+<a href="/securities/38" class="attention-item" data-role="movers-row"><span class="attention-name">Linden Bay Bond 2029 <span class="badge badge--neutral" data-role="movers-sold">verkauft</span></span><span class="num movers__figure"><span class="is-positive">+41,20 EUR</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width: 5.9%"></span></span></span></a>
+</li>
+<li>
+<a href="/securities/50" class="attention-item" data-role="movers-row"><span class="attention-name">Tamarisk Systems Inc.</span><span class="num movers__figure"><span class="is-positive">+18,60 EUR</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width: 2.7%"></span></span></span></a>
+</li>
+</ul>
+<h4 class="movers__half">Niedrigste</h4>
+<ul class="attention-list">
+<li>
+<a href="/securities/37" class="attention-item" data-role="movers-row"><span class="attention-name">Sable Point Energy ASA</span><span class="num movers__figure"><span class="is-negative">−233,40 EUR</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-under" style="width: 33.7%"></span></span></span></a>
+</li>
+<li>
+<a href="/securities/35" class="attention-item" data-role="movers-row"><span class="attention-name">Brightwater Utilities plc</span><span class="num movers__figure"><span class="is-negative">−61,80 EUR</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-under" style="width: 8.9%"></span></span></span></a>
+</li>
+<li>
+<a href="/securities/12" class="attention-item" data-role="movers-row"><span class="attention-name">Alpine Test Werke AG</span><span class="num movers__figure"><span class="is-negative">−8,90 EUR</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-under" style="width: 1.3%"></span></span></span></a>
+</li>
+</ul>
+</div>
+</div>
+</section>
+</div>
+</div></main>
+</div>
+</div>
+</div>
+</body>
+</html>

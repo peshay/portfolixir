@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06d-crash-kopf-neu</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.workspace-section { padding: 28px; }
+.mock-label { margin: 0 0 6px; font-size: 12px; font-weight: 650; color: var(--color-text-muted); }
+.mock-label + * { margin-top: 0; }
+.mock-gap { height: 20px; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-crop { margin: 12px 0 0; padding: 8px 12px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12px; color: var(--color-text-muted); }
+.mock-count { font-weight: 600; font-variant-numeric: tabular-nums; }
+.mock-case { margin: 0 0 14px; }
+.mock-case:last-child { margin-bottom: 0; }
+</style>
+<style id="rule">.crash-table th.num.crash-pp { white-space: normal; }#crash-windows { display: none; }</style>
+</head>
+<body><div style="width: 980px">
+<section data-phx-component="1" class="workspace-section crash-section" id="risk-crashes" aria-labelledby="risk-crashes-title"><header class="section-head"><div class="section-title"><h2 id="risk-crashes-title">Crashes</h2><details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info"><summary aria-label="Zu diesem Abschnitt">ⓘ</summary><p role="tooltip">Ein Fenster öffnet, sobald der Crash-Benchmark 10 % oder mehr unter seinem Höchststand schließt; es beginnt am letzten Tag auf dem Hoch und endet im tiefsten Schluss vor der Erholung, bei gleichen Tiefs am frühesten.<br/>Erkannt in der Währung des Benchmarks, gelistet in EUR zum Wechselkurs jedes Schlusstags; Splits bereinigt.<br/>Kurs an einem Tag: der letzte Schluss am oder vor ihm, höchstens 7 Tage alt. Ohne Kurs oder Wechselkurs keine Antwort, nie eine Null.<br/>Erholer: vom eigenen Tief zwischen Hoch und Tief bis drei Kalendermonate nach dem Tief; Tage bis Vorkrisenkurs in Kalendertagen.<br/>Gleichstand nach Wert, dann Name, dann ISIN. Benchmarks stehen in keiner Liste.<br/>Kein Urteil: die Listen vergleichen Kurse, sie sagen nicht, was zu kaufen ist.</p></details></div></header><div class="control-bar control-bar--fold-900 control-bar--floor-330 crash-bar" data-role="crash-bar"><div class="control-bar__controls"><form class="control-bar__group " id="crash-window-form" phx-change="crash_window" phx-target="1"><label class="control-bar__label" for="crash-window">Fenster</label><select id="crash-window" name="crash"><option value="m:2">
+        Synthetic dip · 15.08.2022–29.08.2022 · manuell
+      </option><option value="m:1">
+        Synthetic war leg drawn by hand over a long stretch of the bear market · 23.02.2022–07.03.2022 · manuell
+      </option><option value="d:23:2022-01-04" selected="">
+        Ohne Namen · 04.01.2022–12.10.2022
+      </option></select></form><span class="control-bar__group "><span class="control-bar__label" id="crash-list-label">Liste</span><div class="segmented-control" data-role="crash-list" role="group" aria-labelledby="crash-list-label"><a href="/risk?view=1&amp;crash=d%3A23%3A2022-01-04&amp;crash_list=losers&amp;crash_universe=catalogue" data-phx-link="patch" data-phx-link-state="push" class="segmented-control__option is-active" aria-current="true" data-list="losers">
+        Verlierer
+      </a><a href="/risk?view=1&amp;crash=d%3A23%3A2022-01-04&amp;crash_list=winners&amp;crash_universe=catalogue" data-phx-link="patch" data-phx-link-state="push" class="segmented-control__option" data-list="winners">
+        Gewinner
+      </a><a href="/risk?view=1&amp;crash=d%3A23%3A2022-01-04&amp;crash_list=rebounders&amp;crash_universe=catalogue" data-phx-link="patch" data-phx-link-state="push" class="segmented-control__option" data-list="rebounders">
+        Erholer
+      </a></div></span><span class="control-bar__group "><span class="control-bar__label" id="crash-universe-label">Wertpapiere</span><div class="segmented-control" data-role="crash-universe" role="group" aria-labelledby="crash-universe-label"><a href="/risk?view=1&amp;crash=d%3A23%3A2022-01-04&amp;crash_list=losers&amp;crash_universe=depot" data-phx-link="patch" data-phx-link-state="push" class="segmented-control__option" data-universe="depot">
+          Im Depot
+        </a><a href="/risk?view=1&amp;crash=d%3A23%3A2022-01-04&amp;crash_list=losers&amp;crash_universe=catalogue" data-phx-link="patch" data-phx-link-state="push" class="segmented-control__option is-active" aria-current="true" data-universe="catalogue">
+          Ganzer Katalog
+        </a></div></span></div></div><p class="crash-window" data-role="crash-window"><b><i>Ohne Namen</i></b><span class="badge badge--neutral">erkannt</span><span>
+    Hoch <b>04.01.2022</b>
+    →
+    Tief
+    <b>12.10.2022</b></span><span>
+    Synthetic All-World Crash Index UCITS ETF USD Acc
+    <b class="is-negative">-25,6 %</b>
+    in EUR
+  </span><span>
+    erholt am 01.06.2023
+  </span><a href="/portfolio?view=1&amp;from=2022-01-04&amp;to=2022-10-12" data-phx-link="redirect" data-phx-link-state="push" class="crash-window__link" data-role="crash-holdings-link">
+        Im Depot ansehen →
+      </a></p><div class="data-table-wrapper"><table class="data-table crash-table " data-list="losers"><thead><tr><th class="crash-rank">#</th><th class="crash-name">Wertpapier</th><th class="crash-plot">
+            Kursrendite Hoch → Tief, EUR
+          </th><th class="num crash-fig">%</th><th class="num crash-pp">
+            ggü. Synthetic All-World Crash Index UCITS ETF USD Acc
+          </th></tr></thead><tbody><tr data-rank="1" data-security-id="24" data-return="-0.4"><td class="crash-rank">1</td><td class="crash-name">
+            Synthetic Faller With A Rather Long Company Name Hold A<span class="badge badge--neutral" data-role="crash-held">im Depot</span></td><td class="crash-plot" aria-hidden="true"><div class="crash-track"><span class="crash-track__zero" style="left:66.67%"></span><span class="crash-track__bar " style="left:0.00%;width:66.67%"></span><span class="crash-track__ref" style="left:23.97%"></span></div></td><td class="num crash-fig is-negative" data-role="crash-figure">
+            -40,0 %
+          </td><td class="num crash-pp">
+            -14,4 Pp
+          </td></tr><tr data-rank="2" data-security-id="26" data-return="-0.2"><td class="crash-rank">2</td><td class="crash-name">
+            Synthetic Outsider
+          </td><td class="crash-plot" aria-hidden="true"><div class="crash-track"><span class="crash-track__zero" style="left:66.67%"></span><span class="crash-track__bar " style="left:33.33%;width:33.34%"></span><span class="crash-track__ref" style="left:23.97%"></span></div></td><td class="num crash-fig is-negative" data-role="crash-figure">
+            -20,0 %
+          </td><td class="num crash-pp">
+            +5,6 Pp
+          </td></tr><tr data-rank="3" data-security-id="25" data-return="0.1"><td class="crash-rank">3</td><td class="crash-name">
+            Synthetic Riser
+          </td><td class="crash-plot" aria-hidden="true"><div class="crash-track"><span class="crash-track__zero" style="left:66.67%"></span><span class="crash-track__bar is-up" style="left:66.67%;width:16.66%"></span><span class="crash-track__ref" style="left:23.97%"></span></div></td><td class="num crash-fig is-positive" data-role="crash-figure">
+            +10,0 %
+          </td><td class="num crash-pp">
+            +35,6 Pp
+          </td></tr></tbody><tfoot aria-hidden="true"><tr><td class="crash-rank"></td><td class="crash-name"></td><td class="crash-plot"><div class="crash-axis"><span style="left:0.00%">
+                -40 %
+              </span><span style="left:33.33%">
+                -20 %
+              </span><span style="left:66.67%">
+                0 %
+              </span><span style="left:100.00%">
+                +20 %
+              </span></div></td><td class="crash-fig"></td><td class="crash-pp"></td></tr></tfoot></table></div><p class="summary-basis crash-basis" data-role="crash-basis">
+  Grundlage: Kursrendite in EUR von Hoch bis Tief des Fensters · gestrichelt Synthetic All-World Crash Index UCITS ETF USD Acc über dieselben Tage (-25,6 %) · nur Wertpapiere, die der Katalog heute führt.
+</p><p class="crash-unanswered" data-role="crash-unanswered">
+  3 von 4 Wertpapieren mit Antwort gezeigt · 1 ohne Antwort: 1 ohne Kurs am Fensterbeginn
+    <button type="button" class="link-button" phx-click="crash_toggle_unanswered" phx-target="1">
+      anzeigen
+    </button></p><details class="perf-table-disclosure crash-windows" id="crash-windows" phx-hook="DisclosureState"><summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+    Crash-Fenster · 1 erkannt · 2 manuell · 3 Namen ohne Fenster
+  </summary><div class="crash-windows__body"><p class="crash-rule" data-role="crash-rule"><span>
+          Regel: Hoch → Tief ab 10 % im Schlusskurs des Crash-Benchmarks · Crash-Benchmark
+          <b>Synthetic All-World Crash Index UCITS ETF USD Acc</b> (EUR)
+        </span><button type="button" class="link-button" data-role="crash-change-benchmark" phx-click="crash_choose_benchmark" phx-target="1">
+          Ändern
+        </button><button type="button" class="button-secondary crash-rule__add" data-role="crash-add-window" phx-click="crash_add_window" phx-target="1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Fenster anlegen
+      </button></p><div class="data-table-wrapper" id="crash-windows-table-wrapper"><table class="data-table crash-windows-table" id="crash-windows-table"><thead><tr><th>Name</th><th>Hoch</th><th>Tief</th><th class="num">Rückgang</th><th>Erholt</th><th class="num">Lücke, Tage</th><th>Art</th><th><span class="sr-only">Aktionen</span></th></tr></thead><tbody><tr data-key="m:2" class=""><td class="">Synthetic dip</td><td>15.08.2022</td><td>
+              29.08.2022
+
+            </td><td class="num muted">—</td><td class="muted">—</td><td class="num muted">—</td><td><span class="badge crash-badge--manual">manuell</span></td><td class="crash-actions"><button type="button" class="link-button" data-role="crash-manual-edit" phx-click="crash_manual_edit" phx-value-key="m:2" phx-target="1">
+      Bearbeiten
+    </button><button type="button" class="link-button" data-role="crash-manual-delete" phx-click="crash_manual_delete" phx-value-key="m:2" phx-target="1" data-confirm="Das manuelle Fenster „Synthetic dip“ löschen?">
+      Löschen
+    </button></td></tr><tr data-key="m:1" class=""><td class="">Synthetic war leg drawn by hand over a long stretch of the bear market</td><td>23.02.2022</td><td>
+              07.03.2022
+
+            </td><td class="num muted">—</td><td class="muted">—</td><td class="num muted">—</td><td><span class="badge crash-badge--manual">manuell</span></td><td class="crash-actions"><button type="button" class="link-button" data-role="crash-manual-edit" phx-click="crash_manual_edit" phx-value-key="m:1" phx-target="1">
+      Bearbeiten
+    </button><button type="button" class="link-button" data-role="crash-manual-delete" phx-click="crash_manual_delete" phx-value-key="m:1" phx-target="1" data-confirm="Das manuelle Fenster „Synthetic war leg drawn by hand over a long stretch of the bear market“ löschen?">
+      Löschen
+    </button></td></tr><tr data-key="d:23:2022-01-04" class=""><td class="crash-unnamed">ohne Namen</td><td>04.01.2022</td><td>
+              12.10.2022
+
+            </td><td class="num is-negative">-25,6 %</td><td>
+                01.06.2023
+              </td><td class="num">281</td><td><span class="badge badge--neutral">erkannt</span></td><td class="crash-actions"><button type="button" class="link-button" data-role="crash-name-open" phx-click="crash_name_open" phx-value-key="d:23:2022-01-04" phx-target="1">
+      Benennen
+    </button></td></tr></tbody></table></div><ul id="crash-windows-phone-rows" class="phone-rows" aria-label="Crash-Fenster"><li class="phone-row " data-key="m:2"><span class="phone-row__body"><span class="phone-row__name ">
+            Synthetic dip
+          </span><span class="phone-row__ids">
+            Hoch 15.08.2022 → Tief
+            29.08.2022
+
+          </span><span class="crash-window-row__actions"><span class="badge crash-badge--manual">manuell</span><button type="button" class="link-button" data-role="crash-manual-edit" phx-click="crash_manual_edit" phx-value-key="m:2" phx-target="1">
+      Bearbeiten
+    </button><button type="button" class="link-button" data-role="crash-manual-delete" phx-click="crash_manual_delete" phx-value-key="m:2" phx-target="1" data-confirm="Das manuelle Fenster „Synthetic dip“ löschen?">
+      Löschen
+    </button></span></span><span class="phone-row__figures"><span class="phone-row__figure muted">—</span></span></li><li class="phone-row " data-key="m:1"><span class="phone-row__body"><span class="phone-row__name ">
+            Synthetic war leg drawn by hand over a long stretch of the bear market
+          </span><span class="phone-row__ids">
+            Hoch 23.02.2022 → Tief
+            07.03.2022
+
+          </span><span class="crash-window-row__actions"><span class="badge crash-badge--manual">manuell</span><button type="button" class="link-button" data-role="crash-manual-edit" phx-click="crash_manual_edit" phx-value-key="m:1" phx-target="1">
+      Bearbeiten
+    </button><button type="button" class="link-button" data-role="crash-manual-delete" phx-click="crash_manual_delete" phx-value-key="m:1" phx-target="1" data-confirm="Das manuelle Fenster „Synthetic war leg drawn by hand over a long stretch of the bear market“ löschen?">
+      Löschen
+    </button></span></span><span class="phone-row__figures"><span class="phone-row__figure muted">—</span></span></li><li class="phone-row " data-key="d:23:2022-01-04"><span class="phone-row__body"><span class="phone-row__name crash-unnamed">
+            ohne Namen
+          </span><span class="phone-row__ids">
+            Hoch 04.01.2022 → Tief
+            12.10.2022
+
+          </span><span class="crash-window-row__actions"><span class="badge badge--neutral">erkannt</span><span class="muted">
+              Lücke, Tage: 281
+            </span><button type="button" class="link-button" data-role="crash-name-open" phx-click="crash_name_open" phx-value-key="d:23:2022-01-04" phx-target="1">
+      Benennen
+    </button></span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">
+              -25,6 %
+            </span><span class="phone-row__figure2">
+              erholt am 01.06.2023
+            </span></span></li></ul><div class="crash-unmatched" id="crash-unmatched"><h3>Namen ohne Fenster (3)</h3><div class="crash-unmatched__group" data-role="crash-unmatched-closes"><p class="hint">1 Name: Die Kurse haben sich geändert, an diesem Tag beginnt kein erkanntes Fenster mehr. Ein Name wird nie geraten einem anderen Fenster zugeordnet.</p><div class="data-table-wrapper"><table class="data-table crash-windows-table"><thead><tr><th>Name</th><th>Gegeben für</th><th>Hoch</th><th><span class="sr-only">Aktionen</span></th></tr></thead><tbody><tr data-key="d:23:2022-01-03"><td>Synthetic Rate Shock</td><td>Synthetic All-World Crash Index UCITS ETF USD Acc</td><td>03.01.2022</td><td class="crash-actions"><button type="button" class="link-button" data-role="crash-from-name-open" phx-click="crash_from_name_open" phx-value-key="d:23:2022-01-03" phx-target="1">
+                    Als manuelles Fenster anlegen …
+                  </button><button type="button" class="link-button" data-role="crash-unname" phx-click="crash_unname" phx-value-key="d:23:2022-01-03" phx-target="1" data-confirm="Den Namen „Synthetic Rate Shock“ löschen?">
+                    Löschen
+                  </button></td></tr></tbody></table></div></div><div class="crash-unmatched__group" data-role="crash-unmatched-hidden"><p class="hint">2 Namen: ausgeblendet, weil ein anderer Crash-Benchmark gewählt ist; sie kehren zurück, sobald ihr Benchmark wieder Crash-Benchmark ist.</p><div class="data-table-wrapper"><table class="data-table crash-windows-table"><thead><tr><th>Name</th><th>Gegeben für</th><th>Hoch</th><th><span class="sr-only">Aktionen</span></th></tr></thead><tbody><tr data-key="d:27:2023-07-31"><td>Synthetic Oil Dip</td><td>Synthetic All-World Equity Index Fund USD Accumulating</td><td>31.07.2023</td><td class="crash-actions"><button type="button" class="link-button" data-role="crash-from-name-open" phx-click="crash_from_name_open" phx-value-key="d:27:2023-07-31" phx-target="1">
+                    Als manuelles Fenster anlegen …
+                  </button><button type="button" class="link-button" data-role="crash-unname" phx-click="crash_unname" phx-value-key="d:27:2023-07-31" phx-target="1" data-confirm="Den Namen „Synthetic Oil Dip“ löschen?">
+                    Löschen
+                  </button></td></tr><tr data-key="d:27:2024-03-01"><td>Synthetic Summer Lull</td><td>Synthetic All-World Equity Index Fund USD Accumulating</td><td>01.03.2024</td><td class="crash-actions"><button type="button" class="link-button" data-role="crash-from-name-open" phx-click="crash_from_name_open" phx-value-key="d:27:2024-03-01" phx-target="1">
+                    Als manuelles Fenster anlegen …
+                  </button><button type="button" class="link-button" data-role="crash-unname" phx-click="crash_unname" phx-value-key="d:27:2024-03-01" phx-target="1" data-confirm="Den Namen „Synthetic Summer Lull“ löschen?">
+                    Löschen
+                  </button></td></tr></tbody></table></div></div></div></div></details></section>
+
+<p class="mock-crop">Darunter wie heute: die Crash-Fenster (zugeklappt).</p>
+</div></body>
+</html>
