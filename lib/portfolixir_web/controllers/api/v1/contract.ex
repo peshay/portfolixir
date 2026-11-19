@@ -74,8 +74,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "1y: price_return ranks the securities the scope holds at the window's end by " <>
               "EUR price return, contribution every position ADR-0051 lists, a sold one " <>
               "included, by EUR money contribution; each ranking answers highest and lowest " <>
-              "(no name in both), answered, unanswered counted by reason and its " <>
-              "computation_basis; limit per half (default 5, capped at 50 and echoed) and " <>
+              "(no name in both), answered, unanswered counted by reason (a contribution " <>
+              "of exactly 0 is counted zero_contribution and in neither half, board 04) " <>
+              "and its computation_basis; limit per half (default 5, capped at 50 and echoed) and " <>
               "include_unanswered (true lists the unanswered); an unknown window, a " <>
               "malformed limit or include_unanswered, and any other parameter answer 422 " <>
               "naming it; a view that does not exist answers 404. Decimals as strings, " <>

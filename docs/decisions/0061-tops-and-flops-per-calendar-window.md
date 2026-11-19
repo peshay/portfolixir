@@ -289,3 +289,20 @@ A second precision, of wording only, found by the sprint's closing act
 `portfolixir.views.movers` takes `id`, the view's id, as every `views.*`
 tool does; omitted, it reads everything. §9 now says `id`; no rule
 changes.
+
+A third precision, found by the sprint's closing act (the design critic,
+finding 4, S3): §4 counted only a position valued on no day, though it
+gave board 04 ②'s reason, and on the review seed the funds with no stored
+quote, valued at their trade price every day and so contributing exactly
+0, filled two to three of „Niedrigste“'s five rows under „Beitrag“. Board
+04 ②, signed with the plan, says „ein Beitrag 0,00 steht in keiner Hälfte,
+sonst füllen ungepreiste Fonds die Niedrigsten“ and draws „19 Positionen
+ohne Beitrag“. **A contribution of exactly 0 stands in neither half and is
+counted (board 04 ②)**: `unanswered` gains `zero_contribution` beside
+`no_valuation`, `include_unanswered` lists those positions with it, the
+basis's `halves` and `gaps` say so, and the Overview's card shows the
+count as „N Positionen ohne Beitrag im Zeitraum“ („an ihrem Tag“ on
+`day`). The price side is unchanged: the board says nothing of a zero
+return, so an exact zero return stays ranked, never read as `-0`.
+**To flip:** "Null-Beitrag ranken" (a contribution of exactly 0 is ranked
+again).

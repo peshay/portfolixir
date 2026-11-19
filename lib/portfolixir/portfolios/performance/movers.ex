@@ -57,9 +57,13 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
   counted under its reason, `no_close_at_start`, `no_close_at_end`,
   `no_fx_rate`, and for `day` also `one_close_only`; a position the walk
   valued on no day of the window (`valued_days` 0 with unvalued days) is
-  counted `no_valuation`. `include_unanswered: true` lists them in the tie
-  order. A position with some unvalued days stays ranked under ADR-0051
-  §10's rule, its `unvalued_days` in its row.
+  counted `no_valuation`, and one whose contribution is exactly 0 is counted
+  `zero_contribution` and stands in neither half (board 04 ②: an unpriced
+  fund, valued at its trade price every day, would otherwise fill the
+  lowest; ADR-0061's amendment of 2026-11-19). An exact zero price return
+  stays ranked. `include_unanswered: true` lists them in the tie order. A
+  position with some unvalued days stays ranked under ADR-0051 §10's rule,
+  its `unvalued_days` in its row.
 
   ## The basis (§5) and no verdict (§7)
 
@@ -87,6 +91,7 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
   @max_limit 50
   @price_reasons [:no_close_at_start, :no_close_at_end, :no_fx_rate]
   @day_reasons @price_reasons ++ [:one_close_only]
+  @money_reasons [:no_valuation, :zero_contribution]
 
   @type window :: String.t()
   @type refusal :: :invalid_window | :invalid_limit | :view_not_found
@@ -274,22 +279,38 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
   end
 
   defp contribution_halves(positions, from, to, request) do
-    {unvalued, ranked} = Enum.split_with(positions, &valued_on_no_day?/1)
     labels = labels(positions)
 
-    answered = Enum.map(ranked, &contribution_entry(&1, labels))
-    unanswered = Enum.map(unvalued, &{Map.fetch!(labels, &1.security_id), :no_valuation})
+    {ranked, unanswered} =
+      Enum.reduce(positions, {[], []}, fn row, {ranked, unanswered} ->
+        case money_reason(row) do
+          nil -> {[contribution_entry(row, labels) | ranked], unanswered}
+          reason -> {ranked, [{Map.fetch!(labels, row.security_id), reason} | unanswered]}
+        end
+      end)
 
-    answered
+    ranked
     |> halves(:contribution, request.limit)
     |> Map.merge(%{
       from: from,
       to: to,
-      answered: length(answered),
-      unanswered: count(unanswered, [:no_valuation])
+      answered: length(ranked),
+      unanswered: count(unanswered, @money_reasons)
     })
     |> with_unanswered(unanswered, request.include_unanswered)
     |> Map.put(:computation_basis, contribution_basis(request, from, to))
+  end
+
+  # Why a position stands in neither half, or nil when it is ranked: valued
+  # on no day of the window, or a contribution of exactly 0 (board 04 ②:
+  # „ein Beitrag 0,00 steht in keiner Hälfte, sonst füllen ungepreiste
+  # Fonds die Niedrigsten“; ADR-0061's amendment of 2026-11-19).
+  defp money_reason(row) do
+    cond do
+      valued_on_no_day?(row) -> :no_valuation
+      Decimal.eq?(row.contribution, 0) -> :zero_contribution
+      true -> nil
+    end
   end
 
   # week to 1y: S + 1 to T. day: [D, D], or no window without a close
@@ -475,7 +496,7 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
           "without a bound, never a later one",
       currency: "EUR",
       ties: ties_text(),
-      halves: halves_text(request.limit),
+      halves: halves_text(request.limit, ""),
       gaps:
         "a security without a figure is counted under its reason and never ranked as a " <>
           "zero: no_close_at_start (no close standing for the start), no_close_at_end (none " <>
@@ -534,7 +555,11 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
           "converts it at its own date's",
       currency: "EUR",
       ties: ties_text(),
-      halves: halves_text(request.limit),
+      halves:
+        halves_text(
+          request.limit,
+          "; a contribution of exactly 0 is in neither half and counted zero_contribution"
+        ),
       gaps:
         "a day on which a held position has no price or no rate path counts zero and the " <>
           "position stays ranked with its unvalued_days and unvalued_reason (ADR-0051 §10); " <>
@@ -542,7 +567,10 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
           "forward, and a security with no quote yet is priced by its own latest trade " <>
           "(ADR-0010); " <>
           "a position valued on no day of the window (valued_days 0) is counted " <>
-          "no_valuation and never ranked as a zero" <>
+          "no_valuation and never ranked as a zero; a position whose contribution is " <>
+          "exactly 0, such as a fund with no stored quote valued at its trade price every " <>
+          "day, is counted zero_contribution and stands in neither half, so such positions " <>
+          "do not fill lowest (board 04; ADR-0061's amendment of 2026-11-19)" <>
           if(request.window == "day" and is_nil(from),
             do:
               "; no security the scope holds has a positive close stored on or before " <>
@@ -581,9 +609,9 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
       "by its creation time; an id decides no rank (ADR-0058 G1)"
   end
 
-  defp halves_text(limit) do
+  defp halves_text(limit, excluded) do
     "one list sorted by the figure: highest takes min(#{limit}, ceil(n / 2)) of the " <>
       "largest, descending; lowest min(#{limit}, floor(n / 2)) of the rest, ascending; " <>
-      "n is the answered entries, and a name is never in both"
+      "n is the answered entries, and a name is never in both" <> excluded
   end
 end

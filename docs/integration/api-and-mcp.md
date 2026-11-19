@@ -1599,7 +1599,12 @@ and remainder lines, keeps that basis to itself.
   `start_value`, `end_value`, `net_flows`, `income`, `costs`,
   `held_at_start`, `held_at_end` (`false` for a position sold inside the
   window), `unvalued_days`, `unvalued_reason` and `valued_days`. A position
-  valued on no day of the window is counted `no_valuation`, not ranked.
+  valued on no day of the window is counted `no_valuation`, not ranked, and
+  one whose contribution is exactly 0 (a fund with no stored quote, valued
+  at its trade price every day, or one bought and sold at one price) is
+  counted `zero_contribution` and stands in neither half, so such positions
+  do not fill `lowest` (ADR-0061's amendment of 2026-11-19). A price return
+  of exactly 0 stays ranked.
 
 Every figure is a decimal string and every date ISO 8601. Without a valid
 bearer token a route answers `401`. The read is closed: an unknown `window`,

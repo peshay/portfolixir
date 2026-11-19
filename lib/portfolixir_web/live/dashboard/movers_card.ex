@@ -28,7 +28,10 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
       lens, finding 2);
     * two columns, „Price return“ first and „Contribution“ beside it, each
       with „Highest“ over „Lowest“ as `.attention-item` rows (name left,
-      figure right) and the count of what has no answer under them; a „Day“
+      figure right) and the count of what has no answer under them, on the
+      contribution's side also the positions whose contribution is exactly
+      0, which stand in neither half (board 04 ②: „19 Positionen ohne
+      Beitrag im Zeitraum“); a „Day“
       row names its two closes, another row its last close where it is
       before the window's end; a position sold in the window carries
       „sold“, one that counted zero on some days the contribution table's
@@ -106,7 +109,7 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
             </:line>
             <:line>
               <%= gettext(
-                "No close before the period, none in it, or no exchange rate: no price return. A day without a price counts zero in the contribution, as in Wealth; a position valued on no day is counted, not ranked."
+                "No close before the period, none in it, or no exchange rate: no price return. A day without a price counts zero in the contribution, as in Wealth; a position valued on no day, or whose contribution is exactly zero, is counted, not ranked."
               ) %>
             </:line>
             <:line>
@@ -194,11 +197,12 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
                 <%= gettext("No figure in this period.") %>
               </p>
               <p
-                :if={@f.contribution_count}
+                :for={{reason, line} <- @f.contribution_counts}
                 class="movers__count"
                 data-role="movers-contribution-count"
+                data-reason={reason}
               >
-                <%= @f.contribution_count %>
+                <%= line %>
               </p>
             </div>
           </div>
@@ -324,7 +328,7 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
       price_answered: price.answered,
       contribution_answered: contribution.answered,
       price_count: price_count(price.unanswered),
-      contribution_count: contribution_count(contribution.unanswered),
+      contribution_counts: contribution_counts(contribution.unanswered, result.window),
       largest: listed |> Enum.map(&Decimal.abs(&1.contribution)) |> max_decimal(),
       wealth_href: wealth_href,
       wealth_view: wealth_view(wealth_href, active_view, result.view_id, view_name)
@@ -493,19 +497,40 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
   defp reason_count(:one_close_only, n),
     do: ngettext("%{count} with one close only", "%{count} with one close only", n)
 
-  defp contribution_count(unanswered) do
-    case Map.get(unanswered, :no_valuation, 0) do
-      0 ->
-        nil
-
-      n ->
-        ngettext(
-          "%{count} position not valued on any day of the period",
-          "%{count} positions not valued on any day of the period",
-          n
-        )
-    end
+  # One line per reason with a count above zero: the positions valued on no
+  # day, then those whose contribution is exactly 0 and so stand in neither
+  # half (board 04 ②). The line names no amount, so the privacy mode leaves
+  # it as it is.
+  defp contribution_counts(unanswered, window) do
+    for reason <- [:no_valuation, :zero_contribution],
+        n = Map.get(unanswered, reason, 0),
+        n > 0,
+        do: {reason, contribution_count(reason, n, window)}
   end
+
+  defp contribution_count(:no_valuation, n, _window),
+    do:
+      ngettext(
+        "%{count} position not valued on any day of the period",
+        "%{count} positions not valued on any day of the period",
+        n
+      )
+
+  defp contribution_count(:zero_contribution, n, "day"),
+    do:
+      ngettext(
+        "%{count} position without a contribution on its day",
+        "%{count} positions without a contribution on their day",
+        n
+      )
+
+  defp contribution_count(:zero_contribution, n, _window),
+    do:
+      ngettext(
+        "%{count} position without a contribution in the period",
+        "%{count} positions without a contribution in the period",
+        n
+      )
 
   defp security_name(%{name: name}) when is_binary(name), do: name
   defp security_name(%{isin: isin}) when is_binary(isin), do: isin

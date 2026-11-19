@@ -25,7 +25,8 @@ defmodule PortfolixirWeb.DashboardMoversTest do
   # Four securities priced every day of the last 400, each on its own slope;
   # the share stops two days ago (a weekend's „Tag“ is Friday against
   # Thursday). A bond has no close at all (no price return; its position is
-  # valued at its booking's price, so it contributes zero and is ranked), a
+  # valued at its booking's price, so it contributes exactly zero and is
+  # counted, never ranked: board 04 ②), a
   # dollar fund has closes but no exchange rate (no price return, and its
   # position is valued on no day, so it is counted, not ranked). One
   # position is sold today, so it is in every window's contribution and in
@@ -104,6 +105,10 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     assert attribute(active, "data-window") == window
     doc
   end
+
+  # The count lines under „Contribution“, one per reason, in order.
+  defp contribution_counts(doc),
+    do: doc |> Floki.find("[data-role='movers-contribution-count']") |> Enum.map(&text/1)
 
   defp percent(text), do: Format.signed_percent(Decimal.new(text)) <> "%"
   defp money(text), do: Format.signed_decimal(Decimal.new(text), 2) <> " EUR"
@@ -207,7 +212,10 @@ defmodule PortfolixirWeb.DashboardMoversTest do
   # - A position sold in the window is marked „sold“ in the contribution
   #   column and is in no price ranking.
   # - Under each list the count without an answer: per reason for the price
-  #   return, the positions valued on no day for the contribution.
+  #   return; for the contribution the positions valued on no day, and the
+  #   positions without a contribution, whose 0,00 stands in neither half
+  #   (board 04 ②: „19 Positionen ohne Beitrag im Zeitraum“; Sprint 30
+  #   closing act, design critic, finding 4).
   # - A „Day“ row names its two closes' dates with their weekdays; a row of
   #   another window whose last close is before the window's end names it.
   # - „View in Wealth →“ opens Wealth with the contribution's window as a
@@ -245,12 +253,18 @@ defmodule PortfolixirWeb.DashboardMoversTest do
 
       answer = assert_card_is_the_api(doc, window)
 
-      # Three held securities priced, so two over one; five positions with a
-      # contribution, the sold one and the bond among them, so three over two.
+      # Three held securities priced, so two over one. The bond's
+      # contribution is exactly zero, so it stands in neither half; on „Day“
+      # the share's too (its last close is two days old, so it moved nothing
+      # on D, today). Four positions with a contribution, the sold one among
+      # them, so two over two; on „Day“ three, so two over one.
+      zeros = if window == "day", do: 2, else: 1
       assert answer["price_return"]["answered"] == 3
       assert length(answer["price_return"]["highest"]) == 2
       assert length(answer["price_return"]["lowest"]) == 1
-      assert answer["contribution"]["answered"] == 5
+      assert answer["contribution"]["answered"] == 5 - zeros
+      assert length(answer["contribution"]["highest"]) == 2
+      assert length(answer["contribution"]["lowest"]) == 3 - zeros
 
       price_ids =
         for half <- ~w(highest lowest), e <- answer["price_return"][half], do: e["security"]["id"]
@@ -267,7 +281,8 @@ defmodule PortfolixirWeb.DashboardMoversTest do
       # The unanswered, each by its reason on the price side: the bond (on
       # „Day“ it has no latest close; otherwise none at the start) and the
       # dollar fund (no exchange rate); on the money side the dollar fund,
-      # valued on no day.
+      # valued on no day, and the bond (on „Day“ also the share), whose
+      # contribution is 0.
       if window == "day" do
         assert answer["price_return"]["unanswered"]["no_close_at_end"] == 1
 
@@ -281,10 +296,19 @@ defmodule PortfolixirWeb.DashboardMoversTest do
       end
 
       assert answer["price_return"]["unanswered"]["no_fx_rate"] == 1
-      assert answer["contribution"]["unanswered"]["no_valuation"] == 1
 
-      assert doc |> Floki.find("[data-role='movers-contribution-count']") |> text() ==
-               "1 position not valued on any day of the period"
+      assert answer["contribution"]["unanswered"] == %{
+               "no_valuation" => 1,
+               "zero_contribution" => zeros
+             }
+
+      assert contribution_counts(doc) == [
+               "1 position not valued on any day of the period",
+               if(window == "day",
+                 do: "2 positions without a contribution on their day",
+                 else: "1 position without a contribution in the period"
+               )
+             ]
 
       # The share's row names its dates: on „Day“ the close before its
       # latest against that latest, two days before today; otherwise its
@@ -403,8 +427,10 @@ defmodule PortfolixirWeb.DashboardMoversTest do
       end
     end
 
-    assert doc |> Floki.find("[data-role='movers-contribution-count']") |> text() ==
-             "1 position not valued on any day of the period"
+    assert contribution_counts(doc) == [
+             "1 position not valued on any day of the period",
+             "1 position without a contribution in the period"
+           ]
   end
 
   # User story (board 04 ⑤, the states):

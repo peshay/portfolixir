@@ -15,7 +15,9 @@ defmodule Portfolixir.MoversDocsTest do
   #   windows and the default; limit (default 5, capped at 50) and
   #   include_unanswered; the payload's keys (price_return, contribution,
   #   highest, lowest, answered, unanswered, unanswered_entries,
-  #   computation_basis, held_at_end); the reasons; the refusals (401, 404,
+  #   computation_basis, held_at_end); the reasons, zero_contribution among
+  #   them (board 04 ②: a contribution of exactly 0 stands in neither half);
+  #   the refusals (401, 404,
   #   422 naming it); and that the answer is data, never advice.
   # - Both name portfolixir.views.movers, its id, and that it is a read in
   #   every profile.
@@ -55,6 +57,7 @@ defmodule Portfolixir.MoversDocsTest do
     "`no_fx_rate`",
     "`one_close_only`",
     "`no_valuation`",
+    "`zero_contribution`",
     "`401`",
     "`404`",
     "`422`",

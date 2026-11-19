@@ -150,7 +150,7 @@ defmodule Portfolixir.Portfolios.Performance.MoversMoneyLensTest do
     {:ok, read} =
       Movers.read(view.id, "week", today: ~D[2026-11-12], include_unanswered: true)
 
-    assert read.contribution.unanswered == %{no_valuation: 1}
+    assert read.contribution.unanswered == %{no_valuation: 1, zero_contribution: 0}
 
     assert [%{reason: "no_valuation", security: %{name: "Gone Fund"}}] =
              read.contribution.unanswered_entries
@@ -192,7 +192,7 @@ defmodule Portfolixir.Portfolios.Performance.MoversMoneyLensTest do
     assert Decimal.equal?(money.start_value, Decimal.new("0"))
     assert money.held_at_start and money.held_at_end
     assert {money.unvalued_days, money.unvalued_reason, money.valued_days} == {1, :no_price, 1}
-    assert read.contribution.unanswered == %{no_valuation: 0}
+    assert read.contribution.unanswered == %{no_valuation: 0, zero_contribution: 0}
 
     # Wealth's table for the same day reads the same row.
     {:ok, wealth} =

@@ -389,7 +389,9 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
   end
 
   # Attack: two securities equal on every key and figure. They are told apart
-  # only by creation time; with n = 2 one stands in each half.
+  # only by creation time; with n = 2 one stands in each half. Each moves 10
+  # -> 11, so the money side ranks them too (a contribution of exactly 0
+  # would stand in neither half, board 04 ②).
   test "twins equal on every key: creation order, one per half" do
     {world, view} = world!("Twin")
 
@@ -397,7 +399,7 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
       for _index <- 1..2 do
         security = security!(%{name: "Twin Fund"})
         deliver_untraded!(world, security, "1", date: ~D[2026-11-02])
-        put_quotes!(security, [{~D[2026-11-06], "10"}, {~D[2026-11-12], "10"}])
+        put_quotes!(security, [{~D[2026-11-06], "10"}, {~D[2026-11-12], "11"}])
         security
       end
 
@@ -426,18 +428,22 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
   end
 
   # Attack: n = 10 and limits 5, 3 and 1; n = 2 and 3. The halves never share a
-  # security and take min(k, ceil(n/2)) and min(k, floor(n/2)).
+  # security and take min(k, ceil(n/2)) and min(k, floor(n/2)). H08 ends
+  # where it started: its price return of 0 is ranked, its contribution of 0
+  # is counted (board 04 ②), so the money side's n is 9.
   test "the halves for n = 10, 3 and 2 under limits 5, 3 and 1" do
     today = ~D[2026-11-12]
     ten = halves_view([4, -4, 3, -3, 2, -2, 1, -1, 0, 5])
 
-    for {limit, high, low} <- [{5, 5, 5}, {3, 3, 3}, {1, 1, 1}, {50, 5, 5}] do
+    for {limit, high, low, money_low} <- [{5, 5, 5, 4}, {3, 3, 3, 3}, {1, 1, 1, 1}, {50, 5, 5, 4}] do
       read = read!(ten.id, "week", today: today, limit: limit)
+      assert {length(read.price_return.highest), length(read.price_return.lowest)} == {high, low}
 
-      for ranking <- [read.price_return, read.contribution] do
-        assert {length(ranking.highest), length(ranking.lowest)} == {high, low}
-        assert_disjoint(ranking)
-      end
+      assert {length(read.contribution.highest), length(read.contribution.lowest)} ==
+               {high, money_low}
+
+      assert read.contribution.unanswered.zero_contribution == 1
+      for ranking <- [read.price_return, read.contribution], do: assert_disjoint(ranking)
     end
 
     k3 = read!(ten.id, "week", today: today, limit: 3)
@@ -457,9 +463,13 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
 
   # -- zero ------------------------------------------------------------------------
 
-  # Attack: an exactly-zero return and a zero contribution are figures and
-  # ranked; none reads as a negative zero.
-  test "an exact zero is a figure, never a negative zero" do
+  # Attack: an exactly-zero return is a figure and ranked, never a negative
+  # zero. A contribution of exactly 0 stands in neither half and is counted
+  # zero_contribution, whatever its scale or sign ("0.00", "-0"): board 04
+  # ② keeps unpriced funds out of the lowest half (ADR-0061's amendment of
+  # 2026-11-19, third precision; Sprint 30 closing act, design critic,
+  # finding 4).
+  test "an exact zero return is ranked, a zero contribution counted" do
     {world, view} = world!("Zero")
     flat = security!(%{name: "Flat Fund"})
     trip = security!(%{name: "Trip Fund"})
@@ -471,17 +481,21 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
     buy!(world, trip, quantity: "2", price: "7", date: ~D[2026-11-09])
     sell!(world, trip, quantity: "2", price: "7", date: ~D[2026-11-10])
 
-    read = read!(view.id, "week", today: ~D[2026-11-12])
+    read = read!(view.id, "week", today: ~D[2026-11-12], include_unanswered: true)
     [row] = read.price_return.highest
     assert_decimal(row.return, "0")
     refute String.starts_with?(Decimal.to_string(row.return), "-")
 
-    assert read.contribution.answered == 2
+    # Flat 30 -> 30 and Trip 14 - 14 = 0: both counted, neither ranked.
+    money = read.contribution
+    assert money.answered == 0
+    assert {money.highest, money.lowest} == {[], []}
+    assert money.unanswered == %{no_valuation: 0, zero_contribution: 2}
 
-    for money <- all_entries(read.contribution) do
-      assert_decimal(money.contribution, "0")
-      refute String.starts_with?(Decimal.to_string(money.contribution), "-")
-    end
+    assert Enum.map(money.unanswered_entries, &{&1.security.name, &1.reason}) == [
+             {"Flat Fund", "zero_contribution"},
+             {"Trip Fund", "zero_contribution"}
+           ]
   end
 
   # -- FX -------------------------------------------------------------------------
@@ -570,7 +584,7 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
         assert read.price_return.unanswered.no_close_at_end == 2
         assert read.contribution.computation_basis.gaps =~ "no day D"
       else
-        assert read.contribution.unanswered == %{no_valuation: 2}
+        assert read.contribution.unanswered == %{no_valuation: 2, zero_contribution: 0}
         assert names(read.contribution.unanswered_entries) == ["Dark A", "Dark B"]
       end
     end
@@ -611,7 +625,8 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
     new_year = ~D[2026-01-01]
 
     # ytd, month and quarter on 1 January: S = 31 December, one day; the
-    # holiday has no close, so the end close is 31 December's too: 0, ranked.
+    # holiday has no close, so the end close is 31 December's too: a price
+    # return of 0, ranked; a contribution of 0, counted (board 04 ②).
     for window <- ~w(ytd month quarter) do
       read = read!(view.id, window, today: new_year)
       assert read.start_on == ~D[2025-12-31]
@@ -619,7 +634,8 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
       [row] = read.price_return.highest
       assert {row.start.date, row.end.date} == {~D[2025-12-31], ~D[2025-12-31]}
       assert_decimal(row.return, "0")
-      assert_decimal(hd(read.contribution.highest).contribution, "0")
+      assert read.contribution.answered == 0
+      assert read.contribution.unanswered == %{no_valuation: 0, zero_contribution: 1}
     end
 
     # The week of Thursday 1 January 2026 starts on Sunday 28 December: 105 /
@@ -771,7 +787,7 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
     today = ~D[2026-11-12]
     money = read!(view.id, "week", today: today).contribution
     assert {money.from, money.to} == {~D[2026-11-09], today}
-    assert money.answered == 2 and money.unanswered == %{no_valuation: 0}
+    assert money.answered == 2 and money.unanswered == %{no_valuation: 0, zero_contribution: 0}
 
     assert [%{security: %{id: first_id}} = first_row] = money.highest
     assert first_id == first.id

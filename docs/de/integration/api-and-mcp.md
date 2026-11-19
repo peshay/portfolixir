@@ -1738,7 +1738,12 @@ Restzeilen spricht, behält diese Basis für sich.
   `costs`, `held_at_start`, `held_at_end` (`false` für eine im Fenster
   verkaufte Position), `unvalued_days`, `unvalued_reason` und `valued_days`.
   Eine Position, die an keinem Tag des Fensters bewertet ist, wird als
-  `no_valuation` gezählt, nicht gereiht.
+  `no_valuation` gezählt, nicht gereiht, und eine, deren Beitrag genau 0
+  ist (ein Fonds ohne gespeicherten Kurs, an jedem Tag zu seinem
+  Handelspreis bewertet, oder einer, der zu einem Preis gekauft und
+  verkauft wurde), wird als `zero_contribution` gezählt und steht in keiner
+  Hälfte, damit solche Positionen nicht `lowest` füllen (ADR-0061,
+  Ergänzung vom 2026-11-19). Eine Kursrendite von genau 0 bleibt gereiht.
 
 Jede Kennzahl ist ein Dezimal-String und jedes Datum ISO 8601. Ohne gültiges
 Bearer-Token antwortet eine Route `401`. Der Lesezugriff ist geschlossen: ein
