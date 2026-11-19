@@ -25,6 +25,10 @@ defmodule PortfolixirWeb.LiveCrashReportTest do
 
     @impl true
     def handle_event("save", _params, _socket), do: raise("synthetic event crash")
+
+    # A handler with no clause for what the page sends: the runtime's
+    # FunctionClauseError carries the handler's arguments in its stack frame.
+    def handle_event("pick", %{"kind" => "known"}, socket), do: {:noreply, socket}
   end
 
   setup do
@@ -75,6 +79,36 @@ defmodule PortfolixirWeb.LiveCrashReportTest do
     refute log =~ "Phoenix.Socket.Message"
   end
 
+  # User story (#1256, the Shell polish list #1357; Sprint 30 plan, F2):
+  # As the operator whose deployment guide says form values stay out of the log,
+  # I want a page whose handler has no matching clause logged without the
+  # handler's arguments,
+  # so that the values I typed do not reach the log through the stack frame.
+  #
+  # Acceptance criteria:
+  # - A page crashing with a FunctionClauseError in an event is logged as
+  #   that crash, naming the handler, without the event's values or the
+  #   page's assigns.
+  test "a page whose handler has no matching clause is logged without the handler's arguments",
+       %{conn: conn} do
+    secret = "synthetic-field-" <> Integer.to_string(System.unique_integer([:positive]))
+    {:ok, view, _html} = live_isolated(conn, CrashingLive)
+    monitor = Process.monitor(view.pid)
+
+    log =
+      capture_log(fn ->
+        catch_exit(render_click(view, "pick", %{"kind" => "other", "note" => secret}))
+        assert_receive {:DOWN, ^monitor, :process, _pid, _reason}, 5_000
+        Process.sleep(100)
+      end)
+
+    assert log =~ "FunctionClauseError"
+    assert log =~ "handle_event/3"
+    assert log =~ ~r/Last message: \[topic: "lv:[\w-]+", event: "event"\]\n/
+    refute log =~ secret
+    refute log =~ "Phoenix.LiveView.Socket"
+  end
+
   test "a page crashing in mount is logged without the session or the join's parameters",
        %{conn: conn} do
     secret = "synthetic-session-" <> Integer.to_string(System.unique_integer([:positive]))
@@ -91,6 +125,30 @@ defmodule PortfolixirWeb.LiveCrashReportTest do
     refute log =~ secret
     refute log =~ "connect_info"
     refute log =~ "session"
+  end
+
+  test "the filter keeps a bare reason and a frame that already names its arity" do
+    report = fn reason ->
+      %{
+        level: :error,
+        meta: %{},
+        msg:
+          {:report,
+           %{
+             label: {:gen_server, :terminate},
+             last_message: %Phoenix.Socket.Message{topic: "lv:synthetic", event: "event"},
+             reason: reason
+           }}
+      }
+    end
+
+    frame = {CrashingLive, :render, 1, [file: ~c"synthetic.ex", line: 1]}
+
+    assert %{msg: {:report, %{reason: :synthetic_exit}}} =
+             SocketCrashReport.filter(report.(:synthetic_exit), [])
+
+    assert %{msg: {:report, %{reason: {:synthetic_exit, [^frame]}}}} =
+             SocketCrashReport.filter(report.({:synthetic_exit, [frame]}), [])
   end
 
   test "the release turns the filter on at boot, development and tests do not" do

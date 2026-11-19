@@ -531,7 +531,7 @@ defmodule Portfolixir.RuntimeConfig do
 
         # Spaces around the "=" belong to neither side: a token kept with
         # them would pass every check and match no bearer a client sends.
-        {name, named_token!(name, String.trim(token))}
+        {name, named_token!(name, String.trim(token), position)}
 
       [_no_separator] ->
         raise ArgumentError,
@@ -540,13 +540,20 @@ defmodule Portfolixir.RuntimeConfig do
     end
   end
 
-  defp named_token!(name, token) do
+  # A token below the floor is told by its entry's position and the length
+  # of its name, never by the name: a pair written token=name whose token
+  # passes the name rule (32 lowercase hex characters, say) would print the
+  # token as the name (#1262). A placeholder token is at least 32 bytes, so
+  # its pair is not a swapped one, and its name is quoted.
+  defp named_token!(name, token, position) do
     cond do
       byte_size(token) < @min_token_bytes ->
         raise ArgumentError,
-              "PORTFOLIXIR_API_TOKENS: the token named #{inspect(name)} must be at least " <>
-                "#{@min_token_bytes} bytes (got #{byte_size(token)}); generate one with " <>
-                "`openssl rand -base64 48`"
+              "PORTFOLIXIR_API_TOKENS entry #{position}: the token must be at least " <>
+                "#{@min_token_bytes} bytes (got #{byte_size(token)}), and its name has " <>
+                "#{String.length(name)} characters (not shown: it may be a token); if the " <>
+                "pair is written token=name, write it as name=token, otherwise generate a " <>
+                "token with `openssl rand -base64 48`"
 
       placeholder?(token) ->
         raise ArgumentError,

@@ -107,6 +107,32 @@ defmodule Portfolixir.ApiTokenRefusalRedactionTest do
            "the boot error carries the token: " <> error.message
   end
 
+  # User story (#1262, the Shell polish list #1357; Sprint 30 plan, F2):
+  # As the operator whose boot log is kept and may be shared,
+  # I want a pair written token=name refused without the token, even when the
+  # token happens to pass the name rule,
+  # so that a swapped pair never prints my token as if it were the name.
+  #
+  # Acceptance criteria:
+  # - A token of 32 lowercase hex characters written token=name is refused
+  #   naming the variable and the entry's position, telling the length of
+  #   the left side and hinting at a swapped pair, never quoting it.
+  test "a name-shaped token written token=name is refused without echoing the token" do
+    hex = Base.encode16(for(i <- 1..16, into: <<>>, do: <<rem(i * 29 + 3, 256)>>), case: :lower)
+    assert byte_size(hex) == RuntimeConfig.min_token_bytes()
+    assert hex =~ ~r/^[a-z0-9][a-z0-9_-]{0,31}$/
+
+    error =
+      assert_raise ArgumentError, fn ->
+        RuntimeConfig.api_tokens!(@default, "scripts=#{@unpadded}, #{hex}=scripts", "mcp")
+      end
+
+    assert error.message =~ "PORTFOLIXIR_API_TOKENS entry 2"
+    assert error.message =~ "32 characters"
+    assert error.message =~ "name=token"
+    refute error.message =~ hex, "the boot error carries the token: " <> error.message
+  end
+
   # A URL-safe token of exactly the floor's length (what
   # `secrets.token_urlsafe(24)` prints) is shaped like a name but fails the
   # name rule: it is never quoted, in either variable.
