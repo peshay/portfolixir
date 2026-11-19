@@ -13,7 +13,10 @@ defmodule PortfolixirWeb.Api.V1.CrashController do
       `list` (`losers`, the default, `winners` or `rebounders`), `universe`
       (`catalogue`, the default; `held`, the securities held today in any
       depot; or `view:<id>`, the securities the view holds today), `limit` (default 8, capped at 50 and echoed) and
-      `include_unanswered` (`true` lists the securities without an answer).
+      `include_unanswered` (`true` lists the securities without an answer)
+      and `projection` (`slim`, the default: each entry without its closes
+      and without the benchmark's return, which `reference` carries once;
+      `full`: the whole audit trail, the answer as it read before I45).
     * `PUT /api/v1/crashes/:key` — `{"window": {"name"}}` names a detected
       window (`d:<benchmark_security_id>:<start>`), or renames it;
       `{"window": {name, start, trough}}`, any of them, edits a manual one
@@ -42,7 +45,7 @@ defmodule PortfolixirWeb.Api.V1.CrashController do
 
   plug(PortfolixirWeb.Api.V1.BodyObject, "window" when action in [:create, :update])
 
-  @rankings_params ~w(list universe limit include_unanswered)
+  @rankings_params ~w(list universe limit include_unanswered projection)
   @default_limit 8
   @name_fields ~w(name)
   @manual_fields ~w(name start trough)
@@ -63,8 +66,9 @@ defmodule PortfolixirWeb.Api.V1.CrashController do
 
     with :ok <- closed_read(conn),
          {:ok, opts} <- rankings_opts(params),
+         {:ok, projection} <- projection(params),
          {:ok, payload} <- Crashes.rankings(key, defaulted(params, "universe", "catalogue"), opts) do
-      json(conn, %{data: CrashJSON.rankings(payload)})
+      json(conn, %{data: CrashJSON.rankings(payload, projection)})
     else
       {:error, refusal} -> refuse(conn, refusal)
     end
@@ -140,6 +144,16 @@ defmodule PortfolixirWeb.Api.V1.CrashController do
       value when value in [nil, "", "false"] -> {:ok, false}
       "true" -> {:ok, true}
       _other -> {:error, %{include_unanswered: ["is invalid: true or false"]}}
+    end
+  end
+
+  # I45, as securities.list reads it (FR-33): slim by default, an empty
+  # value counted as absent, full the whole answer, anything else refused.
+  defp projection(params) do
+    case Map.get(params, "projection") do
+      value when value in [nil, "", "slim"] -> {:ok, :slim}
+      "full" -> {:ok, :full}
+      _other -> {:error, %{projection: ["is invalid: slim or full"]}}
     end
   end
 

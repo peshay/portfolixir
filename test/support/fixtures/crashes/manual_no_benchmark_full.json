@@ -1,0 +1,159 @@
+{
+  "data": {
+    "answered": 3,
+    "benchmark": null,
+    "completes_on": null,
+    "computation_basis": {
+      "benchmark": null,
+      "close_lookup": "the close standing for a date is the last positive stored close on or before it, at most 7 calendar days older",
+      "currency": "EUR",
+      "currency_note": "the rule detects a window in the crash benchmark's own currency; every list, the benchmark's return beside it included, is in EUR",
+      "dates": "chosen by a person (kind manual), who may have chosen them knowing the outcome; no rule fixed them",
+      "days_back": "calendar days from a security's own low to its first close at or above its close standing for the window's start, compared in the display basis in its own currency; 0 when the low is not below that close; null with not_yet when no close up to today reaches it",
+      "days_back_unit": "calendar_days",
+      "detection_currency": null,
+      "figure": "each security's EUR price return from the window's start to its trough by WindowReturn.price_return/3, the function sale hindsight and the prediction resolution share; lowest first; a price return: distributions are not counted",
+      "fx": "each close converts at the stored EUR-hub rate of its own date, carried forward without a bound, never a later one; the return is one division of exact products",
+      "gaps": "a day without a close is skipped, never interpolated; a security with no close standing for the start is no_close_at_start, none standing for the end no_close_at_end (none within 7 days, or a security younger than the window), a close without a stored rate path to EUR no_fx_rate; each is counted under its reason and never ranked as a zero",
+      "input_series": "each security's stored closes in the current display basis (ADR-0028 §2), positive closes only, each converted to EUR at the most recent stored EUR-hub rate on or before the close's own date",
+      "list": "losers",
+      "provisional": "a window not yet recovered is provisional, its trough the lowest close so far; its lists move with it and carry the flag",
+      "reason": "no_crash_benchmark",
+      "recovery_span": "rebounders are measured to the trough plus 3 calendar months, one span for every window; a day the month lacks becomes its last day; while the span has not ended the list is measured to today, provisional, and names the day it completes",
+      "recovery_span_months": 3,
+      "reference": "none: no crash benchmark is chosen, so no entry carries a benchmark return or a difference",
+      "rule": null,
+      "split_adjustment": "both closes in the current display basis: a booked split divides the raw closes before its effective date, so a split inside the window is not a move",
+      "staleness_days": 7,
+      "survivorship": "the catalogue holds what is still tracked: a security that failed and was removed is in no list, so the lists read better than the market did, and a rebound most of all",
+      "threshold": null,
+      "ties": "equal figures are ordered by the security's name, case-folded, then by its ISIN, its ticker, its WKN and its currency (a security without one after those with one); entries equal on all of these share a rank and are ordered among themselves by the security's creation time; an id decides no rank",
+      "universe": "catalogue: every security the catalogue holds, not merged away, minus those flagged is_benchmark (reference instruments) and the crash benchmark itself",
+      "window": {
+        "key": "m:@manual@",
+        "kind": "manual",
+        "provisional": false,
+        "start": "2020-02-19",
+        "trough": "2020-03-23"
+      }
+    },
+    "entries": [
+      {
+        "benchmark_return": null,
+        "end": {
+          "close": "70",
+          "date": "2020-03-23",
+          "eur_value": "70",
+          "fx_rate": "1",
+          "source": "manual",
+          "stands_for": "2020-03-23",
+          "stored_close": "70"
+        },
+        "held": false,
+        "rank": 1,
+        "return": "-0.3",
+        "security": {
+          "currency_code": "EUR",
+          "id": @index@,
+          "isin": null,
+          "name": "Synthetic Crash Index"
+        },
+        "start": {
+          "close": "100",
+          "date": "2020-02-19",
+          "eur_value": "100",
+          "fx_rate": "1",
+          "source": "manual",
+          "stands_for": "2020-02-19",
+          "stored_close": "100"
+        },
+        "vs_benchmark_pp": null
+      },
+      {
+        "benchmark_return": null,
+        "end": {
+          "close": "40",
+          "date": "2020-03-23",
+          "eur_value": "40",
+          "fx_rate": "1",
+          "source": "manual",
+          "stands_for": "2020-03-23",
+          "stored_close": "40"
+        },
+        "held": false,
+        "rank": 2,
+        "return": "-0.2",
+        "security": {
+          "currency_code": "EUR",
+          "id": @faller@,
+          "isin": "DE000CRSH101",
+          "name": "Synthetic Faller"
+        },
+        "start": {
+          "close": "50",
+          "date": "2020-02-19",
+          "eur_value": "50",
+          "fx_rate": "1",
+          "source": "manual",
+          "stands_for": "2020-02-19",
+          "stored_close": "50"
+        },
+        "vs_benchmark_pp": null
+      },
+      {
+        "benchmark_return": null,
+        "end": {
+          "close": "22",
+          "date": "2020-03-23",
+          "eur_value": "22",
+          "fx_rate": "1",
+          "source": "manual",
+          "stands_for": "2020-03-23",
+          "stored_close": "22"
+        },
+        "held": true,
+        "rank": 3,
+        "return": "0.1",
+        "security": {
+          "currency_code": "EUR",
+          "id": @riser@,
+          "isin": "DE000CRSH119",
+          "name": "Synthetic Riser"
+        },
+        "start": {
+          "close": "20",
+          "date": "2020-02-19",
+          "eur_value": "20",
+          "fx_rate": "1",
+          "source": "manual",
+          "stands_for": "2020-02-19",
+          "stored_close": "20"
+        },
+        "vs_benchmark_pp": null
+      }
+    ],
+    "from": "2020-02-19",
+    "limit": 8,
+    "list": "losers",
+    "provisional": false,
+    "reference": null,
+    "reference_reason": "no_crash_benchmark",
+    "to": "2020-03-23",
+    "unanswered": {
+      "no_close_at_end": 0,
+      "no_close_at_start": 1,
+      "no_fx_rate": 0
+    },
+    "universe": "catalogue",
+    "window": {
+      "key": "m:@manual@",
+      "kind": "manual",
+      "max_gap_days": null,
+      "name": "Synthetic Spring",
+      "provisional": false,
+      "recovered_on": null,
+      "start": "2020-02-19",
+      "trough": "2020-03-23"
+    }
+  }
+}

@@ -1323,7 +1323,14 @@ parameters, each optional:
 - `limit` — default 8, a positive integer; above 50 it is capped at 50 and
   the answer's `limit` says so;
 - `include_unanswered` — `true` adds `unanswered_entries`; `false` or absent
-  leaves them out.
+  leaves them out;
+- `projection` — `slim` (default; an empty value counts as absent), as
+  `GET /api/v1/securities` takes it: the answer is **slim by default**, each
+  entry without the closes behind its figure and without `benchmark_return`,
+  whose figure is `reference.return`, once; the crash benchmark is named once,
+  as `benchmark`, and `computation_basis.projection` says so.
+  `projection=full` answers the whole audit trail, the read as it answered
+  before the slim default, byte for byte (I45).
 
 **Losers and winners** rank each security's **EUR price return from `start`
 to `trough`** by the window-return function sale hindsight and the
@@ -1379,12 +1386,14 @@ id decides no rank (ADR-0058 §5, amendment of 2026-11-12, part 2).
 - `entries` — at most `limit`, each with `rank` (from 1; entries tied on
   every key share one, and the next takes its position), `security` (`{id,
   name, isin, currency_code}`), `held` (`true` when any depot holds it today,
-  so a catalogue list can mark it), `return`, `start` and `end` (each close:
-  `stands_for`, `date`, `close`, `stored_close`, `source`, `fx_rate`,
-  `eur_value`), `benchmark_return` and `vs_benchmark_pp`, the difference
-  `(return − benchmark_return) × 100` in percentage points, unrounded; for
-  rebounders also `low` (`{date, close}`), `start_close` (`{stands_for, date,
-  close}`), `back_on`, `days_back` and `not_yet`. Every figure is a decimal
+  so a catalogue list can mark it), `return` and `vs_benchmark_pp`, the
+  difference `(return − benchmark_return) × 100` in percentage points,
+  unrounded, where `benchmark_return` is `reference.return`; for rebounders
+  also `back_on`, `days_back` and `not_yet`. Under `projection=full` each
+  entry also carries `start` and `end` (each close: `stands_for`, `date`,
+  `close`, `stored_close`, `source`, `fx_rate`, `eur_value`) and
+  `benchmark_return`, and for rebounders `low` (`{date, close}`) and
+  `start_close` (`{stands_for, date, close}`). Every figure is a decimal
   string;
 - `answered` — how many securities of the universe have an answer;
 - `unanswered` — the others counted by reason, each key always present:
@@ -1395,7 +1404,10 @@ id decides no rank (ADR-0058 §5, amendment of 2026-11-12, part 2).
   list and never ranked as a zero;
 - `unanswered_entries` — with `include_unanswered=true` only: each
   `{security, held, reason}`, in the tie order above;
-- `computation_basis` — `benchmark`, `reason`, `reference`, `window`,
+- `computation_basis` — `projection` (in the slim answer: what it leaves
+  out, and that `projection=full` answers it; the full answer has no
+  `projection` key and carries `benchmark`, the crash benchmark again, as it
+  always did), `reason`, `reference`, `window`,
   `rule` and `threshold` (`null` for a manual window), `dates` (the rule's,
   or chosen by a person), `universe`, `list`, `figure`, `input_series`,
   `currency` (`EUR`), `detection_currency`, `currency_note`, `close_lookup`,
@@ -1406,8 +1418,9 @@ id decides no rank (ADR-0058 §5, amendment of 2026-11-12, part 2).
 **Without a crash benchmark** (the amendment's F2), a manual window's lists
 answer without a reference: `benchmark` and `reference` are `null`,
 `reference_reason` is `no_crash_benchmark`, every entry's
-`benchmark_return` and `vs_benchmark_pp` are `null`, and the basis says
-`benchmark: null` with `reason`. The ranking is unchanged: a manual window
+`vs_benchmark_pp` is `null` (and under `projection=full` its
+`benchmark_return`, while the basis says `benchmark: null`), and the basis
+says `reason`. The ranking is unchanged: a manual window
 is the operator's own span, and ranking the securities inside it needs no
 market line.
 
@@ -1422,8 +1435,9 @@ Refusals, each before anything is read: `list` other than the three answers
 included) `errors.universe` `["is invalid: catalogue, held or view:<id>"]`;
 `limit` zero, negative or not a number `errors.limit` `["is invalid: a
 positive integer, at most 50"]`; `include_unanswered` other than `true` or
-`false` `errors.include_unanswered` `["is invalid: true or false"]`; any
-other parameter `422` naming it. A key that names no window detected now or
+`false` `errors.include_unanswered` `["is invalid: true or false"]`;
+`projection` other than `slim` or `full` `errors.projection` `["is invalid:
+slim or full"]`; any other parameter `422` naming it. A key that names no window detected now or
 no manual window answers `404`, and so does a `view:<id>` whose view does not
 exist.
 

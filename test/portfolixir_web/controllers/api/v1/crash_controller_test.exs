@@ -54,7 +54,7 @@ defmodule PortfolixirWeb.Api.V1.CrashControllerTest do
     put_quotes!(young, [{~D[2020-03-20], "9"}])
 
     choose!(index)
-    %{index: index, faller: faller, riser: riser, key: "d:#{index.id}:2020-02-19"}
+    %{index: index, faller: faller, riser: riser, young: young, key: "d:#{index.id}:2020-02-19"}
   end
 
   defp manual!(attrs \\ %{}) do
@@ -75,6 +75,57 @@ defmodule PortfolixirWeb.Api.V1.CrashControllerTest do
   defp floats(%{} = map), do: map |> Map.values() |> Enum.flat_map(&floats/1)
   defp floats(list) when is_list(list), do: Enum.flat_map(list, &floats/1)
   defp floats(_value), do: []
+
+  # I45 (Sprint 30, A1): the answers `projection=full` keeps, captured from
+  # the read before the slim default existed. Each file is the answer's
+  # body pretty-printed, the ids of this world's rows as tokens.
+  @full_fixtures Path.expand("../../../../support/fixtures/crashes", __DIR__)
+
+  # crash_world! with the riser held, and a manual window over the same
+  # days for the answers without a crash benchmark.
+  defp projection_world! do
+    world = crash_world!()
+    buy!(base_world(name: "Synthetic Held World"), world.riser, quantity: "1", price: "20")
+    window = manual!()
+    Map.put(world, :manual, "m:#{window.id}")
+  end
+
+  defp tokens(world) do
+    [
+      {"@index@", world.index.id},
+      {"@faller@", world.faller.id},
+      {"@riser@", world.riser.id},
+      {"@young@", world.young.id},
+      {"@manual@", String.trim_leading(world.manual, "m:")}
+    ]
+  end
+
+  # The file's body with this world's ids, whitespace outside strings
+  # removed: the bytes the read answered when it was captured.
+  defp full_fixture(name, world) do
+    @full_fixtures
+    |> Path.join(name)
+    |> File.read!()
+    |> then(fn text ->
+      Enum.reduce(tokens(world), text, fn {token, id}, acc ->
+        String.replace(acc, token, to_string(id))
+      end)
+    end)
+    |> Jason.Formatter.minimize()
+  end
+
+  # An answer's bytes with each object's members in key order, nothing else
+  # touched: every key and every value's text as the read wrote them.
+  defp canonical(body),
+    do: body |> Jason.decode!(objects: :ordered_objects) |> sorted() |> Jason.encode!()
+
+  defp sorted(%Jason.OrderedObject{values: values}) do
+    members = values |> Enum.map(fn {key, value} -> {key, sorted(value)} end)
+    %Jason.OrderedObject{values: Enum.sort_by(members, &elem(&1, 0))}
+  end
+
+  defp sorted(list) when is_list(list), do: Enum.map(list, &sorted/1)
+  defp sorted(value), do: value
 
   # User story (ADR-0058 §1, §3, §9):
   # As the agent the operator runs,
@@ -201,8 +252,12 @@ defmodule PortfolixirWeb.Api.V1.CrashControllerTest do
   test "ranks a window's lists with the benchmark's return beside each", %{conn: conn} do
     %{index: index, key: key} = crash_world!()
 
+    # The audit trail behind each figure is the full answer's (I45).
     assert %{"data" => losers} =
-             conn |> authed() |> get(path(key) <> "/rankings") |> json_response(200)
+             conn
+             |> authed()
+             |> get(path(key) <> "/rankings?projection=full")
+             |> json_response(200)
 
     index_id = index.id
 
@@ -266,7 +321,7 @@ defmodule PortfolixirWeb.Api.V1.CrashControllerTest do
     assert %{"data" => rebounders} =
              conn
              |> authed()
-             |> get(path(key) <> "/rankings?list=rebounders&universe=catalogue")
+             |> get(path(key) <> "/rankings?list=rebounders&universe=catalogue&projection=full")
              |> json_response(200)
 
     assert %{
@@ -278,6 +333,101 @@ defmodule PortfolixirWeb.Api.V1.CrashControllerTest do
     assert %{"return" => "0.5", "days_back" => 0, "not_yet" => false, "low" => low} = rebound
     assert %{"date" => "2020-02-19", "close" => "20"} = low
     assert floats(rebounders) == []
+  end
+
+  # User story (I45; Sprint 30 plan A1, D-10):
+  # As the agent the operator runs,
+  # I want a crash list's default answer to carry the ranking and leave the
+  # audit trail behind projection=full,
+  # so that a read of who fell costs me the figures, not every close
+  # behind them.
+  #
+  # Acceptance criteria:
+  # - The default answer's entries carry rank, security, held, return and
+  #   vs_benchmark_pp (rebounders also back_on, days_back and not_yet):
+  #   no close block (start, end, low, start_close) and no benchmark_return,
+  #   whose figure is reference.return, once.
+  # - The crash benchmark is named once, as the top-level benchmark: the
+  #   basis does not repeat it, and states the projection.
+  # - projection=slim and an empty projection read as the default.
+  # - The default answer is smaller than the full one.
+  test "answers slim by default, the closes and the benchmark once", %{conn: conn} do
+    %{index: index, key: key} = crash_world!()
+    index_id = index.id
+
+    for list <- ["losers", "winners", "rebounders"] do
+      rankings = path(key) <> "/rankings?list=" <> list
+
+      assert %{"data" => slim} =
+               conn |> authed() |> get(rankings) |> json_response(200)
+
+      assert %{
+               "benchmark" => %{"id" => ^index_id, "benchmark_security" => "unheld"},
+               "reference" => reference,
+               "entries" => [_first | _rest] = entries,
+               "computation_basis" => %{"projection" => projection} = basis
+             } = slim
+
+      rebound_keys = if list == "rebounders", do: ~w(back_on days_back not_yet), else: []
+
+      for entry <- entries do
+        assert Enum.sort(Map.keys(entry)) ==
+                 Enum.sort(~w(held rank return security vs_benchmark_pp) ++ rebound_keys),
+               list
+      end
+
+      refute Map.has_key?(basis, "benchmark")
+      assert projection =~ "projection=full"
+      assert projection =~ "reference.return"
+
+      # The benchmark's return over the fall, once; a rebound's reference
+      # needs the index's close at the span's end, which this world lacks.
+      if list != "rebounders",
+        do: assert(%{"return" => "-0.3", "security_id" => ^index_id} = reference)
+
+      for same <- ["&projection=slim", "&projection="] do
+        assert %{"data" => ^slim} =
+                 conn |> authed() |> get(rankings <> same) |> json_response(200),
+               same
+      end
+
+      full = conn |> authed() |> get(rankings <> "&projection=full") |> response(200)
+      default = conn |> authed() |> get(rankings) |> response(200)
+      assert byte_size(default) < byte_size(full), list
+    end
+  end
+
+  # Acceptance criteria (I45; Sprint 30 plan A1):
+  # - projection=full answers what the read answered before the slim
+  #   default, for losers with the unanswered listed, winners over the held
+  #   universe, rebounders, and a manual window without a crash benchmark:
+  #   every key and every value's text as captured, byte for byte once
+  #   both sides put an object's members in one order (the VM orders an
+  #   atom-keyed map's members by when each atom was made, which neither
+  #   answer fixes, and JSON gives the order no meaning).
+  test "projection=full answers today's answer byte for byte", %{conn: conn} do
+    world = projection_world!()
+
+    for {fixture, query} <- [
+          {"losers_full.json", "include_unanswered=true"},
+          {"winners_held_full.json", "list=winners&universe=held"},
+          {"rebounders_full.json", "list=rebounders"}
+        ] do
+      body =
+        conn
+        |> authed()
+        |> get(path(world.key) <> "/rankings?" <> query <> "&projection=full")
+        |> response(200)
+
+      assert canonical(body) == full_fixture(fixture, world), fixture
+    end
+
+    choose!(nil)
+
+    body =
+      conn |> authed() |> get(path(world.manual) <> "/rankings?projection=full") |> response(200)
+
+    assert canonical(body) == full_fixture("manual_no_benchmark_full.json", world)
   end
 
   # The closing act (#1421): universe=held, today's holdings in any depot,
@@ -305,8 +455,9 @@ defmodule PortfolixirWeb.Api.V1.CrashControllerTest do
 
   # Acceptance criteria (ADR-0058 §9; the repo's limit contract, #771):
   # - A limit above 50 is capped and echoed; zero or text answers 422.
-  # - An unknown list, universe or include_unanswered value answers 422
-  #   naming it; an unknown parameter answers 422 naming it.
+  # - An unknown list, universe, include_unanswered or projection value
+  #   answers 422 naming it (projection's names slim and full, I45); an
+  #   unknown parameter answers 422 naming it.
   # - A key that names no window, in either spelling or none, answers 404;
   #   a view that does not exist answers 404.
   test "refuses a bad parameter with 422 and an unknown window or view with 404",
@@ -324,12 +475,16 @@ defmodule PortfolixirWeb.Api.V1.CrashControllerTest do
           {"limit=0", "limit"},
           {"limit=ten", "limit"},
           {"include_unanswered=yes", "include_unanswered"},
+          {"projection=compact", "projection"},
           {"lists=winners", "lists"}
         ] do
       assert %{"errors" => %{^field => [_message]}} =
                conn |> authed() |> get(rankings <> "?" <> query) |> json_response(422),
              query
     end
+
+    assert %{"errors" => %{"projection" => ["is invalid: slim or full"]}} =
+             conn |> authed() |> get(rankings <> "?projection=FULL") |> json_response(422)
 
     for unknown <- ["d:1:2020-02-19", "m:999999", "m:01", "crash", key <> "x"] do
       assert %{"errors" => %{"detail" => "not found"}} =
