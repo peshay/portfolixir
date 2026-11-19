@@ -161,7 +161,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     [link] = Floki.find(doc, "[data-role='movers-wealth-link']")
 
     assert attribute(link, "href") ==
-             "/portfolio?from=#{contribution["from"]}&to=#{contribution["to"]}"
+             "/portfolio?view=total&from=#{contribution["from"]}&to=#{contribution["to"]}"
 
     answer
   end
@@ -202,8 +202,8 @@ defmodule PortfolixirWeb.DashboardMoversTest do
   #   return, the positions valued on no day for the contribution.
   # - A „Day“ row names its two closes' dates with their weekdays; a row of
   #   another window whose last close is before the window's end names it.
-  # - „View in Wealth →“ opens Wealth with the contribution's window as a
-  #   custom range.
+  # - „View in Wealth →“ opens Wealth in the card's view (`view=total` for
+  #   Everything) with the contribution's window as a custom range.
   test "every figure on the card is the API's for each window the chips choose", %{conn: conn} do
     %{today: today, share: share, sold: sold} = seed!()
 
@@ -506,6 +506,52 @@ defmodule PortfolixirWeb.DashboardMoversTest do
       assert has_element?(view, "#dashboard-movers [data-role='movers-bar']")
       assert Process.alive?(view.pid)
     end)
+  end
+
+  # Sprint 30 closing act, correctness lens, finding 2: „View in Wealth →“
+  # promises Wealth's table shows the card's contribution, but the link
+  # carried no scope: with a view chosen in Wealth (the session's choice)
+  # that is not the Overview's scope, it opened Wealth in that other view.
+  test "View in Wealth opens Wealth in the card's scope", %{conn: conn} do
+    seed!()
+
+    {:ok, empty} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Synthetic Chosen View", include_all: false})
+
+    # No default view: the card reads Everything. Wealth remembers the
+    # explicit choice of another view.
+    conn = put_preference_cookie(conn, "portfolixir_view", Integer.to_string(empty.id))
+
+    {:ok, view, _html} = live(conn, "/?movers_period=month")
+    doc = loaded(view, "month")
+    assert doc |> Floki.find("[data-role='movers-basis']") |> text() =~ "View Everything"
+    [link] = Floki.find(doc, "[data-role='movers-wealth-link']")
+
+    {:ok, wealth, _html} = live(conn, attribute(link, "href"))
+    assert :sys.get_state(wealth.pid).socket.assigns.active_view_id == nil
+  end
+
+  # The same with the card on a default view and Wealth remembering an
+  # explicit Everything: the link opens Wealth in the default view.
+  test "View in Wealth opens Wealth in the card's default view", %{conn: conn} do
+    seed!()
+
+    {:ok, default} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Synthetic Default View", include_all: true})
+
+    :ok = set_default_view(default.id)
+    conn = put_preference_cookie(conn, "portfolixir_view", "total")
+
+    {:ok, view, _html} = live(conn, "/?movers_period=month")
+    doc = loaded(view, "month")
+
+    assert doc |> Floki.find("[data-role='movers-basis']") |> text() =~
+             "View Synthetic Default View"
+
+    [link] = Floki.find(doc, "[data-role='movers-wealth-link']")
+
+    {:ok, wealth, _html} = live(conn, attribute(link, "href"))
+    assert :sys.get_state(wealth.pid).socket.assigns.active_view_id == default.id
   end
 
   defp set_default_view(id), do: Settings.set_default_view(Actor.owner_ui(), id)

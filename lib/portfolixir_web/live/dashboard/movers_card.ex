@@ -15,8 +15,8 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
   Flops“):
 
     * a head — the heading with its ⓘ, which holds the method, and
-      „View in Wealth →“, Wealth with the contribution's window as a custom
-      range;
+      „View in Wealth →“, Wealth in the card's view with the
+      contribution's window as a custom range;
     * the window as one group „Period“ of the shared control bar
       (`PortfolixirWeb.ControlBar.bar/1`), its chips patch links that keep
       the window in the address (`?movers_period=`);
@@ -313,7 +313,8 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
       contribution_count: contribution_count(contribution.unanswered),
       largest: listed |> Enum.map(&Decimal.abs(&1.contribution)) |> max_decimal(),
       # An empty card links nowhere: Wealth would show nothing either.
-      wealth_href: if(empty?, do: nil, else: wealth_href(contribution.from, contribution.to))
+      wealth_href:
+        if(empty?, do: nil, else: wealth_href(result.view_id, contribution.from, contribution.to))
     }
   end
 
@@ -329,15 +330,25 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
 
   defp max_decimal(decimals), do: Enum.max(decimals, Decimal, fn -> Decimal.new(0) end)
 
-  # Wealth with the contribution's window as a custom range (`from=` and
-  # `to=`, the address values Wealth's popover reads), so its table shows
-  # the same contribution; none when the window has no day.
-  defp wealth_href(%Date{} = from, %Date{} = to),
+  # Wealth in the card's view (`view=`, `total` for Everything, so the
+  # view Wealth remembers does not replace it; Sprint 30 closing act,
+  # correctness lens, finding 2) with the contribution's window as a custom
+  # range (`from=` and `to=`, the address values Wealth's popover reads),
+  # so its table shows the same contribution; none when the window has no
+  # day.
+  defp wealth_href(view_id, %Date{} = from, %Date{} = to),
     do:
       "/portfolio?" <>
-        URI.encode_query([{"from", Date.to_iso8601(from)}, {"to", Date.to_iso8601(to)}])
+        URI.encode_query([
+          {"view", wealth_view(view_id)},
+          {"from", Date.to_iso8601(from)},
+          {"to", Date.to_iso8601(to)}
+        ])
 
-  defp wealth_href(_from, _to), do: nil
+  defp wealth_href(_view_id, _from, _to), do: nil
+
+  defp wealth_view(nil), do: "total"
+  defp wealth_view(view_id) when is_integer(view_id), do: Integer.to_string(view_id)
 
   # -- words ------------------------------------------------------------------------
 
