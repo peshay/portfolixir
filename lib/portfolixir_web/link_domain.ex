@@ -28,13 +28,10 @@ defmodule PortfolixirWeb.LinkDomain do
     end
   end
 
+  # Reached only for a link `URI.parse/1` found a host in, and a host comes
+  # only after "//", so the split always has an authority to read.
   defp backslash_in_authority?(url) do
-    case String.split(url, "//", parts: 2) do
-      [_scheme, rest] ->
-        rest |> String.split(["/", "?", "#"], parts: 2) |> hd() |> String.contains?("\\")
-
-      [_no_authority] ->
-        false
-    end
+    [_scheme, rest] = String.split(url, "//", parts: 2)
+    rest |> String.split(["/", "?", "#"], parts: 2) |> hd() |> String.contains?("\\")
   end
 end

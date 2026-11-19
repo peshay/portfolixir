@@ -33,4 +33,52 @@ defmodule PortfolixirWeb.LinkDomainTest do
     assert LinkDomain.of("https://ir.example/report?x=a\\@b.example") == "ir.example"
     assert LinkDomain.of("https://ir.example/report") == "ir.example"
   end
+
+  # User story (the Shell polish list #1357, Sprint 29 closing act #1458;
+  # Sprint 30 plan, F2):
+  # As the maintainer reading LinkDomain,
+  # I want no branch that never runs,
+  # so that the backslash check reads as what it guards.
+  #
+  # Acceptance criteria:
+  # - Every link URI.parse/1 finds a host in has an authority after "//",
+  #   whatever its scheme's case, userinfo, port or brackets: each reads
+  #   its host, lower-cased.
+  # - So the backslash check, reached only with a host, splits off the
+  #   authority without a branch for a link that has none.
+  test "a link with a host always has an authority, so the check has no other branch" do
+    for {url, host} <- [
+          {"https://ir.example/report", "ir.example"},
+          {"HTTPS://IR.example", "ir.example"},
+          {"//ir.example/protocol-relative", "ir.example"},
+          {"https://user:pw@ir.example:8443/a?b#c", "ir.example"},
+          {"http://[2001:db8::1]/report", "2001:db8::1"},
+          {"ftp://files.example", "files.example"}
+        ] do
+      assert LinkDomain.of(url) == host, url
+    end
+
+    for url <- ["mailto:ir@ir.example", "ir.example/report", "/report", "https:ir.example", ""] do
+      assert LinkDomain.of(url) == "link", url
+    end
+
+    {:ok, ast} =
+      "lib/portfolixir_web/link_domain.ex" |> File.read!() |> Code.string_to_quoted()
+
+    {_ast, bodies} =
+      Macro.prewalk(ast, [], fn
+        {:defp, _, [{:backslash_in_authority?, _, _} | _]} = node, acc -> {node, [node | acc]}
+        node, acc -> {node, acc}
+      end)
+
+    assert [body] = bodies
+
+    {_ast, cases} =
+      Macro.prewalk(body, 0, fn
+        {:case, _, _} = node, n -> {node, n + 1}
+        node, n -> {node, n}
+      end)
+
+    assert cases == 0, "backslash_in_authority?/1 keeps a branch for a link without an authority"
+  end
 end
