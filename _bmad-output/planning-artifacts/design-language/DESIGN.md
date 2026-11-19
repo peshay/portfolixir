@@ -11045,9 +11045,11 @@ screen and the agent read one ranking.
    half and the split under ten with no name in both halves, what has no
    answer, and what „Tag“ means. At the head's end **„In Vermögen ansehen
    →“** (`.kpi-summary__link`, as „Alle Trades →“): Vermögen at
-   `/portfolio?from=<from>&to=<to>`, the contribution's own window (`S + 1`
-   to `T`; on „Tag“ the one day `D`), so its table shows the same
-   contributions. No link while the card is empty, or on „Tag“ without a
+   `/portfolio?view=<view>&from=<from>&to=<to>`, the card's view (its id,
+   `total` for „Alles“, so the view Vermögen remembers does not replace
+   it; Sprint 30 closing act, correctness lens, finding 2) and the
+   contribution's own window (`S + 1` to `T`; on „Tag“ the one day `D`),
+   so its table shows the same contributions. No link while the card is empty, or on „Tag“ without a
    day `D`.
 2. **The bar** (`div.control-bar[data-role=movers-bar]`), DESIGN.md's
    "Labelled controls start on one edge" as the shared
