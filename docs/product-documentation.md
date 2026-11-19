@@ -2241,6 +2241,38 @@ deliberately no activity feed: the audit journal owns the forensic detail,
 and the Closed trades card shows what a sale realised, never the booking
 itself.
 
+Between the key-figure strip and the Closed trades card, the **Tops and
+flops** card (FR-59, ADR-0061) answers "what moved, and what did it mean for
+me?" for the same scope as the value card — the default view, else
+**Everything**. A **Period** bar chooses the window: **Day**, **Week**,
+**Month**, **Quarter**, **YTD** or **1Y**, each to today; the choice is in
+the address (`/?movers_period=week`), so a reload or a shared link opens the
+same window, and without it the card opens on **Day**. Two columns stand
+side by side, each with its **Highest** over its **Lowest**, five each (under
+ten the list splits, and no name stands in both halves): **Price return**,
+each security the scope holds today by its return in EUR from its stored
+closes — on **Day** since each security's previous close, the two dates
+under its name ("Thu 2026-11-12 → Fri 2026-11-13"), elsewhere "last close
+…" where that close is before today — and **Contribution**, each position
+by what it added or cost in EUR over the window, as **Contribution by
+position** on Wealth counts it, a position sold in the window included and
+marked **sold**. Under each list stands what has no figure: "2 without a
+price return: 1 without a close at the start, 1 without an exchange rate"
+and "1 position not valued on any day of the period"; nothing is ranked as a
+zero it does not have. One basis line names the view, the window and its
+dates, and the method is behind the ⓘ. Each name opens its security;
+**View in Wealth →** opens Wealth with the contribution's window as a custom
+range (`/portfolio?from=…&to=…`). Under 560 px the two columns stack, price
+return first. In the privacy mode every contribution is hidden, its sign
+colour, order and bar kept; the percentages stay. The card reads in the
+background, with its skeleton while it loads; a view that holds nothing keeps
+the bar and says "No holdings in this view.". Your agent reads the same
+rankings over
+[the API and MCP](integration/api-and-mcp.html#tops-and-flops-per-calendar-window-adr-0061)
+(`GET /api/v1/views/:view_id/movers`, `GET /api/v1/movers`,
+`portfolixir.views.movers`); the card's figures are theirs for the same
+window. A ranking orders figures; it does not say what to buy or sell.
+
 [![The Overview: the total value card, the key-figure strip, the Closed trades card with four round-trips, the Off target list, the due dates and the data-quality line](screenshots/dashboard.png)](screenshots/dashboard.png)
 
 *The Overview on the synthetic demo dataset, in the German interface. Every

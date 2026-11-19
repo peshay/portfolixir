@@ -11012,3 +11012,114 @@ bakes `transform`, `transform-box` and `transform-origin` already
 
 The API and the MCP tools: an axis is how a figure is drawn, not a
 figure. The stack's own axis, picture and privacy mode. The TTWROR series.
+
+<!-- S30 T3 begin -->
+## Amendment 2026-11-19 — Übersicht: the card „Tops und Flops“ *(Sprint 30 T3, FR-59, idea I32; ADR-0061 §9; board `mockups/ux-design-2026-11-15-sprint30/04-tops-flops`, A, stacked as A1; plan D-12)*
+
+`PortfolixirWeb.Dashboard.MoversCard`, drawn by the Overview, which reads
+it in the background. Every figure on it is
+`Portfolixir.Portfolios.Performance.Movers.read/3` for the Overview's scope
+(the default view, else Everything) and the chosen window, the read `GET
+/api/v1/views/:view_id/movers` and `GET /api/v1/movers` answer, so the
+screen and the agent read one ranking.
+
+### Placement and URL
+
+- **Directly under the KPI strip**, before „Abgeschlossene Trades“ (A;
+  flip „Tops/Flops auf Vermögen“): the value card and the strip name the
+  scope's return, the card says right under them which names moved it, in
+  the same scope; the trades count over every depot.
+- **The window is in the address**: `movers_period` (`day`, `week`,
+  `month`, `quarter`, `ytd`, `1y`), each chip a patch link to
+  `/?movers_period=…`. Without it, or with a value the card does not know,
+  the card opens on **Tag**, the window ADR-0061 §8 reads per Overview
+  render.
+
+### Anatomy, top to bottom *(inside `section#dashboard-movers.movers`)*
+
+1. **The head** (`.section-head`): „Tops und Flops“ with the section ⓘ
+   (I1), which holds the method: the price return's formula (the last
+   stored close in the period ÷ the close before it − 1, both in EUR at
+   their day's rate, income and costs not counted), the contribution's
+   (as „Beitrag je Position“ in Vermögen, sold positions counted), five per
+   half and the split under ten with no name in both halves, what has no
+   answer, and what „Tag“ means. At the head's end **„In Vermögen ansehen
+   →“** (`.kpi-summary__link`, as „Alle Trades →“): Vermögen at
+   `/portfolio?from=<from>&to=<to>`, the contribution's own window (`S + 1`
+   to `T`; on „Tag“ the one day `D`), so its table shows the same
+   contributions. No link while the card is empty, or on „Tag“ without a
+   day `D`.
+2. **The bar** (`div.control-bar[data-role=movers-bar]`), DESIGN.md's
+   "Labelled controls start on one edge" as the shared
+   `PortfolixirWeb.ControlBar.bar/1` (fold 560, floor 380): one group
+   **Zeitraum**, a segmented control of patch links **Tag · Woche · Monat ·
+   Quartal · YTD · 1J** (`aria-current` on the active one).
+3. **The basis line** (`p.summary-basis[data-role=movers-basis]`, one
+   sentence): „Ansicht ‹Name› · ‹Fenster›: Schlusskurs ‹S› bis ‹T› · in EUR,
+   aus gespeicherten Schlusskursen und Buchungen“; on „Tag“ „Ansicht ‹Name›
+   · Tag: seit dem vorigen Schlusskurs jedes Wertpapiers, die Daten an der
+   Zeile; Beitrag am ‹D› · in EUR“ (without the contribution's clause when
+   no close is stored).
+4. **Two columns** (`.movers__grid`), **„Kursrendite“** first, **„Beitrag“**
+   beside it, each an `h3` over **„Höchste“** and **„Niedrigste“**
+   (`h4.movers__half`, a half left out when the split gives it none), each
+   half an `.attention-list` of `.attention-item` rows linking to the
+   security's page: the name left, the figure right.
+   - A price row's figure is the signed percent with one decimal in its
+     sign colour. On „Tag“ its sub-line (`.attention-item__sub`, not a
+     tooltip: a phone has no hover, board 04 ⑤) names its two closes with
+     their weekdays, „Do 12.11.2026 → Fr 13.11.2026“; on another window it
+     names „letzter Kurs ‹Datum›“ where the last close is before the
+     window's end.
+   - A contribution row's figure is the signed amount in EUR in its sign
+     colour, the contribution table's bar under it (`.drift-bar`, 110 px,
+     the largest listed filling 45 %; none for a figure that reads 0,00).
+     A position sold in the window carries **„verkauft“**
+     (`badge--neutral`, as „ohne Bestand“ under „Fällig“); one that counted
+     zero on some days the table's marker („3 Tage mit 0 bewertet“). No
+     rank numbers. On „Tag“ the contribution is the one day `D` the basis
+     names, so its rows carry no dates (ADR-0061 §3; board 04 ⑤ drew each
+     row's price dates there too).
+   - **Under each list the count without an answer**
+     (`p.movers__count`): „2 ohne Kursrendite: 1 ohne Kurs zu Beginn,
+     1 ohne Wechselkurs“ per reason (also „ohne aktuellen Kurs“ and „mit
+     nur einem Schlusskurs“), and „1 Position an keinem Tag des Zeitraums
+     bewertet“, a position the read counts, never ranks (ADR-0061 §4). No
+     line when everything has a figure; a column with no ranked entry
+     says „Keine Zahl in diesem Zeitraum.“
+5. **States.** While the read runs, the block skeleton under the bar
+   (`p.section-skeleton`, `aria-busy`), on every window change too, the
+   bar staying; a failed read is a problem note („Tops und Flops konnten
+   nicht geladen werden.“); a scope that holds nothing and in which no
+   position moved keeps the bar and reads „Keine Bestände in dieser
+   Ansicht.“ (board 04 ⑤). Fewer than ten entries split as the read
+   splits them: six securities read three over three, one reads one
+   „Höchste“ and no „Niedrigste“.
+
+### Under 640 px of the card *(A1; flip „Tops/Flops umschaltbar am Handy“)*
+
+A container query on the card (`container: movers`) stacks the columns,
+„Kursrendite“ over „Beitrag“, whenever the card is narrower than 640 px,
+which it is at every window under 560 px. The bar leaves under 560 px, as
+the drift bar does everywhere; the figure and its sign colour stay. The
+control bar takes its labels above under its floor of 380 px, and below
+380 px of the card the six chips share the card's width with a 4 px inset,
+as „Nach dem Verkauf“'s comparison does: at the 9 px inset the row reached
+2 px (German) and 6.5 px (English in DejaVu Sans) past a 320 px screen.
+
+### The privacy mode *(board 04 ④)*
+
+The card follows the rule for money: every contribution is the app's
+`pf-mask` (`Format.signed_decimal/3`), with no „EUR“ after it; its sign
+colour, its order and its bar's width stay, as the contribution table keeps
+its `drift-bar` widths. The price returns, the dates, the basis line and the
+counts stay as they are: the count lines name no amount.
+
+### The `app.css` rules (between `S30 T3 begin` / `end`)
+
+`.movers` (the container), `.movers .section-head`, `.movers >
+.summary-basis`, `.movers__grid` and its 640 px container rule, `.movers__col
+h3`, `.movers__half`, `.movers__count`, the right-aligned figure, the badge
+after the name, `.movers__figure .drift-bar` and its 560 px rule. Every
+colour is a token.
+<!-- S30 T3 end -->
