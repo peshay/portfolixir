@@ -129,20 +129,33 @@ defmodule PortfolixirWeb.ApiV1NewsPolishTest do
   #
   # Acceptance criteria:
   # - Each feed answers `failures` (the consecutive 429 and 5xx answers);
-  #   one in backoff adds `retry_at`, to the second in UTC.
+  #   one in backoff adds `retry_at`, to the second in UTC, while it lies
+  #   ahead of the read's clock (the read is at the wall clock, so the time
+  #   is set a day from now; Sprint 30 closing act, agent's lens, finding 3).
+  # - A `retry_at` that has passed is left out, `failures` still answered.
   test "news.health shows failures and retry_at", %{conn: conn} do
     backing_off = feed!(%{class: "aggregator", url: "https://wire.example.com/a.xml"})
     healthy = feed!(%{class: "aggregator", url: "https://wire.example.com/b.xml"})
-    retry_at = ~U[2026-11-20 08:30:00.000000Z]
+    waited = feed!(%{class: "aggregator", url: "https://wire.example.com/c.xml"})
+    retry_at = DateTime.utc_now() |> DateTime.add(1, :day) |> DateTime.truncate(:second)
+    passed = DateTime.utc_now() |> DateTime.add(-1, :hour)
 
     Repo.update_all(from(f in Feed, where: f.id == ^backing_off.id),
       set: [failures: 3, retry_at: retry_at, last_error: "http_503"]
     )
 
+    Repo.update_all(from(f in Feed, where: f.id == ^waited.id),
+      set: [failures: 1, retry_at: passed, last_error: "timeout"]
+    )
+
     feeds = Map.new(read(conn, "/api/v1/news/health")["feeds"], &{&1["id"], &1})
 
-    assert %{"failures" => 3, "retry_at" => "2026-11-20T08:30:00Z", "last_error" => "http_503"} =
+    assert %{"failures" => 3, "retry_at" => in_utc, "last_error" => "http_503"} =
              feeds[backing_off.id]
+
+    assert in_utc == DateTime.to_iso8601(retry_at)
+    assert %{"failures" => 1, "last_error" => "timeout"} = feeds[waited.id]
+    refute Map.has_key?(feeds[waited.id], "retry_at")
 
     assert feeds[healthy.id]["failures"] == 0
     refute Map.has_key?(feeds[healthy.id], "retry_at")

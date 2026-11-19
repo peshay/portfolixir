@@ -2425,9 +2425,12 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   Richtlinie abwies, nennt den Host des abgewiesenen Schritts, klein
   geschrieben und ohne abschließenden Punkt, ein IPv6-Literal in eckigen
   Klammern, nie den Rest der Location:
-  `url_not_allowed:host_not_allowed:elsewhere.example.com`), `failures` (seine aufeinanderfolgenden 429-
-  und 5xx-Antworten, 0 nach einem Erfolg) und, solange er zurückweicht,
-  `retry_at` (die Zeit, vor der er nicht erneut abgerufen wird; §5), sodass
+  `url_not_allowed:host_not_allowed:elsewhere.example.com`), `failures`
+  (seine aufeinanderfolgenden 429- und 5xx-Antworten bis zum nächsten
+  Erfolg, der ihn auf 0 setzt; ein Fehler ohne Backoff, etwa ein Timeout oder
+  `url_not_allowed`, zählt ihn weder hoch noch setzt ihn zurück) und
+  `retry_at` (die Zeit, vor der er nicht erneut abgerufen wird; §5), nur
+  solange dieser Backoff gilt, und weggelassen, sobald die Zeit vorbei ist, sodass
   ein Feed, der einen Backoff abwartet, sich von einem unterscheidet, der
   einmal scheiterte, `items_24h`, `err_24h`, `stale` (24 Stunden kein
   erfolgreicher Abruf; ein abgeschalteter Feed ist nie veraltet), `items_30d`,

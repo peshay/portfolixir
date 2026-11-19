@@ -13,6 +13,7 @@ defmodule Portfolixir.News.HealthTest do
   alias Portfolixir.Clock
   alias Portfolixir.News
   alias Portfolixir.News.Feed
+  alias Portfolixir.News.Fetcher
   alias Portfolixir.News.Ingest
   alias Portfolixir.News.Item
   alias Portfolixir.News.Parser.Item, as: Parsed
@@ -101,6 +102,42 @@ defmodule Portfolixir.News.HealthTest do
       feed |> Feed.changeset(%{enabled: false}) |> Repo.update!()
 
       assert %{stale: false, enabled: false} = health(feed, @now)
+    end
+  end
+
+  # User story (#1356, Sprint 30 A2; Sprint 30 closing act, agent's lens,
+  # finding 3):
+  # As the operator's agent checking the collector,
+  # I want `retry_at` only while a backoff is in force,
+  # so that a feed whose backoff ended and then failed without backing off
+  # does not read as still waiting.
+  #
+  # Acceptance criteria:
+  # - A 429 sets `failures` 1 and `retry_at` in the future; health answers it.
+  # - After the backoff's end a timeout (no backoff) leaves both stored, and
+  #   health answers `retry_at` nil while `failures` stays 1: the
+  #   consecutive 429 and 5xx answers until the next success.
+  # - At the very instant of `retry_at` the backoff is over: nil.
+  describe "the backoff (§5)" do
+    test "retry_at is answered only while it is in the future" do
+      feed = issuer_feed!() |> fetched_ok!(@now)
+
+      serve(fn conn -> Plug.Conn.send_resp(conn, 429, "") end)
+      assert {:error, "http_429"} = Fetcher.fetch(feed, now: @now)
+      retry_at = Repo.get!(Feed, feed.id).retry_at
+      assert DateTime.compare(retry_at, @now) == :gt
+
+      assert %{failures: 1, retry_at: ^retry_at} = health(feed, @now)
+      assert %{retry_at: nil} = health(feed, retry_at)
+
+      after_backoff = DateTime.add(retry_at, 1, :minute)
+      serve(fn conn -> Req.Test.transport_error(conn, :timeout) end)
+      assert {:error, "timeout"} = Fetcher.fetch(feed, now: after_backoff)
+
+      assert %{retry_at: ^retry_at, failures: 1} = Repo.get!(Feed, feed.id)
+
+      assert %{failures: 1, retry_at: nil, last_error: "timeout"} =
+               health(feed, after_backoff)
     end
   end
 
