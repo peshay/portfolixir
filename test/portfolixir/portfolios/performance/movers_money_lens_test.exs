@@ -206,4 +206,38 @@ defmodule Portfolixir.Portfolios.Performance.MoversMoneyLensTest do
     assert Decimal.equal?(row.contribution, Decimal.new("11"))
     assert {row.unvalued_days, row.unvalued_reason} == {1, :no_price}
   end
+
+  # ADR-0061 §6 item 7, as corrected (Sprint 30 closing act, money lens,
+  # finding 2): the two sides read one sign for a position held over the
+  # whole window without flows only when each close is dated on the day it
+  # stands for, or no rate is stored after it up to that day. A USD fund
+  # held all week, its last close on
+  # Monday (E, within 7 days of Thursday T), a USD rate stored on Thursday:
+  # the price side converts E at Monday's rate, the money side values the
+  # same close at Thursday's, each day at that day's rate. Python decimal,
+  # 34 digits: price 100.5 x 1.10 / (100 x 1.10) - 1 = 0.005; money
+  # 100.5 x (1 / 1.12) - 100 x (1 / 1.10) = -1.17694805194805194805194805194805.
+  test "held all week without flows: the two sides disagree on the sign" do
+    {world, view} = world!("Sign")
+    usd = security!(%{name: "Sign USD", currency_code: "USD"})
+    deliver_untraded!(world, usd, "1", date: ~D[2026-10-01])
+    rate!("USD", ~D[2026-10-01], "1.10")
+    rate!("USD", ~D[2026-11-09], "1.10")
+    rate!("USD", ~D[2026-11-12], "1.12")
+    put_quotes!(usd, [{~D[2026-11-06], "100"}, {~D[2026-11-09], "100.5"}])
+
+    {:ok, read} = Movers.read(view.id, "week", today: ~D[2026-11-12])
+    [price] = read.price_return.highest
+    [money] = read.contribution.highest
+    assert Decimal.equal?(price.return, Decimal.new("0.005"))
+    assert money.held_at_start and money.held_at_end
+    assert Decimal.equal?(money.net_flows, 0)
+    assert Decimal.equal?(money.contribution, Decimal.new("-1.17694805194805194805194805194805"))
+    # The disagreement §6 item 7 names: a rise in USD, a loss in EUR.
+    assert {Decimal.compare(price.return, 0), Decimal.compare(money.contribution, 0)} ==
+             {:gt, :lt}
+
+    assert read.contribution.computation_basis.figure =~
+             "each day's value converts at that day's stored EUR-hub rate"
+  end
 end

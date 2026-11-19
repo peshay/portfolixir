@@ -179,7 +179,14 @@ Run at planning time, as the Sprint 26 retrospective asks:
 7. *Can the two rankings contradict each other?* They can rank one name
    differently (a small position that doubled), and that is the answer
    §1 wants; they cannot disagree on a sign for a position held over the
-   whole window without flows, which a test pins.
+   whole window without flows when each of its two closes is dated on the
+   day it stands for (`S`, `T`), or no rate is stored after the close up
+   to that day, which a test pins. Otherwise they can: when its latest
+   close `E` is older than `T` and a rate is stored after `E`, the price
+   side converts `E` at `E`'s rate while the money side values each day at
+   that day's rate, so a currency move after `E` reaches only the
+   contribution (Sprint 30 closing act, money lens, finding 2; a test pins
+   that too).
 8. *Can a late-arriving close change today's answer?* Yes: every read
    derives anew from what is stored (§8), so a refresh shows the new close.
 

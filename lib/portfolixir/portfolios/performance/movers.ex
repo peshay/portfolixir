@@ -518,7 +518,9 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
       figure:
         "each position's contribution in EUR by ADR-0051 (Contribution.for_view/2, the read " <>
           "Wealth's table makes for a custom range): end_value - start_value - net_flows + " <>
-          "income - costs",
+          "income - costs; each day's value converts at that day's stored EUR-hub rate, so a " <>
+          "close older than end_on converts at end_on's rate where the price side converts it " <>
+          "at its own date's",
       currency: "EUR",
       ties: ties_text(),
       halves: halves_text(request.limit),
