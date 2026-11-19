@@ -2214,10 +2214,13 @@ only the digest's `unlabeled` grows.
   `last_ok_at`, `last_error` (a short code; a redirect the policy refused
   names the refused hop's host, lower case and without a trailing dot, an
   IPv6 literal in brackets, never the rest of the Location:
-  `url_not_allowed:host_not_allowed:elsewhere.example.com`), `failures` (its consecutive 429 and 5xx
-  answers, 0 after a success) and, while it backs off, `retry_at` (the time
-  before which it is not fetched again; §5), so a feed waiting out a backoff
-  reads apart from one that failed once, `items_24h`, `err_24h`, `stale` (no successful
+  `url_not_allowed:host_not_allowed:elsewhere.example.com`), `failures` (its
+  consecutive 429 and 5xx answers until the next success, which resets it to
+  0; a failure that does not back off, such as a timeout or
+  `url_not_allowed`, neither counts nor resets it) and `retry_at` (the time
+  before which it is not fetched again; §5), shown only while that backoff
+  is in force and left out once the time has passed, so a feed waiting out a
+  backoff reads apart from one that failed once, `items_24h`, `err_24h`, `stale` (no successful
   fetch for 24 hours; a disabled feed is never stale), `items_30d`,
   `promoted_30d` (the promoted stories its items are in, each once),
   `yield_30d` (`promoted_30d` over `items_30d`, a decimal string rounded to

@@ -10,12 +10,18 @@ defmodule Portfolixir.News.Health do
 
     * `id`, `class`, `enabled`, and `last_ok_at` and `last_error` as the
       fetcher recorded them.
-    * `failures` and `retry_at` — the feed's backoff as the fetcher
-      recorded it (§5): the consecutive 429 and 5xx answers, and the time
-      before which the scheduler does not fetch it again (`nil` when it is
-      not backing off). *Why (#1356, Sprint 30 A2):* without them a client
+    * `failures` and `retry_at` — the feed's backoff (§5). `failures`
+      counts the consecutive 429 and 5xx answers until the next success: a
+      failure that does not back off (a timeout, `url_not_allowed`, another
+      status) neither counts nor resets it. `retry_at` is the time before
+      which the scheduler does not fetch the feed again, **answered only
+      while that backoff is in force** (later than `now`), `nil` once it
+      has passed or when the feed never backed off; the fetcher leaves the
+      stored time in place after a failure that does not back off, so the
+      stored value alone can lie in the past. *Why (#1356, Sprint 30 A2;
+      the closing act's agent's lens, finding 3):* without them a client
       could not tell a feed waiting out a backoff from one that failed
-      once.
+      once, and a past `retry_at` would read as a wait that is over.
     * `items_24h` — the feed's items first seen within the 24 hours before
       `now` (an item first seen exactly 24 hours ago is out, as the cap of
       A3 counts).
@@ -125,7 +131,7 @@ defmodule Portfolixir.News.Health do
           last_ok_at: feed.last_ok_at,
           last_error: feed.last_error,
           failures: feed.failures,
-          retry_at: feed.retry_at,
+          retry_at: in_force(feed.retry_at, now),
           items_24h: Map.get(items_24h, feed.id, 0),
           err_24h: Map.get(errors, feed.id, 0),
           stale: stale?(feed, day_ago),
@@ -137,6 +143,14 @@ defmodule Portfolixir.News.Health do
 
     %{as_of: now, feeds: feeds, day: day(today, now)}
   end
+
+  # A backoff is in force while its retry_at lies after `now`, as the
+  # scheduler reads it (`Portfolixir.News.Scheduler`); at that instant or
+  # later the feed may be fetched again.
+  defp in_force(%DateTime{} = retry_at, now),
+    do: if(DateTime.compare(retry_at, now) == :gt, do: retry_at, else: nil)
+
+  defp in_force(nil, _now), do: nil
 
   # --- S28 N2 begin ---
   # A3: promoted stories over items, and a busy feed none of whose stories

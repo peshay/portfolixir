@@ -130,7 +130,10 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "changed: note_ids names the last three notes, ascending, and " <>
           "note_ids_truncated: true when there are more.",
         "GET /api/v1/news/health (portfolixir.news.health), added: each feed's failures " <>
-          "(its consecutive 429 and 5xx answers) and, while it backs off, retry_at.",
+          "(its consecutive 429 and 5xx answers until the next success; a failure that " <>
+          "does not back off, such as a timeout or url_not_allowed, neither counts nor " <>
+          "resets it) and retry_at, shown only while a backoff is in force (later than " <>
+          "the read's clock) and left out once it has passed.",
         "GET /api/v1/news/health (portfolixir.news.health), changed: a feed whose " <>
           "redirect the URL policy refused reads last_error url_not_allowed:<reason>:<host>, " <>
           "the refused hop's host in lower case without a trailing dot (an IPv6 literal " <>
