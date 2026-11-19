@@ -185,7 +185,10 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "was held and counted zero, and unvalued_reason names that day's reason, so a " <>
           "position whose first price or first rate arrived on the window's first day is " <>
           "named instead of reading its whole value as a clean contribution (#1472, ADR-0051's " <>
-          "amendment of 2026-11-19, computation version 6). Every figure is unchanged."
+          "amendment of 2026-11-19, computation version 6). A legacy close of 0 or below " <>
+          "counts as no price there (unvalued_reason no_price), on the day before the window " <>
+          "and on a window day alike, while the walk still values the units at it. Every " <>
+          "figure is unchanged."
         # --- S30 S1FIX end ---
       ],
       removed_endpoints: [],

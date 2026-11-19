@@ -79,7 +79,9 @@ defmodule Portfolixir.Derived.Registry do
     # `unvalued_days` counts the baseline day, whose close is the start
     # value, when the position counted zero there; a v5 row of a position
     # whose first price or rate came on the window's first day reads 0 and
-    # no reason, its whole value an unmarked contribution.
+    # no reason, its whole value an unmarked contribution. The money lens's
+    # finding 1 rides v6 inside the same PR: a price of 0 or below (a legacy
+    # close) counts as no price for that count, its figure unchanged.
     performance_contribution: %{computation_version: 6, default_lifetime: :request},
     performance_view_contribution: %{computation_version: 6, default_lifetime: :request},
     # The stacked value chart's bands (FR-53, I34 step 1, Sprint 29 P1): the
