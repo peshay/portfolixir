@@ -37,7 +37,10 @@ defmodule Portfolixir.News.Item do
   **Dedupe keys**: `content_hash` and `title_norm_hash` are SHA-256 digests
   in lower-case hex; `title_words` are the normalized title's words for the
   Jaccard similarity (at most 160). A feed lists an item once:
-  `(feed_id, canonical_url)` is unique, so a re-fetch stores nothing new.
+  `(feed_id, canonical_url)` is unique, so a re-fetch stores nothing new;
+  and a feed deleted and registered again with the same class and binding
+  does not store again what its earlier registration left detached
+  (`Portfolixir.News.Ingest`, #1356).
 
   `status` is `new`, `promoted` or `muted`; a promoted item names the notes
   it was promoted to (`note_ids`, §8).

@@ -119,8 +119,10 @@ defmodule Portfolixir.News.FetcherTest do
   # - A feed whose name resolves to a private address makes no request and
   #   records `url_not_allowed:private_address`, counted in the day's errors.
   # - A redirect to another host makes no second request and records
-  #   `url_not_allowed:host_not_allowed`; a redirect on the same host is
-  #   followed.
+  #   `url_not_allowed:host_not_allowed:<host>`, the refused hop's host
+  #   normalized (lower case, no trailing dot, an IPv6 literal in brackets;
+  #   a host of any other shape is left out, never the Location's text,
+  #   #1356); a redirect on the same host is followed.
   describe "the URL policy (B2)" do
     test "a feed whose name resolves privately makes no request" do
       for {host, reason} <- [
@@ -158,17 +160,34 @@ defmodule Portfolixir.News.FetcherTest do
     test "a redirect to another host makes no request; one on the same host is followed" do
       feed = issuer_feed!(%{url: "https://newsroom.example.com/start.xml"})
 
-      assert {:error, "url_not_allowed:host_not_allowed"} =
+      assert {:error, "url_not_allowed:host_not_allowed:elsewhere.example.com"} =
                fetch(feed, redirecting("https://elsewhere.example.com/feed.xml"))
+
+      assert reload(feed).last_error ==
+               "url_not_allowed:host_not_allowed:elsewhere.example.com"
 
       assert_received {:requested, "newsroom.example.com", "/start.xml", _}
       refute_received {:requested, _, _, _}
 
-      assert {:error, "url_not_allowed:host_not_allowed"} =
+      assert {:error, "url_not_allowed:host_not_allowed:10.0.0.5"} =
                fetch(feed, redirecting("https://10.0.0.5/feed.xml"))
 
       assert_received {:requested, "newsroom.example.com", "/start.xml", _}
       refute_received {:requested, _, _, _}
+
+      # #1356: the host normalized, never the Location's own text.
+      for {location, code} <- [
+            {"https://Elsewhere.EXAMPLE.com./feed.xml?token=secret",
+             "url_not_allowed:host_not_allowed:elsewhere.example.com"},
+            {"https://[2001:DB8::1]/feed.xml", "url_not_allowed:host_not_allowed:[2001:db8::1]"},
+            {"https://ev%0Ail.example.com/feed.xml", "url_not_allowed:host_not_allowed"},
+            {"https://" <> String.duplicate("a", 254) <> ".example.com/",
+             "url_not_allowed:host_not_allowed"}
+          ] do
+        assert {:error, ^code} = fetch(feed, redirecting(location)), location
+        assert_received {:requested, "newsroom.example.com", "/start.xml", _}
+        refute_received {:requested, _, _, _}
+      end
 
       assert {:ok, _summary} = fetch(feed, redirecting("/moved.xml"))
       assert_received {:requested, "newsroom.example.com", "/start.xml", _}
@@ -260,7 +279,8 @@ defmodule Portfolixir.News.FetcherTest do
   #
   # Acceptance criteria:
   # - A feed on `sec.gov` or a subdomain without `PORTFOLIXIR_NEWS_USER_AGENT`
-  #   makes no request and records `user_agent_missing`.
+  #   makes no request and records `user_agent_missing`; it stays enabled
+  #   and every fetch is refused so (ADR-0056 §5, #1356).
   # - Its request options do not set `inet6` (Mint then connects over IPv4).
   # - The pace hands one host's requests out at least 100 ms apart.
   describe "sec.gov (§5)" do
@@ -273,6 +293,15 @@ defmodule Portfolixir.News.FetcherTest do
       refute_received {:requested, _, _, _}
       assert %{last_error: "user_agent_missing", failures: 0} = reload(feed)
       assert errors(feed) == 1
+
+      # #1356 (ADR-0056 §5's wording): the feed stays enabled, and every
+      # fetch is refused before a request leaves.
+      assert reload(feed).enabled
+
+      assert {:error, "user_agent_missing"} =
+               fetch(feed, serving(rss([])), user_agent: nil, pace: fn _ -> :ok end)
+
+      refute_received {:requested, _, _, _}
 
       assert {:ok, _} =
                fetch(feed, serving(rss([])),

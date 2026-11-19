@@ -41,7 +41,8 @@ defmodule Portfolixir.News.Fetcher do
   (closing act, EDGE4); on success `last_ok_at` the clock (never moved
   back), `last_error` cleared and the backoff
   reset. On failure `last_error` is a short code —
-  `url_not_allowed:<reason>`, `http_<status>`, `timeout`,
+  `url_not_allowed:<reason>` (a refused redirect adds `:<host>`, the
+  refused hop's host normalized, #1356), `http_<status>`, `timeout`,
   `transport_error`, `body_too_large`, `too_many_redirects`,
   `parse_refused:<reason>` (A1), `user_agent_missing`, `fetch_failed` — and
   the day's `errors` count one more (§6's `err_24h`). A 429 or a 5xx also
@@ -197,6 +198,7 @@ defmodule Portfolixir.News.Fetcher do
           deadline_ms: Keyword.get(opts, :deadline_ms, @deadline_ms),
           receive_timeout: @receive_timeout_ms,
           decode_body: false,
+          name_refused_hop: true,
           headers: [{"user-agent", user_agent || @default_user_agent}, {"accept", @accept}]
         )
 
@@ -261,6 +263,10 @@ defmodule Portfolixir.News.Fetcher do
   defp error_code(%{__exception__: true, reason: :timeout}), do: "timeout"
   defp error_code(%Http.BodyTooLarge{}), do: "body_too_large"
   defp error_code({:url_not_allowed, reason}), do: "url_not_allowed:#{reason}"
+
+  defp error_code({:redirect_not_allowed, reason, host}),
+    do: "url_not_allowed:#{reason}" <> hop_host(host)
+
   defp error_code(:too_many_redirects), do: "too_many_redirects"
   defp error_code(%{__exception__: true, reason: _reason}), do: "transport_error"
   defp error_code(_other), do: "fetch_failed"
@@ -366,6 +372,28 @@ defmodule Portfolixir.News.Fetcher do
     case URI.parse(url) do
       %URI{host: host} when is_binary(host) and host != "" -> String.downcase(host)
       _other -> nil
+    end
+  end
+
+  # #1356 (Sprint 30, A2): the refused hop's host as `last_error` names it,
+  # normalized — lower case, without a trailing dot, an IPv6 literal in
+  # brackets in its shortest form — and left out when it is no host name or
+  # address: the Location is the remote server's text, and only a host of
+  # the shape a name or an address has is recorded, never more of it.
+  @host_name ~r/\A(?=.{1,253}\z)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*\z/
+
+  defp hop_host(host) when is_binary(host) do
+    name = host |> String.downcase() |> String.trim_trailing(".")
+
+    if Regex.match?(@host_name, name), do: ":" <> name, else: ipv6_host(name)
+  end
+
+  defp hop_host(_host), do: ""
+
+  defp ipv6_host(name) do
+    case :inet.parse_ipv6strict_address(String.to_charlist(name)) do
+      {:ok, address} -> ":[" <> List.to_string(:inet.ntoa(address)) <> "]"
+      {:error, _not_an_address} -> ""
     end
   end
 

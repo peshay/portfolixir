@@ -22,8 +22,11 @@ defmodule Portfolixir.Net.Http do
   at most `:max_redirects` hops (default 3) itself, and each hop must pass
   `Portfolixir.Net.UrlPolicy` against that allow-list — https only, so a
   downgrade to plain http is refused, no userinfo, public addresses only. A
-  refused hop is `{:error, {:url_not_allowed, reason}}` and makes no request;
-  a chain past the cap is `{:error, :too_many_redirects}`. When a hop changes
+  refused hop is `{:error, {:url_not_allowed, reason}}` and makes no request
+  (a client built with `name_refused_hop: true` gets `{:error,
+  {:redirect_not_allowed, reason, host}}` instead, the hop's host as the
+  Location named it, for the caller to normalize: the news fetcher records
+  where a feed sent it, #1356); a chain past the cap is `{:error, :too_many_redirects}`. When a hop changes
   the scheme, host or port, every header the client set except the user agent
   and the accept headers is dropped, and stays dropped for the rest of the
   chain, so no credential crosses to another host whatever its header is
@@ -76,7 +79,8 @@ defmodule Portfolixir.Net.Http do
   (required: `:any` or a list of exact and `.domain` entries, as
   `Portfolixir.Net.UrlPolicy` reads them), `:deadline_ms` (default 30 s),
   `:receive_timeout` (default 10 s), `:max_redirects` (default 3),
-  `:headers`, `:decode_body`.
+  `:headers`, `:decode_body`, `:name_refused_hop` (default false; see the
+  moduledoc).
   """
   @spec new(keyword()) :: Req.Request.t()
   def new(opts) do
@@ -94,6 +98,10 @@ defmodule Portfolixir.Net.Http do
     )
     |> Req.Request.put_private(:portfolixir_max_bytes, max_bytes)
     |> Req.Request.put_private(:portfolixir_allowed_hosts, allowed_hosts)
+    |> Req.Request.put_private(
+      :portfolixir_name_refused_hop,
+      Keyword.get(opts, :name_refused_hop, false) == true
+    )
     |> Req.Request.put_private(
       :portfolixir_max_redirects,
       Keyword.get(opts, :max_redirects, @default_max_redirects)
@@ -178,13 +186,19 @@ defmodule Portfolixir.Net.Http do
   defp follow(req, location, hops_left) do
     target = URI.merge(req.url, location)
 
-    with :ok <- check_url(target, req, resolve: true) do
-      req
-      # The first hop's query already rode on its URL; a Location carries its own.
-      |> Req.Request.delete_option(:params)
-      |> drop_credentials_across_origins(target)
-      |> Map.put(:url, target)
-      |> run(hops_left - 1)
+    case check_url(target, req, resolve: true) do
+      :ok ->
+        req
+        # The first hop's query already rode on its URL; a Location carries its own.
+        |> Req.Request.delete_option(:params)
+        |> drop_credentials_across_origins(target)
+        |> Map.put(:url, target)
+        |> run(hops_left - 1)
+
+      {:error, {:url_not_allowed, reason}} = refused ->
+        if Req.Request.get_private(req, :portfolixir_name_refused_hop, false),
+          do: {:error, {:redirect_not_allowed, reason, target.host}},
+          else: refused
     end
   end
 
