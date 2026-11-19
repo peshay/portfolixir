@@ -239,6 +239,19 @@ defmodule PortfolixirWeb.RiskLive do
               <%= gettext("No portfolio yet — risk is measured over holdings, and there are none.") %>
             </p>
           </section>
+
+          <%!-- #1366 (board ux-design-2026-11-15-sprint30/02 ⑥): the crash
+               lists over the whole catalogue need no portfolio, so they stay
+               within reach under the empty line. --%>
+          <.live_component
+            :if={is_nil(@portfolio)}
+            module={CrashSection}
+            id="risk-crashes-section"
+            params={@crash_params}
+            view_id={nil}
+            base_currency={nil}
+            catalogue_only={true}
+          />
         <% else %>
           <.policy_rules
             findings={@findings}

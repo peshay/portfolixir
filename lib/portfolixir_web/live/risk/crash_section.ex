@@ -75,7 +75,9 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   @impl true
   def update(assigns, socket) do
     socket =
-      assign(socket, Map.take(assigns, [:id, :params, :view_id, :base_currency]))
+      socket
+      |> assign(Map.take(assigns, [:id, :params, :view_id, :base_currency]))
+      |> assign(:catalogue_only, Map.get(assigns, :catalogue_only, false))
 
     key = {socket.assigns.params, socket.assigns.view_id}
 
@@ -97,8 +99,19 @@ defmodule PortfolixirWeb.Risk.CrashSection do
     window = chosen_window(windows, params["crash"])
     list = if params["crash_list"] in @lists, do: params["crash_list"], else: "losers"
 
-    universe =
-      if params["crash_universe"] in @universes, do: params["crash_universe"], else: "depot"
+    # #1366 (board 02 ⑥): without a portfolio there is no depot, so the
+    # section reads the whole catalogue and asks for no first booking.
+    {universe, first_date} =
+      cond do
+        socket.assigns.catalogue_only ->
+          {"catalogue", nil}
+
+        params["crash_universe"] in @universes ->
+          {params["crash_universe"], first_date(view_id, socket.assigns.base_currency)}
+
+        true ->
+          {"depot", first_date(view_id, socket.assigns.base_currency)}
+      end
 
     socket
     |> assign(
@@ -107,7 +120,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
       window: window,
       list: list,
       universe: universe,
-      first_date: first_date(view_id, socket.assigns.base_currency)
+      first_date: first_date
     )
     |> rank()
   end
@@ -413,6 +426,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           window={@window}
           list={@list}
           universe={@universe}
+          catalogue_only={@catalogue_only}
           paths={%{
             lists: Map.new(lists(), fn {list, _label} -> {list, path(assigns, %{"crash_list" => list})} end),
             universes: Map.new(universes(), fn {universe, _label} -> {universe, path(assigns, %{"crash_universe" => universe})} end)
@@ -426,6 +440,8 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           list={@list}
           first_date={@first_date}
           today={@today}
+          view={@params["view"]}
+          catalogue_only={@catalogue_only}
         />
         <p :if={Map.get(@window, :provisional, false)} class="hint crash-provisional" data-role="crash-ongoing-hint">
           <%= gettext("The window is ongoing: while %{benchmark} closes lower, the low and the lists move with it.",
@@ -516,7 +532,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           </.link>
         </div>
       </:group>
-      <:group label={gettext("Securities")} label_id="crash-universe-label">
+      <:group :if={not @catalogue_only} label={gettext("Securities")} label_id="crash-universe-label">
         <div class="segmented-control" data-role="crash-universe" role="group" aria-labelledby="crash-universe-label">
           <%= for {universe, label} <- universes() do %>
             <.link
@@ -555,7 +571,11 @@ defmodule PortfolixirWeb.Risk.CrashSection do
     assigns =
       assign(assigns,
         provisional: Map.get(assigns.window, :provisional, false),
-        link: holdings_link(assigns.window, assigns.first_date, assigns.today)
+        link:
+          if(assigns.catalogue_only,
+            do: :catalogue,
+            else: holdings_link(assigns.window, assigns.first_date, assigns.today, assigns.view)
+          )
       )
 
     ~H"""
@@ -592,6 +612,10 @@ defmodule PortfolixirWeb.Risk.CrashSection do
         <% end %>
       </span>
       <%= case @link do %>
+        <% :catalogue -> %>
+          <span class="hint" data-role="crash-catalogue-only">
+            <%= pgettext("crash universe", "Whole catalogue") %>
+          </span>
         <% {:link, href} -> %>
           <.link navigate={href} class="crash-window__link" data-role="crash-holdings-link">
             <%= gettext("View in holdings →") %>
@@ -614,8 +638,10 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   # Holdings with the window as a custom range: from its high to its low,
   # or to today while it is ongoing. A window that ends before the view's
   # first booking would open on Holdings' one-year fallback, so it links
-  # nothing and says why (F4), as Holdings' own range check decides.
-  defp holdings_link(window, first_date, today) do
+  # nothing and says why (F4), as Holdings' own range check decides. The
+  # address's view rides along (#1366), so Holdings opens on the view the
+  # page was opened with, not the one it remembers.
+  defp holdings_link(window, first_date, today, view) do
     to = if Map.get(window, :provisional, false), do: today, else: window.trough
 
     cond do
@@ -626,9 +652,9 @@ defmodule PortfolixirWeb.Risk.CrashSection do
         {:none, first_date}
 
       true ->
-        {:link,
-         "/portfolio?" <>
-           URI.encode_query(from: Date.to_iso8601(window.start), to: Date.to_iso8601(to))}
+        pairs = [from: Date.to_iso8601(window.start), to: Date.to_iso8601(to)]
+        pairs = if is_binary(view) and view != "", do: [{:view, view} | pairs], else: pairs
+        {:link, "/portfolio?" <> URI.encode_query(pairs)}
     end
   end
 
@@ -922,7 +948,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           posted={@posted}
         />
 
-        <div :if={@windows != []} class="data-table-wrapper">
+        <div :if={@windows != []} class="data-table-wrapper" id="crash-windows-table-wrapper">
           <table class="data-table crash-windows-table" id="crash-windows-table">
             <thead>
               <tr>
@@ -963,113 +989,121 @@ defmodule PortfolixirWeb.Risk.CrashSection do
                 <% end %>
                 <td><.kind_badge kind={window.kind} /></td>
                 <td class="crash-actions">
-                  <%= if window.kind == "detected" do %>
-                    <button
-                      type="button"
-                      class="link-button"
-                      data-role="crash-name-open"
-                      phx-click="crash_name_open"
-                      phx-value-key={window.key}
-                      phx-target={@myself}
-                    >
-                      <%= if window.name, do: gettext("Rename"), else: pgettext("crash action", "Name") %>
-                    </button>
-                    <button
-                      :if={window.name}
-                      type="button"
-                      class="link-button"
-                      data-role="crash-unname"
-                      phx-click="crash_unname"
-                      phx-value-key={window.key}
-                      phx-target={@myself}
-                      data-confirm={gettext("Delete the name „%{name}“?", name: window.name)}
-                    >
-                      <%= gettext("Delete name") %>
-                    </button>
-                  <% else %>
-                    <button
-                      type="button"
-                      class="link-button"
-                      data-role="crash-manual-edit"
-                      phx-click="crash_manual_edit"
-                      phx-value-key={window.key}
-                      phx-target={@myself}
-                    >
-                      <%= gettext("Edit") %>
-                    </button>
-                    <button
-                      type="button"
-                      class="link-button"
-                      data-role="crash-manual-delete"
-                      phx-click="crash_manual_delete"
-                      phx-value-key={window.key}
-                      phx-target={@myself}
-                      data-confirm={gettext("Delete the manual window „%{name}“?", name: window.name)}
-                    >
-                      <%= gettext("Delete") %>
-                    </button>
-                  <% end %>
+                  <.window_actions window={window} myself={@myself} />
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
 
+        <%!-- #1366 (board 02 ⑤): under 560 px the windows table gives way
+             to the phone lists' rows (UX-DR27): the name over its high and
+             low, the kind, the longest gap and the actions under them, the
+             decline over the recovery on the right. --%>
+        <ul
+          :if={@windows != []}
+          id="crash-windows-phone-rows"
+          class="phone-rows"
+          aria-label={gettext("Crash windows")}
+        >
+          <li
+            :for={window <- @windows}
+            class={["phone-row", Map.get(window, :provisional, false) && "is-ongoing"]}
+            data-key={window.key}
+          >
+            <span class="phone-row__body">
+              <span class={["phone-row__name", is_nil(window.name) && "crash-unnamed"]}>
+                <%= window.name || gettext("unnamed") %>
+              </span>
+              <span class="phone-row__ids">
+                <%= pgettext("crash", "High") %> <%= Format.date(window.start) %> → <%= pgettext("crash line", "low") %>
+                <%= Format.date(window.trough) %>
+                <span :if={Map.get(window, :provisional, false)} class="badge badge-warning"><%= pgettext("crash", "provisional") %></span>
+              </span>
+              <span class="crash-window-row__actions">
+                <.kind_badge kind={window.kind} />
+                <span :if={window.kind == "detected"} class="muted">
+                  <%= gettext("Gap, days") %>: <%= window.max_gap_days %>
+                </span>
+                <.window_actions window={window} myself={@myself} />
+              </span>
+            </span>
+            <span class="phone-row__figures">
+              <%= if window.kind == "detected" do %>
+                <span class={["phone-row__figure", sign_class(window.decline)]}>
+                  <%= Format.signed_percent(window.decline) %> %
+                </span>
+                <span class="phone-row__figure2">
+                  <%= if window.provisional,
+                    do: pgettext("crash", "ongoing"),
+                    else: gettext("recovered on %{date}", date: Format.date(window.recovered_on)) %>
+                </span>
+              <% else %>
+                <span class="phone-row__figure muted">—</span>
+              <% end %>
+            </span>
+          </li>
+        </ul>
+
+        <%!-- #1366 (board 02 ⑦): one table per reason a name has no window,
+             each under its own sentence: the closes changed (the current
+             crash benchmark's), or another crash benchmark is chosen (or
+             none is); the actions may wrap in their cell, so each table
+             keeps to its wrapper at 1200 px. --%>
         <div :if={@unmatched != []} class="crash-unmatched" id="crash-unmatched">
           <h3><%= ngettext(
             "Name without a window (%{count})",
             "Names without a window (%{count})",
             length(@unmatched)
           ) %></h3>
-          <p class="hint">
-            <%= gettext("The closes have changed: no detected window starts on these days any more. A name is never attached to another window by a guess.") %>
-          </p>
-          <div class="data-table-wrapper">
-            <table class="data-table crash-windows-table">
-              <thead>
-                <tr>
-                  <th><%= gettext("Name") %></th>
-                  <th><%= gettext("Given for") %></th>
-                  <th><%= pgettext("crash", "High") %></th>
-                  <th><span class="sr-only"><%= gettext("Actions") %></span></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr :for={name <- @unmatched} data-key={name.key}>
-                  <td><%= name.name %></td>
-                  <td>
-                    <%= name.benchmark_name || gettext("a removed security") %>
-                    <span :if={not name.for_current_benchmark} class="muted">
-                      · <%= gettext("returns when it is the crash benchmark again") %>
-                    </span>
-                  </td>
-                  <td><%= Format.date(name.start) %></td>
-                  <td class="crash-actions">
-                    <button
-                      type="button"
-                      class="link-button"
-                      data-role="crash-from-name-open"
-                      phx-click="crash_from_name_open"
-                      phx-value-key={name.key}
-                      phx-target={@myself}
-                    >
-                      <%= gettext("Make a manual window …") %>
-                    </button>
-                    <button
-                      type="button"
-                      class="link-button"
-                      data-role="crash-unname"
-                      phx-click="crash_unname"
-                      phx-value-key={name.key}
-                      phx-target={@myself}
-                      data-confirm={gettext("Delete the name „%{name}“?", name: name.name)}
-                    >
-                      <%= gettext("Delete") %>
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div
+            :for={{reason, names} <- unmatched_groups(@unmatched)}
+            class="crash-unmatched__group"
+            data-role={"crash-unmatched-" <> reason}
+          >
+            <p class="hint"><%= unmatched_reason(reason, length(names), @benchmark) %></p>
+            <div class="data-table-wrapper">
+              <table class="data-table crash-windows-table">
+                <thead>
+                  <tr>
+                    <th><%= gettext("Name") %></th>
+                    <th><%= gettext("Given for") %></th>
+                    <th><%= pgettext("crash", "High") %></th>
+                    <th><span class="sr-only"><%= gettext("Actions") %></span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr :for={name <- names} data-key={name.key}>
+                    <td><%= name.name %></td>
+                    <td><%= name.benchmark_name || gettext("a removed security") %></td>
+                    <td><%= Format.date(name.start) %></td>
+                    <td class="crash-actions">
+                      <button
+                        type="button"
+                        class="link-button"
+                        data-role="crash-from-name-open"
+                        phx-click="crash_from_name_open"
+                        phx-value-key={name.key}
+                        phx-target={@myself}
+                      >
+                        <%= gettext("Make a manual window …") %>
+                      </button>
+                      <button
+                        type="button"
+                        class="link-button"
+                        data-role="crash-unname"
+                        phx-click="crash_unname"
+                        phx-value-key={name.key}
+                        phx-target={@myself}
+                        data-confirm={gettext("Delete the name „%{name}“?", name: name.name)}
+                      >
+                        <%= gettext("Delete") %>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
           <.from_name_form
             :if={match?({:from_name, _}, @form)}
@@ -1083,6 +1117,92 @@ defmodule PortfolixirWeb.Risk.CrashSection do
     </details>
     """
   end
+
+  # A window's actions, in its table row and in its phone row: name or
+  # rename and delete the name of a detected window, edit or delete a
+  # manual one.
+  defp window_actions(assigns) do
+    ~H"""
+      <%= if @window.kind == "detected" do %>
+        <button
+          type="button"
+          class="link-button"
+          data-role="crash-name-open"
+          phx-click="crash_name_open"
+          phx-value-key={@window.key}
+          phx-target={@myself}
+        >
+          <%= if @window.name, do: gettext("Rename"), else: pgettext("crash action", "Name") %>
+        </button>
+        <button
+          :if={@window.name}
+          type="button"
+          class="link-button"
+          data-role="crash-unname"
+          phx-click="crash_unname"
+          phx-value-key={@window.key}
+          phx-target={@myself}
+          data-confirm={gettext("Delete the name „%{name}“?", name: @window.name)}
+        >
+          <%= gettext("Delete name") %>
+        </button>
+      <% else %>
+        <button
+          type="button"
+          class="link-button"
+          data-role="crash-manual-edit"
+          phx-click="crash_manual_edit"
+          phx-value-key={@window.key}
+          phx-target={@myself}
+        >
+          <%= gettext("Edit") %>
+        </button>
+        <button
+          type="button"
+          class="link-button"
+          data-role="crash-manual-delete"
+          phx-click="crash_manual_delete"
+          phx-value-key={@window.key}
+          phx-target={@myself}
+          data-confirm={gettext("Delete the manual window „%{name}“?", name: @window.name)}
+        >
+          <%= gettext("Delete") %>
+        </button>
+      <% end %>
+    """
+  end
+
+  # The names without a window by the reason each has none (#1366, board
+  # 02 ⑦): the current crash benchmark's names, whose window the closes no
+  # longer start, then the names given for another benchmark.
+  defp unmatched_groups(unmatched) do
+    {closes, hidden} = Enum.split_with(unmatched, & &1.for_current_benchmark)
+    Enum.reject([{"closes", closes}, {"hidden", hidden}], &(elem(&1, 1) == []))
+  end
+
+  defp unmatched_reason("closes", count, _benchmark),
+    do:
+      ngettext(
+        "%{count} name: the closes have changed, no detected window starts on this day any more. A name is never attached to another window by a guess.",
+        "%{count} names: the closes have changed, no detected window starts on these days any more. A name is never attached to another window by a guess.",
+        count
+      )
+
+  defp unmatched_reason("hidden", count, nil),
+    do:
+      ngettext(
+        "%{count} name: hidden because no crash benchmark is chosen; it returns once its benchmark is the crash benchmark again.",
+        "%{count} names: hidden because no crash benchmark is chosen; they return once their benchmark is the crash benchmark again.",
+        count
+      )
+
+  defp unmatched_reason("hidden", count, _benchmark),
+    do:
+      ngettext(
+        "%{count} name: hidden because another crash benchmark is chosen; it returns once its benchmark is the crash benchmark again.",
+        "%{count} names: hidden because another crash benchmark is chosen; they return once their benchmark is the crash benchmark again.",
+        count
+      )
 
   defp summary_text(detected, manual, unmatched) do
     parts =

@@ -11,7 +11,10 @@
 // one line at 1200 px with a long manual window in the select; the list's
 // columns, the rebounders' six included, inside the section at 1200 px;
 // the windows table's actions inside it at 1200 px; and at 390 px the
-// dashed lines under each row's name line, never across it.
+// dashed lines under each row's name line, never across it. Sprint 30 W2
+// (#1366, board 02 ⑤ and ⑦) adds: at 390 px the windows as phone rows,
+// nothing in their disclosure scrolling sideways; at 1200 px one table of
+// names without a window per reason, each in its wrapper.
 //
 // Prints one JSON object on stdout: {"ok": true} or {"ok": false, "error":
 // "...", "seen": {...}}; the exit status is 0 either way unless the browser
@@ -74,7 +77,25 @@ async function measure(page) {
           return { text: option.text, needed: round(needed), width: round(select.getBoundingClientRect().width) };
         })
       : [];
+    // Sprint 30 W2 (#1366, board 02 ⑤ and ⑦): what shows in the windows'
+    // disclosure, each windows scroller in it, its phone rows and the
+    // names' tables.
+    const disclosure = section.querySelector("#crash-windows");
+    const shown = (node) => node && node.getClientRects().length > 0;
+    const scrollers = disclosure
+      ? Array.from(disclosure.querySelectorAll(".data-table-wrapper"))
+          .filter((w) => shown(w) && !w.closest("#crash-unmatched"))
+          .map((w) => ({ id: w.id || (w.querySelector("table") || w).className, scroll: w.scrollWidth, client: w.clientWidth }))
+      : [];
+    const phoneRows = disclosure
+      ? Array.from(disclosure.querySelectorAll("#crash-windows-phone-rows li.phone-row")).filter(shown).map(box)
+      : [];
+    const unmatched = Array.from(section.querySelectorAll("#crash-unmatched table")).map(fit);
     return {
+      scrollers,
+      phoneRows,
+      windowsShown: shown(section.querySelector("#crash-windows-table")),
+      unmatched,
       viewport: window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
       section: box(section),
@@ -135,6 +156,29 @@ function check(seen, width, font) {
       const right = table.wrapper.right + 0.5;
       if (table.heads.some((h) => h.right > right)) errors.push("1200 px: a column of " + name + " is cut off");
       if (table.actions.some((a) => a.right > right)) errors.push("1200 px: an action of " + name + " is cut off");
+    }
+  }
+
+  // Sprint 30 W2 (#1366, board 02 ⑤): no windows table in the disclosure
+  // scrolls sideways at either width; on a phone the windows are rows,
+  // each inside the section. (The names without a window are board 02 ⑦'s
+  // and measured at 1200 px below.)
+  for (const s of seen.scrollers) {
+    if (s.scroll > s.client + 0.5) errors.push(width + " px: " + s.id + " scrolls sideways: " + s.scroll + " in " + s.client);
+  }
+  if (width < 600) {
+    if (seen.windowsShown) errors.push(width + " px: the windows are a table, not rows");
+    if (seen.phoneRows.length === 0) errors.push(width + " px: no window row");
+    if (seen.phoneRows.some((r) => r.right > seen.section.right + 0.5)) errors.push(width + " px: a window row runs past the section");
+  }
+  // Board 02 ⑦: each table of names without a window fits its wrapper at
+  // 1200 px, its actions inside it.
+  if (width >= 1000) {
+    if (seen.unmatched.length < 2) errors.push("1200 px: the names without a window are not one table per reason");
+    for (const table of seen.unmatched) {
+      const right = table.wrapper.right + 0.5;
+      if (table.scroll > table.client + 0.5) errors.push("1200 px: a names table scrolls sideways: " + table.scroll + " in " + table.client);
+      if (table.actions.some((a) => a.right > right)) errors.push("1200 px: an action of a names table is cut off");
     }
   }
 

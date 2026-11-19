@@ -10725,7 +10725,8 @@ dialog.filter-sheet::backdrop {
   #realized-trades-table-wrapper,
   #detail-closed-trades-table-wrap,
   #quotes-table-wrapper,
-  #holdings-positions-wrapper {
+  #holdings-positions-wrapper,
+  #crash-windows-table-wrapper {
     display: none;
   }
 
@@ -13845,6 +13846,50 @@ dialog.merge-dialog {
 }
 .crash-unmatched .hint {
   margin: 0;
+}
+/* Issue 1366 (board ux-design-2026-11-15-sprint30/02 ⑦): one table per
+   reason, each under its own line; without the muted "returns when …"
+   beside each benchmark and with the actions free to wrap inside their
+   cell (each action stays whole), each table keeps to its 922 px wrapper
+   at 1200 px, where the one table needed 1,059 px. */
+.crash-unmatched__group {
+  display: grid;
+  gap: 6px;
+}
+.crash-unmatched__group + .crash-unmatched__group {
+  margin-top: 6px;
+}
+.crash-unmatched .crash-windows-table td.crash-actions {
+  white-space: normal;
+}
+.crash-unmatched .crash-windows-table td.crash-actions .link-button {
+  white-space: nowrap;
+}
+/* Issue 1366 (board 02 ⑤): under 560 px the windows table gives way to
+   the phone lists' rows (UX-DR27; the 560 px block hides the table's
+   wrapper): the name over its high and low, the kind, the longest gap and
+   the actions on a third line; the decline over the recovery on the
+   right. */
+#crash-windows-phone-rows .phone-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.crash-window-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 4px;
+  font-size: 12.5px;
+}
+.crash-window-row__actions .link-button {
+  font-size: 12.5px;
+}
+#crash-windows-phone-rows .phone-row__name.crash-unnamed {
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+#crash-windows-phone-rows .phone-row.is-ongoing {
+  background: var(--color-warning-soft);
 }
 /* The forms in the disclosure: name, draw, edit, make a name manual (F1). */
 .crash-edit-form {

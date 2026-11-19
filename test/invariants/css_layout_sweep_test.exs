@@ -287,9 +287,11 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     # Wealth's Positions table the seventh. #1366 line 2 (Sprint 24 P1,
     # board ux-design-2026-11-05-sprint24-p1): the contribution table left
     # the block for a container query on its own width, where its columns
-    # stop fitting (performance_contribution_live_test.exs pins it).
+    # stop fitting (performance_contribution_live_test.exs pins it). #1366
+    # (Sprint 30 W2, board ux-design-2026-11-15-sprint30/02 ⑤): the crash
+    # windows table on Risk is the eighth.
     assert phone_block() =~
-             ~r/#securities-table,\s*#transaction-table-wrapper,\s*#realized-trades-table-wrapper,\s*#detail-closed-trades-table-wrap,\s*#quotes-table-wrapper,\s*#holdings-positions-wrapper \{\s*display: none;/
+             ~r/#securities-table,\s*#transaction-table-wrapper,\s*#realized-trades-table-wrapper,\s*#detail-closed-trades-table-wrap,\s*#quotes-table-wrapper,\s*#holdings-positions-wrapper,\s*#crash-windows-table-wrapper \{\s*display: none;/
   end
 
   # User story (#1065; board ux-design-2026-10-04/06-phone-wealth, pick J6
