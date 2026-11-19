@@ -11,7 +11,8 @@ description: "Decision for I24 (FR-54). A crash window is a peak-to-trough decli
   **Built in Sprint 29**, not 28 (the Sprint 28 plan, D-2). Amended on
   2026-11-12 by the merge of the Sprint 29 planning PR (see "Amendment of
   2026-11-12" at the end), and again by the Sprint 29 sprint PR's closing
-  act (see "Amendment of 2026-11-12, part 2").
+  act (see "Amendment of 2026-11-12, part 2"), and by the Sprint 30
+  sprint PR (see "Amendment of 2026-11-19").
 - **Date:** 2026-11-08
 - **Answers:** FR-54 (`epics.md`); idea I24
   (`_bmad-output/planning-artifacts/ideas.md`), as the owner narrowed it on
@@ -423,3 +424,25 @@ and the one division, as §2 already requires.
 |---|---|---|
 | Two securities equal in figure, name and ISIN | the closing act, §7.2 | **Answered** — G1 |
 | „Im Depot“ with no view chosen | the closing act, D-5 P3 | **Answered** — G2 |
+
+## Amendment of 2026-11-19 — the lists answer slim by default
+
+**Adopted by the merge of the Sprint 30 sprint PR**, which builds idea I45
+as the Sprint 30 plan's A1 (a `no-brainer` under its D-10). It changes how
+much each answer repeats, not a figure, a rank or a rule.
+
+### H1. A slim entry, the audit trail under `projection=full` (§5, §6)
+
+§5 puts the benchmark's EUR return and the difference in percentage points
+beside each entry, and §6 lists the benchmark in every basis. Repeated per
+entry, the benchmark's return and each entry's close blocks made the read
+mostly audit trail. **By default an entry carries its rank, the security,
+whether it is held, its return and `vs_benchmark_pp`** (a rebounder also
+`back_on`, `days_back` and `not_yet`); the benchmark's return over the
+list's dates is stated once, as `reference.return`, and the benchmark once,
+at the answer's top level, where the basis points to it; the basis names
+the projection. **`projection=full` returns the answer as §5 and §6
+describe it, byte for byte**, as `securities.list` already reads the same
+parameter. Every figure is the same in both projections; the slim answer
+leaves out only what the full one repeats. **To flip:** "Crash-Listen voll
+als Standard" (`full` becomes the default).
