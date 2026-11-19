@@ -27,7 +27,8 @@
 # was imported with it, a dollar security imported from a EUR account and
 # sold by hand, and one whose lot has no leg in its sale's currency; and a
 # held security whose booked price is a tenth of its quote of that day
-# (20, Sprint 21 γ2). The
+# (20, Sprint 21 γ2); and a day of negative cash and a crash benchmark (25,
+# Sprint 30 W2). The
 # Gesamtpreis row error (#1076) is a file the
 # walkthrough drops by hand: priv/demo/pp_csv_gesamtpreis_demo.csv; so are
 # the coupon file's second drop and its re-export, and the delivery with a
@@ -2307,6 +2308,78 @@ if find_security.("Ferncoin") == nil do
 
   {:ok, _} = Catalog.upsert_quotes(owner, coin.id, closes)
   IO.puts("Sprint 29 Lane H: Ferncoin, bound to Litecoin, four halvings by hand")
+end
+
+# 25. Sprint 30 W2 (#1366, plan D-7; board
+#     ux-design-2026-11-15-sprint30/02-wealth-polish ③ and ⑤ to ⑦): the
+#     board drew a day of negative cash and the detected crash windows by
+#     hand, because the seed had neither, so the tick below zero on the
+#     stacked chart and the Crashes section's detected windows were never
+#     met on the review instance. Both now, SYNTHETIC:
+#
+#     a. Demo Cash overdrawn for two days 45 days back: a withdrawal of the
+#        day's cash in the Everything view plus 11.865,00 EUR (the depth the
+#        UAT persona saw on #1436), paid back two days later, so the cash
+#        band dips to −11.865 on two days, less than one axis step. Both
+#        bookings carry the note below, which is how a re-run finds them.
+#     b. "Vanguard FTSE All-World UCITS ETF USD Acc" as the crash benchmark:
+#        its seeded weekly closes (quotes_seed.exs, a fixed random seed)
+#        fall more than 10 % once in the last year, so the rule detects a
+#        window beside the manual one of step 23. Chosen only while none is.
+overdraft_marker = "review seed: overdraft"
+demo_portfolio = Enum.find(Portfolios.list_portfolios(), &(&1.name == "Demo Depot"))
+
+overdrawn? =
+  demo_portfolio.id
+  |> then(&Ledger.list_transactions(portfolio_id: &1))
+  |> Enum.any?(&(&1.notes == overdraft_marker))
+
+unless overdrawn? do
+  day = Date.add(today, -45)
+
+  {:ok, bands} =
+    Portfolixir.Portfolios.Performance.Bands.for_view(nil, period: "1y", level: :category)
+
+  index =
+    bands.dates
+    |> Enum.with_index()
+    |> Enum.filter(fn {date, _i} -> Date.compare(date, day) != :gt end)
+    |> List.last()
+    |> elem(1)
+
+  held =
+    bands.bands
+    |> Enum.find(%{values: []}, &(&1.key == "cash"))
+    |> Map.fetch!(:values)
+    |> Enum.at(index, Decimal.new(0))
+
+  amount = held |> Decimal.max(0) |> Decimal.add(Decimal.new("11865.00")) |> Decimal.round(2)
+
+  for {type, date} <- [{"removal", day}, {"deposit", Date.add(day, 2)}] do
+    {:ok, _} =
+      Ledger.create_transaction(owner, %{
+        portfolio_id: demo_portfolio.id,
+        cash_account_id: cash.id,
+        type: type,
+        date: date,
+        gross_amount: Decimal.to_string(amount),
+        currency_code: "EUR",
+        notes: overdraft_marker
+      })
+  end
+
+  IO.puts("Sprint 30 W2: Demo Cash overdrawn on #{day} and the day after")
+end
+
+if Portfolixir.Settings.crash_benchmark_security_id() == nil do
+  case find_security.("Vanguard FTSE All-World UCITS ETF USD Acc") do
+    nil ->
+      :ok
+
+    world ->
+      {:ok, _} = Portfolixir.Settings.set_crash_benchmark(owner, world.id)
+      IO.puts("Sprint 30 W2: #{world.name} chosen as the crash benchmark")
+  end
 end
 
 IO.puts("review seed done (timber position: #{timber_state})")

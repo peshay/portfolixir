@@ -1418,6 +1418,14 @@ const PROSE_EXCEPTIONS = [
       "a count line: the securities the list answers and, joined by „·“, how many lack an answer for each of at most three reasons (ADR-0058's answers counted), with „anzeigen“; figures, none a method",
     limit: { sentences: 1, words: 45 }
   },
+  // Sprint 30 W2 (#1366): the review seed chooses a crash benchmark (step
+  // 25), so the Crashes list's basis line names it.
+  {
+    selector: "[data-role='crash-basis']",
+    reason:
+      "a registered basis line: facts joined by „·“ (the figure measured, the dashed benchmark over the same days with its own figure, the catalogue's survivors), at most 23 words of the app's, plus the crash benchmark's stored name, which the operator chooses",
+    limit: { sentences: 1, words: 40 }
+  },
   {
     selector: "form .hint",
     reason: "a form field's help: what the field takes, beside it (DESIGN.md I1 leaves a form's field help in place)",

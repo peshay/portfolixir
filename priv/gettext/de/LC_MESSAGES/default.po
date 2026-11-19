@@ -329,13 +329,13 @@ msgstr "Aktuelle Bestände prüfen"
 #: lib/portfolixir_web/live/imports_live.ex:1283
 #: lib/portfolixir_web/live/journal/row.ex:186
 #: lib/portfolixir_web/live/news_live.ex:435
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:207
 #: lib/portfolixir_web/live/portfolio_live.ex:1787
 #: lib/portfolixir_web/live/portfolio_live.ex:1881
+#: lib/portfolixir_web/live/risk/crash_section.ex:535
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:572
 #: lib/portfolixir_web/live/securities_live.ex:536
 #: lib/portfolixir_web/live/securities_live.ex:920
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:207
-#: lib/portfolixir_web/live/risk/crash_section.ex:535
 #, elixir-autogen
 msgid "Securities"
 msgstr "Wertpapiere"
@@ -1901,21 +1901,21 @@ msgstr "Gesamt inkl. Cash"
 
 #: lib/portfolixir_web/live/classifications_live.ex:1518
 #: lib/portfolixir_web/live/dashboard_live.ex:1284
-#: lib/portfolixir_web/live/portfolio_live.ex:1788
-#: lib/portfolixir_web/policy_rule_label.ex:30
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:873
+#: lib/portfolixir_web/live/portfolio_live.ex:1788
 #: lib/portfolixir_web/live/portfolio_live.ex:3082
 #: lib/portfolixir_web/live/portfolio_live.ex:5310
 #: lib/portfolixir_web/live/portfolio_live.ex:5799
 #: lib/portfolixir_web/live/portfolio_live.ex:6023
+#: lib/portfolixir_web/policy_rule_label.ex:30
 #, elixir-autogen
 msgid "Cash"
 msgstr "Cash"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:482
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:545
 #: lib/portfolixir_web/live/portfolio_live.ex:1806
 #: lib/portfolixir_web/live/portfolio_live.ex:2103
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:545
 #: lib/portfolixir_web/live/portfolio_live.ex:4281
 #, elixir-autogen
 msgid "TTWROR"
@@ -2021,8 +2021,8 @@ msgid "Set balance"
 msgstr "Saldo setzen"
 
 #: lib/portfolixir_web/live/dashboard/movers_card.ex:362
-#: lib/portfolixir_web/live/securities_live.ex:8011
 #: lib/portfolixir_web/live/portfolio_live.ex:6269
+#: lib/portfolixir_web/live/securities_live.ex:8011
 #, elixir-autogen
 msgid "YTD"
 msgstr "YTD"
@@ -2031,8 +2031,8 @@ msgstr "YTD"
 #: lib/portfolixir_web/live/dashboard_live.ex:482
 #: lib/portfolixir_web/live/dashboard_live.ex:1148
 #: lib/portfolixir_web/live/dashboard_live.ex:1151
-#: lib/portfolixir_web/live/securities_live.ex:8012
 #: lib/portfolixir_web/live/portfolio_live.ex:6270
+#: lib/portfolixir_web/live/securities_live.ex:8012
 #, elixir-autogen
 msgid "1Y"
 msgstr "1J"
@@ -2056,10 +2056,10 @@ msgid "Max"
 msgstr "Max"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:734
+#: lib/portfolixir_web/live/portfolio_live.ex:3837
 #: lib/portfolixir_web/live/securities/filter_popover.ex:61
 #: lib/portfolixir_web/live/securities_live.ex:5095
 #: lib/portfolixir_web/live/securities_live.ex:5127
-#: lib/portfolixir_web/live/portfolio_live.ex:3837
 #, elixir-autogen
 msgid "Data quality"
 msgstr "Datenqualität"
@@ -3271,11 +3271,11 @@ msgstr "Standard-Ansicht"
 #: lib/portfolixir_web/live/dashboard_live.ex:1063
 #: lib/portfolixir_web/live/dashboard_live.ex:1064
 #: lib/portfolixir_web/live/dashboard_live.ex:1276
+#: lib/portfolixir_web/live/portfolio_live.ex:4839
+#: lib/portfolixir_web/live/risk_live.ex:819
 #: lib/portfolixir_web/live/snapshots_live.ex:214
 #: lib/portfolixir_web/live/snapshots_live.ex:218
 #: lib/portfolixir_web/live/snapshots_live.ex:626
-#: lib/portfolixir_web/live/portfolio_live.ex:4839
-#: lib/portfolixir_web/live/risk_live.ex:819
 #, elixir-autogen, elixir-format
 msgid "Everything"
 msgstr "Alles"

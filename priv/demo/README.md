@@ -218,6 +218,19 @@ seed) needs a state for each bar it moved:
   ago, so Vermögen → Risiko's Crashes section shows its bar of labelled
   controls. It is written only while no manual window exists.
 
+Sprint 30's Wealth polish pass (#1366, W2; step 25 of the seed) needs two
+cases its board drew by hand:
+
+- **A day of negative cash:** "Demo Cash" is overdrawn 45 days back, by
+  the day's cash in the Everything view plus 11.865,00 EUR, and paid back
+  two days later, both bookings noted "review seed: overdraft", so the
+  stacked chart's cash band dips to −11.865 on two days, less than one axis
+  step, and the axis reaches one round step below zero.
+- **A crash benchmark:** "Vanguard FTSE All-World UCITS ETF USD Acc",
+  whose seeded weekly closes fall more than 10 % once in the last year, so
+  Vermögen → Risiko's Crashes section shows a detected window beside the
+  manual one. It is chosen only while no crash benchmark is.
+
 ```bash
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.create
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.migrate
