@@ -14,7 +14,9 @@ defmodule Portfolixir.Invariants.SweepTagTest do
   # - A test module outside `test/invariants` (run as a directory anyway)
   #   and `test/browser` (run by its own job) that calls
   #   `Path.wildcard("lib/**…")` or `Path.wildcard("lib/portfolixir_web/**…")`,
-  #   reads the router's routes (`Router.__routes__/0`,
+  #   or holds such a file glob (`"lib/**/…"`) in any form that reaches it —
+  #   piped, captured, in a module attribute or a list (Sprint 30 closing
+  #   act, correctness lens, finding 1) —, reads the router's routes (`Router.__routes__/0`,
   #   `Phoenix.Router.routes/1`) or lists every compiled module
   #   (`:application.get_key(:portfolixir, :modules)`) carries
   #   `@moduletag :sweep`.
@@ -44,6 +46,23 @@ defmodule Portfolixir.Invariants.SweepTagTest do
     # module listings each have more than one sweep today.
     assert length(walkers) >= 15, "the scan saw only #{length(walkers)} sweeps"
     assert "test/portfolixir/localization_test.exs" in walkers
+
+    # Sprint 30 closing act, correctness lens, finding 1: F2's check walks
+    # every lib/** file through a module attribute and `&Path.wildcard/1`;
+    # the scan must see it.
+    assert "test/portfolixir_web/css_unused_bare_class_test.exs" in walkers
+  end
+
+  # Sprint 30 closing act, correctness lens, finding 1: the piped and the
+  # captured forms of the same walk, both idioms the suite already uses
+  # (localization_test.exs, css_unused_bare_class_test.exs), are sweeps too.
+  test "a piped or captured walk of lib/** is a sweep" do
+    for body <- [
+          ~s{"lib/**/*.ex" |> Path.wildcard()},
+          ~s{Enum.flat_map(["lib/**/*.ex"], &Path.wildcard/1)}
+        ] do
+      assert walks_application?(synthetic(body, "")), body
+    end
   end
 
   test "the four sweeps the story workflow named carry the tag" do
@@ -94,12 +113,13 @@ defmodule Portfolixir.Invariants.SweepTagTest do
       assert sweep_tagged?(synthetic(~s|Path.wildcard("lib/**/*.ex")|, "@moduletag [:sweep]"))
     end
 
-    test "a walk of one context, of docs or a walk named in a comment is no sweep" do
+    test "a walk of one context, of docs, a walk named in a comment or a path filter is no sweep" do
       for body <- [
             ~s|Path.wildcard("lib/portfolixir/news/**/*.ex")|,
             ~s|Path.wildcard("docs/**/*.md")|,
             ~s|:application.get_key(:portfolixir, :vsn)|,
-            ~s|:ok # Path.wildcard("lib/**/*.ex")|
+            ~s|:ok # Path.wildcard("lib/**/*.ex")|,
+            ~s|for filter <- ["lib/**", "priv/**"], do: filter|
           ] do
         refute walks_application?(synthetic(body, "")), body
       end
@@ -132,6 +152,14 @@ defmodule Portfolixir.Invariants.SweepTagTest do
   defp walk?({{:., _, [{:__aliases__, _, [:Path]}, :wildcard]}, _, [pattern | _]})
        when is_binary(pattern),
        do: String.starts_with?(pattern, ["lib/**", "lib/portfolixir_web/**"])
+
+  # Any string in the module that globs files under all of lib/** is a walk,
+  # whatever reaches Path.wildcard with it: a pipe, a capture, a module
+  # attribute or a list (Sprint 30 closing act, correctness lens, finding 1).
+  # A comment is not in the AST; a bare "lib/**", a workflow's path filter,
+  # names no file.
+  defp walk?(literal) when is_binary(literal),
+    do: String.starts_with?(literal, ["lib/**/", "lib/portfolixir_web/**/"])
 
   defp walk?({{:., _, [{:__aliases__, _, aliases}, :__routes__]}, _, []}),
     do: List.last(aliases) == :Router

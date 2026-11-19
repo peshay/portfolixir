@@ -6,6 +6,9 @@ defmodule PortfolixirWeb.CssUnusedBareClassTest do
   # where a class is set: a `class` attribute, a `class:` option, and the
   # scripts' `className` and `classList` calls.
   use ExUnit.Case, async: true
+  # It reads every lib/** source, so `mix test --only sweep` runs it (Sprint
+  # 30 closing act, correctness lens, finding 1).
+  @moduletag :sweep
 
   @css "priv/static/app.css"
   @sources ["lib/**/*.ex", "lib/**/*.heex", "priv/static/**/*.js"]
