@@ -14,8 +14,10 @@ figure from them is reproduced here; only the shape of each point is kept.
 The owner's own tooling (a connected agent, the feeds, a separate labelling
 agent, a parallel research project) is named generically.
 
-Status: **open.** OQ-5 is answered (2026-11-18) and OQ-4 widened by the
-owner; OQ-1 to OQ-4 wait for the owner.
+Status: **answered.** OQ-5 on 2026-11-18; OQ-1 to OQ-4 on 2026-11-19:
+OQ-1 and OQ-2 „ja“ (the recommendations); OQ-3 only if it looks great,
+so the board decides by eye; OQ-4 wanted in the long run, but behind the
+redesign.
 
 ---
 
@@ -94,6 +96,24 @@ because each step feeds the next.
 
 Each has a recommendation; the phrase after it flips the answer.
 
+**The owner's answers, 2026-11-19:**
+
+- **OQ-1: „ja“.** The recommendation stands; I46 is `worked-out`. The
+  next planning PR rewords the brief, the PRD §1 and `AGENTS.md` together
+  with I36's README, so the identity sentence is written once.
+- **OQ-2: „ja“.** The recommendation stands; I47 is `worked-out`. Whether
+  the maintenance place is an area of its own or an edit mode is drawn on
+  I35's board; the planning PR amends ADR-0022 and the coverage rule's
+  wording.
+- **OQ-3: unsure, „nur wenn es geil aussieht“.** Nothing is decided
+  ahead of the look. I48's board shows today's accent switch and the
+  one-meaning-per-colour proposal side by side, light and dark, with and
+  without the card stripe; the owner picks by eye, and if the new look
+  does not convince, the accent switch stays. I48 is `discussing`.
+- **OQ-4: solutions wanted in the long run, but later.** I49 waits behind
+  the redesign sprints, the agent-run MCP prompt included; it stays
+  `triaged` and last in the order.
+
 - **OQ-1 — Is "self-hosted" identity?** *Recommended:* no. Identity
   becomes "your portfolio, always on and reachable by your agent; one
   dataset, one instance, one operator, no tenancy". Self-hosting is how it
@@ -136,8 +156,9 @@ Each has a recommendation; the phrase after it flips the answer.
   Parqet's MCP server and API, PP's export) and books into Portfolixir
   over its own API, as the `import_converter` prompt already does for
   files; Portfolixir stores no token of the old tool and calls no other
-  service. *Recommended now:* this agent-run transition as an MCP prompt
-  (F32, I52's companion), the in-app sync stays gated.
+  service. *Recommended:* this agent-run transition as an MCP prompt
+  (F32, I52's companion), the in-app sync stays gated. (The owner put
+  I49 behind the redesign on 2026-11-19, the prompt included.)
 - **OQ-5 — The ⓘ fault: which browser, and where?** *Answered by the
   owner, 2026-11-18:* Safari; on a later look the fault was gone, without
   a known cause. With the Chromium non-reproduction, the polish line on
