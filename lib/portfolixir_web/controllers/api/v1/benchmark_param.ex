@@ -11,7 +11,9 @@ defmodule PortfolixirWeb.Api.V1.BenchmarkParam do
   `{:error, {:benchmark, errors}}` with the `errors` object the 422 carries:
   the parameter is required, a rate must be a finite decimal inside the
   engine's bound (`Portfolixir.Portfolios.Performance.Benchmark.valid_rate?/1`:
-  -99.9999 % to 1000 % p.a.), and a security must exist and have a stored
+  -99.9999 % to 1000 % p.a.) with at most the engine's 15 decimal places,
+  and is answered in one normalised spelling (`Benchmark.exact_rate/1`, the
+  rule the Wealth page's selector keeps; #1356), and a security must exist and have a stored
   quote (`has no stored quote` otherwise) — no security is silently compared
   against an empty series.
 
@@ -55,8 +57,16 @@ defmodule PortfolixirWeb.Api.V1.BenchmarkParam do
       {:ok, rate} ->
         # One bound, the engine's (the IRR solver's domain, -99.9999 % to
         # 1000 % p.a.): a rate outside it crashed the arithmetic before the
-        # comparison could refuse it (closing-act finding).
-        if Benchmark.valid_rate?(rate), do: {:ok, {:rate, rate}}, else: invalid()
+        # comparison could refuse it (closing-act finding). And the engine's
+        # scale, as the Wealth page's selector holds it (E25 S4, F06): a
+        # rate with more decimal places than the engine computes with is
+        # refused here, so `rate:1E-6144` never reaches an echo of thousands
+        # of characters, and the rate echoed is the one normalised spelling
+        # the engine computed with (#1356).
+        case Benchmark.exact_rate(rate) do
+          {:ok, exact} -> {:ok, {:rate, exact}}
+          :error -> invalid()
+        end
 
       :error ->
         invalid()

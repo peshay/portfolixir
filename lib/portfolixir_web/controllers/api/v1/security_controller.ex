@@ -8,6 +8,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Knowledge
   alias Portfolixir.Portfolios.Bonds
+  alias PortfolixirWeb.Api.V1.ClosedBody
   alias PortfolixirWeb.Api.V1.FieldSelection
   alias PortfolixirWeb.Api.V1.IntegerParam
   alias PortfolixirWeb.Api.V1.JSON
@@ -206,7 +207,11 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   # halving_events_deleted beside data, the halving events an unbinding or
   # rebinding deleted in the same write (0 when the chain stays).
   def update(conn, %{"id" => id} = params) do
-    with {:ok, attrs} <- NewsIdentityParam.parse(Map.get(params, "security", %{})),
+    # #1356: a field beside the wrapper (`{"feed": "MANUAL"}`) is refused
+    # with 422 naming it, as the news writes refuse one, where it was dropped
+    # and the write answered 200 having changed nothing.
+    with :ok <- ClosedBody.beside(conn, "security"),
+         {:ok, attrs} <- NewsIdentityParam.parse(Map.get(params, "security", %{})),
          security when not is_nil(security) <- Catalog.get_security(id),
          {:ok, updated, report} <-
            Catalog.update_security(conn.assigns.actor, security, attrs, report: true) do

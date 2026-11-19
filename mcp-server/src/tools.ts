@@ -1761,7 +1761,7 @@ const benchmarkSelector = {
   type: "string",
   pattern: "^(security:[0-9]+|rate:-?[0-9]+(\\.[0-9]+)?)$",
   description:
-    "`rate:<decimal>`, a fixed effective annual rate compounding daily from a base of 1 (rate:0.02 is 2 % p.a., the savings or inflation baseline; -0.999999 to 10, i.e. -99.9999 % to 1000 %), or `security:<id>`, any security with a stored quote, flagged or not (else 422, a merged-away one naming merged_into)."
+    "`rate:<decimal>`, a fixed effective annual rate compounding daily from a base of 1 (rate:0.02 is 2 % p.a., the savings or inflation baseline; -0.999999 to 10 with at most 15 decimals), or `security:<id>`, any security with a stored quote, flagged or not (else 422, a merged-away one naming merged_into)."
 };
 
 const benchmarkSelectorZ = z.string().regex(/^(security:\d+|rate:-?\d+(\.\d+)?)$/);

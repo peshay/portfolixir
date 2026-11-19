@@ -36,9 +36,9 @@ defmodule Portfolixir.Portfolios.CostsTest do
   # Acceptance criteria (exact Decimal expectations):
   # - The per-transaction fee/tax legs AND the standalone fee/tax kinds are
   #   summed; a tax_refund nets against taxes.
-  # - Foreign-currency costs convert at their booking date (EUR hub,
-  #   at-or-before); an unconvertible cost is excluded and named by
-  #   currency.
+  # - Foreign-currency costs convert at the EUR-hub rate stored on their
+  #   booking date itself, never an earlier one (ADR-0046's amendment of
+  #   2026-11-04); an unconvertible cost is excluded and named by currency.
   # - The payload states the series (legs + standalone kinds, refunds
   #   netted, gross amounts untouched), window, reference and gap
   #   treatment.
@@ -99,8 +99,26 @@ defmodule Portfolixir.Portfolios.CostsTest do
     assert report.excluded.count == 1
     assert report.excluded.currencies == ["GBP"]
 
-    # Storing the rate FOR THAT COST'S OWN DATE brings it in; a rate stored
-    # for 2026-04-01 would not, which is the point of the basis.
+    # A rate stored for the day before does not bring it in: the cost
+    # converts at its own day's rate, never an earlier one (#1356).
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "GBP",
+          date: ~D[2026-04-01],
+          rate: "0.80",
+          source: "manual"
+        }
+      ])
+
+    report = Costs.report(base_currency: "EUR")
+    assert [%{year: 2026} = year] = report.annual
+    assert Decimal.equal?(year.fees_total, Decimal.new("5.00"))
+    assert report.excluded.count == 1
+    assert report.excluded.currencies == ["GBP"]
+
+    # Storing the rate FOR THAT COST'S OWN DATE brings it in.
     {:ok, _} =
       Fx.upsert_many([
         %{

@@ -71,4 +71,18 @@ defmodule Portfolixir.Input.BoundedDecimalTest do
            |> BoundedDecimal.validate_scale(:amount, 6)
            |> Map.fetch!(:valid?)
   end
+
+  # #1356 (the rate's exponent): `Decimal.normalize/1` rounds a value below
+  # its context's smallest exponent (1E-6143) to 0, so a value from 1E-6144
+  # down counted no decimal places, and `rate:1E-6144` passed a scale check
+  # that refuses 1E-400. The count reads the digits themselves.
+  test "decimal_places/1 counts the places of a value below the context's smallest exponent" do
+    assert BoundedDecimal.decimal_places(Decimal.new("1E-6143")) == 6143
+    assert BoundedDecimal.decimal_places(Decimal.new("1E-6144")) == 6144
+    assert BoundedDecimal.decimal_places(Decimal.new("1.50E-6142")) == 6143
+    assert BoundedDecimal.decimal_places(Decimal.new("0.0500")) == 2
+    assert BoundedDecimal.decimal_places(Decimal.new("0E-6144")) == 0
+    assert BoundedDecimal.decimal_places(Decimal.new("1.2E+3")) == 0
+    assert BoundedDecimal.decimal_places(Decimal.new("-0.25")) == 2
+  end
 end

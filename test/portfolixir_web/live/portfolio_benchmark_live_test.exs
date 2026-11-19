@@ -947,6 +947,9 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
     test "a rate past the engine's scale is not stored, and a stored one is dropped" do
       for query <- [
             "benchmark[]=rate:1e-400",
+            # Below Decimal's smallest exponent, which its normalize rounds
+            # to 0 (#1356): still past the scale, still refused.
+            "benchmark[]=rate:1E-6144",
             "benchmark[]=rate:0.02000000000000000001",
             "benchmark_rate=2.0000000000000000001"
           ] do

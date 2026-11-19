@@ -22,6 +22,13 @@ API-Anfragen benötigen ein lokales Bearer-Token:
 Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 ```
 
+Ein fehlendes oder falsches Token ergibt `401` mit `errors.detail`
+`"unauthorized"` und `errors.expected_token`, das das Token nennt, das die API
+annimmt: `PORTFOLIXIR_API_TOKEN` oder einen Eintrag aus
+`PORTFOLIXIR_API_TOKENS`, nie das `PORTFOLIXIR_MCP_TOKEN` des
+MCP-Begleitdienstes. Die Antwort ist derselbe feste Text, was auch immer
+gesendet wurde, und gibt nichts davon zurück.
+
 **Benannte Tokens** (E25). `PORTFOLIXIR_API_TOKENS` fügt weitere Tokens als
 `name=token`-Einträge hinzu, durch Kommas getrennt (`scripts=<token>`; ein Name
 hat 1 bis 32 Zeichen aus `a-z`, `0-9`, `_` und `-`, beginnend mit einem Buchstaben
@@ -560,7 +567,10 @@ verengen, was der Betreiber sieht.
   und Logo, ihre Schreibzugriffe, der ISIN-Wechsel und das Löschen eines
   Kennzeichen-Alias.
 - `PATCH /api/v1/securities/:id` aktualisiert ein Wertpapier mit einem
-  `security`-Objekt. Das Boolean `treat_quotes_as_raw` (Standard `false`) ist
+  `security`-Objekt. Ein Feld neben dem Objekt (`{"feed": "MANUAL"}`) oder in
+  der Query ergibt `422` mit seinem Namen („is unknown: this write takes its
+  fields under security“) und speichert nichts, wie die News-Schreibzugriffe
+  eines ablehnen. Das Boolean `treat_quotes_as_raw` (Standard `false`) ist
   die ADR-0028-Notluke für Anbieter, die ihre Historie nach einem
   Aktiensplit nie rückwirkend anpassen: Mit gesetztem Flag werden die
   synchronisierten Kurszeilen des Wertpapiers als roh (wie gehandelt)
@@ -946,7 +956,9 @@ Feldnamen, und aus Eingaben entsteht nie ein Atom.
   aus dieser Liste. `last_reviewed_at` des Thesenstands folgt derselben
   Regel, und der Eintrag selbst behält sein `as_of`.
   `limit` behält die am längsten überfälligen Positionen (Standard 1000, max.
-  10000).
+  10000); gleichauf liegende Positionen ordnen sich nach Name, dann nach der
+  ID des Wertpapiers, sodass ein Limit über einen Gleichstand bei jedem Lesen
+  dieselben Zeilen behält.
 - `GET /api/v1/notes/uncorroborated` — Einträge, deren `source_quality`
   nicht `primary` ist, neueste zuerst; ersetzte Einträge werden übersprungen,
   sofern nicht `include_superseded=true`; optional `security_id`.
@@ -3885,7 +3897,9 @@ Beispiel-Payloads für Konten:
   **kanonischer Dezimal-String mit Punkt** sein (alles andere —
   Komma-Dezimalzahlen, Tausendertrennzeichen, Exponenten — ist ein `422`, das
   die Zeile benennt; Locale-Parsing ist Aufgabe des Clients), und eine leere
-  `rows`-Liste ist ein `422`. Identifier laufen durch dieselbe
+  `rows`-Liste ist ein `422`. Höchstens 10000 Zeilen je Anfrage; eine längere
+  `rows`-Liste ergibt `422` auf `rows` und vergleicht nichts (#1258).
+  Identifier laufen durch dieselbe
   Identitätsleiter wie der Import: ein ISIN-förmiger String (Format und
   Prüfziffer) matcht nur über die ISIN-Stufe (aktuelle ISINs zuerst, dann
   erfasste frühere ISINs — `matched_via: "former_isin"`); jeder andere String
@@ -4026,7 +4040,12 @@ Beispiel-Payloads für Konten:
   festen effektiven Jahreszins, der täglich von Basis 1 aufzinst (Act/365;
   `rate:0.02` sind 2 % p. a., die Tagesgeld-Baseline und in v1 auch die
   Ausdrucksform der Inflation; akzeptiert zwischen `-0.999999` und `10`, dem
-  Definitionsbereich des IRR-Solvers), oder `security:<id>` für **jedes
+  Definitionsbereich des IRR-Solvers, mit höchstens 15 Nachkommastellen, der
+  Genauigkeit der Rechnung, wie sie auch die Auswahl der Vermögensseite hält:
+  `rate:1E-6144` ergibt `422`, und der Zins wird in einer kurzen Schreibweise
+  zurückgegeben, `rate:0.0500` als `"0.05"`, auf jedem Lesezugriff, der
+  `benchmark=` nimmt, `GET /api/v1/sales/hindsight` eingeschlossen, #1356), oder
+  `security:<id>` für **jedes
   Katalog-Wertpapier mit mindestens einem gespeicherten Kurs, mit oder ohne
   `is_benchmark`** (Ergänzung von ADR-0046 vom 2026-11-07, #1416: ein
   gehaltener Fonds kann die Benchmark sein und bleibt buchbar und in jeder

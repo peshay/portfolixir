@@ -162,7 +162,10 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
           limit: limit,
           truncated: truncated,
           positions: Enum.map(rows, &unreviewed_row/1),
-          basis: unreviewed_basis() <> " A limit keeps the most overdue positions."
+          basis:
+            unreviewed_basis() <>
+              " A limit keeps the most overdue positions; positions that tie go by name, " <>
+              "then by security id (#1356)."
         }
       })
     else

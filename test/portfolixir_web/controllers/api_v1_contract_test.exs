@@ -116,6 +116,28 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- S30 A2 end ---
 
+    # --- S30 A3 begin ---
+    # A3 (#1356): the API and MCP polish pass; no new endpoint or tool.
+    assert newest["summary"] =~ "Sprint 30, A3 (#1356, the API and MCP polish pass): "
+
+    a3_item = fn prefix ->
+      assert [item] = Enum.filter(newest["parameters"], &String.starts_with?(&1, prefix)), prefix
+      item
+    end
+
+    assert a3_item.("GET /api/v1/notes/unreviewed (portfolixir.notes.unreviewed)") =~
+             "ascending security id"
+
+    assert a3_item.("GET /api/v1/portfolios/:portfolio_id/performance/benchmark") =~
+             "at most 15 decimal places"
+
+    assert a3_item.("Every /api/v1 route's 401") =~ "errors.expected_token"
+
+    assert a3_item.("PATCH /api/v1/securities/:id (portfolixir.securities.update)") =~
+             "this write takes its fields under security"
+
+    # --- S30 A3 end ---
+
     # Sprint 29's sprint PRs (version 29), found by version from Sprint 30
     # on. Dated strictly after entry 28, so since=2026-11-09 still returns
     # it. Each story appends its own items between its own markers.

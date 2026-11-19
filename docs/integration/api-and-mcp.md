@@ -21,6 +21,12 @@ API requests require a local bearer token:
 Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 ```
 
+A missing or wrong token answers `401` with `errors.detail`
+`"unauthorized"` and `errors.expected_token`, which names the token the API
+takes: `PORTFOLIXIR_API_TOKEN` or an entry of `PORTFOLIXIR_API_TOKENS`, never
+the MCP companion's `PORTFOLIXIR_MCP_TOKEN`. The answer is the same fixed
+text whatever was sent, and echoes nothing of it.
+
 **Named tokens** (E25). `PORTFOLIXIR_API_TOKENS` adds further tokens as
 `name=token` entries, comma-separated (`scripts=<token>`; a name is 1 to 32
 characters of `a-z`, `0-9`, `_` and `-`, starting with a letter or a digit). A write made with one is journaled
@@ -503,7 +509,9 @@ full list.
   the quotes, trades, metrics, notes, events and logo reads, their writes,
   the ISIN change and the delete of an identifier alias.
 - `PATCH /api/v1/securities/:id` updates a security with a `security` object.
-  The boolean `treat_quotes_as_raw` (default `false`) is the ADR-0028 escape
+  A field sent beside the object (`{"feed": "MANUAL"}`), or in the query,
+  answers `422` naming it ("is unknown: this write takes its fields under
+  security") and stores nothing, as the news writes refuse one. The boolean `treat_quotes_as_raw` (default `false`) is the ADR-0028 escape
   hatch for providers that never back-adjust their history after a stock
   split: with the flag set, the security's provider-synced quote rows are
   treated as raw (as-traded), so the split-adjustment factors apply to them
@@ -844,7 +852,9 @@ input.
   an entry stored with a future `as_of` before the refusal existed cannot
   keep its position off this read; the thesis state's `last_reviewed_at`
   follows the same rule, and the entry itself keeps its `as_of`.
-  `limit` keeps the most overdue positions (default 1000, max 10000).
+  `limit` keeps the most overdue positions (default 1000, max 10000);
+  positions that tie go by name, then by security id, so a limit cut over a
+  tie keeps the same rows on every read.
 - `GET /api/v1/notes/uncorroborated` — entries whose `source_quality` is not
   `primary`, newest first; superseded entries are skipped unless
   `include_superseded=true`; optional `security_id`.
@@ -3539,7 +3549,8 @@ Example account payloads:
   `security_id`; `quantity` must be a **canonical dot-decimal string**
   (anything else — comma decimals, thousands separators, exponents — is a
   `422` naming the row; locale parsing is the client's job), and an empty
-  `rows` list is a `422`. Identifiers match through the same stable-identity
+  `rows` list is a `422`. At most 10000 rows per request; a longer `rows`
+  list answers `422` on `rows` and compares nothing (#1258). Identifiers match through the same stable-identity
   ladder the import uses: an ISIN-shaped string (format and check digit)
   matches via the ISIN tier only (current ISINs first, then recorded former
   ISINs — `matched_via: "former_isin"`); any other string is tried against
@@ -3677,7 +3688,12 @@ Example account payloads:
   effective annual rate compounding daily from a base of 1 (Act/365;
   `rate:0.02` is 2 % p.a., the savings-account baseline and, in v1, how
   inflation is expressed; accepted between `-0.999999` and `10`, the IRR
-  solver's own domain) or `security:<id>` for **any catalog security with
+  solver's own domain, with at most 15 decimal places, the engine's scale,
+  as the Wealth page's selector holds it: `rate:1E-6144` answers `422`, and
+  the rate is echoed in one short spelling, `rate:0.0500` as `"0.05"`, on
+  every read that takes `benchmark=`, `GET /api/v1/sales/hindsight` included,
+  #1356) or
+  `security:<id>` for **any catalog security with
   at least one stored quote, flagged `is_benchmark` or not** (ADR-0046's
   amendment of 2026-11-07, #1416: a fund you hold can be the benchmark and
   stays bookable and in every data-quality check; `GET
