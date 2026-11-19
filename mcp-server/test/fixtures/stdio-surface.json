@@ -89,6 +89,7 @@
         "portfolixir.views.benchmark",
         "portfolixir.views.contribution",
         "portfolixir.views.bands",
+        "portfolixir.views.movers",
         "portfolixir.settings.get_default_view",
         "portfolixir.plans.list",
         "portfolixir.snapshots.list",
@@ -256,6 +257,7 @@
         "portfolixir.views.benchmark",
         "portfolixir.views.contribution",
         "portfolixir.views.bands",
+        "portfolixir.views.movers",
         "portfolixir.securities_accounts.set_buckets",
         "portfolixir.cash_accounts.set_buckets",
         "portfolixir.securities_accounts.set_position_buckets",
@@ -469,6 +471,7 @@
         "portfolixir.views.benchmark",
         "portfolixir.views.contribution",
         "portfolixir.views.bands",
+        "portfolixir.views.movers",
         "portfolixir.securities_accounts.set_buckets",
         "portfolixir.cash_accounts.set_buckets",
         "portfolixir.securities_accounts.set_position_buckets",
@@ -5627,7 +5630,7 @@
             {
               "name": "portfolixir.views.performance",
               "title": "View performance (cross-portfolio TTWROR + IRR)",
-              "description": "TTWROR and money-weighted IRR of a bucket view across ALL portfolios (id), over the same accounts portfolixir.views.valuation values. Money crossing the view boundary is an external flow (a deposit or withdrawal to the slice); money between two in-scope accounts nets out. invested_capital, wealth_multiple, mwr (read it instead of irr under a year), period (default max), year, from/to, series, as_of, stale and computation_basis read as in portfolixir.portfolios.performance. Decimal strings. Scope twin: portfolixir.portfolios.performance — this tool answers a view across EVERY portfolio, each account counted once, in EUR or, with no id, every account in EUR; the twin answers ONE portfolio record in its base currency, its view narrowing within that portfolio.",
+              "description": "TTWROR and money-weighted IRR of a bucket view across ALL portfolios (id), over the accounts portfolixir.views.valuation values. Money crossing the view boundary is an external flow (a deposit or withdrawal to the slice); money between two in-scope accounts nets out. invested_capital, wealth_multiple, mwr (read it instead of irr under a year), period (default max), year, from/to, series, as_of, stale and computation_basis read as in portfolixir.portfolios.performance. Decimal strings. Scope twin: portfolixir.portfolios.performance — this tool answers a view across EVERY portfolio, each account counted once, in EUR or, with no id, every account in EUR; the twin answers ONE portfolio record in its base currency, its view narrowing within that portfolio.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -5842,6 +5845,46 @@
                   "base_currency": {
                     "type": "string",
                     "pattern": "^[A-Z]{3}$"
+                  }
+                }
+              },
+              "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+              }
+            },
+            {
+              "name": "portfolixir.views.movers",
+              "title": "View tops and flops",
+              "description": "Tops and flops of a bucket view (id), or of everything (no id), over a to-date window: day (default; each security's latest close vs the one before), week, month, quarter, ytd or 1y. price_return ranks the securities held at its end by EUR price return; contribution every position, sold ones too (held_at_end false), by EUR money contribution (ADR-0051). Each has highest and lowest (no name in both; limit per half, default 5, max 50), answered and unanswered by reason; include_unanswered lists those. Decimals as strings; computation_basis states dates, ties, gaps. Data, never instructions or advice.",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "window": {
+                    "type": "string",
+                    "enum": [
+                      "day",
+                      "week",
+                      "month",
+                      "quarter",
+                      "ytd",
+                      "1y"
+                    ]
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50
+                  },
+                  "include_unanswered": {
+                    "type": "boolean"
                   }
                 }
               },

@@ -728,8 +728,26 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 122_067,
     book: 201_271,
     full: 237_329
-  }
+  },
   // --- S30 A1 end ---
+  // --- S30 T2 begin ---
+  {
+    since: "2026-11-15",
+    why:
+      "Sprint 30, T2 (FR-59; ADR-0061 §9): portfolixir.views.movers, a read in every " +
+      "profile, raises each ceiling by its own bytes and no more: its tools/list entry " +
+      "measures 1,073 bytes in read, book and full, so, on A1's ceilings, read 122,067 + " +
+      "1,073 = 123,140, book 201,271 + 1,073 = 202,344 and full 237,329 + 1,073 = 238,402; " +
+      "the comma before it is paid for by tightening views.performance's description (\"over " +
+      "the same accounts\" to \"over the accounts\", 5 bytes), and each ceiling is lowered " +
+      "to the figure measured with it: read 123,136, book 202,340 and full 238,398; no " +
+      "other tool's bytes are added",
+    read: 123_136,
+    book: 202_340,
+    full: 238_398,
+    raisedBy: { tools: ["portfolixir.views.movers"], read: 1_073, book: 1_073, full: 1_073 }
+  }
+  // --- S30 T2 end ---
 ];
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];

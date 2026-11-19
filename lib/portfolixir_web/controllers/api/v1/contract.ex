@@ -70,7 +70,10 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "include_unanswered (true lists the unanswered); an unknown window, a " <>
               "malformed limit or include_unanswered, and any other parameter answer 422 " <>
               "naming it; a view that does not exist answers 404. Decimals as strings, " <>
-              "dates ISO 8601; data, never advice."
+              "dates ISO 8601; data, never advice.",
+            "portfolixir.views.movers calls them, a read in every profile (id the view, " <>
+              "none for everything); portfolixir.views.performance's description is " <>
+              "tightened by five bytes to pay for the comma before it."
             # --- S30 T2 end ---
           ],
           " "
@@ -81,7 +84,11 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/movers"
         # --- S30 T2 end ---
       ],
-      tools: [],
+      tools: [
+        # --- S30 T2 begin ---
+        "portfolixir.views.movers"
+        # --- S30 T2 end ---
+      ],
       parameters: [
         # --- S30 A1 begin ---
         "GET /api/v1/crashes/:key/rankings (portfolixir.crashes.rankings) takes projection, " <>
