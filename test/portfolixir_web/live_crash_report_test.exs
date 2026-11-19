@@ -26,9 +26,37 @@ defmodule PortfolixirWeb.LiveCrashReportTest do
     @impl true
     def handle_event("save", _params, _socket), do: raise("synthetic event crash")
 
+    # What the operator types is kept in the page's assigns, which every
+    # handler receives (Sprint 30 closing act, security lens, finding 1).
+    def handle_event("validate", %{"note" => note}, socket),
+      do: {:noreply, Phoenix.Component.assign(socket, :typed, note)}
+
+    # A match that fails on what the page sends: the MatchError carries the
+    # value it could not match.
+    def handle_event("check", params, socket) do
+      %{"kind" => "known"} = params
+      {:noreply, socket}
+    end
+
+    # Work started from an event, in a task of its own, on what was typed.
+    def handle_event("work", _params, socket) do
+      typed = socket.assigns[:typed]
+      {:noreply, start_async(socket, :work, fn -> classify(typed) end)}
+    end
+
     # A handler with no clause for what the page sends: the runtime's
     # FunctionClauseError carries the handler's arguments in its stack frame.
     def handle_event("pick", %{"kind" => "known"}, socket), do: {:noreply, socket}
+
+    # A page with no clause for a message it is sent: the stack frame
+    # carries the message and the socket, the page's assigns among them.
+    @impl true
+    def handle_info(:known, socket), do: {:noreply, socket}
+
+    @impl true
+    def handle_async(:work, _result, socket), do: {:noreply, socket}
+
+    defp classify("known"), do: :known
   end
 
   setup do
@@ -107,6 +135,104 @@ defmodule PortfolixirWeb.LiveCrashReportTest do
     assert log =~ ~r/Last message: \[topic: "lv:[\w-]+", event: "event"\]\n/
     refute log =~ secret
     refute log =~ "Phoenix.LiveView.Socket"
+  end
+
+  # User story (Sprint 30 closing act, security lens, finding 1; #1256):
+  # As the operator whose deployment guide says form values stay out of the log,
+  # I want a page that crashes outside a page event, or on a failed match,
+  # logged without the values its handler held,
+  # so that what I typed does not reach the log through a crash the filter
+  # did not expect.
+  #
+  # Acceptance criteria:
+  # - A page with no clause for a message it is sent is logged as that
+  #   FunctionClauseError, naming handle_info/2, without the page's assigns.
+  # - A page whose event handler fails a match is logged as that MatchError
+  #   without the event's values.
+  # - A page whose async task fails a clause is logged as that crash without
+  #   the value the task was given.
+  test "a page crashing in handle_info is logged without the page's assigns", %{conn: conn} do
+    secret = "synthetic-typed-" <> Integer.to_string(System.unique_integer([:positive]))
+    {:ok, view, _html} = live_isolated(conn, CrashingLive)
+    render_change(view, "validate", %{"note" => secret})
+    monitor = Process.monitor(view.pid)
+
+    log =
+      capture_log(fn ->
+        send(view.pid, :unexpected)
+        assert_receive {:DOWN, ^monitor, :process, _pid, _reason}, 5_000
+        Process.sleep(100)
+      end)
+
+    assert log =~ "FunctionClauseError"
+    assert log =~ "handle_info/2"
+    refute log =~ secret
+    refute log =~ "Phoenix.LiveView.Socket"
+  end
+
+  test "a page whose event handler fails a match is logged without the event's values",
+       %{conn: conn} do
+    secret = "synthetic-field-" <> Integer.to_string(System.unique_integer([:positive]))
+    {:ok, view, _html} = live_isolated(conn, CrashingLive)
+    monitor = Process.monitor(view.pid)
+
+    log =
+      capture_log(fn ->
+        catch_exit(render_click(view, "check", %{"kind" => "other", "note" => secret}))
+        assert_receive {:DOWN, ^monitor, :process, _pid, _reason}, 5_000
+        Process.sleep(100)
+      end)
+
+    assert log =~ "MatchError"
+    assert log =~ ~r/Last message: \[topic: "lv:[\w-]+", event: "event"\]\n/
+    refute log =~ secret
+  end
+
+  test "a page whose async task fails a clause is logged without the task's values",
+       %{conn: conn} do
+    secret = "synthetic-async-" <> Integer.to_string(System.unique_integer([:positive]))
+    {:ok, view, _html} = live_isolated(conn, CrashingLive)
+    render_change(view, "validate", %{"note" => secret})
+
+    log =
+      capture_log(fn ->
+        render_click(view, "work", %{})
+        Process.sleep(300)
+      end)
+
+    assert log =~ "FunctionClauseError"
+    assert log =~ "classify/1"
+    refute log =~ secret
+  end
+
+  test "the filter replaces a failed match's value in every clause error it names" do
+    report = fn reason ->
+      %{
+        level: :error,
+        meta: %{},
+        msg:
+          {:report, %{label: {:gen_server, :terminate}, last_message: :synthetic, reason: reason}}
+      }
+    end
+
+    for error <- [
+          %MatchError{term: "synthetic-value"},
+          %CaseClauseError{term: "synthetic-value"},
+          %WithClauseError{term: "synthetic-value"},
+          %KeyError{key: "kind", term: %{"note" => "synthetic-value"}},
+          # As the runtime raises them, before Elixir names them.
+          {:badmatch, "synthetic-value"},
+          {:case_clause, "synthetic-value"},
+          {:badkey, "kind", %{"note" => "synthetic-value"}}
+        ] do
+      assert %{msg: {:report, %{reason: {redacted, []}, last_message: :synthetic}}} =
+               SocketCrashReport.filter(report.({error, []}), [])
+
+      normalized = Exception.normalize(:error, redacted, [])
+      assert normalized.__struct__ == Exception.normalize(:error, error, []).__struct__
+      refute Exception.message(normalized) =~ "synthetic-value"
+      assert Exception.message(normalized) =~ "#Withheld<not logged>"
+    end
   end
 
   test "a page crashing in mount is logged without the session or the join's parameters",
