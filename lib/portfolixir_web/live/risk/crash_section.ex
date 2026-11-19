@@ -386,6 +386,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
             <:line><%= gettext("A window opens once the crash benchmark closes 10 % or more below its high; it starts on the last day at the high and ends on the lowest close before the recovery, the earliest of equal lows.") %></:line>
             <:line><%= gettext("Detected in the benchmark's currency, listed in EUR at each close's exchange rate; splits adjusted.") %></:line>
             <:line><%= gettext("The price on a day: the last close on or before it, at most 7 days old. Without a price or an exchange rate no answer, never a zero.") %></:line>
+            <:line><%= gettext("Dashed: the crash benchmark over the same days; without its price or exchange rate on those days, no comparison.") %></:line>
             <:line><%= gettext("Rebounders: from the own low between high and low to three calendar months after the low; days to the pre-crash close in calendar days.") %></:line>
             <:line><%= gettext("Ties by figure, then name, then ISIN. Benchmarks are in no list.") %></:line>
             <:line><%= gettext("No verdict: the lists compare prices, they do not say what to buy.") %></:line>
@@ -766,6 +767,11 @@ defmodule PortfolixirWeb.Risk.CrashSection do
     """
   end
 
+  # The basis line, one sentence of at most 25 words in either language
+  # (the open-prose rule): the crash benchmark by its role, its stored
+  # name standing in the „vs.“ head and the windows' rule line, and why a
+  # comparison can be missing behind the section's ⓘ (Sprint 30 closing
+  # act, design critic, finding 5).
   defp basis_text(ranking, list) do
     figure =
       cond do
@@ -773,40 +779,33 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           gettext("Basis: EUR price return from the window's high to its low")
 
         ranking.provisional ->
-          gettext(
-            "Basis: EUR rise from each security's own low to the last close (%{date}), not to the end of the span",
+          gettext("Basis: EUR rise from own low to the last close (%{date}), span open",
             date: Format.date(ranking.measured_to)
           )
 
         true ->
-          gettext("Basis: EUR rise from each security's own low to the end of the recovery span")
+          gettext("Basis: EUR rise from own low to the recovery span's end")
       end
 
     reference =
       case {ranking.reference, ranking.benchmark} do
-        {%{return: return}, %{name: name}} when list == "rebounders" ->
-          gettext("dashed: %{benchmark} (%{return} %)",
-            benchmark: name,
+        {%{return: return}, %{}} when list == "rebounders" ->
+          gettext("dashed: crash benchmark (%{return} %)", return: Format.signed_percent(return))
+
+        {%{return: return}, %{}} ->
+          gettext("dashed: crash benchmark, same days (%{return} %)",
             return: Format.signed_percent(return)
           )
 
-        {%{return: return}, %{name: name}} ->
-          gettext("dashed: %{benchmark} over the same days (%{return} %)",
-            benchmark: name,
-            return: Format.signed_percent(return)
-          )
-
-        {nil, %{name: name}} ->
-          gettext("no comparison: %{benchmark} has no price or rate for these days",
-            benchmark: name
-          )
+        {nil, %{}} ->
+          gettext("no comparison: crash benchmark unpriced")
 
         {nil, nil} ->
           gettext("no comparison: no crash benchmark chosen")
       end
 
     Enum.join(
-      [figure, reference, gettext("only securities the catalogue still holds.")],
+      [figure, reference, gettext("only securities in the catalogue.")],
       " · "
     )
   end

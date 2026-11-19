@@ -363,6 +363,120 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
     assert line =~ "complete on #{Format.date(completes)}"
   end
 
+  # The basis line under the list, as one paragraph's text.
+  defp basis(view),
+    do:
+      view
+      |> element("[data-role=crash-basis]")
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.text()
+      |> squish()
+
+  defp words(text),
+    do: text |> String.split() |> Enum.count(&String.match?(&1, ~r/[\p{L}\p{N}]/u))
+
+  # User story (Sprint 30 closing act, design critic, finding 5; board
+  # ux-design-2026-11-15-sprint30/06 ③; DESIGN.md, Crashes item 7):
+  # As the operator reading a crash list,
+  # I want its basis line short enough for one glance, in at most 25
+  # words,
+  # so that it says what was measured, against what and over which
+  # securities, while the crash benchmark's own name stands in the
+  # „vs.“ head and the windows' rule line.
+  #
+  # Acceptance criteria:
+  # - Losers with a reference: „Basis: EUR price return from the window's
+  #   high to its low · dashed: crash benchmark, same days (… %) · only
+  #   securities in the catalogue.“
+  # - Rebounders over a complete span: „Basis: EUR rise from own low to the
+  #   recovery span's end · …“, the reference „dashed: crash benchmark (…
+  #   %)“, or „no comparison: crash benchmark unpriced“ without one.
+  # - Rebounders over an open span: „Basis: EUR rise from own low to the
+  #   last close (‹date›), span open · …“.
+  # - The same in German („Grundlage: …“, „gestrichelt: Crash-Benchmark …“,
+  #   „nur Wertpapiere im Katalog.“); never the benchmark's name; each at
+  #   most 25 words.
+  test "the basis line names the crash benchmark by its role, in at most 25 words",
+       %{conn: conn} do
+    world = crash_world!()
+
+    cases = [
+      {world.bear, "losers", "catalogue"},
+      {world.bear, "rebounders", "catalogue"},
+      {world.recent, "rebounders", "depot"}
+    ]
+
+    for locale <- ["en", "de"], {key, list, universe} <- cases do
+      reader = put_preference_cookie(conn, "portfolixir_locale", locale)
+
+      {:ok, view, _html} =
+        live(reader, risk_path(world, crash: key, crash_list: list, crash_universe: universe))
+
+      scope = if universe == "depot", do: "view:#{world.view.id}", else: universe
+      data = api(key, list, scope)
+      text = basis(view)
+
+      expected =
+        Gettext.with_locale(PortfolixirWeb.Gettext, locale, fn ->
+          expected_basis(locale, list, data)
+        end)
+
+      assert text == expected, "#{locale} #{list}: #{text}"
+      assert words(text) <= 25, "#{locale} #{list}: #{words(text)} words"
+      refute text =~ world.index.name
+    end
+  end
+
+  # The basis line's three parts, as the board words them, per locale.
+  @basis_copy %{
+    "en" => %{
+      losers: "Basis: EUR price return from the window's high to its low",
+      final: "Basis: EUR rise from own low to the recovery span's end",
+      open: "Basis: EUR rise from own low to the last close (DATE), span open",
+      same: "dashed: crash benchmark, same days (REF %)",
+      rebound: "dashed: crash benchmark (REF %)",
+      unpriced: "no comparison: crash benchmark unpriced",
+      universe: "only securities in the catalogue."
+    },
+    "de" => %{
+      losers: "Grundlage: Kursrendite in EUR, Hoch bis Tief des Fensters",
+      final: "Grundlage: Anstieg in EUR vom eigenen Tief bis zum Ende der Erholungsspanne",
+      open:
+        "Grundlage: Anstieg in EUR vom eigenen Tief bis zum letzten Schluss (DATE), Spanne offen",
+      same: "gestrichelt: Crash-Benchmark, dieselben Tage (REF %)",
+      rebound: "gestrichelt: Crash-Benchmark (REF %)",
+      unpriced: "kein Vergleich: Crash-Benchmark ohne Kurs",
+      universe: "nur Wertpapiere im Katalog."
+    }
+  }
+
+  defp expected_basis(locale, list, data) do
+    copy = Map.fetch!(@basis_copy, locale)
+    ref = data["reference"] && Format.signed_percent(Decimal.new(data["reference"]["return"]))
+
+    figure =
+      cond do
+        list == "losers" -> copy.losers
+        data["provisional"] -> copy.open
+        true -> copy.final
+      end
+
+    reference =
+      cond do
+        is_nil(ref) -> copy.unpriced
+        list == "losers" -> copy.same
+        true -> copy.rebound
+      end
+
+    date = data["measured_to"] && Format.date(Date.from_iso8601!(data["measured_to"]))
+
+    [figure, reference, copy.universe]
+    |> Enum.join(" · ")
+    |> String.replace("DATE", date || "")
+    |> String.replace("REF", ref || "")
+  end
+
   # User story (ADR-0058 §2.5, §9, F4; board 01 ⑤, ⑧):
   # As the operator,
   # I want an ongoing window marked as such, and „Im Depot ansehen“ to open
