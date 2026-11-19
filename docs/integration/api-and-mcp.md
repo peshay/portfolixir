@@ -886,8 +886,8 @@ Example append payload:
 the server pre-fills from the story: `kind` `evidence` (`event_result` may be
 sent instead; another kind answers `422` naming `kind`); `as_of` the day the
 story was published (its representative's publication, as `news.get`
-answers it); `source_url` the link of its best-tier member, the first that
-fits 2,048 characters; `source_quality` by ADR-0056 §3's rule (a `primary`
+answers it); `source_url` the link of its best-tier member (every stored
+link fits an entry's 2,048 characters); `source_quality` by ADR-0056 §3's rule (a `primary`
 member gives `primary`, two or more distinct `secondary` domains
 `secondary_multi`, one `unverified`, else `awareness`), each member at the
 tier the source table gives it now, so a second promotion after a re-rating
@@ -1124,9 +1124,9 @@ The writes:
   `source_quality` (`primary`, `secondary` as `unverified`, `awareness`);
   `source_url` or
   `source_quality` sent beside it answers `422` naming it, and an item of
-  another security, one that does not exist, one whose domain is now
-  blocked or whose link is longer than 2,048 characters answers `422`
-  naming `news_id`. The item is not promoted:
+  another security, one that does not exist or one whose domain is now
+  blocked answers `422` naming `news_id` (every stored link fits the
+  event's 2,048 characters). The item is not promoted:
   what lasts from news is a research entry.
 - `PATCH /api/v1/security_events/:id` — corrects or confirms one in place. The
   security it belongs to cannot be changed.
