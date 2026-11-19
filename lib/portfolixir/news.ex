@@ -606,10 +606,10 @@ defmodule Portfolixir.News do
   end
 
   # #1457 (Sprint 30, K2; `Portfolixir.LockTable`, row 25): **the feed's
-  # parents first.** The security or category the feed names, and the one
-  # the write binds it to, `FOR KEY SHARE`, in id order, before the
-  # journal's lock on the feed, as a fetch takes its feed's parent before
-  # the feed (row 23). A security merge holds both securities `FOR UPDATE`
+  # parents first.** The security the feed names and the one the write
+  # binds it to, or the category the write binds it to, `FOR KEY SHARE`,
+  # in id order, before the journal's lock on the feed, as a fetch takes
+  # its feed's parent before the feed (row 23). A security merge holds both securities `FOR UPDATE`
   # and then asks the source's feeds (row 13), so a re-binding that held the
   # feed and then had its UPDATE's foreign key ask the new security closed a
   # cycle with it. The write acts on the feed as read under its lock; one
@@ -651,15 +651,21 @@ defmodule Portfolixir.News do
   end
 
   # The parents a feed write may take a foreign key on, `FOR KEY SHARE`:
-  # the feed's own (as the caller read it) and the one the write binds it
-  # to; securities, then categories, each in id order (one statement each,
-  # rows locked as returned).
+  # the security the feed names (as the caller read it) and the one the
+  # write binds it to, in id order, then the category the write binds it
+  # to (one statement each, rows locked as returned). The old category is
+  # not taken: no category merge moves feeds, so its lock guarded nothing,
+  # and a category's subtree delete deletes the child before its parent
+  # (`Classifications.delete_category/2`), so a re-binding from a parent to
+  # its child that took both in id order deadlocked with it (Sprint 30
+  # closing act, order lens, finding 1). The old security stays: a security
+  # merge does move feeds (`Portfolixir.LockTable`, row 25 against row 13).
   defp lock_feed_parents(prior, attrs) do
     bound = feed_changeset(prior, attrs)
     bound_to = &Ecto.Changeset.get_field(bound, &1)
 
     securities = Enum.reject([prior.security_id, bound_to.(:security_id)], &is_nil/1)
-    categories = Enum.reject([prior.category_id, bound_to.(:category_id)], &is_nil/1)
+    categories = Enum.reject([bound_to.(:category_id)], &is_nil/1)
 
     Multi.run(Multi.new(), :feed_parents, fn _repo, _changes ->
       {:ok,
