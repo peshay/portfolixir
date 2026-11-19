@@ -2257,9 +2257,12 @@ under its name ("Thu 2026-11-12 → Fri 2026-11-13"), elsewhere "last close
 by what it added or cost in EUR over the window, as **Contribution by
 position** on Wealth counts it, a position sold in the window included and
 marked **sold**. Under each list stands what has no figure: "2 without a
-price return: 1 without a close at the start, 1 without an exchange rate"
-and "1 position not valued on any day of the period"; nothing is ranked as a
-zero it does not have. One basis line names the view, the window and its
+price return: 1 without a close at the start, 1 without an exchange rate",
+"1 position not valued on any day of the period" and "1 position without a
+contribution in the period" (on **Day**, "on its day"): a contribution
+of exactly 0.00, such as a fund with no stored quote valued at its trade
+price every day, stands in neither half, so such funds do not fill
+**Lowest**; nothing is ranked as a zero it does not have. One basis line names the view, the window and its
 dates, and the method is behind the ⓘ. Each name opens its security;
 **View in Wealth →** opens Wealth with the contribution's window as a custom
 range (`/portfolio?from=…&to=…`), in the view Wealth last showed: the link

@@ -2497,8 +2497,12 @@ jede Position mit dem, was sie über das Fenster in EUR beigetragen oder
 gekostet hat, gezählt wie **Beitrag je Position** in Vermögen, eine im
 Fenster verkaufte Position eingeschlossen und als **verkauft** markiert.
 Unter jeder Liste steht, was keine Zahl hat: „2 ohne Kursrendite: 1 ohne
-Kurs zu Beginn, 1 ohne Wechselkurs“ und „1 Position an keinem Tag des
-Zeitraums bewertet“; nichts wird mit einer Null gerankt, die es nicht hat.
+Kurs zu Beginn, 1 ohne Wechselkurs“, „1 Position an keinem Tag des
+Zeitraums bewertet“ und „1 Position ohne Beitrag im Zeitraum“ (bei **Tag**
+„an ihrem Tag“): Ein Beitrag von genau 0,00, etwa der eines Fonds
+ohne gespeicherten Kurs, der an jedem Tag zu seinem Handelspreis bewertet
+ist, steht in keiner Hälfte, sonst füllen solche Fonds die **Niedrigsten**;
+nichts wird mit einer Null gerankt, die es nicht hat.
 Eine Basiszeile nennt Ansicht, Fenster und Daten, die Methode steht hinter
 dem ⓘ. Jeder Name öffnet sein Wertpapier; **In Vermögen ansehen →** öffnet
 Vermögen mit dem Fenster des Beitrags als benutzerdefiniertem Zeitraum

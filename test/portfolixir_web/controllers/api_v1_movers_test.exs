@@ -144,6 +144,9 @@ defmodule PortfolixirWeb.ApiV1MoversTest do
   # - For the same window every figure equals Movers.read/3's to the last
   #   digit, as a string; every date is ISO 8601.
   # - include_unanswered=true adds unanswered_entries with each reason.
+  # - A position whose contribution is exactly 0 (the unpriced one, valued
+  #   at its trade price every day) is counted zero_contribution, in
+  #   neither half (board 04 ②; ADR-0061's amendment of 2026-11-19).
   test "both reads answer Movers.read/3's figures, as strings", %{
     conn: conn,
     view: view,
@@ -184,6 +187,13 @@ defmodule PortfolixirWeb.ApiV1MoversTest do
              week["price_return"]["unanswered_entries"]
 
     assert unpriced_id == unpriced.id
+
+    assert week["contribution"]["answered"] == 3
+    assert week["contribution"]["unanswered"] == %{"no_valuation" => 0, "zero_contribution" => 1}
+
+    assert [%{"security" => %{"id" => ^unpriced_id}, "reason" => "zero_contribution"}] =
+             week["contribution"]["unanswered_entries"]
+
     assert week["start_on"] == iso(Movers.start_on("week", today))
     assert week["end_on"] == iso(today)
     assert is_binary(hd(week["price_return"]["highest"])["return"])

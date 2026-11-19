@@ -268,12 +268,14 @@ defmodule Portfolixir.Portfolios.Performance.MoversTest do
     assert bottom.return == direct.return
 
     # Money: D is Sunday, the coin's last close; only the coin moved.
-    # Share 10 x 52 -> 10 x 52 = 0; coin 2 x 210 -> 2 x 205 = -10.
+    # Share 10 x 52 -> 10 x 52 = 0, a contribution of exactly 0, so it stands
+    # in neither half and is counted (board 04 ②); coin 2 x 210 -> 2 x 205 =
+    # -10, the one answered entry, so the highest half.
     money = monday.contribution
     assert {money.from, money.to} == {~D[2026-11-15], ~D[2026-11-15]}
-    assert [%{contribution: share_day}] = money.highest
-    assert [%{contribution: coin_day} = coin_row] = money.lowest
-    assert_decimal(share_day, "0")
+    assert [%{contribution: coin_day} = coin_row] = money.highest
+    assert money.lowest == []
+    assert money.unanswered == %{no_valuation: 0, zero_contribution: 1}
     assert coin_row.security.id == coin.id
     assert_decimal(coin_day, "-10")
 
@@ -502,6 +504,9 @@ defmodule Portfolixir.Portfolios.Performance.MoversTest do
   #   of the largest, descending, and lowest min(k, floor(n/2)) of the rest,
   #   ascending: n = 11 and k = 5 read 5 and 5; k = 50 reads 6 and 5; n = 6
   #   reads 3 and 3; n = 1 reads 1 and 0; n = 0 reads none.
+  # - The money side's fund that ends where it started contributes exactly
+  #   0 and is counted, not ranked (board 04 ②), so there n is 10 and 5,
+  #   where the price side ranks its return of 0.
   # - The limit is 1 to 50, default 5.
   test "the halves never share a name: n = 11, 6, 1 and 0" do
     view = halves_world(@moves)
@@ -514,18 +519,20 @@ defmodule Portfolixir.Portfolios.Performance.MoversTest do
     assert figures(price.highest, :return) == ~w(0.12 0.09 0.07 0.05 0.03)
     assert figures(price.lowest, :return) == ~w(-0.12 -0.08 -0.03 -0.01 0)
     money = read.contribution
-    assert money.answered == 11
+    assert money.answered == 10
+    assert money.unanswered == %{no_valuation: 0, zero_contribution: 1}
     assert figures(money.highest, :contribution) == ~w(12 9 7 5 3)
-    assert figures(money.lowest, :contribution) == ~w(-12 -8 -3 -1 0)
+    assert figures(money.lowest, :contribution) == ~w(-12 -8 -3 -1 1)
 
     wide = read!(view.id, "week", today: today, limit: 50)
     assert figures(wide.price_return.highest, :return) == ~w(0.12 0.09 0.07 0.05 0.03 0.01)
     assert figures(wide.price_return.lowest, :return) == ~w(-0.12 -0.08 -0.03 -0.01 0)
-    assert figures(wide.contribution.highest, :contribution) == ~w(12 9 7 5 3 1)
+    assert figures(wide.contribution.highest, :contribution) == ~w(12 9 7 5 3)
+    assert figures(wide.contribution.lowest, :contribution) == ~w(-12 -8 -3 -1 1)
 
-    for ranking <- [wide.price_return, wide.contribution] do
+    for {ranking, n} <- [{wide.price_return, 11}, {wide.contribution, 10}] do
       ids = Enum.map(all_entries(ranking), & &1.security.id)
-      assert length(ids) == 11 and length(Enum.uniq(ids)) == 11
+      assert length(ids) == n and length(Enum.uniq(ids)) == n
     end
 
     # An empty view: n = 0 on both sides, never a list of zeros.
@@ -547,8 +554,11 @@ defmodule Portfolixir.Portfolios.Performance.MoversTest do
     read = read!(six.id, "week", today: today)
     assert figures(read.price_return.highest, :return) == ~w(0.12 0.07 0.05)
     assert figures(read.price_return.lowest, :return) == ~w(-0.08 -0.03 0)
+    # The fund at 0 is counted on the money side (board 04 ②): five
+    # answered, three over two.
     assert figures(read.contribution.highest, :contribution) == ~w(12 7 5)
-    assert figures(read.contribution.lowest, :contribution) == ~w(-8 -3 0)
+    assert figures(read.contribution.lowest, :contribution) == ~w(-8 -3)
+    assert read.contribution.unanswered.zero_contribution == 1
   end
 
   test "one held security reads one highest and no lowest" do
@@ -575,10 +585,15 @@ defmodule Portfolixir.Portfolios.Performance.MoversTest do
   #   equal; a missing value sorts after a present one.
   # - The highest half takes the first of that order, the lowest half the
   #   rest in the same order, on both rankings.
+  #
+  # Every fund closes 100 then 101: a return of 0.01 and a contribution of
+  # 1 each, equal and not 0, since a contribution of exactly 0 is in neither
+  # half (board 04 ②). The dollar's hub rate is 1, so its 1 dollar is 1 EUR
+  # too.
   test "ties follow the full order on every key" do
     world = base_world(name: "Tie World", cash_name: "Tie Cash", depot_name: "Tie Depot")
     view = view!([world.depot], [world.cash])
-    rate!("USD", ~D[2026-11-01], "1.2")
+    rate!("USD", ~D[2026-11-01], "1")
 
     # Created out of order, so neither creation nor id order is the answer.
     specs = [
@@ -601,7 +616,7 @@ defmodule Portfolixir.Portfolios.Performance.MoversTest do
       Map.new(specs, fn {key, attrs} ->
         security = security!(attrs)
         deliver_untraded!(world, security, "1", date: ~D[2026-11-02])
-        put_quotes!(security, [{~D[2026-11-06], "100"}, {~D[2026-11-12], "100"}])
+        put_quotes!(security, [{~D[2026-11-06], "100"}, {~D[2026-11-12], "101"}])
         {key, security.id}
       end)
 
@@ -620,16 +635,16 @@ defmodule Portfolixir.Portfolios.Performance.MoversTest do
       assert Enum.map(ranking.lowest, & &1.security.id) == Enum.drop(expected, 6)
     end
 
-    for row <- all_entries(read.price_return), do: assert_decimal(row.return, "0")
-    for row <- all_entries(read.contribution), do: assert_decimal(row.contribution, "0")
+    for row <- all_entries(read.price_return), do: assert_decimal(row.return, "0.01")
+    for row <- all_entries(read.contribution), do: assert_decimal(row.contribution, "1")
   end
 
   # -- §4: no answer, never a zero -----------------------------------------------------
 
   # User story (FR-59, ADR-0061 §4; board 04: unpriced funds):
   # As the operator whose view holds a fund nobody quotes,
-  # I want a security without a figure counted under its reason and a
-  # position valued on no day counted apart,
+  # I want a security without a figure counted under its reason, and a
+  # position valued on no day or contributing exactly zero counted apart,
   # so that neither fills the lowest half with a zero it never earned.
   #
   # Acceptance criteria:
@@ -639,6 +654,10 @@ defmodule Portfolixir.Portfolios.Performance.MoversTest do
   # - Money: a position valued on no day of the window is counted
   #   no_valuation, not ranked; one with some unvalued days stays ranked with
   #   its unvalued_days in its row.
+  # - Money: a position whose contribution is exactly 0 stands in neither
+  #   half and is counted zero_contribution (board 04 ②; ADR-0061's
+  #   amendment of 2026-11-19, third precision; Sprint 30 closing act,
+  #   design critic, finding 4).
   test "the unanswered are counted by reason, never ranked as a zero" do
     world = base_world(name: "Gap World", cash_name: "Gap Cash", depot_name: "Gap Depot")
     view = view!([world.depot], [world.cash])
@@ -682,25 +701,30 @@ defmodule Portfolixir.Portfolios.Performance.MoversTest do
     # baseline, and the 9th), Single 0 -> 5 (unvalued 8th to 11th), Steady
     # 10 -> 11, Stale 8 -> 8. Franc has no rate path and Unquoted no price on
     # any day: no_valuation. The baseline counts since ADR-0051's amendment
-    # of 2026-11-19 (#1472).
+    # of 2026-11-19 (#1472). Stale's 0 is a figure no half shows (board 04
+    # ②): counted zero_contribution, so three answered split two over one.
     money = week.contribution
-    assert money.answered == 4
+    assert money.answered == 3
     assert names(money.highest) == ["Fresh Listing", "Single Print"]
     assert figures(money.highest, :contribution) == ~w(21 5)
-    assert names(money.lowest) == ["Stale Quote", "Steady Fund"]
-    assert figures(money.lowest, :contribution) == ~w(0 1)
+    assert names(money.lowest) == ["Steady Fund"]
+    assert figures(money.lowest, :contribution) == ~w(1)
 
     assert {entry(money.highest, fresh).unvalued_days, entry(money.highest, single).unvalued_days} ==
              {2, 4}
 
     assert entry(money.highest, fresh).unvalued_reason == :no_price
     assert entry(money.lowest, steady).unvalued_days == 0
-    assert money.unanswered == %{no_valuation: 2}
+    assert money.unanswered == %{no_valuation: 2, zero_contribution: 1}
 
     assert Enum.map(money.unanswered_entries, &{&1.security.name, &1.reason}) == [
              {"Franc Fund", "no_valuation"},
+             {"Stale Quote", "zero_contribution"},
              {"Unquoted Trust", "no_valuation"}
            ]
+
+    assert money.computation_basis.gaps =~ "zero_contribution"
+    assert money.computation_basis.halves =~ "exactly 0"
 
     # Day: Steady 11 against 10 (P on the 6th, the close before E), Fresh 21
     # against 20 = 0.05; Stale's last close is older than 7 days, Unquoted has

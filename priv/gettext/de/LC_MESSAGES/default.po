@@ -1929,7 +1929,7 @@ msgstr "TTWROR"
 msgid "IRR"
 msgstr "IRR"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:127
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:130
 #: lib/portfolixir_web/live/portfolio_live.ex:2189
 #, elixir-autogen
 msgid "Period"
@@ -2020,14 +2020,14 @@ msgstr "Saldo"
 msgid "Set balance"
 msgstr "Saldo setzen"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:391
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:395
 #: lib/portfolixir_web/live/portfolio_live.ex:6269
 #: lib/portfolixir_web/live/securities_live.ex:8011
 #, elixir-autogen
 msgid "YTD"
 msgstr "YTD"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:392
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:396
 #: lib/portfolixir_web/live/dashboard_live.ex:482
 #: lib/portfolixir_web/live/dashboard_live.ex:1153
 #: lib/portfolixir_web/live/dashboard_live.ex:1156
@@ -3265,8 +3265,8 @@ msgstr "Standard-Ansicht"
 #: lib/portfolixir_web/live/buckets_live.ex:1075
 #: lib/portfolixir_web/live/classifications_live.ex:2462
 #: lib/portfolixir_web/live/classifications_live.ex:2658
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:377
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:401
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:381
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:405
 #: lib/portfolixir_web/live/dashboard_live.ex:436
 #: lib/portfolixir_web/live/dashboard_live.ex:572
 #: lib/portfolixir_web/live/dashboard_live.ex:1068
@@ -10469,7 +10469,7 @@ msgid_plural "%{count} sales have no matched buy for all or part of their quanti
 msgstr[0] "%{count} Verkauf hat für seine ganze Stückzahl oder einen Teil davon keinen zugeordneten Kauf (z. B. aus einer Einlieferung): Diese Stückzahl ist in keinem abgeschlossenen Trade enthalten."
 msgstr[1] "%{count} Verkäufe haben für ihre ganze Stückzahl oder einen Teil davon keinen zugeordneten Kauf (z. B. aus Einlieferungen): Diese Stückzahl ist in keinem abgeschlossenen Trade enthalten."
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:264
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:268
 #: lib/portfolixir_web/live/portfolio/contribution_table.ex:529
 #, elixir-autogen, elixir-format
 msgid "%{count} day at zero"
@@ -10489,7 +10489,7 @@ msgstr[1] "%{count} kleinere Positionen sind ausgeblendet; die Summe enthält si
 msgid "%{days}, %{reason}"
 msgstr "%{days}, %{reason}"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:184
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:187
 #: lib/portfolixir_web/live/portfolio/contribution_table.ex:193
 #, elixir-autogen, elixir-format
 msgid "Contribution"
@@ -16829,7 +16829,7 @@ msgid_plural "%{count} without an answer: %{reasons}"
 msgstr[0] "%{count} ohne Antwort: %{reasons}"
 msgstr[1] "%{count} ohne Antwort: %{reasons}"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:491
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:495
 #: lib/portfolixir_web/live/risk/crash_section.ex:877
 #, elixir-autogen, elixir-format
 msgid "%{count} without an exchange rate"
@@ -18168,195 +18168,190 @@ msgctxt "axis"
 msgid "Window"
 msgstr "Ausschnitt"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:502
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:513
 #, elixir-autogen, elixir-format
 msgid "%{count} position not valued on any day of the period"
 msgid_plural "%{count} positions not valued on any day of the period"
 msgstr[0] "%{count} Position an keinem Tag des Zeitraums bewertet"
 msgstr[1] "%{count} Positionen an keinem Tag des Zeitraums bewertet"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:494
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:498
 #, elixir-autogen, elixir-format
 msgid "%{count} with one close only"
 msgid_plural "%{count} with one close only"
 msgstr[0] "%{count} mit nur einem Schlusskurs"
 msgstr[1] "%{count} mit nur einem Schlusskurs"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:481
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:485
 #, elixir-autogen, elixir-format
 msgid "%{count} without a close at the start"
 msgid_plural "%{count} without a close at the start"
 msgstr[0] "%{count} ohne Kurs zu Beginn"
 msgstr[1] "%{count} ohne Kurs zu Beginn"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:474
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:478
 #, elixir-autogen, elixir-format
 msgid "%{count} without a price return"
 msgid_plural "%{count} without a price return"
 msgstr[0] "%{count} ohne Kursrendite"
 msgstr[1] "%{count} ohne Kursrendite"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:488
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:492
 #, elixir-autogen, elixir-format
 msgid "%{count} without a recent close"
 msgid_plural "%{count} without a recent close"
 msgstr[0] "%{count} ohne aktuellen Kurs"
 msgstr[1] "%{count} ohne aktuellen Kurs"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:98
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:101
 #, elixir-autogen, elixir-format
 msgid "Contribution: end value − start value − flows + income − costs per position, as “Contribution by position” in Wealth; a position sold in the period counts."
 msgstr "Beitrag: Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten je Position, wie „Beitrag je Position“ in Vermögen; eine im Zeitraum verkaufte Position zählt mit."
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:156
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:159
 #, elixir-autogen, elixir-format
 msgid "Couldn't load the tops and flops."
 msgstr "Tops und Flops konnten nicht geladen werden."
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:113
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:116
 #, elixir-autogen, elixir-format
 msgid "Day: since each security's previous close, the two dates at the row; the contribution of the latest day with a close."
 msgstr "Tag: seit dem vorigen Schlusskurs jedes Wertpapiers, die beiden Daten an der Zeile; der Beitrag des letzten Tages mit einem Schlusskurs."
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:103
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:106
 #, elixir-autogen, elixir-format
 msgid "Five highest and five lowest each; under ten the list splits, and no name stands in both halves."
 msgstr "Je fünf höchste und niedrigste; unter zehn teilt sich die Liste, und kein Name steht in beiden Hälften."
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:398
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:402
 #, elixir-autogen, elixir-format
 msgid "Highest"
 msgstr "Höchste"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:399
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:403
 #, elixir-autogen, elixir-format
 msgid "Lowest"
 msgstr "Niedrigste"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:108
-#, elixir-autogen, elixir-format
-msgid "No close before the period, none in it, or no exchange rate: no price return. A day without a price counts zero in the contribution, as in Wealth; a position valued on no day is counted, not ranked."
-msgstr "Ohne Schlusskurs vor dem Zeitraum, ohne Kurs darin oder ohne Wechselkurs: keine Kursrendite. Ein Tag ohne Kurs zählt beim Beitrag null, wie in Vermögen; eine an keinem Tag bewertete Position wird gezählt, nicht gerankt."
-
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:177
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:194
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:180
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:197
 #, elixir-autogen, elixir-format
 msgid "No figure in this period."
 msgstr "Keine Zahl in diesem Zeitraum."
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:160
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:163
 #, elixir-autogen, elixir-format
 msgid "No holdings in this view."
 msgstr "Keine Bestände in dieser Ansicht."
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:93
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:96
 #, elixir-autogen, elixir-format
 msgid "Price return: the last stored close in the period ÷ the close before the period − 1, both in EUR at the stored exchange rate of their day; income and costs do not count."
 msgstr "Kursrendite: letzter gespeicherter Schlusskurs im Zeitraum ÷ Schlusskurs vor dem Zeitraum − 1, beide in EUR zum gespeicherten Wechselkurs ihres Tages; Erträge und Kosten zählen nicht."
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:90
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:93
 #, elixir-autogen, elixir-format
 msgid "Tops and flops"
 msgstr "Tops und Flops"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:426
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:430
 #, elixir-autogen, elixir-format
 msgid "View %{view} · %{window}: close %{start} to %{end} · in EUR, from stored closes and bookings"
 msgstr "Ansicht %{view} · %{window}: Schlusskurs %{start} bis %{end} · in EUR, aus gespeicherten Schlusskursen und Buchungen"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:417
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:421
 #, elixir-autogen, elixir-format
 msgid "View %{view} · %{window}: since each security's previous close, the dates at the row · in EUR"
 msgstr "Ansicht %{view} · %{window}: seit dem vorigen Schlusskurs jedes Wertpapiers, die Daten an der Zeile · in EUR"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:409
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:413
 #, elixir-autogen, elixir-format
 msgid "View %{view} · %{window}: since each security's previous close, the dates at the row; contribution on %{date} · in EUR"
 msgstr "Ansicht %{view} · %{window}: seit dem vorigen Schlusskurs jedes Wertpapiers, die Daten an der Zeile; Beitrag am %{date} · in EUR"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:124
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:127
 #, elixir-autogen, elixir-format
 msgid "View in Wealth →"
 msgstr "In Vermögen ansehen →"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:442
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:446
 #, elixir-autogen, elixir-format
 msgid "last close %{date}"
 msgstr "letzter Kurs %{date}"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:387
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:391
 #, elixir-autogen, elixir-format
 msgctxt "movers"
 msgid "Day"
 msgstr "Tag"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:389
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:393
 #, elixir-autogen, elixir-format
 msgctxt "movers"
 msgid "Month"
 msgstr "Monat"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:167
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:170
 #, elixir-autogen, elixir-format
 msgctxt "movers"
 msgid "Price return"
 msgstr "Kursrendite"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:390
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:394
 #, elixir-autogen, elixir-format
 msgctxt "movers"
 msgid "Quarter"
 msgstr "Quartal"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:388
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:392
 #, elixir-autogen, elixir-format
 msgctxt "movers"
 msgid "Week"
 msgstr "Woche"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:260
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:264
 #, elixir-autogen, elixir-format
 msgctxt "movers"
 msgid "sold"
 msgstr "verkauft"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:454
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:458
 #, elixir-autogen, elixir-format
 msgctxt "weekday"
 msgid "Fri"
 msgstr "Fr"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:450
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:454
 #, elixir-autogen, elixir-format
 msgctxt "weekday"
 msgid "Mon"
 msgstr "Mo"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:455
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:459
 #, elixir-autogen, elixir-format
 msgctxt "weekday"
 msgid "Sat"
 msgstr "Sa"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:456
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:460
 #, elixir-autogen, elixir-format
 msgctxt "weekday"
 msgid "Sun"
 msgstr "So"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:453
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:457
 #, elixir-autogen, elixir-format
 msgctxt "weekday"
 msgid "Thu"
 msgstr "Do"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:451
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:455
 #, elixir-autogen, elixir-format
 msgctxt "weekday"
 msgid "Tue"
 msgstr "Di"
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:452
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:456
 #, elixir-autogen, elixir-format
 msgctxt "weekday"
 msgid "Wed"
@@ -18383,7 +18378,26 @@ msgid_plural "%{count} names: the closes have changed, no detected window starts
 msgstr[0] "%{count} Name: Die Kurse haben sich geändert, an diesem Tag beginnt kein erkanntes Fenster mehr. Ein Name wird nie geraten einem anderen Fenster zugeordnet."
 msgstr[1] "%{count} Namen: Die Kurse haben sich geändert, an diesen Tagen beginnt kein erkanntes Fenster mehr. Ein Name wird nie geraten einem anderen Fenster zugeordnet."
 
-#: lib/portfolixir_web/live/dashboard/movers_card.ex:373
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:377
 #, elixir-autogen, elixir-format
 msgid "Wealth is currently scoped to the view “%{active}”; this card shows “%{card}”."
 msgstr "Vermögen ist gerade auf die Ansicht „%{active}“ eingegrenzt; diese Karte zeigt „%{card}“."
+
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:529
+#, elixir-autogen, elixir-format
+msgid "%{count} position without a contribution in the period"
+msgid_plural "%{count} positions without a contribution in the period"
+msgstr[0] "%{count} Position ohne Beitrag im Zeitraum"
+msgstr[1] "%{count} Positionen ohne Beitrag im Zeitraum"
+
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:521
+#, elixir-autogen, elixir-format
+msgid "%{count} position without a contribution on its day"
+msgid_plural "%{count} positions without a contribution on their day"
+msgstr[0] "%{count} Position ohne Beitrag an ihrem Tag"
+msgstr[1] "%{count} Positionen ohne Beitrag an ihrem Tag"
+
+#: lib/portfolixir_web/live/dashboard/movers_card.ex:111
+#, elixir-autogen, elixir-format
+msgid "No close before the period, none in it, or no exchange rate: no price return. A day without a price counts zero in the contribution, as in Wealth; a position valued on no day, or whose contribution is exactly zero, is counted, not ranked."
+msgstr "Ohne Schlusskurs vor dem Zeitraum, ohne Kurs darin oder ohne Wechselkurs: keine Kursrendite. Ein Tag ohne Kurs zählt beim Beitrag null, wie in Vermögen; eine an keinem Tag bewertete Position oder eine mit einem Beitrag von genau null wird gezählt, nicht gerankt."
