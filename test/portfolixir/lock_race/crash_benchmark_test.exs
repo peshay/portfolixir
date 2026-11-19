@@ -9,8 +9,9 @@ defmodule Portfolixir.LockRace.CrashBenchmarkTest do
   # waits for the first's commit and its entry's before is the first's
   # after.
   #
-  # The lock meets no row of `Portfolixir.LockTable`: it is one key per
-  # setting, taken by this write alone, before any row lock.
+  # `Portfolixir.LockTable` row 27 registers the lock: one key per setting,
+  # taken before any row lock by every journaled setting write since #1356
+  # (`settings_first_write_test.exs`).
   #
   # async: false -- the races share a scratch database and the barrier's
   # limits. Every name and figure is synthetic.

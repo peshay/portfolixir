@@ -5,7 +5,8 @@ defmodule Portfolixir.LockTable do
   Sprint 29 a news rating against a fetch, a promotion and an assignment, and
   the chain reader against itself and a rebinding, since Sprint 30 a news
   fetch, a feed's write and the news matcher against the security merge
-  (the matcher against a security's delete too), with
+  (the matcher against a security's delete too) and a setting's write
+  against another of the same setting, with
   the locks it takes in the order it takes them (Sprint 21's D-7;
   Sprint 20's retrospective). The lock-race harness (`Portfolixir.LockRace`)
   pins the pairs that meet; this table is what a new lock is checked
@@ -78,6 +79,7 @@ defmodule Portfolixir.LockTable do
   | 24 | **A chain read's writes** (`Chains.Reader.run/2`: the scheduled run and the on-demand refresh; ADR-0059 §5, §6, S29 H3) | an on-demand refresh first claims its try: one conditional upsert of the state row (`chain_reads`, its row lock for that one statement, no transaction; the closing act) → the network reads, outside any transaction → `adv(chain read, chain)` → every security bound to the chain `S`, id order, the binding read again under it → per halving `Events.put_chain_halving/6`: the security `S` again (held), the event `NKU` (the journal's lock step) or its INSERT (`FK` on the security, `KS`) → the state row's upsert (`chain_reads`, unjournaled). Locks no booking. |
   | 25 | **A feed's write** (`News.put_feed/3` on a stored feed: API, MCP; S30 K2) | the feed's parent as the caller read it and the parent the write binds it to `KS`: securities, then categories, each in id order (#1457) → the feed `NKU` (the journal's lock step), read again under it (a feed whose parent changed in between rolls the attempt back, releasing all of it, and runs again on the feed as it is now, at most three times, then `422` on its binding) → the COR1 check (plain reads of its items) → UPDATE (`FK` on a changed security or category, held `KS`). A create is an INSERT (`FK` on its parent). Locks no item. |
   | 26 | **The news matcher** (`News.assign_aggregator_items/2`: a fetch's match after its commit, row 23; `News.rematch_recent/1`, run by `Catalog`'s news identity change, after its commit or inside a caller's transaction, a merge's included; S30 K2) | an unlocked read of the open aggregator items and of the universe → the securities they match `KS`, id order (#1457) → in a savepoint: `adv(matcher)` (ORD5) → the items `U`, id order → the universe compiled again (ORD5) → when it names a security the first step did not hold (an alias committed in between), a rollback to the savepoint, releasing every lock the attempt took, and a run again holding that one too (at most three times, then it raises, writing nothing) → the items' UPDATE (`FK` on an assigned security, held `KS`) → after the commit, the reclusters (`adv(story scope)`). Inside a caller's transaction that already holds `adv(matcher)`, the rollback to the savepoint keeps that lock. |
+  | 27 | **A setting's write** (`Settings.set_default_view/2`, `set_news_cluster_window_hours/2`, `set_news_cluster_similarity/2`, `set_crash_benchmark/2`: API, MCP, the view switcher, the news settings; S29 C1, S30 A3) | `adv(setting key)` of the one setting it writes → the setting row `U`, read again under it (none while unset) → the crash benchmark only: its security read (plain reads, `BenchmarkSecurity.resolve/1`) → the upsert or DELETE of the setting row. Locks no other row. Without the advisory lock two first writes both read "none" and the later one's journal entry named no before (#1421, #1356). |
 
   ## Where two rows meet
 
@@ -245,6 +247,12 @@ defmodule Portfolixir.LockTable do
     * Rows 14 and 15 against row 12: the depot merge takes the securities'
       split rows `U` after its depots and bookings and the security only
       `KS`; the split's `KS` does not conflict with it.
+    * Row 27 against row 27: two writes of one setting meet at its key
+      before any row, so the later reads the row the earlier committed and
+      journals it as its before; writes of different settings take
+      different keys and never wait for each other. Row 27 against every
+      other row: none takes a setting's key or its row, and row 27 takes no
+      other row, so it closes no cycle.
     * Row 24 against row 24: two runs of one chain meet at `adv(chain
       read)` before any row; the later reads what the earlier committed, a
       confirmed halving it skips and the day's estimate it leaves, so each
