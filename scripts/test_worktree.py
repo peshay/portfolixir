@@ -33,6 +33,16 @@ HOOK_GIT_VARIABLES = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_
 
 EXCLUDE_LINES = ("/deps", "/_build", "node_modules", "/mcp-server/node_modules")
 
+MERGE_GETTEXT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "merge_gettext.py")
+
+# The merge driver docs/development/guide.md ("Integrating gettext
+# catalogues") registers, and the two attribute lines that route the
+# catalogues to it.
+GETTEXT_DRIVER = "python3 scripts/merge_gettext.py %O %A %B"
+GETTEXT_ATTRIBUTES = ("priv/gettext/**/*.po merge=gettext", "priv/gettext/*.pot merge=gettext")
+
+PO_HEADER = 'msgid ""\nmsgstr ""\n"Language: de\\n"\n'
+
 FAKE_MIX = """#!/bin/sh
 echo "$PWD DATABASE_NAME=$DATABASE_NAME MIX_ENV=$MIX_ENV mix $*" >> "$FAKE_MIX_LOG"
 """
@@ -105,6 +115,19 @@ class WorktreeHelperTests(unittest.TestCase):
         with open(os.path.join(self.main, ".git", "info", "exclude"), encoding="utf-8") as handle:
             return handle.read().splitlines()
 
+    def _attribute_lines(self) -> list[str]:
+        path = os.path.join(self.main, ".git", "info", "attributes")
+        if not os.path.exists(path):
+            return []
+        with open(path, encoding="utf-8") as handle:
+            return handle.read().splitlines()
+
+    def _config(self, *args: str, cwd: str | None = None) -> list[str]:
+        completed = subprocess.run(
+            ["git", "config", *args], cwd=cwd or self.main, env=self.env, capture_output=True, text=True, check=False
+        )
+        return completed.stdout.splitlines()
+
     def test_the_worktree_starts_at_the_given_base_on_the_given_branch(self):
         path = self._add("story", self.base, "agent/test/story")
         self.assertEqual(self._git("rev-parse", "HEAD", cwd=path).strip(), self.base)
@@ -174,6 +197,80 @@ class WorktreeHelperTests(unittest.TestCase):
                 f"{path} DATABASE_NAME=portfolixir_test_7 MIX_ENV=test mix ecto.migrate",
             ],
         )
+
+    # Sprint 30 plan M3 (Sprint 29 retrospective, carry-forward 3): the
+    # resolver existed since Sprint 22, but nothing registered it, so a
+    # session wrote a second one.
+    def test_the_gettext_merge_driver_is_registered_in_the_local_config(self):
+        path = self._add("story", self.base)
+        for cwd in (self.main, path):
+            with self.subTest(cwd=cwd):
+                driver = self._config("--local", "--get-all", "merge.gettext.driver", cwd=cwd)
+                self.assertEqual(driver, [GETTEXT_DRIVER])
+                self.assertEqual(len(self._config("--local", "--get-all", "merge.gettext.name", cwd=cwd)), 1)
+        for relative in ("priv/gettext/de/LC_MESSAGES/default.po", "priv/gettext/default.pot"):
+            with self.subTest(relative=relative):
+                answer = self._git("check-attr", "merge", "--", relative, cwd=path).strip()
+                self.assertEqual(answer, f"{relative}: merge: gettext")
+        readme = self._git("check-attr", "merge", "--", "README.md", cwd=path).strip()
+        self.assertEqual(readme, "README.md: merge: unspecified")
+        # Local only: no committed .gitattributes, the worktree stays clean.
+        self.assertFalse(os.path.lexists(os.path.join(path, ".gitattributes")))
+        self.assertEqual(self._git("status", "--porcelain", "--untracked-files=all", cwd=path), "")
+
+    def test_the_driver_and_the_attribute_lines_are_written_once_however_often_it_runs(self):
+        self._add("first", self.base)
+        self._add("second", self.base, "agent/test/second")
+        self.assertEqual(self._config("--local", "--get-all", "merge.gettext.driver"), [GETTEXT_DRIVER])
+        self.assertEqual(len(self._config("--local", "--get-all", "merge.gettext.name")), 1)
+        lines = self._attribute_lines()
+        for line in GETTEXT_ATTRIBUTES:
+            with self.subTest(line=line):
+                self.assertEqual(lines.count(line), 1)
+
+    def test_a_driver_and_attributes_already_registered_are_kept(self):
+        self._git("config", "merge.gettext.name", "the owner's name")
+        self._git("config", "merge.gettext.driver", "python3 scripts/merge_gettext.py %O %A %B -o %A")
+        attributes = os.path.join(self.main, ".git", "info", "attributes")
+        with open(attributes, "w", encoding="utf-8") as handle:
+            # The last line without its final newline, as a hand edit leaves it.
+            handle.write("*.png binary\n" + GETTEXT_ATTRIBUTES[1])
+        self._add("story", self.base)
+        self.assertEqual(self._config("--local", "--get-all", "merge.gettext.name"), ["the owner's name"])
+        self.assertEqual(
+            self._config("--local", "--get-all", "merge.gettext.driver"),
+            ["python3 scripts/merge_gettext.py %O %A %B -o %A"],
+        )
+        self.assertEqual(self._attribute_lines(), ["*.png binary", GETTEXT_ATTRIBUTES[1], GETTEXT_ATTRIBUTES[0]])
+
+    def test_a_cherry_pick_in_a_new_worktree_merges_two_stories_catalogues(self):
+        # Two stories append a msgid each at the catalogue's end: a plain
+        # text merge conflicts there; the registered driver unites them.
+        catalogue = "priv/gettext/de/LC_MESSAGES/default.po"
+        os.makedirs(os.path.join(self.main, "scripts"), exist_ok=True)
+        shutil.copy(MERGE_GETTEXT, os.path.join(self.main, "scripts", "merge_gettext.py"))
+        self._write(catalogue, PO_HEADER + '\nmsgid "Base"\nmsgstr "Basis"\n')
+        self._git("add", "-A")
+        self._git("commit", "-q", "-m", "catalogue")
+        start = self._git("rev-parse", "HEAD").strip()
+        self._write(catalogue, PO_HEADER + '\nmsgid "Base"\nmsgstr "Basis"\n\nmsgid "Theirs"\nmsgstr "Ihres"\n')
+        self._git("commit", "-q", "-am", "theirs")
+        theirs = self._git("rev-parse", "HEAD").strip()
+
+        path = self._add("story", start, "agent/test/story")
+        with open(os.path.join(path, catalogue), "a", encoding="utf-8") as handle:
+            handle.write('\nmsgid "Ours"\nmsgstr "Unseres"\n')
+        self._git("commit", "-q", "-am", "ours", cwd=path)
+
+        completed = subprocess.run(
+            ["git", "cherry-pick", theirs], cwd=path, env=self.env, capture_output=True, text=True, check=False
+        )
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        with open(os.path.join(path, catalogue), encoding="utf-8") as handle:
+            merged = handle.read()
+        self.assertIn('msgid "Ours"', merged)
+        self.assertIn('msgid "Theirs"', merged)
+        self.assertNotIn("<<<<<<<", merged)
 
 
 if __name__ == "__main__":

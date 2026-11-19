@@ -81,7 +81,9 @@ Start the project with either:
   <base-ref> [branch] [--db <name>]`: it starts from the base you name, links
   the main checkout's `deps` and `mcp-server/node_modules`, keeps `_build` its
   own, writes `/deps`, `/_build` and `node_modules` into the shared exclude
-  file, and prints (or with `--db` runs) the test-database commands above.
+  file, registers the gettext merge driver (see "Integrating gettext
+  catalogues" below), and prints (or with `--db` runs) the test-database
+  commands above.
   *Why:* in Sprint 22 a worktree commit tracked the `deps` symlink, which
   the `.gitignore` line `/deps/` does not match, and cherry-picking it
   replaced the main checkout's `deps` (Sprint 22 retrospective). The
@@ -133,6 +135,10 @@ If pre-commit is not installed:
 - **Register it as a git merge driver** in your own checkout, so `git merge`,
   `git cherry-pick` and `git rebase` call it for the catalogues. Both lines
   are local and not committed; a linked worktree shares them.
+  `scripts/worktree.sh add` registers them in the common git directory when
+  they are absent, so every worktree the helper starts, and the checkout it
+  starts from, has the driver; an existing value is kept. By hand, in a
+  checkout the helper has not touched:
 
   ```bash
   git config merge.gettext.name "gettext catalogue merge"
@@ -142,7 +148,10 @@ If pre-commit is not installed:
   ```
 
   *Why:* a driver needs a command on the machine, so a committed
-  `.gitattributes` line would name a driver that most clones lack.
+  `.gitattributes` line would name a driver that most clones lack; and a
+  driver nothing registered was not used: a Sprint 29 session wrote a
+  second resolver because the first was not registered (Sprint 29
+  retrospective, carry-forward 3).
 - **After merging, run `mix gettext.extract --merge`, then
   `mix gettext.extract --check-up-to-date`**, and read its exit status
   directly. *Why:* the tool unites the `#:` references both sides moved, and
