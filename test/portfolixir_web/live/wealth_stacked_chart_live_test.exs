@@ -9,6 +9,7 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
   # at the same time (#1047, see Portfolixir.ClassificationsTest).
   use PortfolixirWeb.ConnCase, async: true, group: :builtin_classifications
 
+  import Ecto.Query, only: [from: 2]
   import Phoenix.LiveViewTest
   import PortfolixirWeb.PreferenceCookieHelpers
 
@@ -244,20 +245,7 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
   # - The same read without it answers in EUR, so the figures differ: the
   #   screen's currency is the one to ask for.
   test "a USD base portfolio's stack shows the API's bands asked in USD", %{conn: conn} do
-    world =
-      base_world(name: "Dollar World", currency: "USD", cash_currency: "EUR", depot_name: "Depot")
-
-    d0 = days_ago(500)
-
-    {:ok, _} =
-      Portfolixir.Fx.upsert_many([
-        %{base_currency: "EUR", quote_currency: "USD", date: d0, rate: "1.0832", source: "manual"}
-      ])
-
-    deposit!(world, "10000", d0)
-    security = create_security!(name: "Alpha Synthetic AG")
-    buy!(world, security, quantity: "10", price: "100", date: d0)
-    put_quotes!(security, [{d0, "100"}, {today(), "120"}])
+    dollar_world!()
 
     {:ok, view, _html} = live(conn, "/portfolio?level=category")
     settle(view)
@@ -281,6 +269,72 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
 
     refute Enum.map(eur["bands"], & &1["end_value"]) ==
              Enum.map(usd["bands"], & &1["end_value"])
+  end
+
+  # The dollar world: a USD base portfolio with a EUR cash account, booked
+  # 500 days back, and its one EUR/USD rate.
+  # The day of the dollar world's one EUR/USD rate (#1366): a stored rate is
+  # a key of the whole instance (base, quote, date), and this module runs
+  # async beside others, so its key is a fixed day no other test names. A
+  # rate on or before the window's first day converts every day of it.
+  @fx_day ~D[2019-03-14]
+
+  defp dollar_world! do
+    world =
+      base_world(name: "Dollar World", currency: "USD", cash_currency: "EUR", depot_name: "Depot")
+
+    d0 = days_ago(500)
+
+    {:ok, _} =
+      Portfolixir.Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: @fx_day,
+          rate: "1.0832",
+          source: "manual"
+        }
+      ])
+
+    deposit!(world, "10000", d0)
+    security = create_security!(name: "Alpha Synthetic AG")
+    buy!(world, security, quantity: "10", price: "100", date: d0)
+    put_quotes!(security, [{d0, "100"}, {today(), "120"}])
+    world
+  end
+
+  # User story (#1366, Sprint 29 #1458; a test's own hygiene):
+  # As the maintainer whose suite runs its modules side by side,
+  # I want this module's EUR/USD rate written on a day that does not move
+  # with the calendar and that no other test names,
+  # so that it never meets another test's rate on the same key, on whatever
+  # day the suite runs.
+  #
+  # Acceptance criteria:
+  # - The dollar world stores its EUR/USD rate on @fx_day, whatever today
+  #   is, and no other test file names that day.
+  test "the dollar world's rate is on a fixed day no other test names" do
+    dollar_world!()
+
+    days =
+      Portfolixir.Repo.all(
+        from(rate in Portfolixir.Fx.ExchangeRate,
+          where: rate.base_currency == "EUR" and rate.quote_currency == "USD",
+          select: rate.date
+        )
+      )
+
+    assert days == [@fx_day],
+           "the dollar world's rate is on #{inspect(days)}, a day that moves with the calendar"
+
+    others =
+      for path <- Path.wildcard("test/**/*.{ex,exs}"),
+          path != Path.relative_to_cwd(__ENV__.file),
+          text = File.read!(path),
+          text =~ Date.to_iso8601(@fx_day) or text =~ "~D[#{Date.to_iso8601(@fx_day)}]",
+          do: path
+
+    assert others == []
   end
 
   # User story (I23, FR-53; story workflow: a link handed over):

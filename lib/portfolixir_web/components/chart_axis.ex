@@ -39,6 +39,38 @@ defmodule PortfolixirWeb.Components.ChartAxis do
   end
 
   @doc """
+  The floor of an axis whose range reaches below zero (#1366, board
+  `ux-design-2026-11-15-sprint30/02-wealth-polish` ③): the next multiple at
+  or below `lo` of the step `round_ticks/3` takes for the data's range, in
+  each of `units` (the money's and the privacy mode's percent), the lowest
+  of them, so the lowest value sits on a labelled tick or above one in
+  either unit, however shallow the dip, and the range, so the picture, is
+  the same in both. A range from 0 up keeps its floor.
+  """
+  @spec floor_below_zero(float(), float(), [{float(), float()}]) :: float()
+  def floor_below_zero(lo, _hi, _units) when lo >= 0, do: lo
+
+  def floor_below_zero(lo, hi, units) do
+    units
+    |> Enum.map(fn {unit, _min_step} = one ->
+      {_ticks, step} = round_ticks(lo, hi, one)
+      Float.floor(lo / unit / step + 1.0e-9) * step * unit
+    end)
+    |> Enum.min()
+  end
+
+  @doc """
+  The ticks at a given `step` (in the unit) between `lo` and `hi`: the
+  step the data's range asked for, on a range `floor_below_zero/3` widened.
+  """
+  @spec ticks(float(), float(), {float(), float()}, float()) :: [float()]
+  def ticks(lo, hi, {unit, _min_step}, step) do
+    first = Float.ceil(lo / unit / step - 1.0e-9)
+    last = Float.floor(hi / unit / step + 1.0e-9)
+    for k <- trunc(first)..trunc(last)//1, do: k * step * unit
+  end
+
+  @doc """
   The smallest round step, 1, 2, 2.5 or 5 times a power of ten, at least
   `raw`.
   """

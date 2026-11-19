@@ -201,9 +201,11 @@ defmodule PortfolixirWeb.WealthPolishLiveTest do
     # Acceptance criteria:
     # - The Security column's head and cells carry `cell-name`, wherever the
     #   picker puts the column.
-    # - The table fits its wrapper; the name column keeps a 12 rem floor and
-    #   breaks inside its cell (#1145's anatomy); figures never wrap; a
-    #   cell's note wraps between words.
+    # - The table fits its wrapper; the name column keeps a floor (12 rem,
+    #   9.5 rem since #1366's one-line depot, board
+    #   ux-design-2026-11-15-sprint30/02 ①) and breaks inside its cell
+    #   (#1145's anatomy); figures never wrap; a cell's note wraps between
+    #   words.
     # - The quantity prints every stored digit ("0.333333333333").
     test "the name column carries the floor-and-wrap anatomy, the quantity every digit",
          %{conn: conn} do
@@ -242,7 +244,7 @@ defmodule PortfolixirWeb.WealthPolishLiveTest do
       fits = rule(".data-table-wrapper > #holdings-positions-table")
       assert fits =~ "min-width: 0;"
       assert fits =~ "width: 100%;"
-      assert rule("#holdings-positions-table th.cell-name") =~ "min-width: 12rem;"
+      assert rule("#holdings-positions-table th.cell-name") =~ "min-width: 9.5rem;"
       assert rule("#holdings-positions-table td.cell-name") =~ "overflow-wrap: anywhere;"
 
       assert rule("#holdings-positions-table th.num,\n#holdings-positions-table td.num") =~

@@ -69,7 +69,12 @@ defmodule Portfolixir.Invariants.CssChartAxisTest do
     hook = hook_source("ChartCrosshair")
     assert hook =~ ~s|setAttribute("data-axis-inside", "")|
     assert hook =~ ~s|removeAttribute("data-axis-inside")|
-    assert hook =~ "rect.width <= 760"
+    # The width is 760 unless a chart names its own in
+    # `data-axis-inside-below` (#1366, board
+    # ux-design-2026-11-15-sprint30/02 ②: the stack, with its wider gutter).
+    assert hook =~ ~s|getAttribute("data-axis-inside-below")|
+    assert hook =~ "if (isNaN(below)) below = 760;"
+    assert hook =~ "rect.width <= below"
     assert hook =~ ~r/widest > gutter/
 
     refute @css =~ ~r/@container[^{]*\{\s*\.security-chart/

@@ -885,7 +885,9 @@ defmodule PortfolixirWeb.LayoutView do
               // on a chart at most 760 px wide, or when the widest value is
               // wider than its gutter — the value's x in viewBox units, in
               // CSS pixels at this scale. The labels are measured after the
-              // scale is written, at their 9 px.
+              // scale is written, at their 9 px. A chart with a wider gutter
+              // names its own width in `data-axis-inside-below` (#1366,
+              // board ux-design-2026-11-15-sprint30/02 ②: the stack, 492).
               placeAxis: function (rect, upx) {
                 var labels = this.svg.querySelectorAll(".chart-axis-labels .chart-axis-y");
                 if (labels.length === 0) return;
@@ -894,7 +896,9 @@ defmodule PortfolixirWeb.LayoutView do
                   widest = Math.max(widest, labels[i].getBoundingClientRect().width);
                 }
                 var gutter = parseFloat(labels[0].getAttribute("x")) / upx;
-                if (rect.width <= 760 || widest > gutter) {
+                var below = parseFloat(this.el.getAttribute("data-axis-inside-below"));
+                if (isNaN(below)) below = 760;
+                if (rect.width <= below || widest > gutter) {
                   this.el.setAttribute("data-axis-inside", "");
                 } else {
                   this.el.removeAttribute("data-axis-inside");
@@ -1148,22 +1152,33 @@ defmodule PortfolixirWeb.LayoutView do
                 this.tooltip.setAttribute("role", "status");
                 document.body.appendChild(this.tooltip);
 
+                // #1366 (Sprint 24 P1's build on #1388): pointer events, so
+                // a touch is told from a mouse. A tap's compatibility mouse
+                // events showed the tooltip, and no mouseout ever came to
+                // hide it, also after the selection cleared; on touch the
+                // centre is the tooltip (issue 793), so a touch shows none.
                 var self = this;
-                this.onOver = function (event) { self.handleOver(event); };
-                this.onMove = function (event) { self.handleMove(event); };
-                this.onOut = function (event) { self.handleOut(event); };
+                this.onOver = function (event) { if (!self.touch(event)) self.handleOver(event); };
+                this.onMove = function (event) { if (!self.touch(event)) self.handleMove(event); };
+                this.onOut = function (event) { if (!self.touch(event)) self.handleOut(event); };
 
-                this.el.addEventListener("mouseover", this.onOver);
-                this.el.addEventListener("mousemove", this.onMove);
-                this.el.addEventListener("mouseout", this.onOut);
+                this.el.addEventListener("pointerover", this.onOver);
+                this.el.addEventListener("pointermove", this.onMove);
+                this.el.addEventListener("pointerout", this.onOut);
+              },
+              // A touch pointer hides the tooltip and is handled no further.
+              touch: function (event) {
+                if (event.pointerType !== "touch") return false;
+                if (this.tooltip) this.tooltip.hidden = true;
+                return true;
               },
               updated: function () {
                 this.hide();
               },
               destroyed: function () {
-                this.el.removeEventListener("mouseover", this.onOver);
-                this.el.removeEventListener("mousemove", this.onMove);
-                this.el.removeEventListener("mouseout", this.onOut);
+                this.el.removeEventListener("pointerover", this.onOver);
+                this.el.removeEventListener("pointermove", this.onMove);
+                this.el.removeEventListener("pointerout", this.onOut);
                 if (this.tooltip && this.tooltip.parentNode) {
                   this.tooltip.parentNode.removeChild(this.tooltip);
                 }

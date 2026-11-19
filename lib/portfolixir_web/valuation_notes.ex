@@ -12,8 +12,8 @@ defmodule PortfolixirWeb.ValuationNotes do
   Two differences are deliberate. The first: a retired held position with
   no price. The Overview names it, because it is out of the total the note
   sits under; Wealth's no-price note leaves it out (PR #1102), because that
-  note links to `?dq=missing_quote`, a list without retired securities, and
-  its count must equal that list.
+  note links to `?dq=missing_quote&holding=held`, a list without retired
+  securities, and its count must equal that list.
 
   The second: the Overview labels a priced position's bracket "(Kurs 33,00
   USD)" (closing act of Sprint 19 PR α, UAT). Under "Nicht in der Summe" a

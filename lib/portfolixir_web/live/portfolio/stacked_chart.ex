@@ -83,6 +83,14 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   @padding_right 24
   @padding_bottom 28
   @padding_left 56
+  # #1366 (board 02 ②): the stack stands beside its legend, 560 px wide at
+  # 1200 px, where 56 units are 33 px and its values (32 px for „80.000“)
+  # moved inside the plot over a heavy halo. 88 units are 51 px there and
+  # carry a value of seven characters (38 px) with 4 px of air from a
+  # chart of 492 px up; below that the values stand inside, as on a phone.
+  # The lines chart keeps 56: its values are percents.
+  @stack_padding_left 88
+  @stack_inside_below 492
   @max_points 400
 
   # -- the bar ---------------------------------------------------------------------
@@ -238,8 +246,9 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
         by_key: Map.new(bands, &{&1.key, &1}),
         width: @width,
         height: @height,
-        plot_left: @padding_left,
+        plot_left: @stack_padding_left,
         plot_right: @width - @padding_right,
+        inside_below: @stack_inside_below,
         other?: Enum.any?(assigns.result.bands, &(&1.kind == :other))
       )
 
@@ -254,7 +263,12 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
         <p class="hint" data-role="stack-empty"><%= gettext("No values in this period.") %></p>
       <% else %>
         <div class="stack-figure__body">
-          <div class="stack-figure__chart" id="stack-figure-chart" phx-hook="ChartScale">
+          <div
+            class="stack-figure__chart"
+            id="stack-figure-chart"
+            phx-hook="ChartScale"
+            data-axis-inside-below={@inside_below}
+          >
             <svg
               class="stack-chart"
               role="img"
@@ -1065,9 +1079,20 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
     stacked = stack(drawn)
 
     {lo, hi} = range(stacked)
+    own = unit(index, lo, hi)
+    {_ticks, step} = round_ticks(lo, hi, own)
+
+    # #1366 (board 02 ③): a band below zero reaches one round step below
+    # it, in money and in the privacy mode's percent alike, so its depth
+    # reads against a labelled tick and the picture stays the same in
+    # either mode.
+    lo =
+      ChartAxis.floor_below_zero(lo, hi, [unit(nil, lo, hi), unit(index_basis(result), lo, hi)])
+
+    ticks = ChartAxis.ticks(lo, hi, own, step)
     plot_top = @padding_top * 1.0
     plot_bottom = (@height - @padding_bottom) * 1.0
-    plot_left = @padding_left * 1.0
+    plot_left = @stack_padding_left * 1.0
     plot_right = (@width - @padding_right) * 1.0
     n = length(indices)
 
@@ -1090,7 +1115,6 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
         %{key: key, part: part, d: path(upper ++ lower)}
       end)
 
-    {ticks, step} = round_ticks(lo, hi, unit(index, lo, hi))
     ticks = Enum.map(ticks, &{&1, y.(&1)})
 
     %{
@@ -1108,12 +1132,14 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
 
   # The axis in round steps (D2): the ticks are the multiples of a round
   # step in the axis's own unit that lie in the plot, 0 among them whenever
-  # the plot reaches below zero, so the zero line is labelled; the plot's
-  # range stays the data's, so the picture is the same in either mode. The
-  # unit is one currency unit, or in the privacy mode one percent of the
-  # index's total (whole percents only), or one percent of the range when
-  # no total is above zero (no label is drawn then, and no tick sits on a
-  # round amount). `{tick values, step in the unit}`.
+  # the plot reaches below zero, so the zero line is labelled; where a band
+  # dips below zero the plot reaches down to the next step under it
+  # (#1366, board 02 ③), so the lowest band always lies on a labelled tick
+  # or above one, else the plot's range stays the data's, the same picture
+  # in either mode. The unit is one currency unit, or in the privacy mode
+  # one percent of the index's total (whole percents only), or one percent
+  # of the range when no total is above zero (no label is drawn then, and
+  # no tick sits on a round amount). `{tick values, step in the unit}`.
   defp round_ticks(lo, hi, unit), do: ChartAxis.round_ticks(lo, hi, unit)
 
   defp unit(nil, _lo, _hi), do: {1.0, 0.0}
