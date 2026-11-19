@@ -477,6 +477,53 @@ defmodule Portfolixir.News.PromotionTest do
     end
   end
 
+  # User story (ADR-0056 E2; #1356, Sprint 29 N2's line):
+  # As the owner who reads the promotion's rules, not its code,
+  # I want no refusal kept that no stored story can reach,
+  # so that every branch the module carries is one a story can take.
+  #
+  # Acceptance criteria:
+  # - The database holds every item's link to 2,048 characters, an entry's
+  #   and an event's source_url width (E2): a longer one is refused.
+  # - A story whose representative's link is 2,048 characters is promoted
+  #   with it whole, and an event takes it whole.
+  # - The promotion keeps no fallback by length and neither of its two
+  #   422s for a link longer than an entry's or an event's source_url; a
+  #   blocked representative still gives way to the next member (E1 rule 5).
+  describe "every stored link fits an entry (E2)" do
+    test "the database refuses a link over 2,048 characters" do
+      security = NewsFixtures.security!()
+      [item] = members(story!(security, "Northwind width", [domain!(:primary)]))
+      long = "https://" <> elem(domain!(nil), 0) <> "/" <> String.duplicate("w", 2_048)
+
+      assert_raise Postgrex.Error, ~r/news_items_canonical_url_check/, fn ->
+        Repo.update_all(from(i in Item, where: i.id == ^item.id), set: [canonical_url: long])
+      end
+    end
+
+    test "a link of 2,048 characters becomes the entry's and the event's whole" do
+      security = NewsFixtures.security!()
+      {domain, :issuer} = domain!(:primary)
+      prefix = "https://#{domain}/"
+      link = prefix <> String.duplicate("d", 2_048 - String.length(prefix))
+      assert String.length(link) == 2_048
+
+      story = story!(security, "Northwind widest link", [{domain, :issuer, link}])
+      [item] = members(story)
+
+      assert {:ok, %SecurityNote{source_url: ^link}} = promote(security, story)
+      assert {:ok, %{"source_url" => ^link}} = News.event_source(security.id, item.id)
+    end
+
+    test "the promotion carries no refusal by a link's length" do
+      source = File.read!("lib/portfolixir/news/promotion.ex")
+
+      refute source =~ "no member's link fits"
+      refute source =~ "longer than an event's source_url"
+      refute source =~ "fits?("
+    end
+  end
+
   # User story (ADR-0056 §8, NFR-10; Sprint 28 D-1 criterion 5):
   # As the operator who keeps what an outside model proposes a proposal,
   # I want nothing in the news layer to write a research-log entry, an

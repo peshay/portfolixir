@@ -18,9 +18,13 @@ defmodule Portfolixir.News.Promotion do
       publication (clamped, B4), as `news.get` answers it, on the
       instance's calendar (`Portfolixir.Clock.local_date/1`);
     * `source_url` — the best-tier member's link: the representative's (the
-      earliest of the best tier, C2), else, when it is longer than an
-      entry's 2,048 characters (ADR-0056 E2), the first member's that fits
-      in `news.get`'s member order (tier, publication, link);
+      earliest of the best tier, C2), else, when its domain is now blocked
+      (E1 rule 5, below), the first member's in `news.get`'s member order
+      (tier, publication, link). Every stored link fits an entry: the
+      database holds an item's to 2,048 characters, an entry's width
+      (ADR-0056 E2), so no link is refused or passed over by its length
+      (#1356: the fallback by length and its two 422s were unreachable
+      since E2, and are gone);
     * `source_quality` — §3's one rule over every member: a `primary`
       member gives `primary`; two or more distinct `secondary` domains
       `secondary_multi`; one `secondary` domain `unverified`; else
@@ -108,10 +112,6 @@ defmodule Portfolixir.News.Promotion do
 
   @story_fields ~w(as_of source_url source_quality)
   @kinds ~w(evidence event_result)
-  # The width of both link columns, `security_notes.source_url` and
-  # `security_events.source_url`, in code points as the database counts
-  # them: the parser's own 2,048 (ADR-0056 E2), so a stored item's link fits.
-  @source_url_max 2048
   @tier_rank %{primary: 3, secondary: 2, awareness: 1}
 
   @type errors :: %{String.t() => [String.t()]}
@@ -143,7 +143,7 @@ defmodule Portfolixir.News.Promotion do
          {:ok, story} <- own_story(cluster_id, attrs["security_id"]),
          members = lock_members(story),
          {:ok, current} <- current_members(members),
-         {:ok, source_url} <- source_url(story, current),
+         source_url = source_url(story, current),
          {prefill, label} = prefill(story, members, current, source_url),
          :ok <- unchanged_since_shown(prefill, shown),
          {:ok, note} <- write(actor, {story, prefill, label}, attrs, shown) do
@@ -175,9 +175,8 @@ defmodule Portfolixir.News.Promotion do
   def proposal(cluster_id, security_id) when is_integer(cluster_id) and is_integer(security_id) do
     with {:ok, story} <- own_story(cluster_id, security_id),
          members = Repo.all(from(i in Item, where: i.cluster_id == ^story.id, order_by: i.id)),
-         {:ok, current} <- current_members(members),
-         {:ok, source_url} <- source_url(story, current) do
-      {prefill, label} = prefill(story, members, current, source_url)
+         {:ok, current} <- current_members(members) do
+      {prefill, label} = prefill(story, members, current, source_url(story, current))
       {:ok, Map.put(prefill, "news_label_id", label && label.id)}
     end
   end
@@ -289,25 +288,17 @@ defmodule Portfolixir.News.Promotion do
   end
 
   # The representative first, then news.get's member order: the best tier,
-  # the earliest publication, the smallest link.
+  # the earliest publication, the smallest link. `members` are the current
+  # ones (`current_members/1`), never empty; every stored link fits an
+  # entry's source_url (E2), so the first is the link.
   defp source_url(story, members) do
     members
-    |> Enum.sort_by(
+    |> Enum.min_by(
       &{&1.id != story.representative_item_id, -@tier_rank[&1.tier],
        DateTime.to_unix(&1.published_at, :microsecond), &1.canonical_url}
     )
-    |> Enum.find(&fits?(&1.canonical_url))
-    |> case do
-      %Item{canonical_url: url} ->
-        {:ok, url}
-
-      nil ->
-        {:error,
-         %{"cluster_id" => ["no member's link fits an entry's source_url of 2048 characters"]}}
-    end
+    |> Map.fetch!(:canonical_url)
   end
-
-  defp fits?(url), do: url |> String.codepoints() |> length() <= @source_url_max
 
   # `members` give the story's date and title (its representative), and
   # `current` (`current_members/1`) its source quality.
@@ -388,7 +379,8 @@ defmodule Portfolixir.News.Promotion do
   `security_id` (`events.create` with a `news_id`): `{:ok, %{"source_url"
   => link, "source_quality" => quality}}`, or `{:error, errors}` naming
   `news_id` for an item that does not exist, is not assigned to that
-  security, or whose link is longer than an event's 2,048 characters.
+  security, or whose domain is now blocked. Its link always fits an
+  event's source_url: the database holds it to 2,048 characters (E2).
   """
   @spec event_source(pos_integer(), pos_integer()) ::
           {:ok, %{String.t() => term()}} | {:error, errors()}
@@ -401,15 +393,7 @@ defmodule Portfolixir.News.Promotion do
             {:error, %{"news_id" => ["its domain is now blocked"]}}
 
           tier ->
-            if fits?(url),
-              do: {:ok, %{"source_url" => url, "source_quality" => item_quality(tier)}},
-              else:
-                {:error,
-                 %{
-                   "news_id" => [
-                     "its link is longer than an event's source_url of 2048 characters"
-                   ]
-                 }}
+            {:ok, %{"source_url" => url, "source_quality" => item_quality(tier)}}
         end
 
       %Item{} ->

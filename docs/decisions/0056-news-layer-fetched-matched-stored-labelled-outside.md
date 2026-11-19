@@ -1215,7 +1215,11 @@ references to 255 characters read 2,048: the representative's link is
 used when it fits, else the first member's that fits in `news.get`'s
 member order, else 422 naming `cluster_id` (the event's path:
 `news_id`), the keys D6 already answers with; the build kept them, so
-the answer's shape is unchanged (Sprint 29, a fact corrected). **"News follow" stays
+the answer's shape is unchanged (Sprint 29, a fact corrected). Since the
+database holds every item's link to the same 2,048 characters, no link
+can fail to fit: the fallback by length and the two 422s were unreachable,
+and Sprint 30 removed them (A2, #1356); a member whose domain is now
+blocked still gives way to the next (E1 rule 5), and no answer changes. **"News follow" stays
 deferred** (§2, §13, D9): following the redirect would make the app
 request a host it did not choose, once per item, and that reason is
 unchanged. Where a screen prints an entry's link in full, it is boarded

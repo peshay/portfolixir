@@ -990,8 +990,8 @@ schreibt einen Eintrag, den der Server aus der Story vorbelegt: `kind`
 `evidence` (`event_result` darf stattdessen gesendet werden; eine andere Art
 liefert `422` mit `kind`); `as_of` der Tag, an dem die Story veröffentlicht
 wurde (die Veröffentlichung ihres Repräsentanten, wie `news.get` sie
-antwortet); `source_url` der Link ihres Mitglieds der besten Stufe, der erste,
-der in 2.048 Zeichen passt; `source_quality` nach der Regel von ADR-0056 §3 (ein
+antwortet); `source_url` der Link ihres Mitglieds der besten Stufe (jeder
+gespeicherte Link passt in die 2.048 Zeichen eines Eintrags); `source_quality` nach der Regel von ADR-0056 §3 (ein
 `primary`-Mitglied ergibt `primary`, zwei oder mehr verschiedene
 `secondary`-Domains `secondary_multi`, eine `unverified`, sonst
 `awareness`), jedes Mitglied mit der Stufe, die ihm die Quellentabelle jetzt
@@ -1240,8 +1240,8 @@ Stufe, die ihm die Quellentabelle jetzt gibt, `source_quality` (`primary`,
 `secondary` als `unverified`,
 `awareness`); `source_url` oder `source_quality` daneben liefert `422` mit
 dem Feldnamen, und ein Eintrag eines anderen Wertpapiers, einer, den es nicht
-gibt, einer aus einer jetzt gesperrten Domain oder einer mit einem Link über
-2.048 Zeichen liefert `422` mit `news_id`.
+gibt, oder einer aus einer jetzt gesperrten Domain liefert `422` mit
+`news_id` (jeder gespeicherte Link passt in die 2.048 Zeichen des Termins).
 Der Eintrag wird nicht übernommen: Was von Nachrichten bleibt, ist ein
 Research-Eintrag. Das Wertpapier, zu dem ein Termin gehört, lässt sich nicht
 ändern. Auf beiden schreibenden Wegen liefert ein `checked_at` nach morgen
