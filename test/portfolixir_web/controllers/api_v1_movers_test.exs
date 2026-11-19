@@ -246,4 +246,45 @@ defmodule PortfolixirWeb.ApiV1MoversTest do
              path
     end
   end
+
+  # User story (ADR-0061 §5; Sprint 30 closing act, agent's lens, finding 1):
+  # As the operator's agent reading why the money ranking is what it is,
+  # I want the contribution ranking's basis to describe this ranking only,
+  # so that it never tells me there is no rank, that the rows are sorted
+  # largest first, or that they sum to a total the answer does not carry.
+  #
+  # Acceptance criteria:
+  # - The contribution basis no longer nests ADR-0051's whole table basis:
+  #   no `table_basis`, and none of that table's claims about its own shape
+  #   (one list largest first, no share, rank or label, totals.result).
+  # - It still states the computation basis whole: the input series, the
+  #   window, the figure (its terms, in EUR), the reference and the gaps,
+  #   prices and rates carried forward included.
+  test "the contribution basis says nothing the movers payload contradicts", %{conn: conn} do
+    data = get_data(conn, "/api/v1/movers?window=week")
+    basis = data["contribution"]["computation_basis"]
+    text = Jason.encode!(basis)
+
+    refute Map.has_key?(data["contribution"], "totals")
+    refute Map.has_key?(basis, "table_basis")
+
+    for claim <- [
+          "there is no share, rank or label",
+          "Positions are sorted by contribution, largest first",
+          "sum to totals.result"
+        ] do
+      refute text =~ claim,
+             "the movers' contribution basis says #{inspect(claim)}, which its own payload " <>
+               "(highest descending, lowest ascending, no totals) contradicts"
+    end
+
+    for key <- ["input_series", "window", "figure", "currency", "gaps"],
+        do: assert(is_binary(basis[key]) or is_map(basis[key]), key)
+
+    assert Map.has_key?(basis, "reference") and basis["reference"] == nil
+    assert basis["figure"] =~ "net_flows"
+    assert basis["figure"] =~ "income"
+    assert basis["figure"] =~ "costs"
+    assert basis["gaps"] =~ "most recent stored point on or before each day"
+  end
 end

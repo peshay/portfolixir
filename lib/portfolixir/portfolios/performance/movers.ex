@@ -64,10 +64,12 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
   ## The basis (§5) and no verdict (§7)
 
   Each ranking carries its `computation_basis`: the input series, the window
-  with its dates, the scope, the universe, the close lookup, the currency,
-  the tie order, the split into halves and the treatment of gaps;
-  `reference` is `nil`. The keys say `highest` and `lowest` and nothing
-  that rates.
+  with its dates, the scope, the universe, the figure, the close lookup, the
+  currency, the tie order, the split into halves and the treatment of gaps;
+  `reference` is `nil`. The contribution basis states ADR-0051's terms
+  itself rather than nesting the table's basis, which describes the table
+  (its totals, remainder lines and order), not a ranking. The keys say
+  `highest` and `lowest` and nothing that rates.
   """
 
   import Ecto.Query
@@ -266,12 +268,12 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
   defp contribution_ranking(held, request) do
     {from, to} = money_window(held, request)
 
-    with {:ok, positions, table_basis} <- positions(request.view_id, from, to, request.end_on) do
-      {:ok, contribution_halves(positions, table_basis, from, to, request)}
+    with {:ok, positions} <- positions(request.view_id, from, to, request.end_on) do
+      {:ok, contribution_halves(positions, from, to, request)}
     end
   end
 
-  defp contribution_halves(positions, table_basis, from, to, request) do
+  defp contribution_halves(positions, from, to, request) do
     {unvalued, ranked} = Enum.split_with(positions, &valued_on_no_day?/1)
     labels = labels(positions)
 
@@ -287,7 +289,7 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
       unanswered: count(unanswered, [:no_valuation])
     })
     |> with_unanswered(unanswered, request.include_unanswered)
-    |> Map.put(:computation_basis, contribution_basis(request, from, to, table_basis))
+    |> Map.put(:computation_basis, contribution_basis(request, from, to))
   end
 
   # week to 1y: S + 1 to T. day: [D, D], or no window without a close
@@ -319,13 +321,13 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
     )
   end
 
-  defp positions(_view_id, nil, nil, _today), do: {:ok, [], nil}
+  defp positions(_view_id, nil, nil, _today), do: {:ok, []}
 
   # The read Wealth's contribution table makes for a custom range, in EUR.
   # A view deleted between the holdings read and this one is not found.
   defp positions(view_id, from, to, today) do
     with {:ok, table} <- Contribution.for_view(view_id, period: {:range, from, to}, today: today) do
-      {:ok, table.positions, table.computation_basis}
+      {:ok, table.positions}
     end
   end
 
@@ -497,7 +499,7 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
       "names the dates its closes stand on"
   end
 
-  defp contribution_basis(request, from, to, table_basis) do
+  defp contribution_basis(request, from, to) do
     %{
       input_series:
         "the daily valuation walk of ADR-0010 per position (ADR-0051 §5): recorded " <>
@@ -518,15 +520,27 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
       figure:
         "each position's contribution in EUR by ADR-0051 (Contribution.for_view/2, the read " <>
           "Wealth's table makes for a custom range): end_value - start_value - net_flows + " <>
-          "income - costs; each day's value converts at that day's stored EUR-hub rate, so a " <>
-          "close older than end_on converts at end_on's rate where the price side converts it " <>
-          "at its own date's",
+          "income - costs (ADR-0051 §1). start_value is the close of the day before from " <>
+          "(0 when not held then) and end_value the close of to (0 when sold out); " <>
+          "net_flows counts a buy + price × quantity and a sell - price × quantity at the " <>
+          "booking day's rate, a delivery ± the value the walk gives it, a split and a " <>
+          "transfer inside the scope 0, and a leg crossing a view's edge as its boundary " <>
+          "flow (ADR-0019); income is the dividends and interest bookings that name the " <>
+          "security, as credited; costs are the fees and taxes on the position's own " <>
+          "trades. The currency move is inside the figure, not split out (ADR-0051 §7); " <>
+          "exact in Decimal while every conversion quotient terminates, else rounded at " <>
+          "34 significant digits; each day's value converts at that day's stored EUR-hub rate, " <>
+          "so a close older than end_on converts at end_on's rate where the price side " <>
+          "converts it at its own date's",
       currency: "EUR",
       ties: ties_text(),
       halves: halves_text(request.limit),
       gaps:
         "a day on which a held position has no price or no rate path counts zero and the " <>
           "position stays ranked with its unvalued_days and unvalued_reason (ADR-0051 §10); " <>
+          "prices and rates carry the most recent stored point on or before each day " <>
+          "forward, and a security with no quote yet is priced by its own latest trade " <>
+          "(ADR-0010); " <>
           "a position valued on no day of the window (valued_days 0) is counted " <>
           "no_valuation and never ranked as a zero" <>
           if(request.window == "day" and is_nil(from),
@@ -536,8 +550,7 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
                 "there is no day D",
             else: ""
           ),
-      reference: nil,
-      table_basis: table_basis
+      reference: nil
     }
   end
 

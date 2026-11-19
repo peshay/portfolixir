@@ -1719,14 +1719,18 @@ einer sortierten Liste geschnitten, sodass kein Name in beiden steht: Bei
 WKN und Währung, nie eine Id. Daneben `answered` (die Zahl der gereihten)
 und `unanswered` (eine Zahl je Grund; eine fehlende Kennzahl wird nie als
 null gereiht) sowie ihre `computation_basis`: die Eingangsreihen, das
-Fenster mit seinen Tagen, der Bereich, das Universum, die Kurssuche, die
-Währung (EUR), die Reihenfolge bei Gleichstand, die Teilung in Hälften, der
-Umgang mit Lücken und `reference` `null`.
+Fenster mit seinen Tagen, der Bereich, das Universum, die Kennzahl (für
+`contribution` die Größen aus ADR-0051 und was jede zählt), die Kurssuche,
+die Währung (EUR), die Reihenfolge bei Gleichstand, die Teilung in Hälften,
+der Umgang mit Lücken und `reference` `null`. Sie beschreibt nur die
+Rangliste; die Beitragstabelle von Wealth, deren Basis von ihren Summen und
+Restzeilen spricht, behält diese Basis für sich.
 
 - Ein Eintrag in `price_return` hat `security` (`id`, `name`, `isin`,
   `wkn`, `ticker_symbol`, `currency_code`), `return` (ein Verhältnis mit
   Vorzeichen) sowie `start` und `end`, je der Schlusskurs, auf dem es steht:
-  `date`, `close`, `stored_close`, `fx_rate`, `eur_value`. Seine Gründe:
+  `stands_for` (der erfragte Tag), `date` (der eigene Tag des Kurses),
+  `close`, `stored_close`, `source`, `fx_rate`, `eur_value`. Seine Gründe:
   `no_close_at_start`, `no_close_at_end`, `no_fx_rate`, für `day` auch
   `one_close_only`.
 - Ein Eintrag in `contribution` hat `security`, `contribution` und die

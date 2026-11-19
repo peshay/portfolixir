@@ -1583,12 +1583,16 @@ Equal figures are ordered by name, ISIN, ticker, WKN and currency, never by
 an id. Beside them, `answered` (the count ranked) and `unanswered` (a count
 per reason; a missing figure is never ranked as zero), and its
 `computation_basis`: the input series, the window with its dates, the scope,
-the universe, the close lookup, the currency (EUR), the tie order, the split
-into halves, the treatment of gaps and `reference` `null`.
+the universe, the figure (for `contribution`, ADR-0051's terms and what
+each counts), the close lookup, the currency (EUR), the tie order, the split
+into halves, the treatment of gaps and `reference` `null`. It describes the
+ranking only; Wealth's contribution table, whose basis speaks of its totals
+and remainder lines, keeps that basis to itself.
 
 - A `price_return` entry has `security` (`id`, `name`, `isin`, `wkn`,
   `ticker_symbol`, `currency_code`), `return` (a signed ratio) and `start`
-  and `end`, each the close it stands on: `date`, `close`, `stored_close`,
+  and `end`, each the close it stands on: `stands_for` (the day asked for),
+  `date` (the close's own day), `close`, `stored_close`, `source`,
   `fx_rate`, `eur_value`. Its reasons: `no_close_at_start`,
   `no_close_at_end`, `no_fx_rate`, and for `day` also `one_close_only`.
 - A `contribution` entry has `security`, `contribution` and ADR-0051's terms
