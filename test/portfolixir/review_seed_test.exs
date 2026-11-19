@@ -559,6 +559,27 @@ defmodule Portfolixir.ReviewSeedTest do
 
   # --- Sprint 30 W2 end ---
 
+  # Sprint 30, CI test job (review_seed_test.exs:528): quotes_seed.exs draws
+  # one random stream across the securities in the order it visits them, so
+  # that order decides every security's weekly closes, the crash benchmark's
+  # among them. Read in the database's collation, the order differed
+  # between a C-collated database ("iShares …" after "Vanguard …") and
+  # CI's en_US one ("iShares …" before it), and on the latter the crash
+  # benchmark's closes never fell 10 %. The seed visits the securities in
+  # the byte order of their names, whatever the database's collation.
+  test "the quote seed visits the securities in the byte order of their names" do
+    visited =
+      seed!()
+      |> String.split("\n")
+      |> Enum.flat_map(fn
+        "quotes seeded: " <> name -> [name]
+        _line -> []
+      end)
+
+    assert "iShares Core MSCI World UCITS ETF USD (Acc)" in visited
+    assert visited == Enum.sort(visited)
+  end
+
   defp stored_class(name) do
     Repo.one!(from(s in Security, where: s.name == ^name, select: s.asset_class))
   end

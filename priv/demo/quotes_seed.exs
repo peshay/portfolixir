@@ -13,7 +13,13 @@ alias Portfolixir.Ledger
 today = Date.utc_today()
 weeks = 65
 
-for security <- Catalog.list_securities() do
+# One random stream runs across the securities in the order they are
+# visited, so that order decides each one's closes. It is the byte order of
+# their names, never the database's collation: an en_US-collated database
+# sorts "iShares ..." before "Vanguard ...", a C-collated one after, and the
+# closes, the crash benchmark's of the review seed among them, differed with
+# it (Sprint 30, CI test job).
+for security <- Enum.sort_by(Catalog.list_securities(), & &1.name) do
   anchor =
     Ledger.list_transactions()
     |> Enum.filter(&(&1.security_id == security.id and &1.price))
