@@ -109,11 +109,14 @@ defmodule Portfolixir.Settings do
   Persists `view_id` as the default view on behalf of `actor`; `nil` clears
   back to Everything. Journaled under `actor` as a `"setting"` upsert, or a
   delete when cleared, in the same transaction (H61); clearing an unset
-  default writes nothing and journals nothing.
+  default writes nothing and journals nothing. Two writes of it wait for each
+  other on the setting's key, so the later one's before is the earlier one's
+  after even when neither found a stored row (#1356).
   """
   @spec set_default_view(Actor.t(), integer() | nil) :: :ok
   def set_default_view(%Actor{} = actor, nil) do
     Multi.new()
+    |> Multi.run(:key_lock, fn repo, _changes -> lock_key(repo, @default_view_key) end)
     |> Multi.run(:prior, fn repo, _changes -> {:ok, locked_setting(repo, @default_view_key)} end)
     |> Multi.run(:setting, fn
       _repo, %{prior: nil} -> {:ok, nil}
@@ -133,6 +136,7 @@ defmodule Portfolixir.Settings do
       Setting.changeset(%Setting{}, %{key: @default_view_key, value: Integer.to_string(view_id)})
 
     Multi.new()
+    |> Multi.run(:key_lock, fn repo, _changes -> lock_key(repo, @default_view_key) end)
     |> Multi.run(:prior, fn repo, _changes -> {:ok, locked_setting(repo, @default_view_key)} end)
     |> Multi.insert(:setting, changeset,
       on_conflict: {:replace, [:value, :updated_at]},
@@ -299,6 +303,7 @@ defmodule Portfolixir.Settings do
     changeset = Setting.changeset(%Setting{}, %{key: key, value: value})
 
     Multi.new()
+    |> Multi.run(:key_lock, fn repo, _changes -> lock_key(repo, key) end)
     |> Multi.run(:prior, fn repo, _changes -> {:ok, locked_setting(repo, key)} end)
     |> Multi.insert(:setting, changeset,
       on_conflict: {:replace, [:value, :updated_at]},
@@ -317,7 +322,9 @@ defmodule Portfolixir.Settings do
   # One writer of the setting `key` at a time, taken before the prior read:
   # while no row is stored, the read's FOR UPDATE locks nothing, and two
   # first writes would both journal "nothing before" (the closing act,
-  # #1421).
+  # #1421). Every journaled setting write takes it: the crash benchmark
+  # since Sprint 29, the default view and the news settings since #1356
+  # (`Portfolixir.LockTable` row 27).
   defp lock_key(repo, key) do
     repo.query!("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", ["setting|" <> key])
     {:ok, key}
