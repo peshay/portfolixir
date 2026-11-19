@@ -48,11 +48,16 @@
         "tier": "secondary"
       }
     ],
-    "note_ids": [],
+    "note_ids": [
+      6,
+      7,
+      8
+    ],
+    "note_ids_truncated": true,
     "published_at": "2026-11-08T09:00:00Z",
     "security": {
       "id": 9223372036854775807,
-      "name": "Holding 777 Synthet\u2026"
+      "name": "Holding 777 Synthet\u2026 \u00B7 WWWWWWWWW\u2026"
     },
     "tier": "secondary",
     "title": "Profit warning 777 \uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\u2026",

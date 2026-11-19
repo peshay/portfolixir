@@ -58,8 +58,10 @@ defmodule Portfolixir.News.Labels do
   category, its representative's title, excerpt, domain and publication
   time, and its best tier. Once per answer, the **universe** a label may
   name in `suggested_security_id` — the news universe
-  (`Portfolixir.News.Universe`) and the rows' own securities, each with a
-  name of at most 20 characters and its ISIN — and the rows' categories;
+  (`Portfolixir.News.Universe`) and the rows' own securities, each with its
+  name as the news reads give it (`Portfolixir.News.Reads.security_name/1`:
+  cut at 20 characters, a cut one with its ticker or WKN, #1356) and its
+  ISIN — and the rows' categories;
   and per security of the rows whose current thesis is intact and states an
   invalidation condition, the thesis's note id and the condition's
   **clauses** as `clauses/1` numbers them (the numbering `clause_idx` is
@@ -227,13 +229,19 @@ defmodule Portfolixir.News.Labels do
           Repo.all(
             from(s in Security,
               where: s.id in ^ids,
-              select: %{id: s.id, name: s.name, isin: s.isin}
+              select: %{
+                id: s.id,
+                name: s.name,
+                isin: s.isin,
+                ticker_symbol: s.ticker_symbol,
+                wkn: s.wkn
+              }
             )
           )
       end
 
     (members ++ others)
-    |> Enum.map(&%{id: &1.id, name: Reads.short_name(&1.name), isin: &1.isin})
+    |> Enum.map(&%{id: &1.id, name: Reads.security_name(&1), isin: &1.isin})
     |> Enum.sort_by(& &1.id)
   end
 
