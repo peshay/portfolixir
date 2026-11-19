@@ -129,6 +129,14 @@ defmodule Portfolixir.LockRace.NewsRetierOrderTest do
 
   defp item_lock?(_metadata), do: false
 
+  # A story's scope lock (`Stories.lock/2`). A promotion takes its story's
+  # security `FOR KEY SHARE` before it (the closing act's order lens,
+  # finding 2), which a rating's own `FOR KEY SHARE` does not wait for.
+  defp scope_lock?(%{query: query}) when is_binary(query),
+    do: query =~ "pg_advisory_xact_lock($1, $2)"
+
+  defp scope_lock?(_metadata), do: false
+
   # Counts the rating's tier locks taken from now on, on any connection;
   # answers a function that reads the count and stops counting.
   defp count_rating_locks do
@@ -239,7 +247,7 @@ defmodule Portfolixir.LockRace.NewsRetierOrderTest do
       {promoted, rating} =
         LockRace.race!(
           db,
-          {fn -> promote(security, story) end, &LockRace.lock?/1},
+          {fn -> promote(security, story) end, &scope_lock?/1},
           fn -> Sources.put_source(agent(), rated, :awareness) end
         )
 
