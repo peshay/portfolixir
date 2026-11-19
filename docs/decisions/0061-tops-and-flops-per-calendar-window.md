@@ -8,7 +8,9 @@ description: "Decision for idea I32 (FR-59). For a view (or everything), per to-
 
 - **Status:** Accepted. Adopted by the merge of the Sprint 30 planning PR
   (ADR-0026 step 1, as amended on 2026-10-08: the merge is the signature).
-  To be built in Sprint 30, Lane T (the Sprint 30 plan, D-12).
+  To be built in Sprint 30, Lane T (the Sprint 30 plan, D-12). Amended on
+  2026-11-19 by the merge of the Sprint 30 sprint PR (see "Amendment of
+  2026-11-19" at the end).
 - **Date:** 2026-11-15
 - **Answers:** FR-59 (`epics.md`); idea I32
   (`_bmad-output/planning-artifacts/ideas.md`, the owner, 2026-11-09:
@@ -258,3 +260,18 @@ cards.
 | Five per half on the screen | a number by comment |
 | Sold positions only in the contribution | "Verkaufte auch nach Kursrendite" |
 | A position valued on no day counted, not ranked | "Unbewertete mit 0 ranken" |
+
+## Amendment of 2026-11-19 — the money side's `D` is no older than `E` may be
+
+**Adopted by the merge of the Sprint 30 sprint PR**, a precision the
+sprint's attack lens on T1 found (S3, beside #1472). §3 gave the price
+side's `E` the 7-day bound of `WindowReturn`'s close lookup, but `D`, the
+money side's day, none: with only a three-month-old close stored, the
+price side said `no_close_at_end` while the money side showed that old
+day's move as the scope's `day`. **`D` is the latest day on or before `T`,
+and no more than 7 calendar days before it, on which a positive close of
+any security the scope holds is stored**, the bound `E` has; with no such
+day there is no window and the ranking is empty, its basis saying so. The
+weekend case of §3 is unchanged: Sunday's coin close is one day old.
+**To flip:** "Tag-Beitrag ohne Altersgrenze" (`D` takes the last close day
+whatever its age).

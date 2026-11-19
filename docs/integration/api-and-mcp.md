@@ -1567,7 +1567,9 @@ every portfolio, with `view_id` `null`. Both take:
   day (`start_on` is `null`): on the price side it is each security's latest
   close against the close before it, each row naming both dates; on the
   money side it is the one day `D` (`contribution.from` = `contribution.to`),
-  the latest day on which a close of any security the scope holds is stored.
+  the latest day on which a close of any security the scope holds is stored,
+  at most 7 days before today, as the price side's latest close; without
+  such a day the money ranking is empty and its basis says so.
 - `limit` — entries per half, default 5, capped at 50 and echoed.
 - `include_unanswered` — `true` adds `unanswered_entries` to each ranking,
   the securities or positions without a figure with their `reason`.
