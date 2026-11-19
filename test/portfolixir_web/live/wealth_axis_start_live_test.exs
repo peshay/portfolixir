@@ -70,6 +70,27 @@ defmodule PortfolixirWeb.WealthAxisStartLiveTest do
     %{world: world, tree: tree, growth: growth, income: income}
   end
 
+  # The same world with an overdraft (Sprint 30 closing act, design critic,
+  # finding 1; the review seed's step 25 has one): 9,000 removed 45 days
+  # back puts the cash 1,000 below 0 until 9,000 come back 43 days back, so
+  # the stack draws a cash band below 0 on those two days.
+  defp overdraft_world do
+    w = axis_world()
+
+    {:ok, _} =
+      Portfolixir.Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: w.world.portfolio.id,
+        cash_account_id: w.world.cash.id,
+        type: "removal",
+        date: days_ago(45),
+        gross_amount: "9000",
+        currency_code: "EUR"
+      })
+
+    deposit!(w.world, "9000", days_ago(43))
+    w
+  end
+
   defp category!(tree, name) do
     {:ok, category} =
       Classifications.create_category(Actor.owner_ui(), %{classification_id: tree.id, name: name})
@@ -336,6 +357,99 @@ defmodule PortfolixirWeb.WealthAxisStartLiveTest do
           do: {tick |> Floki.text() |> String.trim(), tick |> Floki.attribute("y") |> hd()}
 
     assert Enum.map(line_ticks, &elem(&1, 0)) == Enum.map(stack_ticks, &elem(&1, 0))
+
+    for {{_, a}, {_, b}} <- Enum.zip(line_ticks, stack_ticks),
+        do: assert(abs(String.to_float(a) - String.to_float(b)) <= 0.01)
+  end
+
+  # The depth of the stack's bands below 0 per drawn day, in viewBox units:
+  # a negative part's path is its upper edge left to right, then its lower
+  # edge right to left, so each day's depth is the lower edge's y less the
+  # upper edge's; the parts below 0 add up.
+  defp negative_depth(view) do
+    [points] = attrs(view, "#performance-figure-stack svg", "data-points")
+    points = String.to_integer(points)
+
+    parts =
+      view
+      |> doc()
+      |> Floki.find("#performance-figure-stack path.stack-band[data-part='negative']")
+      |> Enum.map(fn path ->
+        [d] = Floki.attribute(path, "d")
+
+        ys =
+          ~r/[ML]\s*(-?[\d.]+),(-?[\d.]+)/
+          |> Regex.scan(d)
+          |> Enum.map(fn [_, _x, y] -> String.to_float(y) end)
+
+        {upper, lower} = Enum.split(ys, points)
+        Enum.zip_with(upper, Enum.reverse(lower), fn u, l -> l - u end)
+      end)
+
+    case parts do
+      [] -> List.duplicate(0.0, points)
+      parts -> Enum.zip_with(parts, &Enum.sum/1)
+    end
+  end
+
+  # User story (I43; D-1 criterion 2; Sprint 30 closing act, design critic,
+  # finding 1):
+  # As the operator comparing „Gesamt“ at „ab 0“ with the stack at
+  # „Kategorien“ in a window with an overdrawn day,
+  # I want the line on the stack's own axis, its floor included,
+  # so that the two charts of one window still read the same.
+  #
+  # Acceptance criteria:
+  # - The axis is the stack's: the same round ticks at the same heights,
+  #   one step below 0 included.
+  # - On every day without a band below 0, the line's height at
+  #   `axis=zero` is the stack's top edge at `level=category`, to a
+  #   hundredth of a viewBox unit.
+  # - On a day with a band below 0, the line runs that band's depth below
+  #   the top edge (the total is the bands above 0 less the one below).
+  test "at From 0 the Total line takes the stack's floor on a window with an overdraft",
+       %{conn: conn} do
+    overdraft_world()
+
+    zero_view = open(conn, "/portfolio?level=total&axis=zero")
+    line = line_ys(zero_view)
+    stack_view = open(conn, "/portfolio?level=category")
+    top = stack_top(stack_view)
+    depth = negative_depth(stack_view)
+    dates = api(conn, %{"level" => "category", "period" => "1y"})["dates"]
+
+    assert length(top) == length(dates)
+    assert length(depth) == length(dates)
+
+    rows =
+      for {date, edge, deep} <- Enum.zip([dates, top, depth]),
+          do: {date, Map.fetch!(line, date), edge, deep}
+
+    {below, clear} = Enum.split_with(rows, fn {_date, _y, _edge, deep} -> deep > 0.005 end)
+
+    # The overdraft's two days draw a band below 0.
+    assert length(below) == 2
+
+    off = for {date, y, edge, _deep} <- clear, abs(y - edge) > 0.01, do: {date, y, edge}
+    assert off == []
+
+    deep_off =
+      for {date, y, edge, deep} <- below,
+          abs(y - (edge + deep)) > 0.02,
+          do: {date, y, edge, deep}
+
+    assert deep_off == []
+
+    stack_ticks =
+      for tick <- stack_view |> doc() |> Floki.find("#performance-figure-stack .chart-axis-y"),
+          do: {tick |> Floki.text() |> String.trim(), tick |> Floki.attribute("y") |> hd()}
+
+    line_ticks =
+      for tick <- zero_view |> doc() |> Floki.find("#performance-figure .chart-axis-y"),
+          do: {tick |> Floki.text() |> String.trim(), tick |> Floki.attribute("y") |> hd()}
+
+    assert Enum.map(line_ticks, &elem(&1, 0)) == Enum.map(stack_ticks, &elem(&1, 0))
+    assert hd(Enum.map(stack_ticks, &elem(&1, 0))) =~ ~r/^-/
 
     for {{_, a}, {_, b}} <- Enum.zip(line_ticks, stack_ticks),
         do: assert(abs(String.to_float(a) - String.to_float(b)) <= 0.01)

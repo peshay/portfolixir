@@ -3025,7 +3025,11 @@ er besteht (I23, FR-53):
   schon eine kleine Delle das Diagramm füllt; *ab 0* zeichnet die Linie ab 0
   auf der Achse des Stapels, in dessen runden Schritten, sodass sie genau
   auf der Oberkante des Stapels bei *Kategorien* für denselben Zeitraum
-  verläuft. Die Wahl steht in der Adresse (`axis=zero`), die Links der
+  verläuft. Reicht ein Band des Stapels unter 0 (ein überzogenes
+  Bargeldkonto), reicht die Achse wie die des Stapels eine runde Stufe
+  unter 0, und an diesen Tagen verläuft die Linie um die Tiefe dieses
+  Bands unter der Oberkante, denn die Summe sind die Bänder über 0 weniger
+  das darunter. Die Wahl steht in der Adresse (`axis=zero`), die Links der
   Leiste und der Zeitraum behalten sie; die Reihe % (TTWROR) und der
   Privatsphäre-Modus haben keinen solchen Schalter.
 

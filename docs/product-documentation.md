@@ -2739,7 +2739,11 @@ bar above the chart stacks the value by what it is made of (I23, FR-53):
   spans the axis from the window's lowest value to its highest, so a small
   dent fills the chart; *From 0* draws the line from 0 on the stack's own
   axis, in its round steps, so it runs exactly along the top edge of the
-  stack at *Categories* for the same window. The choice is on the address
+  stack at *Categories* for the same window. Where a band of the stack
+  dips below 0 (an overdrawn cash account), the axis reaches one round
+  step below 0 as the stack's does, and on those days the line runs that
+  band's depth below the top edge, since the total is the bands above 0
+  less the one below. The choice is on the address
   (`axis=zero`) and kept by the bar's links and the period; the
   % (TTWROR) series and the privacy mode have no such switch.
 

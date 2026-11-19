@@ -43,7 +43,9 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   `axis_start: :zero` („ab 0“, Wealth's Total) spans a linear amount axis
   from 0 to the highest value plus 5 % in round steps, the stacked chart's
   axis (`ChartAxis`); it does not apply to a percent axis or the
-  logarithmic scale.
+  logarithmic scale. Given `:zero_axis` (`{lo, hi, step}`, Wealth passes
+  the stack's for the same window), it is drawn on that axis instead, so
+  its floor is the stack's below 0 too.
 
   **The privacy mode** (Sprint 26 P2, I22, board 02): while it is on, a
   series in a currency (`:value_mode` `:absolute`) is drawn in its percent
@@ -128,6 +130,11 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   # I43 (Sprint 30 W1): where a linear amount axis starts, the window's
   # lowest value padded (`:window`, the default) or 0 (`:zero`, „ab 0“).
   attr(:axis_start, :atom, default: :window, values: [:window, :zero])
+  # The axis „ab 0“ takes when it is another chart's (`{lo, hi, step}`,
+  # the stack's for the same window, `StackedChart.value_axis/1`; the
+  # Sprint 30 closing act's design critic, finding 1); nil spans the
+  # line's own values.
+  attr(:zero_axis, :any, default: nil)
   attr(:currency_code, :string, default: "")
   # nil resolves to the localized "Price chart" at render time — a compile-time
   # attr default cannot go through gettext with the caller's locale.
@@ -153,7 +160,8 @@ defmodule PortfolixirWeb.Components.SecurityChart do
         extra_values: range_extending_values(assigns),
         axis: {assigns.axis_from, assigns.axis_to},
         price_axis?: assigns.price_axis? and assigns.value_mode == :absolute,
-        from_zero?: assigns.axis_start == :zero and assigns.value_mode == :absolute
+        from_zero?: assigns.axis_start == :zero and assigns.value_mode == :absolute,
+        zero_axis: assigns.zero_axis
       )
 
     plot_left = @padding_left
@@ -637,7 +645,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
           {safe_log(log_floor(y_min, raw_min)), safe_log(y_max)}
 
         from_zero? ->
-          ChartAxis.zero_range(raw_min, raw_max)
+          zero_range(Keyword.get(opts, :zero_axis), raw_min, raw_max)
 
         true ->
           {axis_floor(y_min, raw_min, rebase?, Keyword.get(opts, :price_axis?, false)), y_max}
@@ -654,9 +662,20 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       log_scale?: log_scale?,
       percent_mode?: percent_mode?,
       rebased?: rebase?,
-      round_ticks: if(from_zero?, do: ChartAxis.round_ticks(y_min, y_max, {1.0, 0.0}))
+      round_ticks: if(from_zero?, do: zero_ticks(Keyword.get(opts, :zero_axis), y_min, y_max))
     }
   end
+
+  # „ab 0“ on another chart's axis (the stack's, finding 1 of the Sprint 30
+  # closing act's design critic), widened only where a value of the line
+  # would leave it; else from 0 over the line's own values.
+  defp zero_range({lo, hi, _step}, raw_min, raw_max), do: {min(lo, raw_min), max(hi, raw_max)}
+  defp zero_range(nil, raw_min, raw_max), do: ChartAxis.zero_range(raw_min, raw_max)
+
+  defp zero_ticks({_lo, _hi, step}, y_min, y_max),
+    do: {ChartAxis.ticks(y_min, y_max, {1.0, 0.0}, step), step}
+
+  defp zero_ticks(nil, y_min, y_max), do: ChartAxis.round_ticks(y_min, y_max, {1.0, 0.0})
 
   # --- S29 H8 begin ---
   # An axis end the caller names widens the axis past the closes, never

@@ -10988,7 +10988,18 @@ stack.
    them, printed with the step's places; no mark. The line then runs on the
    top edge of the stack at *Kategorien* for the same window, day by day
    (`wealth_axis_start_live_test.exs` compares every drawn day to a
-   hundredth of a viewBox unit).
+   hundredth of a viewBox unit). *Amended 2026-11-19 (Sprint 30 closing
+   act, design critic, finding 1):* the line takes the stack's axis for
+   the same window whole, its floor included: where a band dips below 0
+   (an overdrawn cash account), the floor is the stack's, one round step
+   under that band's lowest edge, and the top the stack's highest edge
+   plus 5 % of that span, read from the stack's own bands
+   (`StackedChart.value_axis/1`; until they land, the line spans its own
+   values from 0). The line then runs on the stack's top edge on every
+   day without a band below 0, and on a day with a band below 0 it runs
+   that band's depth below the top edge, since the total is the bands
+   above 0 less the one below; the test asserts both, day by day, on a
+   window with an overdraft.
 
 ### The URL
 

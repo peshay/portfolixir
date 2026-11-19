@@ -172,7 +172,9 @@ defmodule PortfolixirWeb.PortfolioLive do
             bands_colors: %{},
             bands_ancestors: [],
             bands_for: nil,
-            bands_failed: false
+            bands_failed: false,
+            stack_axis: nil,
+            stack_axis_for: nil
           )
           # The classification tree and the tree/positions mode round-trip
           # through the URL (mobile-reconnect fix): a socket reconnect remounts
@@ -1045,10 +1047,47 @@ defmodule PortfolixirWeb.PortfolioLive do
   # read runs its own windowed walk, so it loads one at a time as the
   # contribution table does; a result for another request is dropped.
   defp load_bands(%{assigns: %{wealth_tab: :holdings, stack: stack}} = socket) do
-    if stacked?(stack), do: start_bands(socket), else: socket
+    cond do
+      stacked?(stack) -> start_bands(socket)
+      axis_switch(stack) == :zero -> start_stack_axis(socket)
+      true -> socket
+    end
   end
 
   defp load_bands(socket), do: socket
+
+  # „ab 0“ (I43; the Sprint 30 closing act's design critic, finding 1): the
+  # Total line is drawn on the axis of the stack at „Kategorien“ for the
+  # same window and view, its floor below 0 included, so it reads the
+  # stack's bands, the read „Kategorien“ itself makes (and the analytic
+  # keeps for it). Until they land, and when they fail, the line spans
+  # its own values from 0, which is the stack's axis wherever no band
+  # dips below 0.
+  defp start_stack_axis(socket) do
+    socket = ensure_live_view_scope(socket)
+    view_id = socket.assigns[:active_view_id]
+    request = {:stack_axis, socket.assigns.period, view_id}
+
+    if socket.assigns.stack_axis_for == request do
+      socket
+    else
+      opts = [
+        period: socket.assigns.period,
+        base_currency: socket.assigns.portfolio.base_currency_code,
+        level: :category
+      ]
+
+      socket
+      |> assign(stack_axis: nil, stack_axis_for: request)
+      |> CappedAsync.start_latest(:stack_axis, fn ->
+        {request,
+         case Bands.for_view(view_id, opts) do
+           {:ok, result} -> StackedChart.value_axis(result)
+           _error -> nil
+         end}
+      end)
+    end
+  end
 
   defp start_bands(socket) do
     socket = ensure_live_view_scope(socket)
@@ -1357,6 +1396,13 @@ defmodule PortfolixirWeb.PortfolioLive do
     end
   end
 
+  def handle_async(:stack_axis, result, socket) do
+    case CappedAsync.landed(socket, :stack_axis) do
+      {:superseded, socket} -> {:noreply, socket}
+      {:current, socket} -> {:noreply, stack_axis_landed(result, socket)}
+    end
+  end
+
   def handle_async(:contribution, result, socket) do
     case CappedAsync.landed(socket, :contribution) do
       {:superseded, socket} -> {:noreply, socket}
@@ -1459,7 +1505,7 @@ defmodule PortfolixirWeb.PortfolioLive do
      |> load_overview()
      |> load_performance()
      |> load_contribution()
-     |> assign(:bands_for, nil)
+     |> assign(bands_for: nil, stack_axis_for: nil)
      |> load_bands()}
   end
 
@@ -1488,6 +1534,12 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   defp bands_landed({:exit, _reason}, socket), do: {:noreply, assign(socket, :bands_failed, true)}
+
+  # A failed read leaves the line on its own axis from 0.
+  defp stack_axis_landed({:ok, {request, axis}}, %{assigns: %{stack_axis_for: request}} = socket),
+    do: assign(socket, :stack_axis, axis)
+
+  defp stack_axis_landed(_other, socket), do: socket
 
   defp bands_answer({:ok, result, colors, ancestors}, socket),
     do:
@@ -2546,6 +2598,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 currency={@performance.base_currency}
                 overlays={benchmark_overlays(@chart_mode, @comparisons, @performance.series)}
                 axis_start={@stack.axis}
+                zero_axis={@stack_axis}
               />
             <% end %>
             <%!-- UX-DR26: a deliberate limit is stated where the overlay is
@@ -4194,6 +4247,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign_new(:mode, fn -> "ttwror" end)
       |> assign_new(:overlays, fn -> [] end)
       |> assign_new(:axis_start, fn -> :window end)
+      |> assign_new(:zero_axis, fn -> nil end)
 
     {quotes, value_mode, zero_line?, aria_label, currency_code} =
       case assigns.mode do
@@ -4233,6 +4287,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         overlays={Enum.map(@overlays, &%{&1 | points: downsample(&1.points)})}
         overlays_extend_range?={true}
         axis_start={if @mode == "value", do: @axis_start, else: :window}
+        zero_axis={@zero_axis}
       />
       <%!-- Board 02 (Sprint 26 P2): the value in percent is no return,
            since a deposit raises it; the line says so. --%>
