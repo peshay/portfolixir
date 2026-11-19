@@ -662,4 +662,62 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   end
 
   # --- Sprint 29 H5 end ---
+
+  # --- S30 T2 begin ---
+  # User story (FR-59, ADR-0061 §7, §9; Sprint 30 T2):
+  # As the maintainer holding the scope ladder,
+  # I want the tops and flops' payload checked the same way,
+  # so that a list of what moved most stays an order of figures and never
+  # says what to buy or sell.
+  #
+  # Acceptance criteria:
+  # - No key of the rendered payload of GET /api/v1/views/:view_id/movers
+  #   and GET /api/v1/movers, for every window, with the unanswered listed,
+  #   contains a forbidden word: the two rankings, their halves, their
+  #   entries, the unanswered and each computation basis included.
+  test "the tops and flops carry no verdict key", %{conn: conn} do
+    # The read's own day, so no close lies after the as-of day.
+    today = Portfolixir.Clock.today()
+    world = base_world()
+    deposit!(world, "5000", Date.add(today, -60))
+    rising = create_security!(name: "Verdict Movers Rising", ticker: "VMR")
+    falling = create_security!(name: "Verdict Movers Falling", ticker: "VMF")
+    unpriced = create_security!(name: "Verdict Movers Unpriced", ticker: "VMU")
+
+    for {security, step} <- [{rising, 2}, {falling, -1}] do
+      rows =
+        for back <- 400..0//-1,
+            do: %{
+              date: Date.add(today, -back),
+              close: Decimal.new(500 + step * (400 - back)),
+              source: "manual"
+            }
+
+      {:ok, _count} = Quotes.upsert_many(security.id, rows)
+    end
+
+    for security <- [rising, falling, unpriced],
+        do: buy!(world, security, quantity: "2", price: "500", date: Date.add(today, -30))
+
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Verdict movers"})
+
+    for window <- ~w(day week month quarter ytd 1y),
+        path <- ["/api/v1/views/#{view.id}/movers", "/api/v1/movers"] do
+      read = "#{path}?window=#{window}&include_unanswered=true"
+      %{"data" => payload} = conn |> get(read) |> json_response(200)
+
+      for side <- ~w(price_return contribution) do
+        assert [_entry | _rest] = payload[side]["highest"], "#{read} #{side}"
+        assert [_entry | _rest] = payload[side]["lowest"], "#{read} #{side}"
+      end
+
+      assert [_unanswered | _rest] = payload["price_return"]["unanswered_entries"]
+
+      assert offenders(payload) == [],
+             "#{read} carries verdict keys #{inspect(offenders(payload))}: ADR-0061 §7, a " <>
+               "ranking orders figures and says nothing about what to buy or sell."
+    end
+  end
+
+  # --- S30 T2 end ---
 end

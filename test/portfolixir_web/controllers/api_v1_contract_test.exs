@@ -81,6 +81,18 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- S30 A1 end ---
 
+    # --- S30 T2 begin ---
+    # T2 (FR-59, ADR-0061 §9): the tops and flops, two routes.
+    assert newest["summary"] =~ "Sprint 30, T2 (FR-59, #1465; ADR-0061 §9): "
+
+    for endpoint <- ["GET /api/v1/views/:view_id/movers", "GET /api/v1/movers"],
+        do: assert(endpoint in newest["endpoints"], endpoint)
+
+    for part <- ["price_return", "contribution", "highest and lowest", "422 naming it"],
+        do: assert(newest["summary"] =~ part, part)
+
+    # --- S30 T2 end ---
+
     # Sprint 29's sprint PRs (version 29), found by version from Sprint 30
     # on. Dated strictly after entry 28, so since=2026-11-09 still returns
     # it. Each story appends its own items between its own markers.
