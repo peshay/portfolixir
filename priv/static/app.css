@@ -14346,3 +14346,106 @@ dialog.merge-dialog {
   font-size: 0.8rem;
 }
 /* --- S29 H8 end --- */
+
+/* --- S30 T3 begin: the Overview's card „Tops und Flops“ (FR-59, ADR-0061
+   §9; board ux-design-2026-11-15-sprint30/04-tops-flops, A and A1;
+   DESIGN.md, amendment of 2026-11-19). Its parts are the page's own: the
+   section head with the I1 ⓘ and the „→“ link of the trades card, the
+   shared control bar, `.attention-list` rows, the contribution table's bar
+   under its figure and the neutral badge for „verkauft“. New are only the
+   grid, the two small labels and the count line. The card is a container:
+   narrower than 640 px (every window under 560 px, and a window whose
+   sidebar leaves the card that little) it stacks the two rankings, the
+   price return first (A1); the bar leaves under 560 px, as the drift bar
+   does everywhere. --- */
+.movers {
+  container: movers / inline-size;
+}
+
+.movers .section-head {
+  margin-bottom: 0;
+}
+
+.movers > .summary-basis {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.movers__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5) var(--space-8);
+  align-items: start;
+}
+
+@container movers (max-width: 640px) {
+  .movers__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.movers__col h3 {
+  margin: 0;
+  padding-bottom: var(--space-1);
+  font-size: 15px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.movers__half {
+  margin: var(--space-3) 0 var(--space-2);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.movers__count {
+  margin: var(--space-3) 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.movers .attention-item .num {
+  text-align: right;
+}
+
+.movers .attention-name .badge {
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+
+.movers__figure .drift-bar {
+  display: block;
+  flex: none;
+  width: 110px;
+  min-width: 110px;
+  margin: 5px 0 0 auto;
+}
+
+@media (max-width: 560px) {
+  .movers__figure .drift-bar {
+    display: none;
+  }
+}
+
+/* Six chips at the bar's floor: below 380 px of the card (a phone, its
+   labels above) the window's control takes the card's width, each chip
+   sharing it with a narrower inset, as „Nach dem Verkauf“'s comparison
+   does under 560 px; at its 9 px inset the German row reached 2 px, the
+   English one in DejaVu Sans 6.5 px past a 320 px screen (the control bar
+   walk). */
+@container movers (max-width: 380px) {
+  .movers .segmented-control {
+    display: flex;
+    width: 100%;
+  }
+
+  .movers .segmented-control__option {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding-inline: var(--space-1);
+  }
+}
+/* --- S30 T3 end --- */
