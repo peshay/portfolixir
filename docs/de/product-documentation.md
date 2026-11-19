@@ -3094,7 +3094,10 @@ Bei mehr als zehn Positionen zeigt die Tabelle die zehn mit dem größten Betrag
 Positionen. Eine Position, die an einigen Tagen des Zeitraums null gezählt
 wurde, weil kein Kurs oder kein Wechselkurs gespeichert war, behält ihren Platz
 in der Tabelle und in der Summe, trägt die Zahl dieser Tage in ihrer Zeile und
-wird in einem Hinweis unter der Tabelle genannt. Ein Zeitraum ohne Inhalt zeigt
+wird in einem Hinweis unter der Tabelle genannt. Der Tag vor dem Zeitraum zählt
+zu diesen Tagen, weil sein Schlusswert der Anfangswert ist: Eine Position,
+deren erster Kurs oder Wechselkurs am ersten Tag des Zeitraums kam, beginnt bei
+null, und ihr ganzer Wert ist ihr Beitrag, also sagt ihre Zeile es. Ein Zeitraum ohne Inhalt zeigt
 einen Satz statt einer Tabelle voller Nullen, und auf dem Telefon, oder wo das
 Fenster der Tabelle zu wenig Platz für ihre Spalten lässt, wird die Tabelle zu
 zweizeiligen Einträgen. Dort nennt ein Eintrag die Richtung seines

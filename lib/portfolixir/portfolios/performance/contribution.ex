@@ -76,10 +76,13 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   identity holds to that precision. Nothing balances the difference.
 
   Missing data contributes zero, as it does in the walk, and the affected
-  positions are named (§10). A trade priced in a currency with no rate path
-  on its booking day flows into its position at its cash leg, so the
-  position is not credited with its whole value when a rate arrives (§5, as
-  amended 2026-10-03). A foreign-currency cash balance held before its
+  positions are named (§10), the baseline day's close, the start value,
+  among their days (§10 as amended 2026-11-19, #1472): a position whose
+  first price or first rate arrives on the window's first day reads its
+  whole value as its contribution, so it is named too. A trade priced in a
+  currency with no rate path on its booking day flows into its position at
+  its cash leg, so the position is not credited with its whole value when a
+  rate arrives (§5, as amended 2026-10-03). A foreign-currency cash balance held before its
   currency's first rate counts zero too, and the first rate brings its whole
   value into the currency effect on cash; the account is named with its days
   (#1055, the amendment's last item).
@@ -88,7 +91,7 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   the table is a derived value of its own (ADR-0039): the
   `:performance_contribution` analytic under the portfolio's basis, and
   `:performance_view_contribution` under the global basis for a view across
-  portfolios, computation version 5, lifetime `:request` by default, keyed
+  portfolios, computation version 6, lifetime `:request` by default, keyed
   by scope, walk end date and period. The stored walk analytics never carry
   the per-position figures.
   """
@@ -190,11 +193,14 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   `valued_days` counts the window days on which the position was held and
   the walk gave it a value (ADR-0061 §4: a position valued on no day of the
   window is counted apart by the tops and flops, not ranked); a day held in
-  two portfolios counts once. `unvalued_days` counts the window days on
-  which the position was held and the walk valued it at zero; `unvalued_reason` is `:no_price` (no price at
-  all) or `:no_rate` (no rate path to the base currency), `:no_price` when
-  both occurred, and `nil` when every day was valued. Such a position stays
-  in the table and in the sum (ADR-0051 §10, I7).
+  two portfolios counts once. `unvalued_days` counts the days, the
+  baseline day before the window (whose close is the start value) and the
+  window days, on which the position was held and the walk valued it at
+  zero (ADR-0051 §10 as amended 2026-11-19, #1472); `unvalued_reason` is
+  `:no_price` (no price at all) or `:no_rate` (no rate path to the base
+  currency), `:no_price` when both occurred, and `nil` when every day was
+  valued. Such a position stays in the table and in the sum (ADR-0051 §10,
+  I7).
 
   `unvalued_cash_accounts` names the cash accounts that held money and
   counted zero for want of a rate path on a window day or on the day before

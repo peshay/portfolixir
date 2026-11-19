@@ -3790,7 +3790,11 @@ Example account payloads:
   and sold inside the window is listed although it is held at neither end. A
   day on which a held
   position has no price or no rate path counts zero, as in the walk, and the
-  position stays in the sum, named with its days. A foreign-currency cash
+  position stays in the sum, named with its days in `unvalued_days`: the
+  day before the window, whose close is the start value, included, so a
+  position whose first price or first rate arrived on the window's first
+  day is named rather than read as a clean gain (#1472, ADR-0051's
+  amendment of 2026-11-19; computation version 6). A foreign-currency cash
   balance held before its currency's first rate counts zero the same way,
   and the first rate brings its whole value into `cash_currency_effect`:
   `unvalued_cash_accounts` names the account, exactly as the performance

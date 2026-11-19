@@ -1415,7 +1415,9 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
   # Acceptance criteria:
   # - `valued_days` counts the window days on which the position was held
   #   and the walk gave it a value; `unvalued_days` the held days it
-  #   counted zero; their sum is the held window days.
+  #   counted zero, the baseline day included (#1472, ADR-0051's amendment
+  #   of 2026-11-19); their sum is the held window days, plus the baseline
+  #   day where it counted zero.
   # - A position delivered without a price and never quoted is valued on no
   #   day; one whose first quote arrives inside the window and that is sold
   #   before the window ends is valued on the days after the quote, though
@@ -1444,23 +1446,103 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
 
     {:ok, read} = Contribution.for_view(view.id, period: window, today: today)
 
-    # Held 1 to 5 June, never priced: five unvalued days, none valued.
-    assert %{unvalued_days: 5, valued_days: 0, start_value: start, end_value: finish} =
+    # Held 31 May (the baseline) to 5 June, never priced: six unvalued
+    # days, none valued.
+    assert %{unvalued_days: 6, valued_days: 0, start_value: start, end_value: finish} =
              row(read, never)
 
     assert zero?(start) and zero?(finish)
 
-    # Held 1 to 4 June (sold on the 5th), unpriced until the quote of the
-    # 3rd: unvalued on the 1st and 2nd, valued on the 3rd and 4th. Its
-    # start and end values are 0 all the same.
-    assert %{unvalued_days: 2, valued_days: 2, held_at_end: false} = late_row = row(read, late)
+    # Held 31 May to 4 June (sold on the 5th), unpriced until the quote of
+    # the 3rd: unvalued on the baseline, the 1st and the 2nd, valued on the
+    # 3rd and 4th. Its start and end values are 0 all the same.
+    assert %{unvalued_days: 3, valued_days: 2, held_at_end: false} = late_row = row(read, late)
     assert zero?(late_row.start_value) and zero?(late_row.end_value)
 
     # Held in both portfolios on every window day: each day counts once.
     assert %{unvalued_days: 0, valued_days: 5} = row(read, priced)
 
     {:ok, narrowed} = Contribution.for_portfolio(world.portfolio.id, period: window, today: today)
-    assert %{unvalued_days: 5, valued_days: 0} = row(narrowed, never)
+    assert %{unvalued_days: 6, valued_days: 0} = row(narrowed, never)
     assert %{unvalued_days: 0, valued_days: 5} = row(narrowed, priced)
+  end
+
+  # User story (#1472, ADR-0051 §10 as amended 2026-11-19):
+  # As the operator and the agent reading which position made how much of a
+  # period's result,
+  # I want a position that counted zero at the start value's close named
+  # like one that counted zero inside the window,
+  # so that a position whose first price or first rate arrived on the
+  # window's first day never reads its whole value as a clean gain.
+  #
+  # Acceptance criteria:
+  # - A position held at the baseline day's close and valued at zero there
+  #   counts that day in `unvalued_days`, with `unvalued_reason` `:no_price`
+  #   or `:no_rate`; `valued_days` still counts window days only.
+  # - Its figures stay as the walk counts them: start value 0, its whole
+  #   end value as its contribution, in the sum (I1, I7).
+  # - A position bought inside the window, and one valued at the baseline
+  #   day's close, count no such day.
+  # - The view read across portfolios and the portfolio read agree.
+  #
+  # Independent figures (Python decimal, 34 digits): 3 x 21 = 63; 53 x
+  # (1 / 0.8) = 66.25; 2 x (11 - 10) = 2; 31 - 30 = 1; the positions 132.25;
+  # the result (80 + 63 + 66.25 + 22 + 31) - (100 + 30) = 132.25.
+  test "a position unvalued at the baseline day's close counts that day" do
+    world = base_world(name: "Base World", cash_name: "Base Cash", depot_name: "Base Depot")
+    view = core_view!([world.depot], [world.cash])
+    window = {:range, ~D[2026-06-01], ~D[2026-06-05]}
+    today = ~D[2026-06-05]
+
+    priced_late = create_security!(name: "First Close Fund", ticker: "FCF")
+    rated_late = create_security!(name: "First Rate Fund", ticker: "FRF", currency: "GBP")
+    bought = create_security!(name: "Window Buy Fund", ticker: "WBF")
+    steady = create_security!(name: "Steady Fund", ticker: "STF")
+
+    deposit!(world, "100", ~D[2026-05-20])
+    delivery!(world, priced_late, "3", ~D[2026-05-20])
+    delivery!(world, rated_late, "1", ~D[2026-05-20], currency: "GBP")
+    delivery!(world, steady, "1", ~D[2026-05-20])
+
+    # The first close on the window's first day; none on the baseline day.
+    WorldFixtures.put_quotes!(priced_late, [{~D[2026-06-01], "20"}, {~D[2026-06-05], "21"}])
+    # A close before the window, but the first EUR/GBP rate on its first day.
+    WorldFixtures.put_quotes!(rated_late, [{~D[2026-05-25], "50"}, {~D[2026-06-05], "53"}])
+    rate!("GBP", ~D[2026-06-01], "0.8")
+    WorldFixtures.put_quotes!(bought, [{~D[2026-06-02], "10"}, {~D[2026-06-05], "11"}])
+    WorldFixtures.buy!(world, bought, quantity: "2", price: "10", date: ~D[2026-06-02])
+    WorldFixtures.put_quotes!(steady, [{~D[2026-05-29], "30"}, {~D[2026-06-05], "31"}])
+
+    {:ok, read} = Contribution.for_view(view.id, period: window, today: today)
+    {:ok, narrowed} = Contribution.for_portfolio(world.portfolio.id, period: window, today: today)
+
+    for result <- [read, narrowed] do
+      first_close = row(result, priced_late)
+      assert first_close.held_at_start and zero?(first_close.start_value)
+      assert equal?(first_close.contribution, "63")
+
+      assert {first_close.unvalued_days, first_close.unvalued_reason, first_close.valued_days} ==
+               {1, :no_price, 5}
+
+      first_rate = row(result, rated_late)
+      assert first_rate.held_at_start and zero?(first_rate.start_value)
+      assert equal?(first_rate.contribution, "66.25")
+
+      assert {first_rate.unvalued_days, first_rate.unvalued_reason, first_rate.valued_days} ==
+               {1, :no_rate, 5}
+
+      window_buy = row(result, bought)
+      refute window_buy.held_at_start
+      assert equal?(window_buy.contribution, "2")
+      assert {window_buy.unvalued_days, window_buy.unvalued_reason} == {0, nil}
+
+      valued = row(result, steady)
+      assert equal?(valued.start_value, "30") and equal?(valued.contribution, "1")
+      assert {valued.unvalued_days, valued.unvalued_reason, valued.valued_days} == {0, nil, 5}
+
+      assert equal?(result.totals.positions, "132.25")
+      assert equal?(result.totals.result, "132.25")
+      assert_remainder_zero(result)
+    end
   end
 end

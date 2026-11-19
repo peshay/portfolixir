@@ -4152,7 +4152,12 @@ Beispiel-Payloads für Konten:
   verkaufte Position steht in der Tabelle, obwohl sie an keinem Ende gehalten
   wird. Ein Tag, an dem eine gehaltene Position keinen Preis oder keinen
   Kurspfad hat, zählt null, wie im Walk; die Position bleibt in der Summe und
-  wird mit ihren Tagen benannt. Ein Fremdwährungssaldo vor dem ersten
+  wird mit ihren Tagen in `unvalued_days` benannt: der Tag vor dem Fenster,
+  dessen Schlusswert der Startwert ist, eingeschlossen, sodass eine
+  Position, deren erster Preis oder erster Wechselkurs am ersten Tag des
+  Fensters kam, benannt und nicht als glatter Gewinn gelesen wird (#1472,
+  Amendment von ADR-0051 vom 2026-11-19; Berechnungsversion 6). Ein
+  Fremdwährungssaldo vor dem ersten
   Wechselkurs seiner Währung zählt ebenso null, und der erste Wechselkurs
   bringt seinen ganzen Wert in `cash_currency_effect`:
   `unvalued_cash_accounts` nennt das Konto, genau wie der

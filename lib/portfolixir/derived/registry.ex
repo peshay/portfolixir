@@ -75,8 +75,13 @@ defmodule Portfolixir.Derived.Registry do
     # v5 (Sprint 30 T1, ADR-0061 §4): every row carries `valued_days`, the
     # window days the walk valued the position, which the tops and flops
     # read to count a position valued on no day apart; a v4 row lacks it.
-    performance_contribution: %{computation_version: 5, default_lifetime: :request},
-    performance_view_contribution: %{computation_version: 5, default_lifetime: :request},
+    # v6 (Sprint 30, #1472, ADR-0051's amendment of 2026-11-19): a row's
+    # `unvalued_days` counts the baseline day, whose close is the start
+    # value, when the position counted zero there; a v5 row of a position
+    # whose first price or rate came on the window's first day reads 0 and
+    # no reason, its whole value an unmarked contribution.
+    performance_contribution: %{computation_version: 6, default_lifetime: :request},
+    performance_view_contribution: %{computation_version: 6, default_lifetime: :request},
     # The stacked value chart's bands (FR-53, I34 step 1, Sprint 29 P1): the
     # contribution walk keeping each window day's terms apart, grouped into
     # bands. Its own analytic per scope, period and request, keyed as the

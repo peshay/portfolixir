@@ -693,6 +693,83 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
     assert_decimal(hd(week.price_return.highest).return, "0.5")
   end
 
+  # -- an unvalued baseline day (#1472) -------------------------------------------------
+
+  # Attack (#1472): a position held over the whole window whose first close,
+  # or first rate, arrives on the window's first day S + 1. The baseline day
+  # S counts zero for missing data (ADR-0051 §10), so the position's whole
+  # value reads as its contribution; while §10 counted window days only,
+  # `unvalued_days` stayed 0 and the phantom gain stood unmarked at the top
+  # of the money ranking, where ADR-0061 §4 ranks it only marked. ADR-0051's
+  # amendment of 2026-11-19 counts the baseline day: the row is marked, and
+  # the figure stays in the sum.
+  #
+  # Independent figures (Python decimal, 34 digits): First Monday's real
+  # move is 3 x (21 - 20) = 3; the read reports 3 x 21 - 0 = 63. Gilt (GBP,
+  # first rate on 9 November) reads 53 / 0.86 =
+  # 61.62790697674418604651162790697674 by one division; the walk multiplies
+  # by the rate's reciprocal, 53 x (1 / 0.86) =
+  # 61.62790697674418604651162790697672. On day, 9 November, First Monday's
+  # first-ever close reads 3 x 20 = 60, and Gilt 50 x (1 / 0.86) =
+  # 58.13953488372093023255813953488370.
+  test "a position unvalued only on the baseline day is ranked marked, its figure kept" do
+    {world, view} = world!("Baseline")
+
+    first = security!(%{name: "First Monday"})
+    deliver_untraded!(world, first, "3", date: ~D[2026-11-02])
+    put_quotes!(first, [{~D[2026-11-09], "20"}, {~D[2026-11-12], "21"}])
+
+    gilt = security!(%{name: "Gilt Fund", currency_code: "GBP"})
+    deliver_untraded!(world, gilt, "1", date: ~D[2026-11-02])
+    put_quotes!(gilt, [{~D[2026-11-06], "50"}, {~D[2026-11-12], "53"}])
+    rate!("GBP", ~D[2026-11-09], "0.86")
+
+    today = ~D[2026-11-12]
+    money = read!(view.id, "week", today: today).contribution
+    assert {money.from, money.to} == {~D[2026-11-09], today}
+    assert money.answered == 2 and money.unanswered == %{no_valuation: 0}
+
+    assert [%{security: %{id: first_id}} = first_row] = money.highest
+    assert first_id == first.id
+    assert_decimal(first_row.contribution, "63")
+    assert_decimal(first_row.start_value, "0")
+    assert_decimal(first_row.end_value, "63")
+    assert first_row.held_at_start and first_row.held_at_end
+
+    assert {first_row.unvalued_days, first_row.unvalued_reason, first_row.valued_days} ==
+             {1, :no_price, 4}
+
+    assert [%{security: %{id: gilt_id}} = gilt_row] = money.lowest
+    assert gilt_id == gilt.id
+    assert_exact(gilt_row.contribution, "61.62790697674418604651162790697672")
+    assert_decimal(gilt_row.start_value, "0")
+
+    assert {gilt_row.unvalued_days, gilt_row.unvalued_reason, gilt_row.valued_days} ==
+             {1, :no_rate, 4}
+
+    # Wealth's table for the same window reads the same rows.
+    for {security, row} <- [{first, first_row}, {gilt, gilt_row}] do
+      wealth = wealth_row!(view.id, ~D[2026-11-09], today, today, security)
+      assert Decimal.equal?(wealth.contribution, row.contribution)
+      assert {wealth.unvalued_days, wealth.unvalued_reason} == {1, row.unvalued_reason}
+    end
+
+    # Day, 9 November: D is First Monday's first-ever close day; its
+    # baseline, the 8th, had no close (First Monday) and no rate (Gilt).
+    day = read!(view.id, "day", today: ~D[2026-11-09]).contribution
+    assert {day.from, day.to} == {~D[2026-11-09], ~D[2026-11-09]}
+    assert [%{security: %{id: ^first_id}} = first_day] = day.highest
+    assert [%{security: %{id: ^gilt_id}} = gilt_day] = day.lowest
+    assert_decimal(first_day.contribution, "60")
+    assert_exact(gilt_day.contribution, "58.13953488372093023255813953488370")
+
+    assert {first_day.unvalued_days, first_day.unvalued_reason, first_day.valued_days} ==
+             {1, :no_price, 1}
+
+    assert {gilt_day.unvalued_days, gilt_day.unvalued_reason, gilt_day.valued_days} ==
+             {1, :no_rate, 1}
+  end
+
   # -- a merged-away security ---------------------------------------------------------
 
   # Attack: a security merged into another is ranked under the survivor only,

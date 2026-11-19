@@ -17,6 +17,8 @@ description: "Design gate for FR-41 (scope-ladder level (b)), written in Sprint 
   position's income (#928; see "Amendment (2026-10-09)" below).
   2026-10-28, a dated note: a contribution read walks from its window's
   baseline day (security review 2026-10-12, K08; see "Note (2026-10-28)"
+  below). 2026-11-19, adopted by the merge of the Sprint 30 sprint PR: an
+  unvalued baseline day is counted (#1472; see "Amendment (2026-11-19)"
   below).
 - **Answers:** FR-41, contribution analysis, scope-ladder level (b):
   *"which position produced how much of the return, over a selectable
@@ -730,3 +732,57 @@ step, which no window reads; `Performance.contribution_analysis/4` without
 every performance and contribution read over a ledger of the review seed's
 shapes as captured before the change, and the baseline-day walk against the
 full one. No computation version moves.
+
+## Amendment (2026-11-19): an unvalued baseline day is counted
+
+**Status.** Adopted by the merge of the Sprint 30 sprint PR, which fixes
+#1472 (S1, found by the sprint's attack lens on the tops and flops,
+[ADR-0061](0061-tops-and-flops-per-calendar-window.html)). **Risk tier**
+([ADR-0036](0036-risk-tier-rides-the-batch.html)): money, because it
+decides whether a contribution is read as complete.
+
+**Why.** §10 counts a held position zero on a day without a price or a rate
+path, and names it with "the number of window days on which it counted
+zero". The start value (§4) is the close of the baseline day, the day
+before the window, which is no window day. A position held before the
+window whose first close, or whose currency's first rate, arrives on the
+window's first day therefore starts at 0, and its **whole value reads as
+its contribution**, with `unvalued_days` 0, no marker on its row and no
+name in the note. In #1472's case, three units of a fund held for a week
+whose first close (20) came on the window's first day and whose last was
+21 moved by 3 and read **+63**, unmarked, at the top of the tops and
+flops' „Höchste“ (ADR-0061 §4 ranks a position with unvalued data only
+marked); a GBP fund whose first EUR/GBP rate came on the window's first day
+read its whole value the same way. The cash accounts have counted the day
+before the window since #1055 (the 2026-10-05 note: "its days (the day
+before the window, the start value, included)"); the positions did not.
+
+**What changes.** §10's count reads: *the number of days, **the baseline
+day and the window days**, on which it was held and counted zero.* A
+position held at the baseline day's close and valued at zero there counts
+that day in `unvalued_days`, and `unvalued_reason` names its reason, by
+§10's rule (`no_price` before `no_rate`). So its row carries the marker,
+the note under the table names it, and the tops and flops rank it marked
+(ADR-0061 §4). `valued_days` (ADR-0061 §4) still counts window days only:
+a position valued on no window day stays `no_valuation` there, and one
+valued inside the window is ranked. `performance_contribution` and
+`performance_view_contribution` move from computation version 5 to 6
+(`Derived.Registry`): a version-5 table can read `unvalued_days` 0 where
+version 6 reads 1, so no such table is served.
+
+**What stays.** Every figure. The baseline day still counts zero for
+missing data, the start value is still its close, the position stays in
+the table and in the sum, and I1 to I13 hold as written. I7 now names the
+baseline day as well as the window days. The walk's outputs, its series
+and its computation version are untouched (I9): the count is read from the
+kept figures, which no walk output reads. The payload's basis keeps its
+text: its `gaps` say that "a day on which a held position has no price, or
+no rate path to the base currency, counts zero" and that the affected
+positions are listed with their days, which never limited the days to the
+window; the read now does what it said.
+`test/portfolixir/portfolios/performance/walk_payload_pin_test.exs` holds
+every pinned digest: no position of its seed is held unvalued on a
+baseline day.
+
+**To flip:** "Basistag nicht mitzählen" (`unvalued_days` counts window
+days only again, and the baseline case reads as a clean figure).

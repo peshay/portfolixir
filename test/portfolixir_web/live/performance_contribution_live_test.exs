@@ -414,6 +414,52 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
              text_of(view, "[data-role='period-badge'] [data-role='period-badge-money']")
   end
 
+  # User story (#1472, ADR-0051 §10 as amended 2026-11-19):
+  # As a local portfolio maintainer holding a fund whose first price came on
+  # the first day of the period I read,
+  # I want its row marked and named like any position that counted zero,
+  # so that its whole value, which reads as the period's contribution, is
+  # never shown as a clean gain.
+  #
+  # Acceptance criteria:
+  # - A position held before the period and unpriced at the close of the day
+  #   before it (the start value) carries the marker "1 day at zero" and is
+  #   named in the note with "1 day, no price stored".
+  # - Its figure stays as the walk counts it, in the table and in the sum.
+  test "a position unpriced only at the start value's close is marked", %{conn: conn} do
+    world = base_world(name: "Baseline World", cash_name: "Giro", depot_name: "Depot")
+    late = create_security!(name: "Late Start Fund", ticker: "LSTF")
+    first_day = Date.shift(today(), year: -1)
+
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: late.id,
+        type: "inbound_delivery",
+        date: days_ago(500),
+        quantity: "5",
+        currency_code: "EUR"
+      })
+
+    # The first close lands on the 1Y period's first day; the day before, the
+    # start value's day, the fund had none. Its move is 5 x (42 - 40) = 10;
+    # it reads 5 x 42 = 210, marked.
+    put_quotes!(late, [{first_day, "40"}, {today(), "42"}])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    assert text_of(view, row(late)) =~ "Late Start Fund 1 day at zero"
+    assert text_of(view, row(late)) =~ "+210.00"
+
+    note = text_of(view, "#performance-contribution .data-note--attention")
+    assert note =~ "One position counted zero on some days of the period:"
+    assert note =~ "Late Start Fund (1 day, no price stored)"
+
+    assert text_of(view, "[data-role='contribution-sum-figure']") == "+210.00 EUR"
+  end
+
   # A EUR portfolio whose "Tagesgeld CHF" received 2000 CHF 60 days ago,
   # while CHF's first stored rate (EUR/CHF 0.8) is from 42 days ago: the walk
   # counts the balance zero for 18 days, then at 2500 EUR (board J2's data).
