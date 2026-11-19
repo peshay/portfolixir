@@ -1404,4 +1404,63 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
       assert analysis.base_currency == "EUR"
     end
   end
+
+  # User story (FR-59, ADR-0061 §4, Sprint 30 plan T1):
+  # As the agent ranking positions by what they did for the operator,
+  # I want each contribution row to say on how many window days the walk
+  # valued it,
+  # so that a position valued on no day of the window is told apart from
+  # one that moved and came back, without guessing from its end values.
+  #
+  # Acceptance criteria:
+  # - `valued_days` counts the window days on which the position was held
+  #   and the walk gave it a value; `unvalued_days` the held days it
+  #   counted zero; their sum is the held window days.
+  # - A position delivered without a price and never quoted is valued on no
+  #   day; one whose first quote arrives inside the window and that is sold
+  #   before the window ends is valued on the days after the quote, though
+  #   its start and end values are both 0.
+  # - Across portfolios a day counts once, held in either.
+  test "each row counts the window days the walk valued it" do
+    world = base_world(name: "Valued World", cash_name: "Valued Cash", depot_name: "Valued Depot")
+    other = base_world(name: "Valued Other", cash_name: "Other Cash", depot_name: "Other Depot")
+    view = core_view!([world.depot, other.depot], [world.cash, other.cash])
+    window = {:range, ~D[2026-06-01], ~D[2026-06-05]}
+    today = ~D[2026-06-05]
+
+    never = create_security!(name: "Unquoted Fund", ticker: "UQF")
+    late = create_security!(name: "Late Quote Fund", ticker: "LQF")
+    priced = create_security!(name: "Priced Fund", ticker: "PRF")
+
+    deposit!(world, "1000", ~D[2026-05-20])
+    deposit!(other, "1000", ~D[2026-05-20])
+    delivery!(world, never, "10", ~D[2026-05-20])
+    delivery!(world, late, "4", ~D[2026-05-20])
+    WorldFixtures.buy!(world, priced, quantity: "2", price: "100", date: ~D[2026-05-20])
+    WorldFixtures.buy!(other, priced, quantity: "1", price: "100", date: ~D[2026-05-20])
+    WorldFixtures.put_quotes!(late, [{~D[2026-06-03], "30"}])
+    WorldFixtures.put_quotes!(priced, [{~D[2026-06-01], "101"}])
+    WorldFixtures.sell!(world, late, quantity: "4", price: "31", date: ~D[2026-06-05])
+
+    {:ok, read} = Contribution.for_view(view.id, period: window, today: today)
+
+    # Held 1 to 5 June, never priced: five unvalued days, none valued.
+    assert %{unvalued_days: 5, valued_days: 0, start_value: start, end_value: finish} =
+             row(read, never)
+
+    assert zero?(start) and zero?(finish)
+
+    # Held 1 to 4 June (sold on the 5th), unpriced until the quote of the
+    # 3rd: unvalued on the 1st and 2nd, valued on the 3rd and 4th. Its
+    # start and end values are 0 all the same.
+    assert %{unvalued_days: 2, valued_days: 2, held_at_end: false} = late_row = row(read, late)
+    assert zero?(late_row.start_value) and zero?(late_row.end_value)
+
+    # Held in both portfolios on every window day: each day counts once.
+    assert %{unvalued_days: 0, valued_days: 5} = row(read, priced)
+
+    {:ok, narrowed} = Contribution.for_portfolio(world.portfolio.id, period: window, today: today)
+    assert %{unvalued_days: 5, valued_days: 0} = row(narrowed, never)
+    assert %{unvalued_days: 0, valued_days: 5} = row(narrowed, priced)
+  end
 end

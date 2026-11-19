@@ -88,7 +88,7 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   the table is a derived value of its own (ADR-0039): the
   `:performance_contribution` analytic under the portfolio's basis, and
   `:performance_view_contribution` under the global basis for a view across
-  portfolios, computation version 4, lifetime `:request` by default, keyed
+  portfolios, computation version 5, lifetime `:request` by default, keyed
   by scope, walk end date and period. The stored walk analytics never carry
   the per-position figures.
   """
@@ -116,7 +116,8 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
           held_at_start: boolean(),
           held_at_end: boolean(),
           unvalued_days: non_neg_integer(),
-          unvalued_reason: :no_price | :no_rate | nil
+          unvalued_reason: :no_price | :no_rate | nil,
+          valued_days: non_neg_integer()
         }
 
   @typedoc "A cash account that counted zero on some window day (#1055)."
@@ -180,13 +181,17 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
 
   Each position carries `security_id`, `name`, `isin`, `start_value`,
   `end_value`, `net_flows`, `income`, `costs`, `contribution`,
-  `held_at_start`, `held_at_end`, `unvalued_days` and `unvalued_reason`.
+  `held_at_start`, `held_at_end`, `unvalued_days`, `unvalued_reason` and
+  `valued_days`.
   Positions are sorted by contribution, largest first; equal contributions
   by name, then id. A position sold inside the window is listed with an end
   value of 0.
 
-  `unvalued_days` counts the window days on which the position was held and
-  the walk valued it at zero; `unvalued_reason` is `:no_price` (no price at
+  `valued_days` counts the window days on which the position was held and
+  the walk gave it a value (ADR-0061 §4: a position valued on no day of the
+  window is counted apart by the tops and flops, not ranked); a day held in
+  two portfolios counts once. `unvalued_days` counts the window days on
+  which the position was held and the walk valued it at zero; `unvalued_reason` is `:no_price` (no price at
   all) or `:no_rate` (no rate path to the base currency), `:no_price` when
   both occurred, and `nil` when every day was valued. Such a position stays
   in the table and in the sum (ADR-0051 §10, I7).
@@ -488,7 +493,11 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
       held_at_start: figures.held_at_start,
       held_at_end: figures.held_at_end,
       unvalued_days: map_size(figures.unvalued),
-      unvalued_reason: unvalued_reason(Map.values(figures.unvalued))
+      unvalued_reason: unvalued_reason(Map.values(figures.unvalued)),
+      # ADR-0061 §4: a position valued on no day of the window is counted,
+      # not ranked, by the tops and flops; JSON.contribution/1 does not
+      # serialize it.
+      valued_days: map_size(figures.valued)
     }
   end
 

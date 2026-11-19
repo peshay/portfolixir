@@ -42,10 +42,11 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
   # Acceptance criteria:
   # - `performance_contribution` (portfolio basis) and
   #   `performance_view_contribution` (global basis) are registered with the
-  #   default lifetime `:request`, at computation version 4 since a coupon
+  #   default lifetime `:request`, at computation version 5 since every row
+  #   carries `valued_days` (ADR-0061 §4, Sprint 30 T1; 4 since a coupon
   #   naming its bond became that position's income (#928, ADR-0051's
   #   amendment of 2026-10-09; 3 since #1154 added each row's `wkn` to their
-  #   payload, 2 since #1055 added the unvalued cash accounts); the walk
+  #   payload, 2 since #1055 added the unvalued cash accounts)); the walk
   #   analytics are at version 4, #1055's.
   # - A fixed-period read is memoised under its analytic, one entry per
   #   scope, walk end date and period; repeating it returns the same figures.
@@ -54,8 +55,8 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
   #   memo budget's rule, E25 S4 G03).
   # - The contribution's walk is never stored as a walk analytic.
   test "the contribution is its own request-lifetime analytic per scope and period" do
-    assert Registry.computation_version!(:performance_contribution) == 4
-    assert Registry.computation_version!(:performance_view_contribution) == 4
+    assert Registry.computation_version!(:performance_contribution) == 5
+    assert Registry.computation_version!(:performance_view_contribution) == 5
     assert Registry.lifetime(:performance_contribution) == :request
     assert Registry.lifetime(:performance_view_contribution) == :request
     assert Registry.computation_version!(:performance_analysis) == 4
@@ -107,7 +108,7 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
   # so that a bond's row never reads its price move alone from a memo.
   #
   # Acceptance criteria:
-  # - Both contribution analytics are registered at computation version 4;
+  # - Both contribution analytics are registered at computation version 5;
   #   the walk analytics stay at 4.
   # - A value stored under version 3, for the very scope, period and data
   #   version a read asks for, is not served: the read computes afresh.
@@ -119,8 +120,8 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
     WorldFixtures.put_quotes!(fund, [{~D[2026-01-05], "100"}, {~D[2026-03-02], "110"}])
     pid = world.portfolio.id
 
-    assert Registry.computation_version!(:performance_contribution) == 4
-    assert Registry.computation_version!(:performance_view_contribution) == 4
+    assert Registry.computation_version!(:performance_contribution) == 5
+    assert Registry.computation_version!(:performance_view_contribution) == 5
     assert Registry.computation_version!(:performance_analysis) == 4
     assert Registry.computation_version!(:performance_view_analysis) == 4
 
