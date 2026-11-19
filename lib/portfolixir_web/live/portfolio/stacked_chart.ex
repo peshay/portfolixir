@@ -1065,30 +1065,10 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   defp geometry(%{bands: []}, _index), do: nil
 
   defp geometry(result, index) do
-    indices = sample(length(result.dates))
+    %{indices: indices, drawn: drawn, stacked: stacked, lo: lo, hi: hi, own: own, step: step} =
+      scale(result, index)
+
     dates = Enum.map(indices, &Enum.at(result.dates, &1))
-
-    series =
-      Enum.map(result.bands, fn band ->
-        values = List.to_tuple(band.values)
-        {band.key, Enum.map(indices, &to_float(elem(values, &1)))}
-      end)
-
-    kinds = Map.new(result.bands, &{&1.key, &1.kind})
-    drawn = zero_first(series, kinds)
-    stacked = stack(drawn)
-
-    {lo, hi} = range(stacked)
-    own = unit(index, lo, hi)
-    {_ticks, step} = round_ticks(lo, hi, own)
-
-    # #1366 (board 02 ③): a band below zero reaches one round step below
-    # it, in money and in the privacy mode's percent alike, so its depth
-    # reads against a labelled tick and the picture stays the same in
-    # either mode.
-    lo =
-      ChartAxis.floor_below_zero(lo, hi, [unit(nil, lo, hi), unit(index_basis(result), lo, hi)])
-
     ticks = ChartAxis.ticks(lo, hi, own, step)
     plot_top = @padding_top * 1.0
     plot_bottom = (@height - @padding_bottom) * 1.0
@@ -1128,6 +1108,52 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
       first_date: List.first(dates),
       last_date: List.last(dates)
     }
+  end
+
+  # The drawn days, the bands stacked on them, and the axis: its range, its
+  # unit and its round step.
+  defp scale(result, index) do
+    indices = sample(length(result.dates))
+
+    series =
+      Enum.map(result.bands, fn band ->
+        values = List.to_tuple(band.values)
+        {band.key, Enum.map(indices, &to_float(elem(values, &1)))}
+      end)
+
+    kinds = Map.new(result.bands, &{&1.key, &1.kind})
+    drawn = zero_first(series, kinds)
+    stacked = stack(drawn)
+
+    {lo, hi} = range(stacked)
+    own = unit(index, lo, hi)
+    {_ticks, step} = round_ticks(lo, hi, own)
+
+    # #1366 (board 02 ③): a band below zero reaches one round step below
+    # it, in money and in the privacy mode's percent alike, so its depth
+    # reads against a labelled tick and the picture stays the same in
+    # either mode.
+    lo =
+      ChartAxis.floor_below_zero(lo, hi, [unit(nil, lo, hi), unit(index_basis(result), lo, hi)])
+
+    %{indices: indices, drawn: drawn, stacked: stacked, lo: lo, hi: hi, own: own, step: step}
+  end
+
+  @doc """
+  The money axis the stack of `result` (its value scale) is drawn on, for
+  the Total line at „ab 0“ (I43; the Sprint 30 closing act's design critic,
+  finding 1): `{lo, hi, step}`, the floor one round step below the lowest
+  band below 0 when one is, the top the highest edge plus 5 % of the span,
+  the step in currency units; nil for a stack without bands. The line on
+  it runs on the stack's top edge on every day without a band below 0,
+  and that band's depth below the edge on a day with one.
+  """
+  @spec value_axis(map()) :: {float(), float(), float()} | nil
+  def value_axis(%{bands: []}), do: nil
+
+  def value_axis(result) do
+    %{lo: lo, hi: hi, step: step} = scale(result, nil)
+    {lo, hi, step}
   end
 
   # The axis in round steps (D2): the ticks are the multiples of a round
