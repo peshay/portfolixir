@@ -13506,26 +13506,30 @@ dialog.merge-dialog {
 .crash-section {
   container: crash-section / inline-size;
 }
-/* A fixed cap at full width: a percentage in it resolves against the
-   select's own content when the bar sizes its controls, so the select's
-   form took the longest option's width and the bar wrapped (the closing
-   act; board 01 ① P2). Under 560 px the select may take the section's
-   width (below). 20.5rem since PR 2's closing act (board 06 ⑫): at 19.5rem
-   a manual window of a short name lost its kind („… · manue“, 325 px
-   needed); the line stays one line at 1200 px. */
+/* The select at its longest option, up to the room it is given: on the
+   one line its group's (below), in the label column and under 560 px of
+   the section its column's. Until Sprint 30's closing act after CI (board
+   ux-design-2026-11-15-sprint30/05) a fixed cap of 20.5rem (328 px) stood
+   here, 19.5rem before PR 2's closing act of Sprint 29 (board 06 ⑫), and
+   left a manual window of a short name 3 px: the Chromium of Playwright
+   1.65's headless shell lays the app's Inter out in whole-pixel advances,
+   and „Synthetic dip · 15.08.2022–29.08.2022 · manuell“ needs 332 px there
+   (325 px in the browser before). A percentage cap no longer widens the
+   bar: the line breaks on the group's 16rem, not on the select. */
 .crash-bar select {
   width: auto;
   min-width: 0;
-  max-width: 20.5rem;
+  max-width: 100%;
 }
 /* On the one line the window's group takes the room the line leaves, from
    16rem (its label and the select at its narrowest) up to its own width,
-   the select at its content up to the cap (PR 2's closing act, board 06
-   ⑮). In DejaVu Sans, the fallback a device without Inter draws in, the
-   line with the select at its cap needs 939 px, more than the 924 px bar at
-   a 1200 px window, and wrapped onto two edges; with the group at 16rem it
-   needs 805 px (770 in Inter), under the fold of 900, and in Inter nothing
-   moves.
+   the select at its longest option (PR 2's closing act, board 06 ⑮;
+   Sprint 30, board 05). In DejaVu Sans, the fallback a device without
+   Inter draws in, the line with the select at the old cap needed 939 px,
+   more than the 924 px bar at a 1200 px window, and wrapped onto two
+   edges; with the group at 16rem it needs 805 px (770 in Inter), under the
+   fold of 900. At a 1200 px window the select now has 357 px in Inter
+   where the cap gave it 328.
    In the label column the group is `display: contents`, so none of this
    applies there. */
 .crash-bar .control-bar__group:has(> select) {
@@ -13834,9 +13838,6 @@ dialog.merge-dialog {
    bar and the difference in points (the days back on a third) — and the
    column heads leave for the labels in the rows. */
 @container crash-section (max-width: 560px) {
-  .crash-bar select {
-    max-width: 100%;
-  }
   .crash-window__link,
   .crash-window__nolink {
     margin-left: 0;

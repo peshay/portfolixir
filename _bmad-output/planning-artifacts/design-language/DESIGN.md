@@ -9954,7 +9954,7 @@ family of several lines keeps its label on its first line.
 | Transaktionen, the chip row (board 06 ④) | `live/transaction_management_live.ex` | always, 330 | Konto, Typ, Geändert seit; the phone's filter sheet unchanged |
 | Prognosen, author and model | `live/predictions_live.ex` | always, 330 | Urheber, Modell (when a model is recorded) |
 | Allokation, the drift filter | `live/portfolio_live.ex` | always, 330 | „Abweichung ab“, beside „Alles ausklappen“ |
-| Risiko, Crashes (Sprint 29 C6, on the component since Lane L's integration) | `live/risk/crash_section.ex` | 900, 330 (the walk measured the line wrapping up to an 877 px bar, the window's select at its 19.5rem cap, 16 px more at its 20.5rem cap since PR 2's closing act; one line at a 1200 px window, a 924 px bar. In DejaVu Sans that line needs 939 px, so on the line the window's group takes the room the line leaves, from 16rem up to its own width: the German line needs 770 px in Inter and 805 px in DejaVu Sans, board 06 ⑮) | Fenster (select), Liste, Wertpapiere |
+| Risiko, Crashes (Sprint 29 C6, on the component since Lane L's integration) | `live/risk/crash_section.ex` | 900, 330 (the walk measured the line wrapping up to an 877 px bar, the window's select at its 19.5rem cap, 16 px more at its 20.5rem cap since PR 2's closing act; one line at a 1200 px window, a 924 px bar. In DejaVu Sans that line needs 939 px, so on the line the window's group takes the room the line leaves, from 16rem up to its own width: the German line needs 770 px in Inter and 805 px in DejaVu Sans, board 06 ⑮. Since Sprint 30's closing act after CI the select has no fixed cap, only the room it is given: at a 1200 px window 357 px in Inter, where the cap's 328 px cut a short manual window in Playwright 1.65's headless shell, board ux-design-2026-11-15-sprint30/05) | Fenster (select), Liste, Wertpapiere |
 | Chart, the cycle bar (Sprint 29 H7, on the component since Lane H's integration) | `components/cycle_chart.ex` | 760, 560 (its German line, „Zyklen“ and „Strecken“ with their controls, measures 569 px in Inter and 584 px in DejaVu Sans; the labels stand above at 560 px and under, as board 07 ⑧ drew them; `test/browser/cycle_chart.js` measures it in both fonts) | Zyklen (segmented), Strecken (the three switches, in „Zeitachse“ only); the health line and „Jetzt lesen“ under the bar, outside it |
 
 The review seed records two predictions, one an agent's with a model, so
@@ -10587,14 +10587,20 @@ name (ellipsis) and figure; then the bar under the name and the points
 under the figure — and the rebounders' days a third line with their label;
 the column heads leave the layout (kept for screen readers); the axis
 stays under the bars, and the zero and dashed lines stay on the bar's
-line, never across the name above it. The window's select may take the
-section's width here; at full width it is capped at 20.5rem (19.5rem
-until PR 2's closing act, which cut a short manual window's kind, board
-06 ⑫), so the bar stays one line. On the one line the window's group
-takes the room the line leaves, from 16rem up to its own width (board 06
-⑮): in a font wider than Inter, such as DejaVu Sans, a 1200 px window
+line, never across the name above it. The window's select is as wide as
+its longest option, up to the room it is given: the section's width here,
+the control column in the label column, and on the one line the room the
+line leaves, which the window's group takes from 16rem up to its own width
+(board 06 ⑮), so the line breaks on the group's 16rem, never on the
+select. In a font wider than Inter, such as DejaVu Sans, a 1200 px window
 cuts a short manual window's name in the closed select instead of
-wrapping the bar onto two edges. „Im Depot ansehen“ joins the line's flow.
+wrapping the bar onto two edges. Until Sprint 30's closing act after CI
+(board `mockups/ux-design-2026-11-15-sprint30/05`) the select was capped at
+20.5rem (19.5rem until PR 2's closing act, board 06 ⑫); the 328 px left
+„Synthetic dip · 15.08.2022–29.08.2022 · manuell“ 3 px, and Playwright
+1.65's headless shell (Chromium revision 1254), which lays the app's Inter
+out in whole-pixel advances, needs 332 px for it; at a 1200 px window the
+select now has 357 px. „Im Depot ansehen“ joins the line's flow.
 
 ### The privacy mode
 

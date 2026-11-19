@@ -482,13 +482,13 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   # universe, on the shared `PortfolixirWeb.ControlBar.bar/1` (issue 1435):
   # one line while it fits, the label column from 900 px of the bar, labels
   # above at 330 px. The fold is the Lane L walk's measure: with the
-  # window's select at its 19.5rem cap the line wraps up to an 877 px bar
-  # (German), 16 px more at its 20.5rem cap since PR 2's closing act (board
-  # 06 ⑫), and the bar is 924 px at a 1200 px window, one line there. In
-  # DejaVu Sans, the fallback a device without Inter draws in, that line
-  # needs 939 px, so on the line the window's group takes the room the line
-  # leaves, from 16rem up to its own width (app.css; board 06 ⑮): the line
-  # then needs 805 px in DejaVu Sans and 770 in Inter.
+  # window's select at its old 20.5rem cap the line wrapped up to an 893 px
+  # bar (German; board 06 ⑫), and the bar is 924 px at a 1200 px window.
+  # On the line the window's group takes the room the line leaves, from
+  # 16rem up to its own width (app.css; board 06 ⑮), so the line needs 805
+  # px in DejaVu Sans, the fallback a device without Inter draws in, and
+  # 770 in Inter; since Sprint 30's closing act after CI the select has no
+  # fixed cap, only that room (board ux-design-2026-11-15-sprint30/05).
   defp bar(assigns) do
     ~H"""
     <ControlBar.bar class="crash-bar" fold={900} data-role="crash-bar">
