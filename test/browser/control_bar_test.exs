@@ -123,6 +123,51 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
     assert result == %{"ok" => true}, output
   end
 
+  # --- S30 W1 begin ---
+  # I43 (Sprint 30 W1; board `ux-design-2026-11-15-sprint30/01-axis-start`
+  # ④ and ⑤, answer C; plan D-6).
+  #
+  # User story:
+  # As the operator reading Wealth's Total in „Wert“ on a wide window and
+  # on a phone,
+  # I want the axis switch to join the bar on the bar's own edge, and the
+  # axis-break mark at the chart's foot at every width,
+  # so that the new control moves nothing else and the mark is never cut
+  # off or hidden under a value.
+  #
+  # Acceptance criteria:
+  # - At „Gesamt“ in „Wert“ the bar holds „Level“ and „Axis“; in English
+  #   and in German, in Inter and in DejaVu Sans, it is one line at 1200 and
+  #   900 px, the label column at 1024 px and labels above at 390 and
+  #   320 px (the stack's fold 780 and floor 380 hold); no control leaves
+  #   the bar, and the page never scrolls sideways.
+  # - The mark is 15 × 13 CSS px at every width, centred on the bottom grid
+  #   line: from the plot's left edge while the values stand in the gutter
+  #   (1200 px), in the gutter with its right edge on the plot's while they
+  #   stand inside the plot (390 px, ⑤).
+  test "the axis switch keeps the bar's fold and floor; the mark sits at the plot's foot",
+       %{base_url: base_url} do
+    world = base_world(name: "Bar Axis", cash_name: "Giro", depot_name: "Depot")
+    deposit!(world, "10000", ~D[2025-01-02])
+    security = create_security!(name: "Synthetic Growth Fund")
+    buy!(world, security, quantity: "10", price: "100", date: ~D[2025-01-02])
+    today = Portfolixir.Clock.today()
+
+    put_quotes!(security, [
+      {~D[2025-01-02], "100"},
+      {Date.add(today, -200), "140"},
+      {Date.add(today, -100), "120"},
+      {today, "160"}
+    ])
+
+    {result, output} =
+      run!("stack_axis_layout", base_url, %{path: "/portfolio?level=total", locales: locales()})
+
+    assert result == %{"ok" => true}, output
+  end
+
+  # --- S30 W1 end ---
+
   # --- L2 begin ---
   # Issue 1435 (Sprint 29 L2; board `ux-design-2026-11-12-sprint29/06-control-bar`
   # ① to ④ and its inventory §1, rows 2, 3, 5, 7 to 10): the bars that

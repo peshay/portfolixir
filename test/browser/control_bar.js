@@ -144,6 +144,104 @@ async function stackBarLayout(browser) {
   if (errors.length > 0) throw new Error(errors.join("; "));
 }
 
+// --- S30 W1 begin: I43 (board ux-design-2026-11-15-sprint30/01-axis-start
+// ④ and ⑤, answer C) ---
+
+// The bar at „Gesamt“ in „Wert“: the level and the axis, two groups.
+const AXIS_GROUPS = [
+  ["#stack-level-label", "[data-role='stack-level']"],
+  ["#stack-axis-label", "[data-role='stack-axis']"]
+];
+
+// The axis-break mark's box and the bottom grid line's, in CSS px.
+function measureMark(page) {
+  return page.evaluate(() => {
+    const round = (n) => Math.round(n * 10) / 10;
+    const frame = document.querySelector("#performance-figure .chart-frame");
+    const lines = [...frame.querySelectorAll("g.chart-axes line")];
+    const grid = lines[0].getBoundingClientRect();
+    const mark = frame.querySelector("g.chart-axis-break rect");
+    const r = mark && mark.getBoundingClientRect();
+    return {
+      inside: frame.hasAttribute("data-axis-inside"),
+      grid: { left: round(grid.left), y: round(grid.top + grid.height / 2) },
+      mark: r && {
+        left: round(r.left),
+        right: round(r.right),
+        width: round(r.width),
+        height: round(r.height),
+        y: round(r.top + r.height / 2)
+      }
+    };
+  });
+}
+
+// I43: the bar at „Gesamt“ in „Wert“ gains „Achse“ after „Ebene“ and keeps
+// the stacked chart's fold and floor: one line at 1200 and 900 px, the label
+// column at 1024 px, labels above at 390 and 320 px, in English and German,
+// in Inter and DejaVu Sans; no control leaves the bar. The axis-break mark,
+// 15 x 13 CSS px at every width, sits on the bottom grid line: inside the
+// plot from its left edge while the values stand in the gutter, in the
+// gutter with its right edge on the plot's while they stand inside (⑤).
+async function stackAxisLayout(browser) {
+  const errors = [];
+  const host = new URL(base).hostname;
+  const expected = { 1200: "line", 1024: "column", 900: "line", 390: "above", 320: "above" };
+  const near = (a, b) => Math.abs(a - b) <= 1;
+  for (const locale of ["en", "de"]) {
+    for (const width of [1200, 1024, 900, 390, 320]) {
+      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      await context.addCookies([
+        { name: "portfolixir_locale", value: args.locales[locale], domain: host, path: "/" }
+      ]);
+      const page = await context.newPage();
+      await ready(page, args.path);
+      await page.waitForSelector("#performance-figure g.chart-axis-break");
+      await settle(page);
+      await nextFrame(page);
+      await eachFont(page, async (font) => {
+        const m = await measure(page, AXIS_GROUPS, "[data-role='stack-bar']");
+        const { layout, exact } = layoutOf(m);
+        const label = locale + " at " + width + " px in " + font.name + ": ";
+        console.error(label + JSON.stringify({ layout, exact, ...m }));
+        if (m.page > 0) errors.push(label + "the page scrolls sideways by " + m.page);
+        if (m.groups.some(({ control }) => control.right > m.bar.width + 0.5)) {
+          errors.push(label + "a control leaves the bar " + JSON.stringify(m.groups));
+        }
+        if (layout !== expected[width] || !exact) {
+          errors.push(
+            label + "expected the " + expected[width] + " layout, measured " + layout +
+              (exact ? "" : " (off by more than 1 px)") + " " + JSON.stringify(m.groups)
+          );
+        }
+      });
+      const mark = await measureMark(page);
+      const label = locale + " at " + width + " px, the mark: ";
+      console.error(label + JSON.stringify(mark));
+      if (!mark.mark) {
+        errors.push(label + "missing");
+      } else {
+        const { grid, inside } = mark;
+        const box = mark.mark;
+        const placed = inside ? near(box.right, grid.left - 0.5) : near(box.left, grid.left + 0.5);
+        if (!near(box.width, 15) || !near(box.height, 13)) {
+          errors.push(label + "not 15 x 13 px " + JSON.stringify(mark));
+        }
+        if (!placed || !near(box.y, grid.y)) {
+          errors.push(label + "not at the plot's foot " + JSON.stringify(mark));
+        }
+        if ((width <= 390 && !inside) || (width === 1200 && inside)) {
+          errors.push(label + "the values stand " + (inside ? "inside" : "outside") + " " + JSON.stringify(mark));
+        }
+      }
+      await leave(context);
+    }
+  }
+  if (errors.length > 0) throw new Error(errors.join("; "));
+}
+
+// --- S30 W1 end ---
+
 // --- L2 begin: the migrated bars (issue 1435, Sprint 29 L2; board 06 and
 // its inventory §1, rows 2, 3, 5, 7 to 10) ---
 
@@ -1521,6 +1619,9 @@ async function proseAttack(browser) {
 
 const CASES = {
   stack_bar_layout: stackBarLayout,
+  // --- S30 W1 begin ---
+  stack_axis_layout: stackAxisLayout,
+  // --- S30 W1 end ---
   migrated_bar: migratedBar,
   // --- L3 begin ---
   every_bar: everyBar,
