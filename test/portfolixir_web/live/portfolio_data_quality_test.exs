@@ -155,7 +155,7 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
 
     assert has_element?(
              view,
-             "#{region} .data-note--attention[data-role='dq-no-price'] a[href='/securities?dq=missing_quote']"
+             "#{region} .data-note--attention[data-role='dq-no-price'] a[href='/securities?dq=missing_quote&holding=held']"
            )
 
     assert has_element?(
@@ -263,7 +263,7 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
   #
   # Acceptance criteria:
   # - The "no price at all" finding links to the securities list pre-filtered
-  #   to securities without any quote.
+  #   to held securities without any quote (#1366: `holding=held`).
   # - The "valued at last trade price" finding links to the securities list
   #   pre-filtered to stale quotes.
   test "data-quality findings link to the pre-filtered securities list", %{conn: conn} do
@@ -284,7 +284,7 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
 
     assert has_element?(
              view,
-             ~s([data-role="dq-no-price"] a[href="/securities?dq=missing_quote"])
+             ~s([data-role="dq-no-price"] a[href="/securities?dq=missing_quote&holding=held"])
            )
   end
 

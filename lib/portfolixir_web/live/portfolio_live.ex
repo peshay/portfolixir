@@ -2084,7 +2084,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         <section
           class="workspace-section kpi-summary"
           aria-label={gettext("Wealth key figures")}
-          aria-busy={summary_busy(@valuation, @performance, @performance_failed)}
+          aria-busy={summary_busy(@valuation, summary_performance(@performance, @performance_stale), @performance_failed)}
           data-role="kpi-summary"
         >
           <span class="kpi-summary__item">
@@ -2101,16 +2101,29 @@ defmodule PortfolixirWeb.PortfolioLive do
           </span>
           <span class="kpi-summary__item">
             <%= gettext("TTWROR") %> <%= period_label(@period) %>
-            <strong :if={@performance} class={perf_sign_class(@performance.ttwror)}>
+            <%!-- #1366 (board 02 ④): while a fresh walk computes over a
+                 superseded series, the figure is the app's busy
+                 placeholder, as on Holdings' card, never the old figure
+                 unmarked (Holdings labels it with its stale banner). --%>
+            <strong
+              :if={summary_performance(@performance, @performance_stale)}
+              class={perf_sign_class(@performance.ttwror)}
+            >
               <%= signed_percent(@performance.ttwror) %>%
             </strong>
-            <span
-              :if={is_nil(@performance) and not @performance_failed}
-              class="value-skeleton"
-              aria-hidden="true"
+            <strong
+              :if={is_nil(summary_performance(@performance, @performance_stale)) and not @performance_failed}
+              class="value-slot-pending"
+              aria-busy="true"
+              data-waits="performance"
             >
-            </span>
-            <strong :if={is_nil(@performance) and @performance_failed} class="stat-empty">—</strong>
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
+            <strong
+              :if={is_nil(summary_performance(@performance, @performance_stale)) and @performance_failed}
+              class="stat-empty"
+            >—</strong>
           </span>
           <a class="kpi-summary__link" href={holdings_path(@current_path, @period)}>
             <%= gettext("All key figures → Holdings") %>
@@ -3407,16 +3420,26 @@ defmodule PortfolixirWeb.PortfolioLive do
                       data-column={key}
                       {holdings_cell_attrs(row, key)}
                     >
-                      <%= holdings_cell(row, key) %><SecurityNames.twin_id
+                      <%!-- #1366 (board 02 ①, answer A): the depot on one
+                           line, cut past 7rem, whole in its title. --%>
+                      <span
+                        :if={key == "depot"}
+                        class="cell-depot"
+                        title={holdings_cell(row, key)}
+                      ><%= holdings_cell(row, key) %></span><%= if key != "depot",
+                        do: holdings_cell(row, key) %><SecurityNames.twin_id
                         :if={key == "security"}
                         tag={row.twin_id}
                       /><%= if holdings_currency(row, key), do: " " %><small
                         :if={holdings_currency(row, key)}
                         class="value-suffix"
                       ><%= holdings_currency(row, key) %></small>
-                      <small :if={holdings_cell_note(row, key)} class="cell-note">
-                        <%= holdings_cell_note(row, key) %>
-                      </small>
+                      <%!-- #1366 (board 02 ①, answer A): the note's first
+                           phrase never breaks. --%>
+                      <small
+                        :if={holdings_cell_note(row, key)}
+                        class="cell-note"
+                      ><span class="cell-note__lead"> <%= note_lead(holdings_cell_note(row, key)) %></span><%= note_rest(holdings_cell_note(row, key)) %></small>
                     </td>
                   </tr>
                 </tbody>
@@ -3762,6 +3785,17 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp holdings_cell_note(_row, _key), do: nil
 
+  # A note's first phrase, up to its first " · ", and the rest with that
+  # separator: the first never breaks (#1366, board 02 ①).
+  defp note_lead(note), do: note |> String.split(" · ", parts: 2) |> hd()
+
+  defp note_rest(note) do
+    case String.split(note, " · ", parts: 2) do
+      [_lead, rest] -> " · " <> rest
+      [_lead] -> ""
+    end
+  end
+
   # -- components -------------------------------------------------------------
 
   # Surfaces why the totals can deviate from the user's expectation: positions
@@ -3915,7 +3949,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         <AppShell.data_note
           id="dq-no-price-note"
           clamp :if={@no_price.count > 0} severity={:attention} data-role="dq-no-price">
-          <a href="/securities?dq=missing_quote">
+          <a href="/securities?dq=missing_quote&holding=held">
             <%= ngettext(
               "One held position has no price at all and is missing from the totals:",
               "%{count} held positions have no price at all and are missing from the totals:",
@@ -5036,6 +5070,13 @@ defmodule PortfolixirWeb.PortfolioLive do
   def handle_event("clear_segment", _params, socket),
     do: {:noreply, assign(socket, :selected_segment, nil)}
 
+  # #1366 (the lifecycle audit's #32; ADR-0059 §9: busy is one encoding,
+  # with a server-side guard): the disabled button is the page's only brake
+  # a client sees, so a sync_rates pushed while the sync runs is refused
+  # here, as the securities page refuses a second sync_now.
+  def handle_event("sync_rates", _params, %{assigns: %{fx_syncing: true}} = socket),
+    do: {:noreply, socket}
+
   # The sync runs in the background (UAT fix round): the handler only flips
   # the in-flight flag, so the button disables and the inline status shows
   # immediately; the result lands inline next to the button, not as a toast.
@@ -5565,9 +5606,10 @@ defmodule PortfolixirWeb.PortfolioLive do
     %{count: length(names), names: ValuationNotes.shorten_list(names)}
   end
 
-  # The no-price row links to ?dq=missing_quote, which leaves a retired
-  # security out, so the row does too (PR #1102); the FX row keeps it, as
-  # missing_fx does.
+  # The no-price row links to ?dq=missing_quote&holding=held (#1366: the
+  # held ones it counts, as the implausible-quote row's link), which leaves
+  # a retired security out, so the row does too (PR #1102); the FX row
+  # keeps it, as missing_fx does.
   defp reject_retired(positions, :no_price),
     do: Enum.reject(positions, &Map.get(&1, :retired, false))
 
@@ -6201,6 +6243,13 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # The Allocation tab's summary line is busy while either figure it carries
   # is still computing (UX-DR20); a failed walk is not "busy".
+  # The Allocation summary's figure: the performance once it is current; a
+  # superseded one serving while the fresh walk computes reads as busy
+  # (#1366, board 02 ④), and a failed one reads "—".
+  defp summary_performance(performance, stale?) do
+    if stale?, do: nil, else: performance
+  end
+
   defp summary_busy(valuation, performance, performance_failed) do
     if is_nil(valuation) or (is_nil(performance) and not performance_failed),
       do: "true",

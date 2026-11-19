@@ -10248,6 +10248,20 @@ a.sidebar-version__text:hover {
   vertical-align: middle;
 }
 
+/* Issue 1366 (board ux-design-2026-11-15-sprint30/02 ④): the TTWROR
+   figure's busy placeholder while a fresh walk computes, the skeleton and
+   "computing" on the figure's line. */
+.kpi-summary .value-slot-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  vertical-align: middle;
+}
+
+.kpi-summary .value-slot-pending .value-skeleton {
+  width: 3.2em;
+}
+
 .kpi-summary__link {
   margin-left: auto;
   color: var(--color-accent);
@@ -13235,7 +13249,8 @@ dialog.merge-dialog {
    out of view. The accounts table's anatomy (issue 1145): the Security
    column keeps a floor and a longer name breaks inside its cell, so no
    stored name moves the table's width. The floor is what the seven other
-   columns leave of the 922 px on the seed (13.5 rem made it 942 px). The
+   columns leave of the 922 px on the seed (13.5 rem made it 942 px; 9.5rem
+   since issue 1366's one-line depot, below). The
    figures never wrap, so the quantity keeps every stored digit; a cell's
    note („Handelspreis · …“, „ohne Wechselkurs · …“) wraps between words,
    where on one line it set the widest columns. With all eleven columns the
@@ -13246,7 +13261,7 @@ dialog.merge-dialog {
 }
 
 #holdings-positions-table th.cell-name {
-  min-width: 12rem;
+  min-width: 9.5rem;
 }
 
 #holdings-positions-table td.cell-name {
@@ -13260,6 +13275,38 @@ dialog.merge-dialog {
 
 #holdings-positions-table td .cell-note {
   white-space: normal;
+}
+
+/* Issue 1366 (board ux-design-2026-11-15-sprint30/02 ①, answer A): on the
+   full review seed at 1200 px the notes stacked to four lines in the
+   ~113 px figure columns and "Demo Depot" broke on every row (rows 64 to
+   99 px). The note's first phrase („ohne Wechselkurs“, „kein Preis“,
+   „Handelspreis“) never breaks; the note stays right-aligned under its
+   figure and may reach 9rem left past its column, into the empty space
+   under the neighbour's figure (no row carries notes in two adjacent
+   cells: „kein Preis“ sits in the price beside the average cost,
+   „ohne Wechselkurs“ in the market value beside a price without a note),
+   so it adds no width to its column. The depot stays one line, cut with an
+   ellipsis past 7rem, whole in its title; the Security column's floor
+   drops from 12rem to 9.5rem to make the room (with 12rem the table was
+   956 px in 922). Rows 49 px, the table 922 px in 922 in Inter. */
+#holdings-positions-table td .cell-note__lead {
+  white-space: nowrap;
+}
+
+#holdings-positions-table td.num .cell-note {
+  margin-left: -9rem;
+}
+
+#holdings-positions-table td[data-column="depot"] {
+  white-space: nowrap;
+}
+
+#holdings-positions-table .cell-depot {
+  display: block;
+  max-width: 7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ===== Wealth at 390 px and the twin names (Sprint 19 U4; board
