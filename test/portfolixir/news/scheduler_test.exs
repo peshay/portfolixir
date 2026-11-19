@@ -234,6 +234,24 @@ defmodule Portfolixir.News.SchedulerTest do
       assert %{last_error: "timeout", last_ok_at: nil} = reload(stalled)
     end
 
+    # #1460 (flaky): the three feeds once shared one `deadline_ms: 2_000`,
+    # the bound the stalled feed must outlive and the healthy one must beat.
+    # Measured under load (eight CPU burners, four cold test VMs at once),
+    # the healthy request spent 0.3 to 1.8 s before its plug was even
+    # entered (the three requests entered their plugs in the same
+    # millisecond, as processes do that the code server releases together
+    # once the plug path is loaded on first use), and past 2 s it read
+    # `timeout`. The deadline is the
+    # request's own (`Portfolixir.Net.Http`), so the stalled feed alone gets
+    # the short one and the others keep the fetcher's default.
+    #
+    # The feeds also take turns, healthy, raising, stalling: the three tasks
+    # share this test's one sandbox connection, and a record queued behind
+    # the healthy feed's ingest past the queue's poll was dropped and logged
+    # `fetch_failed`. The turns are this test's, not the scheduler's: each
+    # fetch still runs in its own task on the real path, and the healthy
+    # feed's record is read after both failures were recorded. That
+    # concurrent feeds do not stop each other is the test above's.
     test "on the real path a raising and a stalling host are each their own feed's error" do
       raising = issuer_feed!(%{url: "https://raising.example.com/feed.xml"})
       stalling = issuer_feed!(%{url: "https://stalling.example.com/feed.xml"})
@@ -258,7 +276,28 @@ defmodule Portfolixir.News.SchedulerTest do
       end
 
       serve(plug)
-      results = @t0 |> News.fetch_due(deadline_ms: 2_000) |> Map.new()
+
+      turns =
+        spawn_link(fn ->
+          for id <- [healthy.id, raising.id, stalling.id] do
+            receive do: ({:turn, ^id, task} -> send(task, :go))
+            receive do: ({:done, ^id} -> :ok)
+          end
+        end)
+
+      fetch = fn feed, opts ->
+        send(turns, {:turn, feed.id, self()})
+        receive do: (:go -> :ok)
+        opts = if feed.id == stalling.id, do: Keyword.put(opts, :deadline_ms, 2_000), else: opts
+
+        try do
+          News.Fetcher.fetch(feed, opts)
+        after
+          send(turns, {:done, feed.id})
+        end
+      end
+
+      results = @t0 |> News.fetch_due(fetch: fetch) |> Map.new()
 
       assert {:ok, %{stored: 1}} = results[healthy.id]
       assert {:error, "fetch_failed"} = results[raising.id]
