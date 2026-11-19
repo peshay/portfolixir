@@ -2501,11 +2501,13 @@ Kurs zu Beginn, 1 ohne Wechselkurs“ und „1 Position an keinem Tag des
 Zeitraums bewertet“; nichts wird mit einer Null gerankt, die es nicht hat.
 Eine Basiszeile nennt Ansicht, Fenster und Daten, die Methode steht hinter
 dem ⓘ. Jeder Name öffnet sein Wertpapier; **In Vermögen ansehen →** öffnet
-Vermögen in der Ansicht der Karte mit dem Fenster des Beitrags als
-benutzerdefiniertem Zeitraum (`/portfolio?view=…&from=…&to=…`, `view=total`
-für Alles), auch wenn Vermögen zuletzt eine andere Ansicht zeigte; Vermögen
-behält danach diese Ansicht, wie nach jedem Link, der eine nennt. Unter
-560 px stehen die Spalten untereinander, die Kursrendite zuerst. Im Privatsphäre-Modus ist jeder Beitrag verborgen,
+Vermögen mit dem Fenster des Beitrags als benutzerdefiniertem Zeitraum
+(`/portfolio?from=…&to=…`), in der Ansicht, die Vermögen zuletzt zeigte:
+der Link ändert sie nicht. Ist diese Ansicht nicht die der Karte, nennt ein
+Satz unter der Basiszeile beide („Vermögen ist gerade auf die Ansicht „…“
+eingegrenzt; diese Karte zeigt „Alles“.“), wie der Hinweis unter der
+Vermögenskarte. Unter 560 px stehen die Spalten untereinander, die
+Kursrendite zuerst. Im Privatsphäre-Modus ist jeder Beitrag verborgen,
 Vorzeichenfarbe, Reihenfolge und Balken bleiben; die Prozente bleiben. Die
 Karte lädt im Hintergrund, mit ihrem Platzhalter, solange sie lädt; eine
 Ansicht ohne Bestände behält die Leiste und sagt „Keine Bestände in dieser

@@ -15,12 +15,17 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
   Flops“):
 
     * a head — the heading with its ⓘ, which holds the method, and
-      „View in Wealth →“, Wealth in the card's view with the
-      contribution's window as a custom range;
+      „View in Wealth →“, Wealth with the contribution's window as a
+      custom range and no `view=` (#1081's rule: a link does not change
+      the view Wealth remembers);
     * the window as one group „Period“ of the shared control bar
       (`PortfolixirWeb.ControlBar.bar/1`), its chips patch links that keep
       the window in the address (`?movers_period=`);
     * one basis line: the view, the window and its dates, the currency;
+      where the view Wealth remembers is not the card's, one sentence under
+      it names both, so the link's reader knows Wealth shows another scope
+      (as the wealth card's note does; Sprint 30 closing act, correctness
+      lens, finding 2);
     * two columns, „Price return“ first and „Contribution“ beside it, each
       with „Highest“ over „Lowest“ as `.attention-item` rows (name left,
       figure right) and the count of what has no answer under them; a „Day“
@@ -43,6 +48,7 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ControlBar
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.StoredText
 
   @windows ~w(day week month quarter ytd 1y)
   @default_window "day"
@@ -68,9 +74,14 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
   attr(:card, :any, required: true, doc: "nil while the read runs, :error, or the loaded card")
   attr(:privacy_mode, :boolean, default: false)
 
+  attr(:active_view, :any,
+    default: nil,
+    doc: "the view Wealth remembers (`LiveViewScope`), nil for Everything"
+  )
+
   @doc "The card, placed by the Overview under its KPI strip."
   def card(assigns) do
-    assigns = assign(assigns, :f, figures(assigns.card))
+    assigns = assign(assigns, :f, figures(assigns.card, assigns.active_view))
 
     ~H"""
     <section id="dashboard-movers" class="workspace-section movers" aria-labelledby="movers-title">
@@ -150,6 +161,7 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
           </p>
         <% true -> %>
           <p class="summary-basis" data-role="movers-basis"><%= @f.basis %></p>
+          <p :if={@f.wealth_view} class="hint" data-role="movers-wealth-view"><%= @f.wealth_view %></p>
           <div class="movers__grid">
             <div class="movers__col" data-role="movers-return">
               <h3><%= pgettext("movers", "Price return") %></h3>
@@ -291,14 +303,16 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
 
   # -- figures ----------------------------------------------------------------------
 
-  defp figures(nil), do: nil
-  defp figures(:error), do: nil
+  defp figures(nil, _active_view), do: nil
+  defp figures(:error, _active_view), do: nil
 
-  defp figures(%{result: result, view_name: view_name}) do
+  defp figures(%{result: result, view_name: view_name}, active_view) do
     price = result.price_return
     contribution = result.contribution
     listed = contribution.highest ++ contribution.lowest
     empty? = empty?(price) and empty?(contribution)
+    # An empty card links nowhere: Wealth would show nothing either.
+    wealth_href = if(empty?, do: nil, else: wealth_href(contribution.from, contribution.to))
 
     %{
       empty?: empty?,
@@ -312,9 +326,8 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
       price_count: price_count(price.unanswered),
       contribution_count: contribution_count(contribution.unanswered),
       largest: listed |> Enum.map(&Decimal.abs(&1.contribution)) |> max_decimal(),
-      # An empty card links nowhere: Wealth would show nothing either.
-      wealth_href:
-        if(empty?, do: nil, else: wealth_href(result.view_id, contribution.from, contribution.to))
+      wealth_href: wealth_href,
+      wealth_view: wealth_view(wealth_href, active_view, result.view_id, view_name)
     }
   end
 
@@ -330,25 +343,41 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
 
   defp max_decimal(decimals), do: Enum.max(decimals, Decimal, fn -> Decimal.new(0) end)
 
-  # Wealth in the card's view (`view=`, `total` for Everything, so the
-  # view Wealth remembers does not replace it; Sprint 30 closing act,
-  # correctness lens, finding 2) with the contribution's window as a custom
-  # range (`from=` and `to=`, the address values Wealth's popover reads),
-  # so its table shows the same contribution; none when the window has no
-  # day.
-  defp wealth_href(view_id, %Date{} = from, %Date{} = to),
+  # Wealth with the contribution's window as a custom range (`from=` and
+  # `to=`, the address values Wealth's popover reads), so its table shows
+  # the same contribution; none when the window has no day. No `view=`: a
+  # link from the Overview does not change the view Wealth remembers
+  # (#1081's rule, D-3); `wealth_view/4` says when that view is another.
+  defp wealth_href(%Date{} = from, %Date{} = to),
     do:
       "/portfolio?" <>
-        URI.encode_query([
-          {"view", wealth_view(view_id)},
-          {"from", Date.to_iso8601(from)},
-          {"to", Date.to_iso8601(to)}
-        ])
+        URI.encode_query([{"from", Date.to_iso8601(from)}, {"to", Date.to_iso8601(to)}])
 
-  defp wealth_href(_view_id, _from, _to), do: nil
+  defp wealth_href(_from, _to), do: nil
 
-  defp wealth_view(nil), do: "total"
-  defp wealth_view(view_id) when is_integer(view_id), do: Integer.to_string(view_id)
+  # Where the view Wealth remembers is not the card's, one sentence names
+  # both, as the wealth card's note does (Sprint 30 closing act, correctness
+  # lens, finding 2): the link opens Wealth on that view, so its table
+  # shows that scope's contributions. None without a link.
+  defp wealth_view(nil, _active_view, _view_id, _view_name), do: nil
+
+  defp wealth_view(_href, active_view, view_id, view_name) do
+    if (active_view && active_view.id) == view_id,
+      do: nil,
+      else: wealth_view_sentence(active_view, view_name)
+  end
+
+  # Both names are stored text, each in its own `<bdi>` (H8.8).
+  defp wealth_view_sentence(active_view, view_name) do
+    StoredText.isolate(
+      gettext("Wealth is currently scoped to the view “%{active}”; this card shows “%{card}”.",
+        active: StoredText.slot(:active),
+        card: StoredText.slot(:card)
+      ),
+      active: (active_view && active_view.name) || gettext("Everything"),
+      card: view_label(view_name)
+    )
+  end
 
   # -- words ------------------------------------------------------------------------
 

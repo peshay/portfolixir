@@ -11052,12 +11052,12 @@ screen and the agent read one ranking.
    half and the split under ten with no name in both halves, what has no
    answer, and what „Tag“ means. At the head's end **„In Vermögen ansehen
    →“** (`.kpi-summary__link`, as „Alle Trades →“): Vermögen at
-   `/portfolio?view=<view>&from=<from>&to=<to>`, the card's view (its id,
-   `total` for „Alles“, so the view Vermögen remembers does not replace
-   it; Sprint 30 closing act, correctness lens, finding 2) and the
-   contribution's own window (`S + 1` to `T`; on „Tag“ the one day `D`),
-   so its table shows the same contributions. No link while the card is empty, or on „Tag“ without a
-   day `D`.
+   `/portfolio?from=<from>&to=<to>`, the contribution's own window (`S + 1`
+   to `T`; on „Tag“ the one day `D`), so its table shows the same
+   contributions. No `view=`: an Overview link does not change the view
+   Vermögen remembers (#1081's rule, D-3); where that view is not the
+   card's, the sentence under the basis line (3) says so. No link while
+   the card is empty, or on „Tag“ without a day `D`.
 2. **The bar** (`div.control-bar[data-role=movers-bar]`), DESIGN.md's
    "Labelled controls start on one edge" as the shared
    `PortfolixirWeb.ControlBar.bar/1` (fold 560, floor 380): one group
@@ -11068,7 +11068,12 @@ screen and the agent read one ranking.
    aus gespeicherten Schlusskursen und Buchungen“; on „Tag“ „Ansicht ‹Name›
    · Tag: seit dem vorigen Schlusskurs jedes Wertpapiers, die Daten an der
    Zeile; Beitrag am ‹D› · in EUR“ (without the contribution's clause when
-   no close is stored).
+   no close is stored). Under it, only where the view Vermögen remembers is
+   not the card's and the link stands, one sentence
+   (`p.hint[data-role=movers-wealth-view]`), as the wealth card's note has
+   it: „Vermögen ist gerade auf die Ansicht „‹gemerkt›“ eingegrenzt; diese
+   Karte zeigt „‹Ansicht der Karte›“.“, both names in `<bdi>` (Sprint 30
+   closing act, correctness lens, finding 2).
 4. **Two columns** (`.movers__grid`), **„Kursrendite“** first, **„Beitrag“**
    beside it, each an `h3` over **„Höchste“** and **„Niedrigste“**
    (`h4.movers__half`, a half left out when the split gives it none), each

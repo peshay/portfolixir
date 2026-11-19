@@ -2261,12 +2261,14 @@ price return: 1 without a close at the start, 1 without an exchange rate"
 and "1 position not valued on any day of the period"; nothing is ranked as a
 zero it does not have. One basis line names the view, the window and its
 dates, and the method is behind the ⓘ. Each name opens its security;
-**View in Wealth →** opens Wealth in the card's view with the contribution's
-window as a custom range (`/portfolio?view=…&from=…&to=…`, `view=total` for
-Everything), even when Wealth last showed another view; Wealth then keeps
-that view, as after any link that names one. Under 560 px the two columns
-stack, price return first. In the privacy mode every contribution is hidden, its sign
-colour, order and bar kept; the percentages stay. The card reads in the
+**View in Wealth →** opens Wealth with the contribution's window as a custom
+range (`/portfolio?from=…&to=…`), in the view Wealth last showed: the link
+does not change it. Where that view is not the card's, a sentence under the
+basis line names both ("Wealth is currently scoped to the view “…”; this
+card shows “Everything”."), as the note under the value card does. Under
+560 px the two columns stack, price return first. In the privacy mode every
+contribution is hidden, its sign colour, order and bar kept; the percentages
+stay. The card reads in the
 background, with its skeleton while it loads; a view that holds nothing keeps
 the bar and says "No holdings in this view.". Your agent reads the same
 rankings over
