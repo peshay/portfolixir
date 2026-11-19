@@ -372,7 +372,8 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
   # Acceptance criteria:
   # - The ongoing window: „läuft“ in its option, „vorläufig“ beside its low,
   #   the hint that the low and the lists move; the link's range ends today.
-  # - The 2022 window links /portfolio?from=<start>&to=<trough>.
+  # - The 2022 window links /portfolio?view=<id>&from=<start>&to=<trough>
+  #   (the address's view kept since #1366).
   # - The 2020 window ends before the view's first booking: no link, one
   #   line naming the view's first day; the list still answers.
   test "an ongoing window, and „Im Depot ansehen“ with the window as the range or a line why not",
@@ -389,14 +390,14 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
 
     assert has_element?(
              view,
-             "a[data-role=crash-holdings-link][href='/portfolio?from=#{Date.to_iso8601(day(-20))}&to=#{Date.to_iso8601(Date.utc_today())}']"
+             "a[data-role=crash-holdings-link][href='/portfolio?view=#{world.view.id}&from=#{Date.to_iso8601(day(-20))}&to=#{Date.to_iso8601(Date.utc_today())}']"
            )
 
     view |> element("#crash-window-form") |> render_change(%{"crash" => world.bear})
 
     assert has_element?(
              view,
-             "a[data-role=crash-holdings-link][href='/portfolio?from=2022-01-03&to=2022-10-12']"
+             "a[data-role=crash-holdings-link][href='/portfolio?view=#{world.view.id}&from=2022-01-03&to=2022-10-12']"
            )
 
     # The link opens Holdings over that range, no fallback line.
@@ -520,7 +521,9 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
     {:ok, view, _html} = live(conn, risk_path(world, crash: world.bear))
 
     view
-    |> element("button[data-role=crash-name-open][phx-value-key='#{world.bear}']")
+    |> element(
+      "#crash-windows-table button[data-role=crash-name-open][phx-value-key='#{world.bear}']"
+    )
     |> render_click()
 
     view
@@ -572,7 +575,12 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
     assert has_element?(view, "#crash-windows-table tr[data-key='#{manual_key}']", "manual")
     assert_same_as_api(view, manual_key, "losers", "view:#{world.view.id}")
 
-    delete = element(view, "button[data-role=crash-manual-delete][phx-value-key='#{manual_key}']")
+    delete =
+      element(
+        view,
+        "#crash-windows-table button[data-role=crash-manual-delete][phx-value-key='#{manual_key}']"
+      )
+
     assert render(delete) =~ "data-confirm"
     render_click(delete)
     assert Crashes.list_windows().manual == []
@@ -593,7 +601,11 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
     row = element(view, "#crash-unmatched tr[data-key='#{old_key}']")
     assert render(row) =~ "Synthetic Correction"
     assert render(row) =~ "Synthetic Old Index"
-    assert render(row) =~ "returns when it is the crash benchmark again"
+    # Its reason is its group's (#1366, board 02 ⑦).
+    assert has_element?(
+             view,
+             "[data-role=crash-unmatched-hidden] tr[data-key='#{old_key}']"
+           )
 
     view
     |> element("button[data-role=crash-from-name-open][phx-value-key='#{old_key}']")
@@ -783,7 +795,7 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
     {:ok, view, _html} = live(conn, risk_path(world, crash: key))
 
     view
-    |> element("button[data-role=crash-manual-edit][phx-value-key='#{key}']")
+    |> element("#crash-windows-table button[data-role=crash-manual-edit][phx-value-key='#{key}']")
     |> render_click()
 
     {:ok, _deleted} = Crashes.delete_window(Actor.api_token_rw("mcp"), key)
@@ -798,7 +810,9 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
     refute has_element?(view, "#crash-windows-table tr[data-key='#{key}']")
 
     view
-    |> element("button[data-role=crash-name-open][phx-value-key='#{world.bear}']")
+    |> element(
+      "#crash-windows-table button[data-role=crash-name-open][phx-value-key='#{world.bear}']"
+    )
     |> render_click()
 
     other = create_security!(name: "Synthetic Other Index", ticker: "SOI")
@@ -812,5 +826,207 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
 
     assert html =~ "the section was read again"
     refute has_element?(view, "#crash-window option[value='#{world.bear}']")
+  end
+
+  # -- Sprint 30 W2: the Crashes lines of the Wealth polish pass (#1366) --------
+
+  # User story (#1366, Sprint 29 C6 on #1458):
+  # As the operator who opened Risk on a view by its address,
+  # I want „Im Depot ansehen“ to keep that view,
+  # so that Holdings opens on the view I was reading and not on the one it
+  # remembers.
+  #
+  # Acceptance criteria:
+  # - On /risk?view=<id>, the 2022 window's link reads
+  #   /portfolio?view=<id>&from=2022-01-03&to=2022-10-12, and Holdings
+  #   opened by it shows that range with no fallback line.
+  test "„Im Depot ansehen“ keeps the address's view", %{conn: conn} do
+    world = crash_world!()
+    {:ok, view, _html} = live(conn, risk_path(world, crash: world.bear))
+
+    href =
+      "/portfolio?" <>
+        URI.encode_query(view: world.view.id, from: "2022-01-03", to: "2022-10-12")
+
+    assert has_element?(view, "a[data-role=crash-holdings-link][href='#{href}']"),
+           "the link reads " <>
+             inspect(
+               view
+               |> element("a[data-role=crash-holdings-link]")
+               |> render()
+               |> LazyHTML.from_fragment()
+               |> LazyHTML.attribute("href")
+             )
+
+    {:ok, holdings, _html} = live(conn, href)
+    refute has_element?(holdings, "[data-role=period-fallback]")
+  end
+
+  # User story (#1366; board 02 ⑥; Sprint 29 C6 on #1458):
+  # As the operator on an instance without a portfolio yet,
+  # I want Risk to still show the crash lists over the whole catalogue,
+  # so that the catalogue's crashes, which need no portfolio, are not out
+  # of reach.
+  #
+  # Acceptance criteria:
+  # - Without a portfolio, Risk shows its empty line and under it the
+  #   Crashes section over the whole catalogue: its list is the API's
+  #   `catalogue` for the newest window.
+  # - The bar has no „Wertpapiere“ group, the window line no „Im Depot
+  #   ansehen“, and no name carries „im Depot“; the windows and their form
+  #   are there as with a portfolio.
+  test "Risk without a portfolio reaches the catalogue's crash lists", %{conn: conn} do
+    index = create_security!(name: "Synthetic Crash Index", ticker: "SCI")
+    put_quotes!(index, [{~D[2022-01-03], "120"}, {~D[2022-10-12], "90"}, {~D[2023-06-01], "125"}])
+    faller = create_security!(name: "Synthetic Faller", ticker: "SFL")
+    put_quotes!(faller, [{~D[2022-01-03], "50"}, {~D[2022-10-12], "30"}])
+    riser = create_security!(name: "Synthetic Riser", ticker: "SRS")
+    put_quotes!(riser, [{~D[2022-01-03], "20"}, {~D[2022-10-12], "22"}])
+    {:ok, _index} = Settings.set_crash_benchmark(Actor.owner_ui(), index.id)
+    key = "d:#{index.id}:2022-01-03"
+
+    {:ok, view, _html} = live(conn, "/risk")
+
+    assert has_element?(view, "[data-role=risk-empty]")
+
+    assert has_element?(view, "#risk-crashes"),
+           "Risk without a portfolio shows no Crashes section"
+
+    assert_same_as_api(view, key, "losers", "catalogue")
+
+    refute has_element?(view, "[data-role=crash-universe]")
+    refute has_element?(view, "[data-role=crash-holdings-link]")
+    refute has_element?(view, "[data-role=crash-held]")
+    assert has_element?(view, "#crash-windows-table tr[data-key='#{key}']")
+
+    view |> element("[data-role=crash-list] a[data-list=winners]") |> render_click()
+    assert_same_as_api(view, key, "winners", "catalogue")
+  end
+
+  # User story (#1366; board 02 ⑤; Sprint 29 C's closing act on #1458):
+  # As the operator reading the crash windows on a phone,
+  # I want each window as a row, as the app's phone lists are,
+  # so that no table of seven columns scrolls sideways inside the section.
+  #
+  # Acceptance criteria:
+  # - Beside the windows table, a list of phone rows carries every window:
+  #   its name (or „unnamed“) over its high → low, the kind, for a detected
+  #   one its longest gap, and the actions; on the right its decline over
+  #   its recovery. (The 560 px swap is measured in Chromium by
+  #   test/browser/crash_section_layout_test.exs.)
+  test "every crash window is also a phone row with its actions", %{conn: conn} do
+    world = crash_world!()
+
+    {:ok, _manual} =
+      Crashes.create_manual_window(Actor.owner_ui(), %{
+        "name" => "Synthetic War",
+        "start" => "2022-02-24",
+        "trough" => "2022-03-09"
+      })
+
+    {:ok, view, _html} = live(conn, risk_path(world, crash: world.bear))
+    keys = Enum.map(Crashes.list_windows() |> then(&(&1.detected ++ &1.manual)), & &1.key)
+
+    for key <- keys do
+      row = "#crash-windows-phone-rows li.phone-row[data-key='#{key}']"
+      assert has_element?(view, row), "no phone row for #{key}"
+    end
+
+    bear = "#crash-windows-phone-rows li[data-key='#{world.bear}']"
+    assert has_element?(view, bear <> " .phone-row__ids", "High #{Format.date(~D[2022-01-03])}")
+    assert has_element?(view, bear <> " button[data-role=crash-name-open]")
+    assert has_element?(view, bear <> " .phone-row__figure", "%")
+    assert has_element?(view, bear <> " .phone-row__figure2", "recovered")
+
+    [manual_key] = Enum.map(Crashes.list_windows().manual, & &1.key)
+    manual = "#crash-windows-phone-rows li[data-key='#{manual_key}']"
+    assert has_element?(view, manual <> " .phone-row__name", "Synthetic War")
+    assert has_element?(view, manual <> " button[data-role=crash-manual-edit]")
+
+    view |> element(manual <> " button[data-role=crash-manual-edit]") |> render_click()
+    assert has_element?(view, "#crash-window-edit-form")
+  end
+
+  # User story (#1366; board 02 ⑦; Sprint 29's UAT persona on #1462,
+  # screenshot 12):
+  # As the operator reading the names without a window,
+  # I want each name under the reason it has no window,
+  # so that a name hidden only because another crash benchmark is chosen
+  # does not read as if its closes had changed.
+  #
+  # Acceptance criteria:
+  # - A name given for the current crash benchmark whose window the closes
+  #   no longer start sits under „1 name: the closes have changed …“ in a
+  #   table of its own.
+  # - Names given for another benchmark sit under „2 names: hidden because
+  #   another crash benchmark is chosen …“ in a table of their own, without
+  #   the muted „returns when …“ beside each benchmark.
+  test "the names without a window sit under the reason each has", %{conn: conn} do
+    world = crash_world!()
+
+    {:ok, _name} =
+      Crashes.name_window(Actor.owner_ui(), world.bear, %{"name" => "Synthetic Bear 2022"})
+
+    # The closes change: the high moves a day, so no window starts on the
+    # named day any more.
+    put_quotes!(world.index, [{~D[2022-01-04], "121"}])
+
+    other_index = create_security!(name: "Synthetic Old Index", ticker: "SOI")
+
+    put_quotes!(other_index, [
+      {~D[2023-07-31], "100"},
+      {~D[2023-10-27], "85"},
+      {~D[2024-03-01], "110"},
+      {~D[2024-05-02], "95"}
+    ])
+
+    {:ok, _old} = Settings.set_crash_benchmark(Actor.owner_ui(), other_index.id)
+
+    for {start, name} <- [{"2023-07-31", "Synthetic Correction"}, {"2024-03-01", "Synthetic Dip"}] do
+      {:ok, _name} =
+        Crashes.name_window(Actor.owner_ui(), "d:#{other_index.id}:#{start}", %{"name" => name})
+    end
+
+    {:ok, _back} = Settings.set_crash_benchmark(Actor.owner_ui(), world.index.id)
+
+    {:ok, view, _html} = live(conn, risk_path(world))
+
+    closes = "#crash-unmatched [data-role=crash-unmatched-closes]"
+    hidden = "#crash-unmatched [data-role=crash-unmatched-hidden]"
+
+    assert has_element?(view, closes <> " p.hint", "1 name: the closes have changed"),
+           "the hint gives one reason for every name: " <>
+             (view |> element("#crash-unmatched") |> render() |> squish())
+
+    assert has_element?(view, closes <> " tr[data-key='#{world.bear}']", "Synthetic Bear 2022")
+    refute has_element?(view, closes <> " tr", "Synthetic Correction")
+
+    assert has_element?(
+             view,
+             hidden <> " p.hint",
+             "2 names: hidden because another crash benchmark is chosen"
+           )
+
+    for name <- ["Synthetic Correction", "Synthetic Dip"] do
+      assert has_element?(view, hidden <> " tr", name)
+    end
+
+    refute has_element?(view, hidden <> " tr", "Synthetic Bear 2022")
+    refute has_element?(view, "#crash-unmatched .muted", "returns when")
+
+    german = put_preference_cookie(conn, "portfolixir_locale", "de")
+    {:ok, view, _html} = live(german, risk_path(world))
+
+    assert has_element?(
+             view,
+             hidden <> " p.hint",
+             "2 Namen: ausgeblendet, weil ein anderer Crash-Benchmark gewählt ist; sie kehren zurück, sobald ihr Benchmark wieder Crash-Benchmark ist."
+           )
+
+    assert has_element?(
+             view,
+             closes <> " p.hint",
+             "1 Name: Die Kurse haben sich geändert, an diesem Tag beginnt kein erkanntes Fenster mehr."
+           )
   end
 end

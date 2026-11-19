@@ -64,6 +64,10 @@ defmodule PortfolixirWeb.Browser.CrashSectionLayoutTest do
   # - PR 2's closing act (board 06 ⑫): a manual window of a short name, as
   #   the review seed's „Synthetic dip · … · manuell“, reads whole in the
   #   select at 1200 px.
+  # - Sprint 30 W2 (#1366, board 02 ⑤ and ⑦): at 390 px the windows are
+  #   phone rows, no windows table scrolls sideways and every row lies
+  #   inside the section; at 1200 px each table of names
+  #   without a window fits its wrapper, its actions inside it.
   # - PR 2's closing act after CI (board 06 ⑮; test/browser/fonts.js):
   #   every check above holds in Inter and in DejaVu Sans, the fallback a
   #   device without Inter draws in, except that in DejaVu Sans the short
@@ -122,12 +126,45 @@ defmodule PortfolixirWeb.Browser.CrashSectionLayoutTest do
       Buckets.create_view(Actor.owner_ui(), %{name: "Synthetic Crash View", include_all: false})
 
     :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+    # Sprint 30 W2 (#1366, board 02 ⑦): three names without a window, one
+    # for the crash benchmark whose window the closes no longer start, two
+    # given for another benchmark of a long name.
+    other =
+      create_security!(
+        name: "Synthetic All-World Equity Index Fund USD Accumulating",
+        ticker: nil
+      )
+
+    put_quotes!(other, [
+      {~D[2023-07-31], "100"},
+      {~D[2023-10-27], "85"},
+      {~D[2024-03-01], "110"},
+      {~D[2024-05-02], "95"}
+    ])
+
+    {:ok, _other} = Settings.set_crash_benchmark(Actor.owner_ui(), other.id)
+
+    for {start, name} <- [
+          {"2023-07-31", "Synthetic Oil Dip"},
+          {"2024-03-01", "Synthetic Summer Lull"}
+        ] do
+      {:ok, _name} =
+        Crashes.name_window(Actor.owner_ui(), "d:#{other.id}:#{start}", %{"name" => name})
+    end
+
     {:ok, _index} = Settings.set_crash_benchmark(Actor.owner_ui(), index.id)
+
+    {:ok, _name} =
+      Crashes.name_window(Actor.owner_ui(), "d:#{index.id}:2022-01-03", %{
+        "name" => "Synthetic Rate Shock"
+      })
+
+    put_quotes!(index, [{~D[2022-01-04], "121"}])
 
     query = fn list ->
       URI.encode_query(
         view: view.id,
-        crash: "d:#{index.id}:2022-01-03",
+        crash: "d:#{index.id}:2022-01-04",
         crash_list: list,
         crash_universe: "catalogue"
       )
