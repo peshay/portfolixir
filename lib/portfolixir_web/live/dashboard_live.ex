@@ -12,6 +12,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Performance
+  alias Portfolixir.Portfolios.Performance.Movers
   alias Portfolixir.Portfolios.PricingContext
   alias Portfolixir.Portfolios.RealizedGains
   alias Portfolixir.Portfolios.Targets
@@ -21,6 +22,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Components.CycleChart
+  alias PortfolixirWeb.Dashboard.MoversCard
   alias PortfolixirWeb.ExcludedSales
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.PrivacyMode
@@ -63,6 +65,10 @@ defmodule PortfolixirWeb.DashboardLive do
       # paints a placeholder for a card that cannot appear.
       |> assign_has_sells()
       |> assign(:closed_trades, nil)
+      # Sprint 30 T3 (ADR-0061 §9): the card „Tops und Flops“; its window
+      # comes from the address (`handle_params/3`), which starts its read.
+      |> assign(:movers_window, nil)
+      |> assign(:movers, nil)
       |> assign_stale_ttwror()
       |> start_loading()
 
@@ -101,6 +107,52 @@ defmodule PortfolixirWeb.DashboardLive do
       socket
     end
   end
+
+  # --- S30 T3 begin ---
+  # Sprint 30 T3 (FR-59, ADR-0061 §9; board 04, A): the window of the card
+  # „Tops und Flops“ travels in the address (`?movers_period=`), so a
+  # reload or a handed-over link opens it on the same window; a value the
+  # card does not know opens „Day“. A new window drops the card back to its
+  # busy skeleton and reads again in the background.
+  @impl true
+  def handle_params(params, _uri, socket) do
+    window = MoversCard.window(params[MoversCard.param()])
+
+    if socket.assigns.movers_window == window do
+      {:noreply, socket}
+    else
+      {:noreply,
+       socket
+       |> assign(movers_window: window, movers: nil)
+       |> start_movers(window)}
+    end
+  end
+
+  # The read the API answers for the Overview's scope: the default view,
+  # Everything when none is set or it vanished meanwhile (as the value card
+  # degrades). The view's name travels raw; „Everything“ is localized at
+  # render time, where the user's locale is set. One read at a time: a
+  # chip pressed while a read runs waits for it, and only the latest
+  # window lands (`CappedAsync.start_latest/3`).
+  defp start_movers(%{assigns: %{transactions_count: 0}} = socket, _window), do: socket
+
+  defp start_movers(socket, window) do
+    CappedAsync.start_latest(socket, :movers, fn ->
+      view_id = Settings.default_view_id()
+      view = view_id && Buckets.get_view(view_id)
+
+      case Movers.read(view && view.id, window) do
+        {:ok, result} ->
+          %{result: result, view_name: view && view.name}
+
+        {:error, :view_not_found} ->
+          {:ok, result} = Movers.read(nil, window)
+          %{result: result, view_name: nil}
+      end
+    end)
+  end
+
+  # --- S30 T3 end ---
 
   defp assign_has_sells(%{assigns: %{transactions_count: 0}} = socket),
     do: assign(socket, :has_sells, false)
@@ -220,6 +272,24 @@ defmodule PortfolixirWeb.DashboardLive do
   def handle_async(:overview, {:exit, _reason}, socket) do
     {:noreply, assign(socket, :error, gettext("Couldn't load the dashboard figures."))}
   end
+
+  # --- S30 T3 begin ---
+  # A read a later chip superseded starts the latest and lands nothing.
+  def handle_async(:movers, {:ok, card}, socket) do
+    case CappedAsync.landed(socket, :movers) do
+      {:superseded, socket} -> {:noreply, socket}
+      {:current, socket} -> {:noreply, assign(socket, :movers, card)}
+    end
+  end
+
+  def handle_async(:movers, {:exit, _reason}, socket) do
+    case CappedAsync.landed(socket, :movers) do
+      {:superseded, socket} -> {:noreply, socket}
+      {:current, socket} -> {:noreply, assign(socket, :movers, :error)}
+    end
+  end
+
+  # --- S30 T3 end ---
 
   def handle_async(:closed_trades, {:ok, card}, socket),
     do: {:noreply, assign(socket, :closed_trades, card)}
@@ -514,6 +584,11 @@ defmodule PortfolixirWeb.DashboardLive do
           </details>
         </div>
       </section>
+
+      <%!-- Sprint 30 T3 (ADR-0061 §9; board 04, A): which names moved the
+           scope the card and the strip above it name, directly under them
+           and before the trades, which count over every depot. --%>
+      <MoversCard.card window={@movers_window} card={@movers} privacy_mode={@privacy_mode} />
 
       <.closed_trades_card :if={@has_sells} card={@closed_trades} />
 

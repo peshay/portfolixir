@@ -46,7 +46,9 @@ defmodule Portfolixir.Invariants.DisplayedDatesTest do
     {"lib/portfolixir_web/live/portfolio_live.ex", :period_pairs} =>
       "Wealth's from= and to= address values, the popover's own input format (#1432)",
     {"lib/portfolixir_web/live/risk/crash_section.ex", :holdings_link} =>
-      "„Im Depot ansehen“: Wealth's from= and to= address values (Sprint 29 C6, F4)"
+      "„Im Depot ansehen“: Wealth's from= and to= address values (Sprint 29 C6, F4)",
+    {"lib/portfolixir_web/live/dashboard/movers_card.ex", :wealth_href} =>
+      "„In Vermögen ansehen“: Wealth's from= and to= address values (Sprint 30 T3)"
   }
 
   # User story:
