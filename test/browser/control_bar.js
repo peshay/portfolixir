@@ -494,8 +494,60 @@ const BARS = {
     roots: ".drift-table-actions > .filter-chips, [data-role='drift-filter']",
     shows: [390, 1200],
     everyFamilyNamed: true
+  },
+  // --- S30 T3 begin ---
+  // The Overview's card „Tops und Flops“ (Sprint 30 T3; board
+  // ux-design-2026-11-15-sprint30/04-tops-flops, A and A1): its window as
+  // the one group „Zeitraum“, once its read has landed; and the card
+  // itself, its two rankings side by side at 1200 px and stacked, the price
+  // return first, at 390 px, every row inside the card.
+  movers: {
+    path: "/?movers_period=week",
+    wait: "#dashboard-movers .movers__grid, #dashboard-movers [data-role='movers-empty']",
+    roots: "[data-role='movers-bar']",
+    shows: [390, 1200],
+    everyFamilyNamed: true,
+    check: moversCard
   }
+  // --- S30 T3 end ---
 };
+
+// --- S30 T3 begin ---
+// The card's columns (A at 1200 px, A1 at 390 px): side by side, the
+// contribution right of the price return at one top, or stacked, the
+// contribution under it at one left edge; no row, figure or bar leaves the
+// card. A seed whose Overview holds nothing (the empty sentence) fails it,
+// as a gate that measured nothing.
+function moversCard(page, width) {
+  return page.evaluate((width) => {
+    const errors = [];
+    const card = document.querySelector("#dashboard-movers");
+    const price = card.querySelector("[data-role='movers-return']");
+    const money = card.querySelector("[data-role='movers-contribution']");
+    if (!price || !money) return ["the card shows no rankings"];
+    const c = card.getBoundingClientRect();
+    const a = price.getBoundingClientRect();
+    const b = money.getBoundingClientRect();
+    const near = (x, y) => Math.abs(x - y) <= 1;
+    if (width >= 1200 && !(near(a.top, b.top) && b.left >= a.right)) {
+      errors.push("at " + width + " px the rankings are not side by side: " + JSON.stringify({ a, b }));
+    }
+    if (width <= 560 && !(near(a.left, b.left) && b.top >= a.bottom)) {
+      errors.push("at " + width + " px the contribution is not under the price return: " + JSON.stringify({ a, b }));
+    }
+    for (const el of card.querySelectorAll("[data-role='movers-row'], [data-role='movers-figure'], .drift-bar")) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0) continue;
+      if (r.left < c.left - 0.5 || r.right > c.right + 0.5) {
+        errors.push("„" + el.textContent.trim().slice(0, 40) + "“ leaves the card: " + JSON.stringify({ left: r.left, right: r.right, card: [c.left, c.right] }));
+      }
+    }
+    const scroll = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+    if (scroll > 0) errors.push("the page scrolls sideways by " + scroll);
+    return errors;
+  }, width);
+}
+// --- S30 T3 end ---
 
 // Issue 1435 (L2): one migrated bar, in German and in English, at 390 and
 // 1200 px, holds the rule; every measure goes to stderr.
@@ -527,6 +579,9 @@ async function migratedBar(browser) {
         } else {
           for (const e of breaches(m, bar)) errors.push(label + e);
         }
+        // --- S30 T3 begin ---
+        if (bar.check) for (const e of await bar.check(page, width)) errors.push(label + e);
+        // --- S30 T3 end ---
       });
       await leave(context);
     }
