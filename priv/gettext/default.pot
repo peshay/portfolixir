@@ -4920,12 +4920,12 @@ msgstr ""
 msgid "computing"
 msgstr ""
 
-#: lib/portfolixir_web/components/security_chart.ex:206
+#: lib/portfolixir_web/components/security_chart.ex:207
 #, elixir-autogen, elixir-format
 msgid "No price history yet."
 msgstr ""
 
-#: lib/portfolixir_web/components/security_chart.ex:190
+#: lib/portfolixir_web/components/security_chart.ex:191
 #, elixir-autogen, elixir-format
 msgid "Price chart"
 msgstr ""
@@ -13113,12 +13113,12 @@ msgctxt "boolean filter"
 msgid "yes"
 msgstr ""
 
-#: lib/portfolixir_web/components/security_chart.ex:908
+#: lib/portfolixir_web/components/security_chart.ex:921
 #, elixir-autogen, elixir-format
 msgid "%{kind} %{quantity} at %{price} %{currency}"
 msgstr ""
 
-#: lib/portfolixir_web/components/security_chart.ex:917
+#: lib/portfolixir_web/components/security_chart.ex:930
 #, elixir-autogen, elixir-format
 msgid "%{kind} on %{date} at %{price} %{currency}"
 msgstr ""
@@ -18106,7 +18106,7 @@ msgstr ""
 msgid "x: calendar days since the halving · y: close ÷ the halving day's close, on a log scale"
 msgstr ""
 
-#: lib/portfolixir_web/components/security_chart.ex:765
+#: lib/portfolixir_web/components/security_chart.ex:766
 #, elixir-autogen, elixir-format
 msgid "%{chart} · axis from %{floor}, not from 0"
 msgstr ""

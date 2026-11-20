@@ -45,7 +45,8 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   axis (`ChartAxis`); it does not apply to a percent axis or the
   logarithmic scale. Given `:zero_axis` (`{lo, hi, step}`, Wealth passes
   the stack's for the same window), it is drawn on that axis instead, so
-  its floor is the stack's below 0 too.
+  its floor is the stack's below 0 too. Where such an axis reaches below
+  0, the area under the line closes at 0, not at the plot's foot.
 
   **The privacy mode** (Sprint 26 P2, I22, board 02): while it is on, a
   series in a currency (`:value_mode` `:absolute`) is drawn in its percent
@@ -817,6 +818,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
 
       [{xf, yf} | _] = points ->
         {xl, _yl} = List.last(points)
+        base = area_base(geometry, y0, y1)
 
         body =
           points
@@ -824,10 +826,21 @@ defmodule PortfolixirWeb.Components.SecurityChart do
 
         "M#{format_coord(xf)},#{format_coord(yf)} " <>
           body <>
-          " L#{format_coord(xl)},#{format_coord(y1)}" <>
-          " L#{format_coord(xf)},#{format_coord(y1)} Z"
+          " L#{format_coord(xl)},#{base}" <>
+          " L#{format_coord(xf)},#{base} Z"
     end
   end
+
+  # Where the area under the line closes: at 0 on an „ab 0“ axis that
+  # reaches below it (the stack's floor, or the line's own dip), so the
+  # area reads as the amount and is shaded below 0 only where the line
+  # is (the Sprint 30 closing act's UAT persona, finding 2); else at the
+  # plot's foot.
+  defp area_base(%{round_ticks: {_ticks, _step}} = geometry, y0, y1) do
+    if zero_in_range?(geometry), do: zero_y(geometry, y0, y1), else: format_coord(y1)
+  end
+
+  defp area_base(_geometry, _y0, y1), do: format_coord(y1)
 
   defp point_coords(geometry, x0, y0, x1, y1) do
     plot_w = x1 - x0

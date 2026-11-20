@@ -11011,7 +11011,12 @@ stack.
    day without a band below 0, and on a day with a band below 0 it runs
    that band's depth below the top edge, since the total is the bands
    above 0 less the one below; the test asserts both, day by day, on a
-   window with an overdraft.
+   window with an overdraft. *Amended 2026-11-20 (Sprint 30 closing act,
+   UAT persona, finding 2):* the area under the line (`path.quote-area`)
+   closes at 0, not at the plot's foot, wherever the axis reaches below 0,
+   so it reads as the amount and is shaded below 0 only where the line
+   is; at „Ausschnitt“, in the privacy mode and on a percent series it
+   still closes at the foot.
 
 ### The URL
 

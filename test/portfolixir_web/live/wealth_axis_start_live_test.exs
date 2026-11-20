@@ -455,6 +455,54 @@ defmodule PortfolixirWeb.WealthAxisStartLiveTest do
         do: assert(abs(String.to_float(a) - String.to_float(b)) <= 0.01)
   end
 
+  # The y at which the area under the Total line closes: the last two
+  # vertices of its path, before the `Z`.
+  defp area_baseline(view) do
+    [d] = attrs(view, "#performance-figure path.quote-area", "d")
+
+    ~r/L\s*(-?[\d.]+),(-?[\d.]+)/
+    |> Regex.scan(d)
+    |> Enum.map(fn [_, _x, y] -> String.to_float(y) end)
+    |> Enum.take(-2)
+  end
+
+  # Each value tick's label and height on the Total chart.
+  defp tick_ys(view) do
+    for tick <- view |> doc() |> Floki.find("#performance-figure .chart-axis-y"),
+        do:
+          {tick |> Floki.text() |> String.trim(),
+           tick |> Floki.attribute("y") |> hd() |> Float.parse() |> elem(0)}
+  end
+
+  # User story (I43; Sprint 30 closing act, UAT persona, finding 2):
+  # As the operator reading „Gesamt“ at „ab 0“ in a window whose stack
+  # reaches below 0,
+  # I want the area under the line to stand on 0, not on the axis' floor,
+  # so that the shaded area reads as the amount and nothing is shaded
+  # below 0 where the total never went.
+  #
+  # Acceptance criteria:
+  # - On the overdraft world at `axis=zero`, whose axis reaches one step
+  #   below 0, the area path closes at the height of the „0“ tick.
+  # - At „Ausschnitt“ the area still closes at the plot's foot, the
+  #   lowest tick's height.
+  test "at From 0 the area under the Total line stands on 0, not on the floor",
+       %{conn: conn} do
+    overdraft_world()
+
+    zero_view = open(conn, "/portfolio?level=total&axis=zero")
+    ticks = tick_ys(zero_view)
+    {_label, zero} = Enum.find(ticks, fn {label, _y} -> label == "0" end)
+    assert hd(Enum.map(ticks, &elem(&1, 0))) =~ ~r/^-/
+
+    for y <- area_baseline(zero_view), do: assert_in_delta(y, zero, 0.01)
+
+    window_view = open(conn, "/portfolio?level=total")
+    foot = window_view |> tick_ys() |> Enum.map(&elem(&1, 1)) |> Enum.max()
+
+    for y <- area_baseline(window_view), do: assert_in_delta(y, foot, 0.01)
+  end
+
   # User story (I43; board 01 ④, the price chart):
   # As the operator reading a security's price chart,
   # I want the mark where its axis does not start at 0, without a switch,

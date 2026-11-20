@@ -8,9 +8,12 @@
 //      wrapped;
 //   ③ finding 5: the Crashes basis line, shortened to the open-prose rule;
 //   ④ a board correction: board 04's frame 04i drew the movers card's link
-//      with `view=`, which the built card does not carry.
+//      with `view=`, which the built card does not carry;
+//   ⑤ the UAT persona's findings whose fix changes the picture beyond ①
+//      to ③: finding 2, the area under the line at „ab 0“ stands on 0,
+//      not on the axis' floor (`06i`).
 //
-// Writes frames/06a* to 06f* and 06-closing-act.html (06g and 06h, the
+// Writes frames/06a* to 06f*, 06i* and 06-closing-act.html (06g and 06h, the
 // movers card, are build.js's: they need its card), then serves this
 // repository on a loopback port (the frames link the real
 // priv/static/app.css, whose @font-face rules load the app's own Inter from
@@ -30,8 +33,9 @@
 // test/browser/crash_section_layout_test.exs's world with the crash
 // benchmark named „Synthetic All-World Crash Index UCITS ETF USD Acc“.
 // `06-gesamt-ab-0-neu.html` is the line as finding 1's fix draws it,
-// rendered from a scratch build of the fix; every other fragment is
-// today's.
+// rendered from a scratch build of the fix; `06-gesamt-ab-0-uat.html` the
+// same line after the UAT persona's finding 2, rendered from its fix on
+// the same day (19.11.2026); every other fragment is today's.
 const { chromium } = require('playwright');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
@@ -172,7 +176,8 @@ const FRAME_LIST = [
   { file: '06c-crash-kopf-heute.html', body: crashFrame(cap('06-crash-verlierer.html')), css: WRAP_BEFORE + CRASH_CSS },
   { file: '06d-crash-kopf-neu.html', body: crashFrame(cap('06-crash-verlierer.html')), css: WRAP_AFTER + CRASH_CSS },
   { file: '06e-crash-grundlage-heute.html', body: basisFrame(TODAY) },
-  { file: '06f-crash-grundlage-neu.html', body: basisFrame(NEW, NEW_INFO) }
+  { file: '06f-crash-grundlage-neu.html', body: basisFrame(NEW, NEW_INFO) },
+  { file: '06i-ab-0-flaeche.html', body: chartsFrame(cap('06-gesamt-ab-0-uat.html'), 'nach dem UAT: die Fläche steht auf 0') }
 ];
 const BUILT = ['06g-bewegte-ansicht-heute.html', '06h-bewegte-ansicht-neu.html'];
 
@@ -235,6 +240,12 @@ p.mock-note { margin: 0 0 12px; max-width: 150ch; font-size: 13px; color: var(--
   <h2>④ Berichtigung von Board 04, Rahmen 04i: die Karte „Tops und Flops“ wie gebaut</h2>
   <p class="mock-note">04i zeichnete den Link „In Vermögen ansehen →“ als <code>/portfolio?view=…&amp;from=…&amp;to=…</code>. Gebaut ist er ohne <code>view=</code> (#1081: ein Link der Übersicht ändert die Ansicht nicht, die Vermögen sich merkt); wo diese Ansicht nicht die der Karte ist, nennt ein Satz unter dem Basissatz beide (Commit „fix(dashboard): the movers card names Wealth's other view instead of linking it“). Hier merkt sich Vermögen „Alles“, die Karte zeigt „Nur Neuzugang“. 04i selbst wird im nächsten Commit so neu gezeichnet. Zahlen erfunden, wie in 04i.</p>
   <div class="mock-row">${fig('04i', 'Link mit <code>view=nur-neuzugang</code>, kein Satz', BUILT[0], h(BUILT[0]))}${fig('Gebaut', 'Link ohne <code>view=</code>, der Satz unter dem Basissatz', BUILT[1], h(BUILT[1]))}</div>
+</section>
+
+<section class="mock-board">
+  <h2>⑤ UAT-Persona, Befund 2 (S3): bei „ab 0“ steht die Fläche unter der Linie auf 0</h2>
+  <p class="mock-note">Seit ① nimmt die Linie bei „ab 0“ die Achse des Stapels, deren Boden eine runde Stufe unter 0 liegt; die Fläche unter der Linie schloss weiter am Fuß des Diagramms und schattierte so an jedem Tag das Band von 0 bis −2.500, obwohl die Summe nie unter 0 fällt. Neu schließt die Fläche bei 0, wo die Achse unter 0 reicht: sie liest sich als der Betrag und ist nur dort unter 0 schattiert, wo die Linie es ist. Linie, Achse und Werte bleiben wie in ① „neu“; bei „Ausschnitt“, im Privatsphäre-Modus und in % bleibt die Fläche am Fuß.</p>
+  <div class="mock-row">${fig('①', 'die Fläche bis zum Boden der Achse', '06b-ab-0-neu.html', h('06b-ab-0-neu.html'))}${fig('Neu', 'die Fläche steht auf 0', '06i-ab-0-flaeche.html', h('06i-ab-0-flaeche.html'))}</div>
 </section>
 </body>
 </html>
