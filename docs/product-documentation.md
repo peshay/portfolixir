@@ -2743,7 +2743,9 @@ bar above the chart stacks the value by what it is made of (I23, FR-53):
   dips below 0 (an overdrawn cash account), the axis reaches one round
   step below 0 as the stack's does, and on those days the line runs that
   band's depth below the top edge, since the total is the bands above 0
-  less the one below. The choice is on the address
+  less the one below. The shaded area under the line stands on 0, not on
+  the axis' foot, so it is shaded below 0 only where the line is. The
+  choice is on the address
   (`axis=zero`) and kept by the bar's links and the period; the
   % (TTWROR) series and the privacy mode have no such switch.
 

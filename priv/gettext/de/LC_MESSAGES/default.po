@@ -4921,12 +4921,12 @@ msgstr "Info zur MWR"
 msgid "computing"
 msgstr "wird berechnet"
 
-#: lib/portfolixir_web/components/security_chart.ex:206
+#: lib/portfolixir_web/components/security_chart.ex:207
 #, elixir-autogen, elixir-format
 msgid "No price history yet."
 msgstr "Noch keine Kurshistorie."
 
-#: lib/portfolixir_web/components/security_chart.ex:190
+#: lib/portfolixir_web/components/security_chart.ex:191
 #, elixir-autogen, elixir-format
 msgid "Price chart"
 msgstr "Kurschart"
@@ -13123,12 +13123,12 @@ msgctxt "boolean filter"
 msgid "yes"
 msgstr "ja"
 
-#: lib/portfolixir_web/components/security_chart.ex:908
+#: lib/portfolixir_web/components/security_chart.ex:921
 #, elixir-autogen, elixir-format
 msgid "%{kind} %{quantity} at %{price} %{currency}"
 msgstr "%{kind} %{quantity} zu %{price} %{currency}"
 
-#: lib/portfolixir_web/components/security_chart.ex:917
+#: lib/portfolixir_web/components/security_chart.ex:930
 #, elixir-autogen, elixir-format
 msgid "%{kind} on %{date} at %{price} %{currency}"
 msgstr "%{kind} am %{date} zu %{price} %{currency}"
@@ -18116,7 +18116,7 @@ msgstr "Top und Tief: Gipfel und Talsohle des größten Rückgangs im Fenster; e
 msgid "x: calendar days since the halving · y: close ÷ the halving day's close, on a log scale"
 msgstr "x: Kalendertage seit dem Halving · y: Schlusskurs ÷ Schlusskurs am Halving-Tag, logarithmisch"
 
-#: lib/portfolixir_web/components/security_chart.ex:765
+#: lib/portfolixir_web/components/security_chart.ex:766
 #, elixir-autogen, elixir-format
 msgid "%{chart} · axis from %{floor}, not from 0"
 msgstr "%{chart} · Achse ab %{floor}, nicht ab 0"

@@ -3029,7 +3029,9 @@ er besteht (I23, FR-53):
   Bargeldkonto), reicht die Achse wie die des Stapels eine runde Stufe
   unter 0, und an diesen Tagen verläuft die Linie um die Tiefe dieses
   Bands unter der Oberkante, denn die Summe sind die Bänder über 0 weniger
-  das darunter. Die Wahl steht in der Adresse (`axis=zero`), die Links der
+  das darunter. Die schattierte Fläche unter der Linie steht auf 0, nicht
+  auf dem Fuß der Achse, und ist so nur dort unter 0 schattiert, wo die
+  Linie es ist. Die Wahl steht in der Adresse (`axis=zero`), die Links der
   Leiste und der Zeitraum behalten sie; die Reihe % (TTWROR) und der
   Privatsphäre-Modus haben keinen solchen Schalter.
 
