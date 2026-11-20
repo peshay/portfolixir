@@ -10576,6 +10576,13 @@ screen and the API answer alike for the same window, list and universe.
    des Fensters“, „Grundlage: Anstieg in EUR vom eigenen Tief bis zum Ende
    der Erholungsspanne“, while the span is open „… bis zum letzten Schluss
    (‹Datum›), Spanne offen“. The API's `computation_basis` is untouched.
+   *Amended 2026-11-20 (Sprint 30 closing act, UAT persona, finding 5):*
+   the last part names the securities the list reads, the universe the
+   API's `computation_basis` names: „nur Wertpapiere im Katalog.“ under
+   „Ganzer Katalog“ (and on Risk without a portfolio), „nur heute
+   gehaltene Wertpapiere.“ under „Im Depot“ at „Alles“, „nur heute
+   gehaltene Wertpapiere der Ansicht.“ under „Im Depot“ in a view; at most
+   six words, so every case stays within the 25.
 8. **The answered and unanswered** (`p.crash-unanswered`): „8 von 214
    Wertpapieren mit Antwort gezeigt · 31 ohne Antwort: …“ per reason, and
    „anzeigen“, which names each unanswered security with its reason.
