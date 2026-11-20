@@ -3917,10 +3917,13 @@ hat keine Antwort: Es wird nie als Null gezeigt, die Zeile unter der Liste
 zählt es je Grund, und „anzeigen“ listet es. Gleiche Zahlen werden nach
 Namen, dann ISIN geordnet. Die Grundlagenzeile unter der Liste sagt, was
 gemessen wurde, nennt die gestrichelte Linie „Crash-Benchmark“ (sein Name
-steht über der Spalte der Abstände) und endet mit „nur Wertpapiere im
-Katalog“: Ein Wertpapier, das scheiterte und entfernt wurde, steht in keiner
-Liste, sodass die Listen, und die Erholer am meisten, besser aussehen, als
-der Markt war.
+steht über der Spalte der Abstände) und endet mit den Wertpapieren, die sie
+liest: „nur Wertpapiere im Katalog“ bei *Ganzer Katalog*, „nur heute
+gehaltene Wertpapiere“ bei *Im Depot* oder „nur heute gehaltene Wertpapiere
+der Ansicht“ bei *Im Depot* in einer Ansicht. Ein Wertpapier, das scheiterte
+und entfernt wurde, steht in keiner Liste, bei *Im Depot* auch keines, das
+vor heute verkauft wurde, sodass die Listen, und die Erholer am meisten,
+besser aussehen, als der Markt war.
 
 **Crash-Fenster**, die Aufklappfläche unter der Liste, hält alles, was die
 Fenster ändert:

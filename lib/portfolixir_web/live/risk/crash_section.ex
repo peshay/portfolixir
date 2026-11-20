@@ -450,7 +450,13 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           ) %>
         </p>
 
-        <.list_table :if={@ranking} ranking={@ranking} list={@list} universe={@universe} />
+        <.list_table
+          :if={@ranking}
+          ranking={@ranking}
+          list={@list}
+          universe={@universe}
+          scope={api_universe(@universe, @view_id)}
+        />
         <p :if={is_nil(@ranking)} class="empty-state" data-role="crash-no-list">
           <%= gettext("This list cannot be read for this view.") %>
         </p>
@@ -762,7 +768,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
       </div>
     <% end %>
     <p class="summary-basis crash-basis" data-role="crash-basis">
-      <%= basis_text(@ranking, @list) %>
+      <%= basis_text(@ranking, @list, @scope) %>
     </p>
     """
   end
@@ -771,8 +777,9 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   # (the open-prose rule): the crash benchmark by its role, its stored
   # name standing in the „vs.“ head and the windows' rule line, and why a
   # comparison can be missing behind the section's ⓘ (Sprint 30 closing
-  # act, design critic, finding 5).
-  defp basis_text(ranking, list) do
+  # act, design critic, finding 5); its last part names the securities
+  # the list reads, the API's universe (the UAT persona, finding 5).
+  defp basis_text(ranking, list, scope) do
     figure =
       cond do
         list != "rebounders" ->
@@ -804,11 +811,12 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           gettext("no comparison: no crash benchmark chosen")
       end
 
-    Enum.join(
-      [figure, reference, gettext("only securities in the catalogue.")],
-      " · "
-    )
+    Enum.join([figure, reference, universe_text(scope)], " · ")
   end
+
+  defp universe_text("catalogue"), do: gettext("only securities in the catalogue.")
+  defp universe_text("held"), do: gettext("only securities held today.")
+  defp universe_text("view:" <> _id), do: gettext("only securities the view holds today.")
 
   # The answered and the unanswered, counted per reason, never a zero.
   defp unanswered(assigns) do

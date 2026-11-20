@@ -11,9 +11,10 @@
 //      with `view=`, which the built card does not carry;
 //   ⑤ the UAT persona's findings whose fix changes the picture beyond ①
 //      to ③: finding 2, the area under the line at „ab 0“ stands on 0,
-//      not on the axis' floor (`06i`).
+//      not on the axis' floor (`06i`); finding 5, the basis line's last
+//      part names the chosen securities (`06j`).
 //
-// Writes frames/06a* to 06f*, 06i* and 06-closing-act.html (06g and 06h, the
+// Writes frames/06a* to 06f*, 06i*, 06j* and 06-closing-act.html (06g and 06h, the
 // movers card, are build.js's: they need its card), then serves this
 // repository on a loopback port (the frames link the real
 // priv/static/app.css, whose @font-face rules load the app's own Inter from
@@ -168,6 +169,32 @@ function basisFrame(copy, info) {
     : '';
   return `<section class="workspace-section crash-section">${cases.join('\n')}${extra}</section>`;
 }
+// ⑤ The UAT persona's finding 5: the last part follows the universe,
+// the one the API's computation basis names. Each universe with the
+// losers' line and the longest line any list can have (the rebounders
+// over an open span, no crash benchmark chosen).
+const UNIVERSES = [
+  ['Ganzer Katalog', 'nur Wertpapiere im Katalog.'],
+  ['Im Depot, Ansicht Alles', 'nur heute gehaltene Wertpapiere.'],
+  ['Im Depot, in einer Ansicht', 'nur heute gehaltene Wertpapiere der Ansicht.']
+];
+const UNIVERSE_CASES = [
+  ['Verlierer, mit Crash-Benchmark', 'losers', 'same'],
+  ['Erholer, Spanne offen, kein Crash-Benchmark gewählt', 'open', 'none']
+];
+function universeFrame() {
+  const cases = UNIVERSES.flatMap(([universe, part]) =>
+    UNIVERSE_CASES.map(([label, figure, ref]) => {
+      const text = [NEW[figure], NEW[ref], part].join(' · ');
+      const n = words(text);
+      return `<div class="mock-case"><p class="mock-label">${universe} · ${label} · <span class="mock-count">${n} Wörter</span>${n > 25 ? ' (über 25)' : ''}</p><p class="summary-basis crash-basis">${esc(text)}</p></div>`;
+    })
+  );
+  return `<section class="workspace-section crash-section">${cases.join('\n')}</section>`;
+}
+const universeMax = () =>
+  Math.max(...UNIVERSES.flatMap(([, part]) => UNIVERSE_CASES.map(([, f, r]) => words([NEW[f], NEW[r], part].join(' · ')))));
+
 const maxWords = (copy) => Math.max(...CASES.map(([, f, r]) => words([copy[f], copy[r], copy.universe].join(' · '))));
 
 const FRAME_LIST = [
@@ -177,7 +204,8 @@ const FRAME_LIST = [
   { file: '06d-crash-kopf-neu.html', body: crashFrame(cap('06-crash-verlierer.html')), css: WRAP_AFTER + CRASH_CSS },
   { file: '06e-crash-grundlage-heute.html', body: basisFrame(TODAY) },
   { file: '06f-crash-grundlage-neu.html', body: basisFrame(NEW, NEW_INFO) },
-  { file: '06i-ab-0-flaeche.html', body: chartsFrame(cap('06-gesamt-ab-0-uat.html'), 'nach dem UAT: die Fläche steht auf 0') }
+  { file: '06i-ab-0-flaeche.html', body: chartsFrame(cap('06-gesamt-ab-0-uat.html'), 'nach dem UAT: die Fläche steht auf 0') },
+  { file: '06j-crash-grundlage-universum.html', body: universeFrame() }
 ];
 const BUILT = ['06g-bewegte-ansicht-heute.html', '06h-bewegte-ansicht-neu.html'];
 
@@ -246,6 +274,12 @@ p.mock-note { margin: 0 0 12px; max-width: 150ch; font-size: 13px; color: var(--
   <h2>⑤ UAT-Persona, Befund 2 (S3): bei „ab 0“ steht die Fläche unter der Linie auf 0</h2>
   <p class="mock-note">Seit ① nimmt die Linie bei „ab 0“ die Achse des Stapels, deren Boden eine runde Stufe unter 0 liegt; die Fläche unter der Linie schloss weiter am Fuß des Diagramms und schattierte so an jedem Tag das Band von 0 bis −2.500, obwohl die Summe nie unter 0 fällt. Neu schließt die Fläche bei 0, wo die Achse unter 0 reicht: sie liest sich als der Betrag und ist nur dort unter 0 schattiert, wo die Linie es ist. Linie, Achse und Werte bleiben wie in ① „neu“; bei „Ausschnitt“, im Privatsphäre-Modus und in % bleibt die Fläche am Fuß.</p>
   <div class="mock-row">${fig('①', 'die Fläche bis zum Boden der Achse', '06b-ab-0-neu.html', h('06b-ab-0-neu.html'))}${fig('Neu', 'die Fläche steht auf 0', '06i-ab-0-flaeche.html', h('06i-ab-0-flaeche.html'))}</div>
+</section>
+
+<section class="mock-board">
+  <h2>⑥ UAT-Persona, Befund 5 (S3): der Basissatz nennt die gewählten Wertpapiere</h2>
+  <p class="mock-note">③ kürzte den Schluss des Basissatzes auf „nur Wertpapiere im Katalog.“, in jeder Auswahl; unter „Im Depot“ liest die Liste aber die heute gehaltenen Wertpapiere (in einer Ansicht die der Ansicht), wie die Grundlage der API (<code>computation_basis.universe</code>) sagt. Neu folgt der Schluss der Auswahl: „nur Wertpapiere im Katalog.“, „nur heute gehaltene Wertpapiere.“ oder „nur heute gehaltene Wertpapiere der Ansicht.“, höchstens sechs Wörter, sodass der längste Satz ${universeMax()} Wörter hat; Englisch „only securities in the catalogue.“, „only securities held today.“, „only securities the view holds today.“, höchstens 25. Die Zeilen davor bleiben wie in ③ „neu“.</p>
+  <div class="mock-row">${fig('③', 'derselbe Schluss in jeder Auswahl', '06f-crash-grundlage-neu.html', h('06f-crash-grundlage-neu.html'))}${fig('Neu', 'der Schluss je Auswahl, bis ' + universeMax() + ' Wörter', '06j-crash-grundlage-universum.html', h('06j-crash-grundlage-universum.html'))}</div>
 </section>
 </body>
 </html>

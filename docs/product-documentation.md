@@ -3549,10 +3549,12 @@ the window's start or end, or without an exchange rate, has no answer: it is
 never shown as a zero, the line under the list counts it per reason, and
 "show" lists it. Equal figures are ordered by name, then ISIN. The basis line
 under the list says what was measured, names the dashed line "crash
-benchmark" (its name heads the column of differences), and ends with "only
-securities in the catalogue": a security that failed and was removed is in no
-list, so the lists, and the rebounders most of all, read better than the
-market did.
+benchmark" (its name heads the column of differences), and ends with the
+securities it read: "only securities in the catalogue" at *Whole catalogue*,
+"only securities held today" at *In depot*, or "only securities the view
+holds today" at *In depot* in a view. A security that failed and was removed
+is in no list, and at *In depot* neither is one sold before today, so the
+lists, and the rebounders most of all, read better than the market did.
 
 **Crash windows**, the disclosure under the list, holds everything that
 changes the windows:

@@ -397,29 +397,41 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
   # - The same in German („Grundlage: …“, „gestrichelt: Crash-Benchmark …“,
   #   „nur Wertpapiere im Katalog.“); never the benchmark's name; each at
   #   most 25 words.
+  # - The last part names the chosen securities (Sprint 30 closing act, UAT
+  #   persona, finding 5): „only securities in the catalogue.“ under
+  #   „Whole catalogue“, „only securities held today.“ under „In depot“
+  #   with no view, „only securities the view holds today.“ under „In
+  #   depot“ in a view (German „nur Wertpapiere im Katalog.“, „nur heute
+  #   gehaltene Wertpapiere.“, „nur heute gehaltene Wertpapiere der
+  #   Ansicht.“), the universe the API's computation basis names.
   test "the basis line names the crash benchmark by its role, in at most 25 words",
        %{conn: conn} do
     world = crash_world!()
 
+    in_view = &risk_path(world, &1)
+    no_view = &("/risk?" <> URI.encode_query(&1))
+
     cases = [
-      {world.bear, "losers", "catalogue"},
-      {world.bear, "rebounders", "catalogue"},
-      {world.recent, "rebounders", "depot"}
+      {world.bear, "losers", "catalogue", in_view, "catalogue"},
+      {world.bear, "rebounders", "catalogue", in_view, "catalogue"},
+      {world.recent, "rebounders", "depot", in_view, "view:#{world.view.id}"},
+      {world.bear, "losers", "depot", in_view, "view:#{world.view.id}"},
+      {world.bear, "losers", "depot", no_view, "held"},
+      {world.recent, "rebounders", "depot", no_view, "held"}
     ]
 
-    for locale <- ["en", "de"], {key, list, universe} <- cases do
+    for locale <- ["en", "de"], {key, list, universe, path, scope} <- cases do
       reader = put_preference_cookie(conn, "portfolixir_locale", locale)
 
       {:ok, view, _html} =
-        live(reader, risk_path(world, crash: key, crash_list: list, crash_universe: universe))
+        live(reader, path.(crash: key, crash_list: list, crash_universe: universe))
 
-      scope = if universe == "depot", do: "view:#{world.view.id}", else: universe
       data = api(key, list, scope)
       text = basis(view)
 
       expected =
         Gettext.with_locale(PortfolixirWeb.Gettext, locale, fn ->
-          expected_basis(locale, list, data)
+          expected_basis(locale, list, scope, data)
         end)
 
       assert text == expected, "#{locale} #{list}: #{text}"
@@ -437,7 +449,9 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
       same: "dashed: crash benchmark, same days (REF %)",
       rebound: "dashed: crash benchmark (REF %)",
       unpriced: "no comparison: crash benchmark unpriced",
-      universe: "only securities in the catalogue."
+      catalogue: "only securities in the catalogue.",
+      held: "only securities held today.",
+      view: "only securities the view holds today."
     },
     "de" => %{
       losers: "Grundlage: Kursrendite in EUR, Hoch bis Tief des Fensters",
@@ -447,12 +461,20 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
       same: "gestrichelt: Crash-Benchmark, dieselben Tage (REF %)",
       rebound: "gestrichelt: Crash-Benchmark (REF %)",
       unpriced: "kein Vergleich: Crash-Benchmark ohne Kurs",
-      universe: "nur Wertpapiere im Katalog."
+      catalogue: "nur Wertpapiere im Katalog.",
+      held: "nur heute gehaltene Wertpapiere.",
+      view: "nur heute gehaltene Wertpapiere der Ansicht."
     }
   }
 
-  defp expected_basis(locale, list, data) do
+  defp universe_copy(copy, "catalogue"), do: copy.catalogue
+  defp universe_copy(copy, "held"), do: copy.held
+  defp universe_copy(copy, "view:" <> _id), do: copy.view
+
+  defp expected_basis(locale, list, scope, data) do
     copy = Map.fetch!(@basis_copy, locale)
+    universe = universe_copy(copy, scope)
+
     ref = data["reference"] && Format.signed_percent(Decimal.new(data["reference"]["return"]))
 
     figure =
@@ -471,7 +493,7 @@ defmodule PortfolixirWeb.RiskCrashesLiveTest do
 
     date = data["measured_to"] && Format.date(Date.from_iso8601!(data["measured_to"]))
 
-    [figure, reference, copy.universe]
+    [figure, reference, universe]
     |> Enum.join(" · ")
     |> String.replace("DATE", date || "")
     |> String.replace("REF", ref || "")
