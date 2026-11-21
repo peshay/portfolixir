@@ -130,3 +130,48 @@ digest — "what is new, and is the collector alive", the one question the
 agent answers with one call — would have no place on screen. Variant A
 was adopted with the plan; "News verteilt" flips it to B. A security's
 own stories stay on its page, as a tab (Sprint 28 N8).
+
+## Amendment: dashboards become the menu, maintenance moves to one quiet group (2026-11-21, Sprint 31 planning; ideas I56, I47, I35)
+
+Adopted by the merge of the Sprint 31 planning PR, with
+[ADR-0062](0062-widgets-and-composed-dashboards.html), which turns every
+function into a widget and the screens into dashboards composed from
+widgets. The table of areas above gives way to three groups (the owner's
+pick of board 02 A, `ux-design-2026-11-21-idea-i56/02-navigation`,
+2026-11-21: „Ja A finde ich super“):
+
+| Group | Contains |
+| --- | --- |
+| **Dashboards** | the stored dashboards in their order, then „Neues Dashboard“; with none stored, the template „Überblick“ (ADR-0062 §3). The Overview's route `/` opens the first one |
+| **Entdecken** („Discover“) | Securities (the list and each security's page), News, „Alle Widgets“ (the catalogue, ADR-0062 §1), and, **while their sections are not yet widgets**, the screens still built as pages: Wealth with its tabs (Cash flow, Snapshots, Tax, Risk and Predictions among them) |
+| **Pflege** („Maintenance“), at the foot, quiet | Transactions with Import, Accounts & depots, Views, Classifications, the Audit journal |
+
+1. **A screen leaves „Entdecken“ when its pass has turned its sections
+   into widgets**: it stays reachable as the full view of its widgets
+   („Ganze Ansicht“) and from „Alle Widgets“, but no longer as a menu
+   entry. Wealth leaves last, since most widgets come from it.
+2. **The guardrail is restated.** A story that adds a user-visible
+   function names its widget kind and the template it joins, if any (ADR-
+   0062 §1, §3); a page of its own needs a reason why the function cannot
+   be a widget. A new menu entry is still a signal to discuss the IA.
+3. **The screen is a view; the forms move to „Pflege“** (I47, the owner's
+   „ja“ to OQ-2 of `owner-intake-2026-11-18.md`): no new write form lands
+   on a reading screen; existing forms move into the maintenance group as
+   their screens' passes reach them. What a human must still do on a
+   screen stays: drop an import file, confirm a machine proposal (NFR-10),
+   log in, the settings. The edit mode of a dashboard (ADR-0062 §7) is
+   arrangement, not data, and stays on the dashboard.
+4. **Decision 7 stands in its new form.** The template „Überblick“ answers
+   "did anything change, does anything need me?" with the Overview's
+   cards as widgets; the Overview keeps no activity feed.
+5. **On a compact width** (ADR-0062 §6) the three groups become a tab bar:
+   „Dashboards“ (with the dashboard switcher in the title), „Wertpapiere“,
+   „Nachrichten“ and „Mehr“ (the rest of „Entdecken“ and „Pflege“).
+
+*Why:* the areas were drawn when the app had five screens; with seven Wealth
+tabs and nine Holdings sections, functions the owner values were found by
+nobody (I35, 2026-11-10; 2026-11-21: the drift table, snapshots and the
+crash comparison „versteckt“). Dashboards put a function where its reader
+looks, and the maintenance pages, which the agent mostly does (I47), stop
+taking the menu's top. **To flip:** „Bereiche behalten“ (board 02 B: the
+areas stay, each tab a fixed dashboard, own dashboards beside them).
