@@ -69,7 +69,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "would remove, the one dashboard. A layout refused answers 422 with " <>
               "errors.layout_item {index, field, reason} naming its first bad item; the 51st " <>
               "dashboard 422 too_many_dashboards; a template is never written (422 naming " <>
-              "id). Every write journaled under the token; no figure in any payload."
+              "id). Every write journaled under the token; no figure in any payload.",
+            "portfolixir.dashboards.list answers the dashboards and the catalogue in one " <>
+              "call (two reads, no fifth tool), portfolixir.dashboards.get one dashboard or " <>
+              "template, both reads in every profile; portfolixir.dashboards.put creates, " <>
+              "copies a template, replaces (with a layout) or renames and moves (without), " <>
+              "a write in book and full; portfolixir.dashboards.delete, with dry_run, is admin."
             # --- S31 D2 end ---
           ],
           " "
@@ -85,7 +90,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "DELETE /api/v1/dashboards/:id"
         # --- S31 D2 end ---
       ],
-      tools: [],
+      tools: [
+        # --- S31 D2 begin ---
+        "portfolixir.dashboards.list",
+        "portfolixir.dashboards.get",
+        "portfolixir.dashboards.put",
+        "portfolixir.dashboards.delete"
+        # --- S31 D2 end ---
+      ],
       parameters: [],
       removed_endpoints: [],
       removed_tools: [],

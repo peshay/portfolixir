@@ -174,13 +174,13 @@ into context; one that defers schemas pays only for the names. Measured per
 profile as the serialized `tools/list` answer, with tokens approximated as bytes
 / 4 to bytes / 3.5:
 
-- `read`: 88 tools, at most 123,133 bytes, about 30,000 to 36,000 tokens
-- `book`: 143 tools, at most 202,263 bytes, about 50,000 to 58,000 tokens
-- `full`: 176 tools, at most 238,303 bytes, about 59,000 to 69,000 tokens
+- `read`: 90 tools, at most 124,487 bytes, about 31,000 to 36,000 tokens
+- `book`: 146 tools, at most 205,509 bytes, about 51,000 to 59,000 tokens
+- `full`: 180 tools, at most 242,166 bytes, about 60,000 to 70,000 tokens
 
 A test holds the companion under these byte figures, and they only ever move
 down, or up by a new tool's own schema and no more (the position dossier's,
-1,423 bytes, in Sprint 24; what a sale missed's, 2,302 bytes, and the four prediction tools', 7,299 bytes, in Sprint 25; the two value-band tools', 3,354 bytes, and the four news reads', 3,424 bytes, in Sprint 27; news.assign's, 763 bytes, news.registry's, 697 bytes, and the version read's, 642 bytes, in Sprint 28; the five crash tools', 4,463 bytes, the three logo writes', 1,910 bytes, and the chain and cycles tools', 2,814 bytes, in Sprint 29; the tops and flops read's, 1,073 bytes, in Sprint 30). They count the tool list only: the server instructions a client also
+1,423 bytes, in Sprint 24; what a sale missed's, 2,302 bytes, and the four prediction tools', 7,299 bytes, in Sprint 25; the two value-band tools', 3,354 bytes, and the four news reads', 3,424 bytes, in Sprint 27; news.assign's, 763 bytes, news.registry's, 697 bytes, and the version read's, 642 bytes, in Sprint 28; the five crash tools', 4,463 bytes, the three logo writes', 1,910 bytes, and the chain and cycles tools', 2,814 bytes, in Sprint 29; the tops and flops read's, 1,073 bytes, in Sprint 30; the four dashboard tools', 3,863 bytes, in Sprint 31). They count the tool list only: the server instructions a client also
 receives when it connects add about 1.6 KB more (1,569 to 1,755 bytes,
 depending on the profile).
 

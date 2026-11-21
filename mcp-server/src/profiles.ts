@@ -257,8 +257,14 @@ export const ADMIN_TOOLS: ReadonlyMap<string, string> = new Map([
   [
     "portfolixir.securities.logo_delete",
     "Deletes the stored image and locks the logo as no logo; the image comes back only by putting its URL again."
-  ]
+  ],
   // --- S29 D3 end ---
+  // --- S31 D2 begin ---
+  [
+    "portfolixir.dashboards.delete",
+    "Removes a stored dashboard; putting its layout again makes a new dashboard under a new id."
+  ]
+  // --- S31 D2 end ---
 ]);
 
 // THE OVERWRITES `book` KEEPS — the replace-shaped tools that carry
@@ -374,8 +380,14 @@ export const BOOK_KEPT_DESTRUCTIVE: ReadonlyMap<string, string> = new Map([
   [
     "portfolixir.securities.logo_discover",
     "Replaces only a discovered logo, as the background discovery does on its own; one set or removed by hand is locked and left alone."
-  ]
+  ],
   // --- S29 D3 end ---
+  // --- S31 D2 begin ---
+  [
+    "portfolixir.dashboards.put",
+    "A dashboard's name, layout or place in the menu; putting the previous ones restores them (a dashboard it created is removed by dashboards.delete, admin)."
+  ]
+  // --- S31 D2 end ---
 ]);
 
 interface ProfiledTool {

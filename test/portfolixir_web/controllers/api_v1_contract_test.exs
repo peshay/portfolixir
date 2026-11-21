@@ -81,6 +81,13 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
         ],
         do: assert(newest["summary"] =~ part, part)
 
+    for tool <- ~w(portfolixir.dashboards.list portfolixir.dashboards.get
+                   portfolixir.dashboards.put portfolixir.dashboards.delete),
+        do: assert(tool in newest["tools"], tool)
+
+    assert newest["summary"] =~ "the dashboards and the catalogue in one call"
+    assert newest["summary"] =~ "portfolixir.dashboards.delete, with dry_run, is admin"
+
     # --- S31 D2 end ---
 
     # Sprint 30's sprint PR (version 30), found by version from Sprint 31

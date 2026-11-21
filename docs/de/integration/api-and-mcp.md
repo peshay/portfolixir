@@ -5779,6 +5779,31 @@ Speichern, statt abzulehnen; jede andere `view_id` muss eine View nennen.
 Schlüssel werden als Strings verglichen, aus keinem wird ein Atom; der Name
 wird als Text gespeichert und maskiert gezeichnet.
 
+**MCP.** Vier Tools rufen diese Routen. `portfolixir.dashboards.list` liest
+`GET /api/v1/dashboards` und `GET /api/v1/widgets` und liefert beides als
+`{"data": {"dashboards", "widgets"}}`: das Menü und den Katalog in einem
+Aufruf, sodass der Katalog kein eigenes Tool braucht.
+`portfolixir.dashboards.get` liest ein Dashboard per `id` oder eine Vorlage
+per `template` (ihr Schlüssel). Beide sind Lesungen in jedem Profil und
+antworten kompaktes JSON. `portfolixir.dashboards.put` schreibt: ohne `id`
+legt es aus `dashboard` `{name, layout}` an oder kopiert `template` unter
+`dashboard.name`; mit `id` und einem `layout` ersetzt es (`PUT`, mit
+`lock_version`), mit `id` ohne Layout benennt es um oder verschiebt es
+(`PATCH`, `lock_version` optional). Es ist ein Schreibzugriff in `book` und
+`full` und bleibt dort, weil der vorige Name, das vorige Layout oder der
+vorige Platz, wieder gesendet, sie wiederherstellt.
+`portfolixir.dashboards.delete` nimmt `id` und `dry_run`; es ist Admin. Der
+Begleiter prüft die Form eines Layouts vor jeder Anfrage (die Schlüssel
+eines Elements, eine Größe aus `S`, `W`, `M`, `T` und `L`, `col` 1 bis 12,
+höchstens 40 Elemente, ein Name von höchstens 60 Zeichen); den Rest prüft
+die API, und ihre Ablehnungen erreichen den Agenten als Fehler des Tools,
+darunter die `409` einer veralteten `lock_version` mit dem gespeicherten
+Dashboard. Ein Agent, der um „ein Dashboard für kurzfristige Bewegungen“
+gebeten wird, liest `list`, wählt die Arten, deren Zeitraumregel die kurzen
+Zeiträume beantwortet (Tops und Flops, die Wertentwicklung), heftet
+`settings.period` an, wo ein Widget nicht dem Zeitraum des Dashboards
+folgen soll, und schreibt ein `put`, journalisiert unter seinem Token.
+
 ## Importe
 
 Portfolio-Performance-Importe (CSV/JSON v1) laufen ausschließlich über die
@@ -6128,6 +6153,11 @@ idempotent, weil eine Wiederholung eine weitere Version anfügt;
 die Felder eines manuellen Fensters werden überschrieben) und ohne über `POST`
 (ein neues manuelles Fenster) und ist deshalb destruktiv und nicht idempotent,
 weil eine Wiederholung ohne Schlüssel ein weiteres Fenster anfügt;
+`portfolixir.dashboards.put` läuft mit einer id über `PUT` (ein Ersetzen)
+oder `PATCH` (ein Umbenennen oder Verschieben) und ohne über `POST` (ein
+neues Dashboard oder die Kopie einer Vorlage) und ist deshalb destruktiv und
+nicht idempotent, weil eine Wiederholung ohne id ein weiteres Dashboard
+anlegt;
 `openWorldHint` ist wahr für
 `portfolixir.securities.search_online`, `portfolixir.quotes.sync` und
 `portfolixir.exchange_rates.sync`, die einen externen Anbieter erreichen, und

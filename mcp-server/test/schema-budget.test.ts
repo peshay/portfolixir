@@ -734,8 +734,36 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 123_133,
     book: 202_263,
     full: 238_303
-  }
+  },
   // --- S30 A3 end ---
+  // --- S31 D2 begin ---
+  {
+    since: "2026-11-21",
+    why:
+      "Sprint 31, D2 (FR-60; ADR-0062 §8): the four dashboard tools raise each ceiling by " +
+      "their own bytes and no more: dashboards.list 820 and dashboards.get 536, reads in " +
+      "every profile, dashboards.put 1,891, a write in book and full, and dashboards.delete " +
+      "616, admin, so read 123,133 + 1,356 = 124,489, book 202,263 + 3,247 = 205,510 and " +
+      "full 238,303 + 3,863 = 242,166; the commas before them are paid for by tightening " +
+      "views.get's description (\"Get one view\" to \"One view\", 4 bytes), and each " +
+      "ceiling is lowered to the figure measured with them: read 124,487, book 205,509 " +
+      "and full 242,166; no other tool's bytes are added",
+    read: 124_487,
+    book: 205_509,
+    full: 242_166,
+    raisedBy: {
+      tools: [
+        "portfolixir.dashboards.list",
+        "portfolixir.dashboards.get",
+        "portfolixir.dashboards.put",
+        "portfolixir.dashboards.delete"
+      ],
+      read: 1_356,
+      book: 3_247,
+      full: 3_863
+    }
+  }
+  // --- S31 D2 end ---
 ];
 
 describe("the schema budget", () => {
@@ -1036,6 +1064,16 @@ describe("the schema budget", () => {
     // --- S30 T2 begin ---
     assert.equal(debuts.get("portfolixir.views.movers"), "2026-11-15");
     // --- S30 T2 end ---
+    // --- S31 D2 begin ---
+    for (const name of [
+      "portfolixir.dashboards.list",
+      "portfolixir.dashboards.get",
+      "portfolixir.dashboards.put",
+      "portfolixir.dashboards.delete"
+    ]) {
+      assert.equal(debuts.get(name), "2026-11-21", name);
+    }
+    // --- S31 D2 end ---
   });
 
   // --- S28 N1 begin ---

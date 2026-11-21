@@ -142,6 +142,19 @@ function routedMethodsFromSource(): Map<string, string> {
   }
   // --- S29 C5 end ---
 
+  // --- S31 D2 begin ---
+  // dashboards.put routes three ways (ADR-0062 §8): POST without an id, and
+  // with one PUT when a layout is sent, else PATCH. Its route is the keyed
+  // branch's with every argument set as the companion's derivation reads
+  // it (a dashboard argument with no layout: PATCH); REPLACING_POSTS below
+  // names its hints.
+  for (const [, name, method] of source.matchAll(
+    /case "(portfolixir\.[a-z0-9_.]+)":\s*return args\.id === undefined\s*\?\s*client\.request\(\s*"POST"[^\n]*\n\s*:\s*args\.dashboard\?\.layout === undefined\s*\?\s*client\.request\(\s*"([A-Z]+)"/g
+  )) {
+    routes.set(name, method);
+  }
+  // --- S31 D2 end ---
+
   return routes;
 }
 
@@ -186,8 +199,13 @@ const REPLACING_POSTS = [
   // --- S29 C5 begin ---
   // PUT with a key (overwrites a name or a manual window's fields), POST
   // without one (adds a manual window): destructive, and not idempotent.
-  "portfolixir.crashes.put"
+  "portfolixir.crashes.put",
   // --- S29 C5 end ---
+  // --- S31 D2 begin ---
+  // PUT or PATCH with an id (overwrites a layout, a name or a place), POST
+  // without one (adds a dashboard): destructive, and not idempotent.
+  "portfolixir.dashboards.put"
+  // --- S31 D2 end ---
 ];
 
 const OPEN_WORLD = [
