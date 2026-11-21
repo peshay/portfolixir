@@ -2168,15 +2168,38 @@ footer naming the view it reads and the way to the full screen.
   reading order (row, then column); under 600 px in one column. Below
   1000 px each widget shows its **compact form**: phone type, one name and
   one figure per row, rows at least 44 px tall to tap.
-- **The template's widgets**, in its reading order: **Total value**
-  (with the key-figure strip), **Data quality**, **Due**, **Off target**,
-  **Performance**, **Allocation and drift**, **Tops and flops**, **Crashes
-  compared**, **Bitcoin cycle**, **Sale review** and **Snapshots**. The four
-  that come from Wealth's sections (Performance, Allocation and drift,
-  Crashes compared, Snapshots) show an empty frame with the way to their
-  screen until they are drawn. A widget with nothing to say — no finding,
-  no due date, no closed trade, no security with the cycle view — stays
-  absent, as its card did.
+- **The template's widgets**, in its reading order: **Total value**,
+  **Data quality**, **Due**, **Off target**, **Performance**, **Allocation
+  and drift**, **Tops and flops**, **Crashes compared**, **Bitcoin cycle**,
+  **Sale review** and **Snapshots**. A widget with nothing to say — no
+  finding, no due date, no closed trade, no security with the cycle view,
+  no snapshot — keeps its place with one quiet line ("No open points.",
+  "Nothing due in the next 30 days.", "No closed sales booked yet.").
+- **Sizes that change what a widget says.** **Total value** at S (the
+  template's) shows the total, its change over the dashboard's period
+  (the period's TTWROR, as `GET /api/v1/performance` answers it) and the
+  period's value line; at M it adds the key-figure strip and the change
+  since the start of the year. **Data quality** at S shows each finding as
+  one short counted line ("1 quote older than 7 days") with "Check →"; at
+  M the full sentences.
+- **The four widgets from Wealth's sections.** **Performance** at S shows
+  the period's TTWROR and a line of the period's daily value, at M the
+  value line with its lowest and highest value and its dates, at L (the
+  template's) Wealth's stacked chart by category; "Full view →" opens
+  Wealth's chart on the same period. **Allocation and drift** shows each
+  top-level category of the steering tree and cash with its actual and
+  target weight and its drift, and under it, for the categories beyond
+  ±5 pp, the amount that would close each gap, "Arithmetically to target
+  (display only, no order)": the drift in money with its sign turned
+  (ADR-0023), never an order; "Edit targets →" opens Wealth's allocation
+  tab. **Snapshots** shows the latest snapshot's date, how many there are
+  and the real TTWROR since that date, with its daily line; "Compare →"
+  opens its comparison. **Crashes compared** shows the crash windows,
+  newest first (five at M, eight at L), each with the crash benchmark's
+  return over it and the lowest return among the securities held today
+  ("In depot") or in the whole catalogue ("Catalogue"), the figures the
+  windows' rankings answer (`GET /api/v1/crashes/:key/rankings`); "All
+  windows →" opens the Risk tab.
 
 Each widget draws exactly the figures its read answers, which your agent
 reads over the API for the same scope and period. The widgets of today's
@@ -2213,7 +2236,7 @@ for you (issue #1122). When the total leaves nothing out, there is no note;
 where Wealth remembers another view all the same, one quiet line under the
 total says so (issue #1222). Two securities of one name in the note are
 each named with what tells them apart, "Twin Fonds · ISIN DE0000000201"
-(issue #1320). Under the card, the page shows the **key-figure strip**
+(issue #1320). Under the card, at M, the widget shows the **key-figure strip**
 (UX-DR2 as amended 2026-09-14, issue #798): four cells, each linking to the surface that owns
 its figure — the **1Y TTWROR** with its IRR (the period MWR for a shorter
 history) leading to Wealth, the **cash quote** with the cash amount leading
