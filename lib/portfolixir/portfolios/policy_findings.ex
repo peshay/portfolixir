@@ -37,8 +37,9 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
 
   ## Registry
 
-  `policy_findings` registers with ADR-0039 at computation version 1 and
-  lifetime `:request`, keyed under `Derived.portfolio_basis/1` — every write
+  `policy_findings` registers with ADR-0039 (its computation version is
+  `Derived.Registry`'s, 3 since #1473 moved the walk its volatility and
+  drawdown read) and lifetime `:request`, keyed under `Derived.portfolio_basis/1` — every write
   that moves a measure bumps it — **and** the portfolio's rules counter
   (`Derived.rules_basis/1`), carried in the entry key, which every rule write
   bumps. Evaluation is **today only** (§5): a historical finding would need

@@ -19,6 +19,8 @@ defmodule Portfolixir.Portfolios.Performance.NonPositiveCloseTest do
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Performance.Bands
   alias Portfolixir.Portfolios.Performance.Contribution
+  alias Portfolixir.Portfolios.Performance.Movers
+  alias Portfolixir.Portfolios.RiskMetrics
 
   @today ~D[2026-11-12]
 
@@ -230,6 +232,45 @@ defmodule Portfolixir.Portfolios.Performance.NonPositiveCloseTest do
 
       walk = Performance.analysis(world.portfolio.id, today: @today)
       assert Enum.all?(walk.daily, &Decimal.equal?(&1.value, 0)), name
+    end
+  end
+
+  # User story (#1473; AGENTS.md, "Every metric … must state its computation
+  # basis", the treatment of gaps):
+  # As the agent checking a figure the walk feeds,
+  # I want its basis to say a stored close of 0 or below is not a price,
+  # so that I can tell why such a day carries the close before it.
+  #
+  # Acceptance criteria:
+  # - The gaps of the performance read, the contribution table, both band
+  #   reads (value and ttwror scale), the movers' money side and the risk
+  #   metrics say so, as the benchmark comparison's already did.
+  test "every basis read from the walk says a close of 0 or below is not a price" do
+    {world, fund} = held!("Basis", "1")
+    put_quotes!(fund, [{~D[2026-11-10], "10"}, {~D[2026-11-12], "11"}])
+    pid = world.portfolio.id
+    opts = [period: @range, today: @today]
+
+    {:ok, performance} = Performance.for_portfolio(pid, opts)
+    {:ok, contribution} = Contribution.for_portfolio(pid, opts)
+    {:ok, bands} = Bands.for_portfolio(pid, [level: :security] ++ opts)
+    {:ok, ttwror_bands} = Bands.for_portfolio(pid, [level: :security, scale: :ttwror] ++ opts)
+    risk = RiskMetrics.for_portfolio(pid, [], as_of: @today)
+
+    {:ok, view} =
+      Portfolixir.Buckets.create_view(Actor.owner_ui(), %{name: "Basis", include_all: true})
+
+    {:ok, movers} = Movers.read(view.id, "day", today: @today)
+
+    for {name, basis} <- [
+          performance: performance.computation_basis,
+          contribution: contribution.computation_basis,
+          bands: bands.computation_basis,
+          ttwror_bands: ttwror_bands.computation_basis,
+          movers: movers.contribution.computation_basis,
+          risk: risk.computation_basis
+        ] do
+      assert basis.gaps =~ "a stored close of 0 or below is not a price", "#{name}"
     end
   end
 

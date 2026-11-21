@@ -564,7 +564,8 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
         "a day on which a held position has no price or no rate path counts zero and the " <>
           "position stays ranked with its unvalued_days and unvalued_reason (ADR-0051 §10); " <>
           "prices and rates carry the most recent stored point on or before each day " <>
-          "forward, and a security with no quote yet is priced by its own latest trade " <>
+          "forward (a stored close of 0 or below is not a price), and a security with no " <>
+          "quote yet is priced by its own latest trade " <>
           "(ADR-0010); " <>
           "a position valued on no day of the window (valued_days 0) is counted " <>
           "no_valuation and never ranked as a zero; a position whose contribution is " <>

@@ -801,8 +801,9 @@ defmodule Portfolixir.Portfolios.Performance do
       reference: nil,
       gaps:
         "prices and exchange rates carry the most recent stored point on or " <>
-          "before each day forward; a security with no quote yet is priced by " <>
-          "its own latest trade; a missing conversion path contributes zero " <>
+          "before each day forward (a stored close of 0 or below is not a price); a " <>
+          "security with no quote yet is priced by its own latest trade; a missing " <>
+          "conversion path contributes zero " <>
           "(ADR-0010). A cash account whose non-zero balance counted zero for want " <>
           "of a rate path on a window day or on the day before the window (the " <>
           "start value) is listed in unvalued_cash_accounts with its native balance, " <>
