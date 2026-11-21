@@ -460,13 +460,13 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
     assert text_of(view, "[data-role='contribution-sum-figure']") == "+210.00 EUR"
   end
 
-  # Sprint 30 closing act, money lens, finding 1 (ADR-0051 §10 as amended
-  # 2026-11-19): a legacy close of 0, stored by a release before the
-  # plausibility bounds, on the start value's day. The walk values the units
-  # at it, so the start value is 0 and the whole value reads as the
-  # contribution, exactly as for a position with no close at all; a close
-  # of 0 or below is no price (ADR-0046), so the row is marked the same way.
-  test "a legacy zero close on the start value's day is marked", %{conn: conn} do
+  # A legacy close of 0, stored by a release before the plausibility bounds,
+  # on the start value's day. Sprint 30's walk valued the units at it, so
+  # the whole value read as the contribution, marked by the count of
+  # 2026-11-19. The walk now reads it as no price and carries the last close
+  # before it (#1473, ADR-0051's amendment of 2026-11-21), so the row reads
+  # the move, unmarked.
+  test "a legacy zero close on the start value's day is no price", %{conn: conn} do
     world = base_world(name: "Zero Close World", cash_name: "Giro", depot_name: "Depot")
     nova = create_security!(name: "Nova Zero Fund", ticker: "NZRF")
     first_day = Date.shift(today(), year: -1)
@@ -485,16 +485,15 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
     put_quotes!(nova, [{Date.add(first_day, -5), "40"}, {first_day, "41"}, {today(), "42"}])
     legacy_zero_close!(nova, Date.add(first_day, -1))
 
-    # Its move is 5 x (42 - 40) = 10; it reads 5 x 42 - 5 x 0 = 210, marked.
+    # Its move is 5 x (42 - 40) = 10 (Python's decimal at 34 digits: 5 * 42
+    # - 5 * 40 = 10), unmarked: the 40 carries over the 0.
     {:ok, view, _html} = live(conn, "/portfolio")
     render_async(view)
 
-    assert text_of(view, row(nova)) =~ "Nova Zero Fund 1 day at zero"
-    assert text_of(view, row(nova)) =~ "+210.00"
-
-    note = text_of(view, "#performance-contribution .data-note--attention")
-    assert note =~ "Nova Zero Fund (1 day, no price stored)"
-    assert text_of(view, "[data-role='contribution-sum-figure']") == "+210.00 EUR"
+    refute text_of(view, row(nova)) =~ "day at zero"
+    assert text_of(view, row(nova)) =~ "+10.00"
+    refute has_element?(view, "#performance-contribution .data-note--attention")
+    assert text_of(view, "[data-role='contribution-sum-figure']") == "+10.00 EUR"
   end
 
   # A close the plausibility bounds now refuse, written as an older release

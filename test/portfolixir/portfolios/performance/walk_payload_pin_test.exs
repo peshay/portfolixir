@@ -572,7 +572,77 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
   #   change, Decimal for Decimal, to the representation.
   # - The headline figures read as captured.
   test "every performance read over the review seed's shapes keeps its pinned payload" do
+    assert_pinned!(seed_ledger!())
+  end
+
+  # User story (#1473, ADR-0051's amendment of 2026-11-21):
+  # As the operator and the agent reading performance figures on an
+  # instance whose older release stored a close of 0 or below,
+  # I want the walk to read such a close as no price, as every other price
+  # read does,
+  # so that a feed's placeholder never reads as a total loss and back.
+  #
+  # Acceptance criteria:
+  # - The pinned ledger with legacy closes of 0 and below added between its
+  #   positive closes (on window baseline days, on a window's last day, on
+  #   the day a carried seed is read, before a first booking, while a
+  #   position is priced by its trade, in USD, before a split, and in the
+  #   second portfolio) reads every pinned payload, Decimal for Decimal:
+  #   the same seed without those rows.
+  test "legacy closes of 0 and below leave every pinned payload as it is" do
     ledger = seed_ledger!()
+    legacy_closes!()
+    assert_pinned!(ledger)
+  end
+
+  # Rows a release before the plausibility bounds could store, written past
+  # the changeset as they sit in such a table, each on a day without a close
+  # of the seed's (its closes are weekly, on Mondays).
+  defp legacy_closes! do
+    by_name = Map.new(Repo.all(Portfolixir.Catalog.Security), &{&1.name, &1.id})
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    rows =
+      for {name, date, close} <- [
+            # The day before Alpha's first buy: the lead close of its load.
+            {"Pin Alpha", ~D[2023-02-28], "0"},
+            # The baseline day of the range from 2023-07-01.
+            {"Pin Alpha", ~D[2023-06-30], "0"},
+            # The last day of 2023 and of the second half's range, and the
+            # baseline day of 2024.
+            {"Pin Alpha", ~D[2023-12-31], "-3"},
+            # The seed day of a walk from the baseline of the June 2024 range.
+            {"Pin Alpha", ~D[2024-05-30], "0"},
+            # The June 2024 range's last day.
+            {"Pin Alpha", ~D[2024-06-30], "0"},
+            # Zeta, priced by its buy until its first close on 2023-08-07.
+            {"Pin Zeta", ~D[2023-07-03], "0"},
+            # Epsilon, never quoted while held.
+            {"Pin Epsilon", ~D[2023-08-01], "0"},
+            # Eta, the day before its 2:1 split.
+            {"Pin Eta", ~D[2024-04-14], "0"},
+            # Theta, a dollar position.
+            {"Pin Theta", ~D[2023-08-15], "-0.01"},
+            # Iota, delivered without a price.
+            {"Pin Iota", ~D[2024-01-03], "0"},
+            # Beta in the later portfolio.
+            {"Pin Beta", ~D[2024-03-05], "0"}
+          ] do
+        %{
+          security_id: Map.fetch!(by_name, name),
+          date: date,
+          close: Decimal.new(close),
+          source: "manual",
+          inserted_at: now,
+          updated_at: now
+        }
+      end
+
+    {11, _rows} = Repo.insert_all(SecurityQuote, rows)
+    :ok
+  end
+
+  defp assert_pinned!(ledger) do
     reads = reads(ledger)
     ids = ids()
     actual = Map.new(reads, fn {name, payload} -> {name, digest(payload, ids)} end)
