@@ -2397,16 +2397,42 @@ die die gelesene Ansicht nennt und zum ganzen Screen führt.
   Unter 1000 px zeigt jedes Widget seine **kompakte Form**: Telefonschrift,
   ein Name und eine Zahl je Zeile, Zeilen mindestens 44 px hoch zum
   Antippen.
-- **Die Widgets der Vorlage**, in ihrer Lesereihenfolge: **Gesamtwert** (mit
-  der Kennzahlenleiste), **Datenqualität**, **Fällig**, **Abseits des
-  Ziels**, **Wertentwicklung**, **Allokation und Drift**, **Tops und
-  Flops**, **Crashes im Vergleich**, **Bitcoin-Zyklus**,
-  **Verkaufsrückblick** und **Snapshots**. Die vier aus den Abschnitten von
-  Vermögen (Wertentwicklung, Allokation und Drift, Crashes im Vergleich,
-  Snapshots) zeigen einen leeren Rahmen mit dem Weg zu ihrem Screen, bis
-  sie gezeichnet sind. Ein Widget, das nichts zu sagen hat — kein Befund,
-  kein fälliger Termin, kein abgeschlossener Trade, kein Wertpapier mit der
-  Zyklus-Ansicht —, fehlt, wie seine Karte fehlte.
+- **Die Widgets der Vorlage**, in ihrer Lesereihenfolge: **Gesamtwert**,
+  **Datenqualität**, **Fällig**, **Abseits des Ziels**,
+  **Wertentwicklung**, **Allokation und Drift**, **Tops und Flops**,
+  **Crashes im Vergleich**, **Bitcoin-Zyklus**, **Verkaufsrückblick** und
+  **Snapshots**. Ein Widget, das nichts zu sagen hat — kein Befund, kein
+  fälliger Termin, kein abgeschlossener Trade, kein Wertpapier mit der
+  Zyklus-Ansicht, kein Snapshot —, behält seinen Platz mit einer ruhigen
+  Zeile („Keine offenen Punkte.“, „Nichts fällig in den nächsten 30
+  Tagen.“, „Noch keine abgeschlossenen Verkäufe gebucht.“).
+- **Größen, die ändern, was ein Widget sagt.** **Gesamtwert** in S (so in
+  der Vorlage) zeigt die Summe, ihre Veränderung im Zeitraum des
+  Dashboards (die TTWROR des Zeitraums, wie `GET /api/v1/performance` sie
+  antwortet) und die Wertlinie des Zeitraums; in M kommen die
+  Kennzahlenleiste und die Veränderung seit Jahresbeginn dazu.
+  **Datenqualität** in S zeigt jeden Befund als eine kurze gezählte Zeile
+  („1 Kurs älter als 7 Tage“) mit „Prüfen →“; in M die ganzen Sätze.
+- **Die vier Widgets aus den Abschnitten von Vermögen.**
+  **Wertentwicklung** zeigt in S die TTWROR des Zeitraums und eine Linie
+  seines Tageswerts, in M die Wertlinie mit ihrem niedrigsten und höchsten
+  Wert und ihren Daten, in L (so in der Vorlage) das gestapelte Chart von
+  Vermögen nach Kategorien; „Ganze Ansicht →“ öffnet das Chart in Vermögen
+  im selben Zeitraum. **Allokation und Drift** zeigt jede Kategorie der
+  obersten Ebene des Steuerungsbaums und Cash mit Ist- und Sollgewicht und
+  Drift, und darunter, für die Kategorien jenseits von ±5 pp, den Betrag,
+  der jede Lücke schlösse, „Rechnerisch zum Soll (nur Anzeige, kein
+  Auftrag)“: die Drift in Geld mit umgekehrtem Vorzeichen (ADR-0023), nie
+  ein Auftrag; „Ziele bearbeiten →“ öffnet den Allokations-Tab in
+  Vermögen. **Snapshots** zeigt das Datum des letzten Snapshots, wie viele
+  es gibt und die echte TTWROR seit diesem Datum, mit ihrer Tageslinie;
+  „Vergleichen →“ öffnet seinen Vergleich. **Crashes im Vergleich** zeigt
+  die Crash-Fenster, das neueste zuerst (fünf in M, acht in L), jedes mit
+  der Rendite des Crash-Benchmarks darüber und der niedrigsten Rendite
+  unter den heute gehaltenen Wertpapieren („Im Depot“) oder im ganzen
+  Katalog („Katalog“), die Zahlen, die die Ranglisten der Fenster
+  antworten (`GET /api/v1/crashes/:key/rankings`); „Alle Fenster →“ öffnet
+  den Risiko-Tab.
 
 Jedes Widget zeichnet genau die Zahlen, die sein Lesezugriff antwortet und
 die Ihr Agent über die API für denselben Umfang und Zeitraum liest. Die
@@ -2447,7 +2473,7 @@ Sie gewählt (Issue #1122). Lässt die Summe nichts aus, gibt es
 keinen Hinweis; merkt sich Vermögen trotzdem eine andere Ansicht, sagt
 das eine ruhige Zeile unter der Summe (Issue #1222). Zwei Wertpapiere
 gleichen Namens im Hinweis werden je mit dem genannt, was sie
-unterscheidet, „Twin Fonds · ISIN DE0000000201“ (Issue #1320). Unter der Karte zeigt die Seite die **Kennzahlenleiste**
+unterscheidet, „Twin Fonds · ISIN DE0000000201“ (Issue #1320). Unter der Karte zeigt das Widget in M die **Kennzahlenleiste**
 (UX-DR2 in der Fassung vom 2026-09-14, Issue #798): vier Zellen, jede verlinkt auf die Oberfläche,
 der die Zahl gehört — die **TTWROR 1J** mit ihrem IRR (bei kürzerer
 Historie die Perioden-MWR) führt zum Vermögen, die **Cashquote** mit dem
