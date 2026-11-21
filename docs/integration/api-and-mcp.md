@@ -1565,7 +1565,9 @@ every portfolio, with `view_id` `null`. Both take:
   previous calendar quarter, 31 December of the previous year, or today one
   year back (29 February maps to 28 February). `day` has no single start
   day (`start_on` is `null`): on the price side it is each security's latest
-  close against the close before it, each row naming both dates; on the
+  close against the close before it, at most 7 days before the latest
+  (ADR-0061's amendment of 2026-11-21; an older one leaves the row
+  `one_close_only`), each row naming both dates; on the
   money side it is the one day `D` (`contribution.from` = `contribution.to`),
   the latest day on which a close of any security the scope holds is stored,
   at most 7 days before today, as the price side's latest close; without
@@ -1578,7 +1580,10 @@ every portfolio, with `view_id` `null`. Both take:
 `price_return` and `contribution`. Each ranking carries `highest` (the
 largest figures, descending) and `lowest` (the smallest, ascending), cut
 from one sorted list so that no name is in both: with `n` answered entries,
-`highest` takes at most `ceil(n / 2)` and `lowest` at most `floor(n / 2)`.
+`highest` takes at most `ceil(n / 2)` and `lowest` at most `floor(n / 2)`;
+two entries equal on the figure and on every key of the tie order stand in
+one half (the cut moves past them while the half stays within the limit,
+else before them).
 Equal figures are ordered by name, ISIN, ticker, WKN and currency, never by
 an id. Beside them, `answered` (the count ranked) and `unanswered` (a count
 per reason; a missing figure is never ranked as zero), and its

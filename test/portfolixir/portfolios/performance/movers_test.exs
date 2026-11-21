@@ -639,6 +639,129 @@ defmodule Portfolixir.Portfolios.Performance.MoversTest do
     for row <- all_entries(read.contribution), do: assert_decimal(row.contribution, "1")
   end
 
+  # User story (the Overview's polish list #1358; Sprint 31 D3; ADR-0061 §4):
+  # As the operator reading two securities equal on every key — the
+  # figure, the name, the ISIN, the ticker, the WKN and the currency —
+  # I want them in one half,
+  # so that one name never stands in both „Höchste“ and „Niedrigste“.
+  #
+  # Acceptance criteria:
+  # - n = 2 twins: both in the highest half, none in the lowest.
+  # - n = 4 with twins across the cut (5, 3, 3, 1): the cut moves past the
+  #   twins while the half stays within the limit, so highest reads 5, 3, 3
+  #   and lowest 1.
+  # - With a limit the moved cut would pass, the twins leave the half
+  #   instead: limit 1 and n = 2 twins read no highest and no lowest, each
+  #   still answered.
+  test "twins stand in one half, never one in each" do
+    today = ~D[2026-11-12]
+    world = base_world(name: "Twin World", cash_name: "Twin Cash", depot_name: "Twin Depot")
+    view = view!([world.depot], [world.cash])
+
+    twin = fn close ->
+      security = security!(%{name: "Zeta Twin"})
+      deliver_untraded!(world, security, "1", date: ~D[2026-11-02])
+      put_quotes!(security, [{~D[2026-11-06], "100"}, {~D[2026-11-12], close}])
+      security
+    end
+
+    [a, b] = [twin.("103"), twin.("103")]
+
+    read = read!(view.id, "week", today: today)
+
+    for ranking <- [read.price_return, read.contribution] do
+      assert ranking.answered == 2
+      assert Enum.map(ranking.highest, & &1.security.id) == [a.id, b.id]
+      assert ranking.lowest == []
+    end
+
+    narrow = read!(view.id, "week", today: today, limit: 1)
+
+    for ranking <- [narrow.price_return, narrow.contribution] do
+      assert {ranking.answered, ranking.highest, ranking.lowest} == {2, [], []}
+    end
+
+    for {name, close} <- [{"Alpha Fund", "105"}, {"Omega Fund", "101"}] do
+      security = security!(%{name: name})
+      deliver_untraded!(world, security, "1", date: ~D[2026-11-02])
+      put_quotes!(security, [{~D[2026-11-06], "100"}, {~D[2026-11-12], close}])
+    end
+
+    four = read!(view.id, "week", today: today)
+    assert figures(four.price_return.highest, :return) == ~w(0.05 0.03 0.03)
+    assert names(four.price_return.highest) == ["Alpha Fund", "Zeta Twin", "Zeta Twin"]
+    assert names(four.price_return.lowest) == ["Omega Fund"]
+    assert names(four.contribution.lowest) == ["Omega Fund"]
+  end
+
+  # User story (the Overview's polish list #1358, decided: keep ADR-0061
+  # §4's rule; Sprint 31 D3):
+  # As the operator whose fund had no price for days of the window,
+  # I want its contribution ranked with the mark that it counted zero on
+  # those days,
+  # so that a gain made of days at zero is shown as what it is — the mark
+  # is the answer, not a removal.
+  #
+  # Acceptance criteria:
+  # - A fund delivered before the window and first priced in it ranks in
+  #   the highest half of the contribution with its unvalued days and its
+  #   reason; it is not counted apart.
+  test "a gain on days at zero ranks, marked by its unvalued days" do
+    today = ~D[2026-11-12]
+    world = base_world(name: "Mark World", cash_name: "Mark Cash", depot_name: "Mark Depot")
+    view = view!([world.depot], [world.cash])
+
+    late = security!(%{name: "Late Price Fund"})
+    steady = security!(%{name: "Steady Fund"})
+
+    for security <- [late, steady],
+        do: deliver_untraded!(world, security, "1", date: ~D[2026-11-02])
+
+    put_quotes!(late, [{~D[2026-11-11], "40"}, {~D[2026-11-12], "41"}])
+    put_quotes!(steady, [{~D[2026-11-06], "10"}, {~D[2026-11-12], "11"}])
+
+    money = read!(view.id, "week", today: today).contribution
+    assert names(money.highest) == ["Late Price Fund"]
+    assert figures(money.highest, :contribution) == ~w(41)
+    assert hd(money.highest).unvalued_days > 0
+    assert hd(money.highest).unvalued_reason == :no_price
+    assert money.unanswered.no_valuation == 0
+  end
+
+  # User story (the Overview's polish list #1358, decided: bound P by the
+  # same 7 days; ADR-0061's amendment of 2026-11-21; Sprint 31 D3):
+  # As the operator reading „Tag“,
+  # I want a row's previous close no older than the 7 days its latest close
+  # and the money side's day may be,
+  # so that a share quoted again after months does not read its months as
+  # one day's move.
+  #
+  # Acceptance criteria:
+  # - P, the close before E, is at most 7 calendar days before E: 7 days
+  #   ranks (11 against 10), 8 days is one_close_only and unranked.
+  # - The basis says the bound.
+  test "„Tag“'s previous close is no older than 7 days before the latest" do
+    today = ~D[2026-11-12]
+    world = base_world(name: "Day World", cash_name: "Day Cash", depot_name: "Day Depot")
+    view = view!([world.depot], [world.cash])
+
+    week_old = security!(%{name: "Week Old Fund"})
+    too_old = security!(%{name: "Too Old Fund"})
+
+    for security <- [week_old, too_old],
+        do: deliver_untraded!(world, security, "1", date: ~D[2026-10-01])
+
+    put_quotes!(week_old, [{~D[2026-11-05], "10"}, {~D[2026-11-12], "11"}])
+    put_quotes!(too_old, [{~D[2026-11-04], "10"}, {~D[2026-11-12], "11"}])
+
+    price = read!(view.id, "day", today: today).price_return
+    assert names(price.highest) == ["Week Old Fund"]
+    assert hd(price.highest).start.date == ~D[2026-11-05]
+    assert price.lowest == []
+    assert price.unanswered.one_close_only == 1
+    assert price.computation_basis.window.rule =~ "at most 7 calendar days before E"
+  end
+
   # -- §4: no answer, never a zero -----------------------------------------------------
 
   # User story (FR-59, ADR-0061 §4; board 04: unpriced funds):

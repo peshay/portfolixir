@@ -11,7 +11,15 @@ defmodule PortfolixirWeb.DashboardMoversTest do
   import PortfolixirWeb.PreferenceCookieHelpers
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3, put_quotes!: 2, sell!: 3]
+    only: [
+      base_world: 1,
+      buy!: 3,
+      create_security!: 1,
+      deliver_untraded!: 4,
+      deposit!: 3,
+      put_quotes!: 2,
+      sell!: 3
+    ]
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
@@ -637,6 +645,41 @@ defmodule PortfolixirWeb.DashboardMoversTest do
 
     {:ok, wealth, _html} = live(conn, attribute(link, "href"))
     assert :sys.get_state(wealth.pid).socket.assigns.active_view_id == nil
+  end
+
+  # User story (the Overview's polish list #1358, decided: keep ADR-0061
+  # §4's rule; Sprint 31 D3):
+  # As the operator whose fund had no price for days of the window,
+  # I want its gain shown in „Höchste“ with the mark that it counted zero on
+  # those days,
+  # so that I read the gain as made of days at zero, not hidden.
+  #
+  # Acceptance criteria:
+  # - A fund delivered before the year and first priced in its last two
+  #   days stands in „Höchste“ under „Beitrag“, its row marked with its days
+  #   at zero, as GET /api/v1/movers?window=1y counts them.
+  test "a gain on days at zero stands in the highest, marked", %{conn: conn} do
+    today = Clock.today()
+    world = base_world(name: "Mark Card", cash_name: "Giro", depot_name: "Depot")
+    late = create_security!(name: "Synthetic Late Price Fund", ticker: "SLP")
+    deliver_untraded!(world, late, "1", date: Date.add(today, -400))
+    put_quotes!(late, [{Date.add(today, -1), "40"}, {today, "41"}])
+
+    {:ok, view, _html} = live(conn, "/?movers_period=1y")
+    doc = loaded(view, "1y")
+
+    [row] =
+      Floki.find(
+        doc,
+        "[data-role='movers-contribution'] [data-half='highest'] [data-role='movers-row']"
+      )
+
+    assert row_name(row) == "Synthetic Late Price Fund"
+    [entry] = api("/api/v1/movers?window=1y")["contribution"]["highest"]
+    assert entry["unvalued_days"] > 0
+
+    assert row |> Floki.find("[data-role='movers-unvalued-mark']") |> text() ==
+             "#{entry["unvalued_days"]} days at zero"
   end
 
   defp set_default_view(id), do: Settings.set_default_view(Actor.owner_ui(), id)

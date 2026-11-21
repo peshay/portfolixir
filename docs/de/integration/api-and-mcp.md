@@ -1699,7 +1699,9 @@ mit `view_id` `null`. Beide nehmen:
   Vormonats, des vorigen Kalenderquartals, der 31. Dezember des Vorjahres
   oder heute vor einem Jahr (der 29. Februar wird zum 28. Februar). `day`
   hat keinen gemeinsamen Starttag (`start_on` ist `null`): auf der Kursseite
-  ist es je Wertpapier sein letzter Schlusskurs gegen den davor, und jede
+  ist es je Wertpapier sein letzter Schlusskurs gegen den davor, höchstens
+  7 Tage vor dem letzten (ADR-0061, Nachtrag vom 2026-11-21; ein älterer
+  lässt die Zeile `one_close_only`), und jede
   Zeile nennt beide Tage; auf der Geldseite ist es der eine Tag `D`
   (`contribution.from` = `contribution.to`), der letzte Tag, an dem ein
   Schlusskurs eines Wertpapiers des Bereichs gespeichert ist, höchstens
@@ -1715,7 +1717,9 @@ mit `view_id` `null`. Beide nehmen:
 größten Werte, absteigend) und `lowest` (die kleinsten, aufsteigend), aus
 einer sortierten Liste geschnitten, sodass kein Name in beiden steht: Bei
 `n` beantworteten Einträgen nimmt `highest` höchstens `ceil(n / 2)` und
-`lowest` höchstens `floor(n / 2)`. Gleiche Werte ordnen Name, ISIN, Ticker,
+`lowest` höchstens `floor(n / 2)`; zwei Einträge, gleich in der Kennzahl und
+in jedem Schlüssel der Reihenfolge, stehen in einer Hälfte (der Schnitt
+rückt hinter sie, solange die Hälfte im Limit bleibt, sonst vor sie). Gleiche Werte ordnen Name, ISIN, Ticker,
 WKN und Währung, nie eine Id. Daneben `answered` (die Zahl der gereihten)
 und `unanswered` (eine Zahl je Grund; eine fehlende Kennzahl wird nie als
 null gereiht) sowie ihre `computation_basis`: die Eingangsreihen, das

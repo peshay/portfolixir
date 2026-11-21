@@ -389,10 +389,13 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
   end
 
   # Attack: two securities equal on every key and figure. They are told apart
-  # only by creation time; with n = 2 one stands in each half. Each moves 10
-  # -> 11, so the money side ranks them too (a contribution of exactly 0
-  # would stand in neither half, board 04 ②).
-  test "twins equal on every key: creation order, one per half" do
+  # only by creation time, in that order; with n = 2 the count alone put one
+  # in each half, one name in both, which the Overview's polish list (#1358)
+  # found. Since ADR-0061's amendment of 2026-11-21 the twins stand in one
+  # half, the highest, in creation order, at every read. Each moves 10 ->
+  # 11, so the money side ranks them too (a contribution of exactly 0 would
+  # stand in neither half, board 04 ②).
+  test "twins equal on every key: creation order, one half" do
     {world, view} = world!("Twin")
 
     [first, second] =
@@ -405,10 +408,10 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
 
     for _round <- 1..3 do
       read = read!(view.id, "week", today: ~D[2026-11-12])
-      assert ids(read.price_return.highest) == [first.id]
-      assert ids(read.price_return.lowest) == [second.id]
-      assert ids(read.contribution.highest) == [first.id]
-      assert ids(read.contribution.lowest) == [second.id]
+      assert ids(read.price_return.highest) == [first.id, second.id]
+      assert ids(read.price_return.lowest) == []
+      assert ids(read.contribution.highest) == [first.id, second.id]
+      assert ids(read.contribution.lowest) == []
     end
   end
 
@@ -657,9 +660,10 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
 
   # -- day's closes ---------------------------------------------------------------------
 
-  # Attack: day when the last two closes are eight days apart (P has no age
-  # limit), day when E itself is eight days old (no close stands for T), and
-  # a legacy zero close on either end (never a price).
+  # Attack: day when the last two closes are eight days apart (P is at most 7
+  # days before E since ADR-0061's amendment of 2026-11-21, so one close only
+  # is in reach), day when E itself is eight days old (no close stands for
+  # T), and a legacy zero close on either end (never a price).
   test "day: closes a week apart, a stale E, and a legacy zero close" do
     {world, view} = world!("Lima")
     lima = security!(%{name: "Lima Gap"})
@@ -680,19 +684,22 @@ defmodule Portfolixir.Portfolios.Performance.MoversAttackTest do
     price = day.price_return
 
     # Oscar 12 / 10 - 1 = 0.2 (E skips the zero on the 12th); Nova 11 / 10 - 1
-    # = 0.1 (P skips the zero on the 11th); Lima 42 / 40 - 1 = 0.05 with P
-    # eight days before E.
-    assert names(price.highest) == ["Oscar Zero Last", "Nova Zero Between"]
-    assert names(price.lowest) == ["Lima Gap"]
+    # = 0.1 (P skips the zero on the 11th); Lima's close before E stands
+    # eight days before it, out of reach: one close only, unranked.
+    assert names(price.highest) == ["Oscar Zero Last"]
+    assert names(price.lowest) == ["Nova Zero Between"]
     assert_decimal(entry(price.highest, oscar).return, "0.2")
     assert entry(price.highest, oscar).end.date == ~D[2026-11-11]
-    assert_decimal(entry(price.highest, nova).return, "0.1")
-    assert entry(price.highest, nova).start.date == ~D[2026-11-10]
-    lima_row = entry(price.lowest, lima)
-    assert_decimal(lima_row.return, "0.05")
-    assert {lima_row.start.date, lima_row.end.date} == {~D[2026-11-01], ~D[2026-11-09]}
+    assert_decimal(entry(price.lowest, nova).return, "0.1")
+    assert entry(price.lowest, nova).start.date == ~D[2026-11-10]
+    assert entry(all_entries(price), lima) == nil
     assert price.unanswered.no_close_at_end == 1
-    assert [%{reason: "no_close_at_end"}] = price.unanswered_entries
+    assert price.unanswered.one_close_only == 1
+
+    assert Enum.map(price.unanswered_entries, &{&1.security.id, &1.reason}) == [
+             {lima.id, "one_close_only"},
+             {mike.id, "no_close_at_end"}
+           ]
 
     # Money: D is the 12th (Nova's positive close), never a zero-close day of
     # its own.

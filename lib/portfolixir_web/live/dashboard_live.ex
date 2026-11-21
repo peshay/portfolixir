@@ -93,6 +93,7 @@ defmodule PortfolixirWeb.DashboardLive do
         cards: %{},
         attention: %{},
         movers: %{},
+        reads: MapSet.new(),
         data_quality: nil,
         last_booking: nil,
         stale_ttwror: nil,
@@ -251,6 +252,7 @@ defmodule PortfolixirWeb.DashboardLive do
         {wealth_card(scope_id, base_currency, context), attention_report(scope_id, context),
          data_quality_report(), last_booking()}
       end)
+      |> reading({:overview, scope_id})
       |> start_scoped(scopes(socket.assigns.items, @scoped_kinds, scope_id))
     else
       socket
@@ -267,6 +269,7 @@ defmodule PortfolixirWeb.DashboardLive do
 
         {wealth_card(scope_id, base_currency, context), attention_report(scope_id, context)}
       end)
+      |> reading({:scoped, scope_id})
     end)
   end
 
@@ -294,7 +297,9 @@ defmodule PortfolixirWeb.DashboardLive do
     |> Enum.map(& &1.scope)
     |> Enum.uniq()
     |> Enum.reduce(socket, fn scope_id, socket ->
-      CappedAsync.start_latest(socket, {:movers, scope_id}, fn ->
+      socket
+      |> reading_if_connected({:movers, scope_id})
+      |> CappedAsync.start_latest({:movers, scope_id}, fn ->
         view = scope_id && Buckets.get_view(scope_id)
 
         case Movers.read(view && view.id, window) do
@@ -342,6 +347,7 @@ defmodule PortfolixirWeb.DashboardLive do
           end)
         end)
       end)
+      |> reading(:closed_trades)
     else
       socket
     end
@@ -429,57 +435,75 @@ defmodule PortfolixirWeb.DashboardLive do
     end
   end
 
+  # Every background read the page starts is in `@reads` until it lands, and
+  # the grid is busy while any is (the polish list #1358, Sprint 31 D3): the
+  # browser walks leave a page only once nothing on it is busy
+  # (test/browser/settle.js), and a read whose widget draws no skeleton —
+  # data quality, absent until its finding lands — would otherwise run past
+  # the walk's wait and log from a page already gone.
   @impl true
-  def handle_async(
-        {:overview, scope_id},
-        {:ok, {wealth_card, attention, data_quality, last_booking}},
-        socket
-      ) do
-    {:noreply,
+  def handle_async(name, result, socket) do
+    case land(name, result, socket) do
+      {:running, socket} -> {:noreply, socket}
+      {:landed, socket} -> {:noreply, update(socket, :reads, &MapSet.delete(&1, name))}
+    end
+  end
+
+  defp land(
+         {:overview, scope_id},
+         {:ok, {wealth_card, attention, data_quality, last_booking}},
+         socket
+       ) do
+    {:landed,
      socket
      |> update(:cards, &Map.put(&1, scope_id, wealth_card))
      |> update(:attention, &Map.put(&1, scope_id, attention))
      |> assign(data_quality: data_quality, last_booking: last_booking)}
   end
 
-  def handle_async({:overview, _scope_id}, {:exit, _reason}, socket) do
-    {:noreply, assign(socket, :error, gettext("Couldn't load the dashboard figures."))}
+  defp land({:overview, _scope_id}, {:exit, _reason}, socket) do
+    {:landed, assign(socket, :error, gettext("Couldn't load the dashboard figures."))}
   end
 
-  def handle_async({:scoped, scope_id}, {:ok, {wealth_card, attention}}, socket) do
-    {:noreply,
+  defp land({:scoped, scope_id}, {:ok, {wealth_card, attention}}, socket) do
+    {:landed,
      socket
      |> update(:cards, &Map.put(&1, scope_id, wealth_card))
      |> update(:attention, &Map.put(&1, scope_id, attention))}
   end
 
-  def handle_async({:scoped, _scope_id}, {:exit, _reason}, socket) do
-    {:noreply, assign(socket, :error, gettext("Couldn't load the dashboard figures."))}
+  defp land({:scoped, _scope_id}, {:exit, _reason}, socket) do
+    {:landed, assign(socket, :error, gettext("Couldn't load the dashboard figures."))}
   end
 
   # --- S30 T3 begin ---
-  # A read a later chip superseded starts the latest and lands nothing.
-  def handle_async({:movers, scope_id} = name, {:ok, card}, socket) do
-    case CappedAsync.landed(socket, name) do
-      {:superseded, socket} -> {:noreply, socket}
-      {:current, socket} -> {:noreply, update(socket, :movers, &Map.put(&1, scope_id, card))}
-    end
-  end
+  # A read a later chip superseded starts the latest and lands nothing; the
+  # read stays running.
+  defp land({:movers, scope_id} = name, result, socket) do
+    card =
+      case result do
+        {:ok, card} -> card
+        {:exit, _reason} -> :error
+      end
 
-  def handle_async({:movers, scope_id} = name, {:exit, _reason}, socket) do
     case CappedAsync.landed(socket, name) do
-      {:superseded, socket} -> {:noreply, socket}
-      {:current, socket} -> {:noreply, update(socket, :movers, &Map.put(&1, scope_id, :error))}
+      {:superseded, socket} -> {:running, socket}
+      {:current, socket} -> {:landed, update(socket, :movers, &Map.put(&1, scope_id, card))}
     end
   end
 
   # --- S30 T3 end ---
 
-  def handle_async(:closed_trades, {:ok, card}, socket),
-    do: {:noreply, assign(socket, :closed_trades, card)}
+  defp land(:closed_trades, {:ok, card}, socket),
+    do: {:landed, assign(socket, :closed_trades, card)}
 
-  def handle_async(:closed_trades, {:exit, _reason}, socket),
-    do: {:noreply, assign(socket, :closed_trades, :error)}
+  defp land(:closed_trades, {:exit, _reason}, socket),
+    do: {:landed, assign(socket, :closed_trades, :error)}
+
+  defp reading(socket, name), do: update(socket, :reads, &MapSet.put(&1, name))
+
+  defp reading_if_connected(socket, name),
+    do: if(connected?(socket), do: reading(socket, name), else: socket)
 
   # „Anpassen“ (ADR-0062 §3): the template copied into a stored dashboard
   # under the UI's actor — the first write — and the copy opened. Only a
@@ -692,7 +716,11 @@ defmodule PortfolixirWeb.DashboardLive do
           <AppShell.data_note severity={:problem}><%= @error %></AppShell.data_note>
         <% end %>
       </div>
-      <div class="dashboard-grid" data-role="dashboard-grid">
+      <div
+        class="dashboard-grid"
+        data-role="dashboard-grid"
+        aria-busy={if MapSet.size(@reads) > 0, do: "true"}
+      >
         <.widget :for={item <- @items} item={item} {widget_assigns(assigns)} />
       </div>
     </div>
