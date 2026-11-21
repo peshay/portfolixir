@@ -9,6 +9,15 @@ config :portfolixir, Portfolixir.Repo,
   password: System.get_env("DATABASE_PASSWORD", "postgres"),
   hostname: System.get_env("DATABASE_HOST", "127.0.0.1"),
   port: String.to_integer(System.get_env("DATABASE_PORT", "5432")),
+  # One collation for every test database, on every machine (Sprint 31 M3,
+  # #1475): a test passed in C.UTF-8 locally and failed in CI's en_US.utf8.
+  # Every path that creates one runs `mix ecto.create` with this config (CI,
+  # the SessionStart hook, scripts/worktree.sh --db, the scratch databases);
+  # template0, because PostgreSQL refuses another collation for a copy of
+  # template1. test/invariants/test_database_collation_test.exs checks it.
+  lc_collate: "C.UTF-8",
+  lc_ctype: "C.UTF-8",
+  template: "template0",
   pool: Ecto.Adapters.SQL.Sandbox,
   # One connection per concurrent test case: ExUnit runs up to twice the
   # schedulers' cases at once, and a smaller pool leaves a long test holding
