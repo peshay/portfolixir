@@ -235,6 +235,43 @@ defmodule Portfolixir.Portfolios.Performance.NonPositiveCloseTest do
     end
   end
 
+  # User story (#1473; ADR-0051 §10 as amended 2026-11-19, #1472):
+  # As the operator reading a contribution row,
+  # I want a holding the walk values only at a booked price of 0 named as
+  # unvalued, as before Sprint 31,
+  # so that its whole value never reads as an unmarked contribution when its
+  # first close arrives.
+  #
+  # Acceptance criteria:
+  # - One unit delivered at a booked price of 0, first quoted at 10 on the
+  #   window's last day: the contribution stays 10 (1 * 10 - 1 * 0, the
+  #   booked figure), and the baseline day and the first window day count
+  #   no_price (unvalued_days 2), the last day valued (valued_days 1).
+  # - The amendment of 2026-11-21 concerns stored closes; a booked price is
+  #   the ledger's figure (ADR-0010) and keeps its mark.
+  test "a holding priced only by a booking at 0 keeps its no_price mark" do
+    world = base_world(name: "Spin", cash_name: "Spin Cash", depot_name: "Spin Depot")
+    fund = create_security!(name: "Spin Fund", ticker: nil)
+
+    {:ok, _tx} =
+      Portfolixir.Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: fund.id,
+        type: "inbound_delivery",
+        date: ~D[2026-11-05],
+        quantity: "1",
+        price: "0",
+        currency_code: "EUR"
+      })
+
+    put_quotes!(fund, [{~D[2026-11-12], "10"}])
+
+    row = row!(world.portfolio.id, fund, @range)
+    assert_row(row, "10", "0", "10")
+    assert {row.unvalued_days, row.unvalued_reason, row.valued_days} == {2, :no_price, 1}
+  end
+
   # User story (#1473; AGENTS.md, "Every metric … must state its computation
   # basis", the treatment of gaps):
   # As the agent checking a figure the walk feeds,

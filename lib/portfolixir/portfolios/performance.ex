@@ -2340,15 +2340,20 @@ defmodule Portfolixir.Portfolios.Performance do
 
   # The two ways `security_value/3` counts a held position zero: no price at
   # all, or no rate path from the price's currency to the base. The walk
-  # reads no close of 0 or below as a price (`held_quotes/3`, #1473), so the
-  # count follows it and needs no case of its own for such a close
-  # (ADR-0051's amendment of 2026-11-21, item 2).
+  # reads no close of 0 or below as a price (`held_quotes/3`, #1473), so no
+  # close reaches the case below; a price of 0 or below now comes only from
+  # a booking (a buy, a sell or a delivery booked at 0, ADR-0010), which the
+  # walk values at it, and which stays no price for the count, as before:
+  # the units counted zero there, so their whole value would otherwise read
+  # as an unmarked contribution when the first close arrives (#1472's
+  # failure). ADR-0051's amendment of 2026-11-21 concerns closes only.
   defp unvalued_reason(security_id, context) do
     case Map.get(context.pricing, security_id) do
-      %{price: %{close: %Decimal{}, currency: currency}} ->
-        case conversion_rate(currency, context.base, context.fx) do
-          {:ok, _rate} -> nil
-          {:error, _reason} -> :no_rate
+      %{price: %{close: %Decimal{} = close, currency: currency}} ->
+        cond do
+          Decimal.compare(close, @zero) != :gt -> :no_price
+          match?({:ok, _rate}, conversion_rate(currency, context.base, context.fx)) -> nil
+          true -> :no_rate
         end
 
       _unpriced ->
