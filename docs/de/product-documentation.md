@@ -2340,11 +2340,57 @@ verfügbare Zeilen und beschriftet sie mit ihrer Rolle.
 
 ## Übersichts-Seite
 
-Der Eintrag **Übersicht** (die Startseite) beantwortet „Hat sich etwas
+Der Eintrag **Übersicht** (die Startseite, `/`) ist ein **Dashboard**
+(ADR-0062, Sprint 31): Seine Karten sind **Widgets**, jedes ein vorhandener
+Lesezugriff in einem Rahmen — sein Titel, ein ⓘ mit der Rechengrundlage
+des Lesezugriffs, ein Menü ⋯ (noch leer: das Anheften eines Zeitraums und
+das Bearbeiten kommen später), die Zahlen und eine Fußzeile, die die
+gelesene Ansicht nennt und zum ganzen Screen führt.
+
+- **Eine frische Instanz speichert nichts.** Ohne eigenes Dashboard zeigt
+  `/` die mitgelieferte Vorlage **Überblick** nur lesend, unter dem Hinweis
+  „Vorlage · mitgeliefert, nur lesend“ mit **Anpassen**: Das kopiert die
+  Vorlage in ein eigenes Dashboard (ein Schreibvorgang im Journal) und
+  öffnet es unter `/dashboards/<id>`. Das Lesen der Seite schreibt nie. Mit
+  eigenen Dashboards öffnet `/` das erste in der Reihenfolge des Menüs und
+  `/dashboards/<id>` das genannte; eine unbekannte Nummer öffnet `/`.
+- **Der Umfang.** Über den Widgets nennt **Alles ▾** die Ansicht, die das
+  Dashboard liest: Ihre Standard-Ansicht, sonst Alles, wie die Übersicht
+  sie immer las. Eine andere Wahl steht nur in der Adresse
+  (`/?scope=<Ansicht>`, `/?scope=total`); Ihre Standard-Ansicht und die
+  Ansicht, die Vermögen sich merkt, bleiben, wie sie sind. Ein Widget eines
+  gespeicherten Dashboards kann eine eigene Ansicht lesen; ist sie
+  inzwischen gelöscht, liest es den Umfang des Dashboards, und seine
+  Fußzeile sagt „Seine Ansicht gibt es nicht mehr · liest …“.
+- **Die Breite entscheidet das Layout, nie das Gerät.** Ab 1000 px stehen
+  die Widgets in einem Raster aus 12 Spalten an den Plätzen und in den
+  Größen, die das Layout ihnen gibt; ab 600 px in zwei Spalten, in der
+  Lesereihenfolge des Layouts (Zeile, dann Spalte); unter 600 px in einer.
+  Unter 1000 px zeigt jedes Widget seine **kompakte Form**: Telefonschrift,
+  ein Name und eine Zahl je Zeile, Zeilen mindestens 44 px hoch zum
+  Antippen.
+- **Die Widgets der Vorlage**, in ihrer Lesereihenfolge: **Gesamtwert** (mit
+  der Kennzahlenleiste), **Datenqualität**, **Fällig**, **Abseits des
+  Ziels**, **Wertentwicklung**, **Allokation und Drift**, **Tops und
+  Flops**, **Crashes im Vergleich**, **Bitcoin-Zyklus**,
+  **Verkaufsrückblick** und **Snapshots**. Die vier aus den Abschnitten von
+  Vermögen (Wertentwicklung, Allokation und Drift, Crashes im Vergleich,
+  Snapshots) zeigen einen leeren Rahmen mit dem Weg zu ihrem Screen, bis
+  sie gezeichnet sind. Ein Widget, das nichts zu sagen hat — kein Befund,
+  kein fälliger Termin, kein abgeschlossener Trade, kein Wertpapier mit der
+  Zyklus-Ansicht —, fehlt, wie seine Karte fehlte.
+
+Jedes Widget zeichnet genau die Zahlen, die sein Lesezugriff antwortet und
+die Ihr Agent über die API für denselben Umfang und Zeitraum liest. Die
+Widgets der bisherigen Übersicht lesen sich wie folgt.
+
+Sie beantworten „Hat sich etwas
 geändert, braucht etwas meine Aufmerksamkeit?" (ADR-0022). Bei leerer
-Datenbank ist sie der Onboarding-Assistent (der geordnete Workflow-Pfad plus
-Zähler). Sobald Transaktionen existieren, zeigt sie eine **Wert-Karte,
-eingegrenzt auf die Standard-Ansicht** — **Alles**, wenn keine gesetzt ist
+Datenbank ist die Seite der Onboarding-Assistent (der geordnete
+Workflow-Pfad, gezeigt, bis das erste Depot mit seinem Verrechnungskonto
+existiert, plus Zähler). Sobald Transaktionen existieren, zeigt
+**Gesamtwert** eine **Wert-Karte, eingegrenzt auf die Ansicht des
+Dashboards** — **Alles**, wenn keine gesetzt ist
 (ADR-0024: Ansichten, nicht Portfolios, sind das, worüber die Übersicht
 aggregiert) — mit dem Gesamtwert inkl. Cash und der TTWROR seit
 Jahresbeginn als Änderungssignal, auf der Karte in Worten („seit
@@ -2370,7 +2416,10 @@ Sie dort zuletzt gewählt haben: Ist sie nicht die, die die Karte zählt,
 sagt der Hinweis das vor dem Link („Vermögen ist gerade auf die Ansicht „Nur
 Neuzugang“ eingegrenzt; diese Summe zählt „Alles“."), und nichts wird für
 Sie gewählt (Issue #1122). Lässt die Summe nichts aus, gibt es
-keinen Hinweis. Unter der Karte zeigt die Seite die **Kennzahlenleiste**
+keinen Hinweis; merkt sich Vermögen trotzdem eine andere Ansicht, sagt
+das eine ruhige Zeile unter der Summe (Issue #1222). Zwei Wertpapiere
+gleichen Namens im Hinweis werden je mit dem genannt, was sie
+unterscheidet, „Twin Fonds · ISIN DE0000000201“ (Issue #1320). Unter der Karte zeigt die Seite die **Kennzahlenleiste**
 (UX-DR2 in der Fassung vom 2026-09-14, Issue #798): vier Zellen, jede verlinkt auf die Oberfläche,
 der die Zahl gehört — die **TTWROR 1J** mit ihrem IRR (bei kürzerer
 Historie die Perioden-MWR) führt zum Vermögen, die **Cashquote** mit dem
@@ -2383,20 +2432,22 @@ es solche Wertpapiere gibt (sonst das Datum allein — ein Fakt, kein „alles
 in Ordnung"), und zählt die gehaltenen Wertpapiere, also die Liste, die ihr
 Link öffnet (Issue #1417; die Zahl des Katalogs steht in der
 Datenqualitätszeile) —, und eine Basiszeile unter der Leiste nennt Ansicht, Zeitraum und Währung —
-die Karte **Abgeschlossene Trades** (UX-DR2
-in der Fassung vom 2026-10-01, Issue #984): die fünf zuletzt abgeschlossenen
+das Widget **Verkaufsrückblick**, die bisherige Karte **Abgeschlossene
+Trades** (UX-DR2 in der Fassung vom 2026-10-01, Issue #984): die fünf zuletzt abgeschlossenen
 Rundläufe, neueste zuerst, je mit Verkaufsdatum und Haltedauer, dem
 realisierten Ergebnis in der Basiswährung in seiner Vorzeichenfarbe und
 darunter der Rendite — **pro Jahr** („p. a.") ab 365 Tagen Haltedauer und
 wo ein Zinssatz die Zahlungen löst, **über die ganze Haltedauer** („gesamt")
 sonst, wie die Basiszeile sagt —, jede Zeile verlinkt auf
-den Trades-Tab ihres Wertpapiers, und **Alle Trades →** im Kopf der Karte
+den Trades-Tab ihres Wertpapiers, und **Alle Trades →** in der Fußzeile des Widgets
 führt zur Facette Trades. Ihre Basiszeile sagt, dass sie **alle Depots
 unabhängig von der Ansicht** abdeckt: der Rest der Übersicht folgt der
 gewählten Ansicht, die Trades nicht. Sie zeigt Ergebnisse, keine Aktivität,
 und fehlt, solange kein Trade abgeschlossen ist; ein Verkauf ohne
 gespeicherten Kurs an seinem Schlussdatum wird auf der Karte genannt, das
-Nachladen steht unter Alle Trades — eine Liste
+Nachladen steht unter Alle Trades, und dieser Hinweis beschließt die Notiz,
+gleich nach den Sätzen, denen er hilft; zwei Wertpapiere gleichen Namens
+werden je mit ihrer ISIN genannt (Issue #1320) — eine Liste
 **Ziel-Abweichungen** (Issue #718 — die Karte ist nach ihrem Inhalt benannt,
 gemäß UX-DR21) — jede Kategorie mit Ziel, deren Allokations-Drift
 **±5 Prozentpunkte** überschreitet (ADR-0023-Vorzeichen: positiv =
@@ -2479,18 +2530,20 @@ Deutsch). Es gibt bewusst keinen Aktivitäts-Feed: die forensischen Details
 gehören dem Audit-Journal, und die Karte Abgeschlossene Trades zeigt, was
 ein Verkauf realisiert hat, nie die Buchung selbst.
 
-Zwischen der Kennzahlenleiste und der Karte Abgeschlossene Trades beantwortet
-die Karte **Tops und Flops** (FR-59, ADR-0061) „was hat sich bewegt, und was
-hieß das für mich?“ für denselben Umfang wie die Wert-Karte — die
+Das Widget **Tops und Flops** (FR-59, ADR-0061) beantwortet „was hat sich
+bewegt, und was hieß das für mich?“ für denselben Umfang wie die Wert-Karte — die
 Standard-Ansicht, sonst **Alles**. Eine Leiste **Zeitraum** wählt das
 Fenster: **Tag**, **Woche**, **Monat**, **Quartal**, **YTD** oder **1J**,
 jeweils bis heute; die Wahl steht in der Adresse (`/?movers_period=week`),
 so öffnen ein Neuladen oder ein weitergegebener Link dasselbe Fenster, und
-ohne sie öffnet die Karte auf **Tag**. Zwei Spalten stehen nebeneinander, je
-mit **Höchste** über **Niedrigste**, je fünf (unter zehn teilt sich die
-Liste, und kein Name steht in beiden Hälften): **Kursrendite**, jedes heute im
+ohne sie öffnet die Karte auf **Tag**. Zwei Spalten stehen nebeneinander, wo
+das Widget breit genug ist (sonst untereinander), je mit **Höchste** über
+**Niedrigste**, je fünf (unter zehn teilt sich die Liste, kein Name steht in
+beiden Hälften, und zwei in jedem Merkmal gleiche Wertpapiere stehen in
+derselben Hälfte): **Kursrendite**, jedes heute im
 Umfang gehaltene Wertpapier mit seiner Rendite in EUR aus den gespeicherten
 Schlusskursen — bei **Tag** seit dem vorigen Schlusskurs jedes Wertpapiers,
+höchstens 7 Tage vor seinem letzten,
 die beiden Daten unter dem Namen („Do 12.11.2026 → Fr 13.11.2026“), sonst
 „letzter Kurs …“, wo dieser Schlusskurs vor heute liegt — und **Beitrag**,
 jede Position mit dem, was sie über das Fenster in EUR beigetragen oder
@@ -2502,7 +2555,10 @@ Zeitraums bewertet“ und „1 Position ohne Beitrag im Zeitraum“ (bei **Tag**
 „an ihrem Tag“): Ein Beitrag von genau 0,00, etwa der eines Fonds
 ohne gespeicherten Kurs, der an jedem Tag zu seinem Handelspreis bewertet
 ist, steht in keiner Hälfte, sonst füllen solche Fonds die **Niedrigsten**;
-nichts wird mit einer Null gerankt, die es nicht hat.
+nichts wird mit einer Null gerankt, die es nicht hat. Eine Position, die an
+manchen Tagen des Fensters keinen Preis hatte, zählt an diesen Tagen null,
+wie in Vermögen, und bleibt gerankt, mit der Marke „3 Tage mit 0 bewertet“ —
+ein Gewinn aus solchen Tagen kann unter **Höchste** stehen, markiert.
 Eine Basiszeile nennt Ansicht, Fenster und Daten, die Methode steht hinter
 dem ⓘ. Jeder Name öffnet sein Wertpapier; **In Vermögen ansehen →** öffnet
 Vermögen mit dem Fenster des Beitrags als benutzerdefiniertem Zeitraum
@@ -2510,8 +2566,8 @@ Vermögen mit dem Fenster des Beitrags als benutzerdefiniertem Zeitraum
 der Link ändert sie nicht. Ist diese Ansicht nicht die der Karte, nennt ein
 Satz unter der Basiszeile beide („Vermögen ist gerade auf die Ansicht „…“
 eingegrenzt; diese Karte zeigt „Alles“.“), wie der Hinweis unter der
-Vermögenskarte. Unter 560 px stehen die Spalten untereinander, die
-Kursrendite zuerst. Im Privatsphäre-Modus ist jeder Beitrag verborgen,
+Vermögenskarte. In der kompakten Form zeigt ein Schalter **Höchste** oder
+**Niedrigste**, die Kursrenditen über den Beiträgen. Im Privatsphäre-Modus ist jeder Beitrag verborgen,
 Vorzeichenfarbe, Reihenfolge und Balken bleiben; die Prozente bleiben. Die
 Karte lädt im Hintergrund, mit ihrem Platzhalter, solange sie lädt; eine
 Ansicht ohne Bestände behält die Leiste und sagt „Keine Bestände in dieser
