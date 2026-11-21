@@ -701,7 +701,8 @@ defmodule Portfolixir.Catalog.Quotes do
   Returns the relative price change between today's most recent close and
   the close on/before `(today - days_back)`, as a Decimal in fraction form
   (e.g. `Decimal.new("0.10")` for +10 %). Returns nil when either side is
-  missing.
+  missing. Both sides are positive closes: a stored close of 0 or below is
+  no price (#1473).
   """
   def performance(security_id, days_back)
       when is_integer(security_id) and is_integer(days_back) and days_back > 0 do
@@ -709,7 +710,7 @@ defmodule Portfolixir.Catalog.Quotes do
     baseline_date = Date.add(today, -days_back)
 
     with %{close: latest_close} <- adjusted_latest(security_id),
-         %SecurityQuote{} = baseline <- at_or_before(security_id, baseline_date),
+         %SecurityQuote{} = baseline <- at_or_before(security_id, baseline_date, positive: true),
          %Decimal{} = baseline_close <- adjusted_close(baseline, security_id),
          false <- Decimal.equal?(baseline_close, 0) do
       latest_close
@@ -748,7 +749,8 @@ defmodule Portfolixir.Catalog.Quotes do
   # The SQL is a literal with positional parameters only ($1..$4); nothing is
   # interpolated into the query string. The latest and previous closes are
   # capped at MarketDataBounds.latest_date/0 like every latest read (F26), so a
-  # row dated past it neither prices a security nor hides a stale quote.
+  # row dated past it neither prices a security nor hides a stale quote. Every
+  # close read is positive: a stored close of 0 or below is no price (#1473).
   # sobelow_skip ["SQL.Query"]
   def attach_metrics(securities) when is_list(securities) do
     ids = Enum.map(securities, & &1.id)
@@ -774,28 +776,28 @@ defmodule Portfolixir.Catalog.Quotes do
     LEFT JOIN LATERAL (
       SELECT q.close, q.date, q.source
       FROM security_quotes q
-      WHERE q.security_id = s.id AND q.date <= $4
+      WHERE q.security_id = s.id AND q.date <= $4 AND q.close > 0
       ORDER BY q.date DESC
       LIMIT 1
     ) latest ON TRUE
     LEFT JOIN LATERAL (
       SELECT q.close, q.date, q.source
       FROM security_quotes q
-      WHERE q.security_id = s.id AND q.date <= $4
+      WHERE q.security_id = s.id AND q.date <= $4 AND q.close > 0
       ORDER BY q.date DESC
       OFFSET 1 LIMIT 1
     ) prev ON TRUE
     LEFT JOIN LATERAL (
       SELECT q.close, q.date, q.source
       FROM security_quotes q
-      WHERE q.security_id = s.id AND q.date <= $2
+      WHERE q.security_id = s.id AND q.date <= $2 AND q.close > 0
       ORDER BY q.date DESC
       LIMIT 1
     ) one_m ON TRUE
     LEFT JOIN LATERAL (
       SELECT q.close, q.date, q.source
       FROM security_quotes q
-      WHERE q.security_id = s.id AND q.date <= $3
+      WHERE q.security_id = s.id AND q.date <= $3 AND q.close > 0
       ORDER BY q.date DESC
       LIMIT 1
     ) one_y ON TRUE
