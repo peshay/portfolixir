@@ -108,6 +108,10 @@ defmodule PortfolixirWeb.DashboardTest do
   end
 
   test "a populated dashboard shows value and change, not an activity feed", %{conn: conn} do
+    # Sprint 31 D4: the template draws this widget at S; M draws what this
+    # test pins, so `/` opens „Überblick“ at M.
+    Portfolixir.DashboardFixtures.overview_at_m!()
+
     seed_holding()
 
     {:ok, view, _html} = live(conn, "/")
@@ -169,6 +173,10 @@ defmodule PortfolixirWeb.DashboardTest do
   # Acceptance criteria:
   # - The card's TTWROR fragment carries is-positive/is-negative by sign.
   test "the wealth card's YTD change carries its sign class (#637)", %{conn: conn} do
+    # Sprint 31 D4: the template draws this widget at S; M draws what this
+    # test pins, so `/` opens „Überblick“ at M.
+    Portfolixir.DashboardFixtures.overview_at_m!()
+
     %{security: security, portfolio: portfolio} = seed_holding()
 
     # Give the YTD window a real opening value: the position already exists
@@ -419,6 +427,10 @@ defmodule PortfolixirWeb.DashboardTest do
   #   green all-clear badge.
   # - The note carries a severity word and glyph, never colour alone.
   test "data quality is one line linking to pre-filtered securities lists", %{conn: conn} do
+    # Sprint 31 D4: the template draws this widget at S; M draws what this
+    # test pins, so `/` opens „Überblick“ at M.
+    Portfolixir.DashboardFixtures.overview_at_m!()
+
     seed_holding()
 
     {:ok, no_quote} =
@@ -465,7 +477,9 @@ defmodule PortfolixirWeb.DashboardTest do
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
 
-    refute has_element?(view, "#dashboard-data-quality")
+    # Sprint 31 D4: a widget is always drawn; with nothing wrong it says so
+    # quietly instead of leaving a gap in the grid.
+    assert has_element?(view, "#dashboard-data-quality [data-role='data-quality-empty']")
     refute has_element?(view, "[data-role='data-quality-line']")
   end
 
@@ -482,6 +496,10 @@ defmodule PortfolixirWeb.DashboardTest do
   #   holds it, and with nothing else open the line is gone.
   test "a retired security leaves the data-quality line's quote, class and logo counts",
        %{conn: conn} do
+    # Sprint 31 D4: the template draws this widget at S; M draws what this
+    # test pins, so `/` opens „Überblick“ at M.
+    Portfolixir.DashboardFixtures.overview_at_m!()
+
     %{security: security} = seed_holding()
 
     {:ok, security} =
@@ -524,7 +542,7 @@ defmodule PortfolixirWeb.DashboardTest do
     refute has_element?(view, "[data-role='dq-quotes']")
     refute has_element?(view, "[data-role='dq-class']")
     refute has_element?(view, "[data-role='dq-logo']")
-    refute has_element?(view, "#dashboard-data-quality")
+    assert has_element?(view, "#dashboard-data-quality [data-role='data-quality-empty']")
 
     {:ok, list, _html} = live(conn, class_href)
     refute has_element?(list, "td", "Closed Co")
@@ -544,6 +562,10 @@ defmodule PortfolixirWeb.DashboardTest do
   #   the catalog)" links to dq=missing_logo, whose list holds both.
   # - A security locked to "no logo" is not counted.
   test "the logo count includes logos whose file is gone once marked", %{conn: conn} do
+    # Sprint 31 D4: the template draws this widget at S; M draws what this
+    # test pins, so `/` opens „Überblick“ at M.
+    Portfolixir.DashboardFixtures.overview_at_m!()
+
     %{security: security} = seed_holding()
 
     {:ok, security} =
@@ -625,6 +647,10 @@ defmodule PortfolixirWeb.DashboardTest do
   #   quoted 25 times its buy price are not counted.
   test "the data-quality line counts the bonds priced on two scales, at problem severity",
        %{conn: conn} do
+    # Sprint 31 D4: the template draws this widget at S; M draws what this
+    # test pins, so `/` opens „Überblick“ at M.
+    Portfolixir.DashboardFixtures.overview_at_m!()
+
     world = base_world()
 
     for {name, attrs, price, close} <- [
@@ -682,6 +708,10 @@ defmodule PortfolixirWeb.DashboardTest do
   #   problem severity, never attention.
   test "one bond on two scales reads in the singular, and outranks a stale quote",
        %{conn: conn} do
+    # Sprint 31 D4: the template draws this widget at S; M draws what this
+    # test pins, so `/` opens „Überblick“ at M.
+    Portfolixir.DashboardFixtures.overview_at_m!()
+
     world = base_world()
 
     {:ok, bond} =

@@ -15215,6 +15215,32 @@ a.widget-row:hover .widget-row__name {
   min-width: 40px;
 }
 
+.widget-drift-table__drift [data-role="drift-points"] {
+  white-space: nowrap;
+}
+
+/* T is four columns wide: the drift's sign and points carry it, the
+   decorative bar gives way (as in an S row). */
+.widget--t .widget-drift-table__drift .drift-bar {
+  display: none;
+}
+
+.widget-warning {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: baseline;
+  margin: 0;
+  color: var(--color-warning);
+  font-size: 13px;
+}
+
+.widget-warning a {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .widget-crash-table__dates {
   display: block;
   color: var(--color-text-muted);
