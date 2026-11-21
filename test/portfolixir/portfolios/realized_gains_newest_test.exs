@@ -132,11 +132,12 @@ defmodule Portfolixir.Portfolios.RealizedGainsNewestTest do
     report = RealizedGains.report()
 
     for limit <- [1, 3, 5, 50] do
-      assert RealizedGains.newest_trades(limit) == %{
-               base_currency: report.base_currency,
-               trades: Enum.take(report.trades, limit),
-               excluded: report.excluded
-             }
+      assert Map.take(RealizedGains.newest_trades(limit), [:base_currency, :trades, :excluded]) ==
+               %{
+                 base_currency: report.base_currency,
+                 trades: Enum.take(report.trades, limit),
+                 excluded: report.excluded
+               }
     end
 
     newest = RealizedGains.newest_trades(5)
@@ -166,12 +167,58 @@ defmodule Portfolixir.Portfolios.RealizedGainsNewestTest do
     assert Enum.all?(newest.trades, &Map.has_key?(&1, :annualized_return))
   end
 
+  # User story (#1320, the Overview's polish list #1358; Sprint 31 D3):
+  # As the operator reading the note under „Verkaufsrückblick“,
+  # I want two left-out securities of one name told apart,
+  # so that „Twin Pound plc“ twice does not read as one sale named twice.
+  #
+  # Acceptance criteria:
+  # - The read names each left-out security by its id and name per reason
+  #   (`excluded_securities`), one entry per security, by name then id, so
+  #   the note can tell twins apart; the `excluded` summary stays the
+  #   report's.
+  test "the left-out securities carry their ids, twins apart" do
+    world = base_world(name: "Twin World", cash_name: "Girokonto", depot_name: "Depot 1")
+
+    gbp =
+      Map.merge(
+        world,
+        add_depot(world.portfolio, currency: "GBP", cash_name: "GBP Konto", depot_name: "GBP")
+      )
+
+    twins =
+      for isin <- ~w(GB0000000102 GB0000000101) do
+        twin = create_security!(name: "Twin Pound plc", ticker: nil, currency: "GBP", isin: isin)
+        buy!(gbp, twin, quantity: "2", price: "10", date: ~D[2026-01-09], currency: "GBP")
+        sell!(gbp, twin, quantity: "2", price: "30", date: ~D[2026-04-20], currency: "GBP")
+        twin
+      end
+
+    newest = RealizedGains.newest_trades(5)
+
+    assert newest.excluded.by_reason.no_rate == %{count: 2, securities: ["Twin Pound plc"]}
+
+    assert newest.excluded_securities.no_rate ==
+             twins
+             |> Enum.sort_by(& &1.id)
+             |> Enum.map(&%{security_id: &1.id, security_name: "Twin Pound plc"})
+
+    assert newest.excluded_securities.missing_settlement_leg == []
+  end
+
   test "with no sell the newest trades are empty" do
     base_world(name: "Quiet World", cash_name: "Girokonto", depot_name: "Depot 1")
 
     assert RealizedGains.newest_trades(5) == %{
              base_currency: "EUR",
              trades: [],
+             excluded_securities: %{
+               no_rate: [],
+               missing_settlement_leg: [],
+               third_currency: [],
+               other_account_currency: [],
+               zero_amount: []
+             },
              excluded: %{
                count: 0,
                securities: [],

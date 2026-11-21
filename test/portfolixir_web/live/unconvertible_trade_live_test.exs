@@ -336,6 +336,88 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
     refute missing_leg =~ "Inc.."
   end
 
+  # User story (the Overview's polish list #1358; Sprint 31 D3):
+  # As the operator reading the note under „Verkaufsrückblick“,
+  # I want the pointer to the rate backfill to stand right after the
+  # sentences it helps with, at the note's end,
+  # so that it does not read as covering a sale no rate can fix, which
+  # followed it.
+  #
+  # Acceptance criteria:
+  # - With a sale missing its settlement leg and one priced in a third
+  #   currency, the note reads the counts, then the third currency's
+  #   sentence (no pointer), then the missing leg's with the pointer last.
+  test "the backfill pointer ends the note, after the sentences it covers", %{conn: conn} do
+    %{world: world} = seed!()
+    fund = WorldFixtures.create_security!(name: "Dollar Fund", ticker: "DFD", currency: "USD")
+
+    swiss =
+      Map.merge(
+        world,
+        WorldFixtures.add_depot(world.portfolio,
+          cash_currency: "CHF",
+          cash_name: "Franc Cash",
+          depot_name: "Franc Depot"
+        )
+      )
+
+    stored_trade!(world, fund, %{
+      type: "buy",
+      date: ~D[2025-04-01],
+      quantity: Decimal.new("10"),
+      price: Decimal.new("90"),
+      fees: Decimal.new("5"),
+      currency_code: "CHF",
+      security_amount: Decimal.new("1000"),
+      settlement_amount: Decimal.new("800"),
+      settlement_fx_rate: Decimal.new("0.888889"),
+      gross_amount: Decimal.new("805")
+    })
+
+    {:ok, _sell} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: swiss.portfolio.id,
+        securities_account_id: swiss.depot.id,
+        cash_account_id: swiss.cash.id,
+        security_id: fund.id,
+        type: "sell",
+        date: ~D[2025-05-02],
+        quantity: "10",
+        price: "100",
+        fees: "3",
+        taxes: "0",
+        currency_code: "CHF",
+        security_amount: "1250",
+        settlement_amount: "1000",
+        settlement_fx_rate: "0.8",
+        gross_amount: "997"
+      })
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    spans =
+      view
+      |> element("[data-role='trades-card-excluded']")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.find(".data-note__text > span[data-role]")
+
+    assert Enum.map(spans, &(&1 |> Floki.attribute("data-role") |> hd())) == [
+             "trades-card-excluded-counts",
+             "trades-card-excluded-third-currency",
+             "trades-card-excluded-missing-leg"
+           ]
+
+    assert spans
+           |> List.last()
+           |> Floki.text()
+           |> String.trim()
+           |> String.ends_with?("The rate backfill is under “All trades”.")
+
+    refute spans |> Enum.at(1) |> Floki.text() =~ "backfill"
+  end
+
   # A buy or sell as a database stored it before #1199's refusal of a
   # booking priced in a third currency: written past the changeset, under
   # the journal's actor (as `closed_trade_currency_test.exs` writes it).

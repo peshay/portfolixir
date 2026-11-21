@@ -428,7 +428,8 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
   #
   # Acceptance criteria:
   # - One unpriced security delivered into two depots is named once, "1 …".
-  # - Two different unpriced securities with one name are counted twice.
+  # - Two different unpriced securities with one name are counted twice,
+  #   each named with what tells it apart (#1320).
   test "a group counts securities, not depots and not labels", %{conn: conn} do
     world = world()
 
@@ -446,14 +447,18 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
              "Nicht in der Summe: 1 gehaltene Position ohne Preis — " <>
                "Placeholder Anleihe 2031 3,25%. Details in Vermögen →"
 
-    deliver!(world, create_security!(name: "Placeholder Anleihe 2031 3,25%", ticker: nil), "3")
+    twin = create_security!(name: "Placeholder Anleihe 2031 3,25%", ticker: nil)
+    deliver!(world, twin, "3")
 
     {:ok, view, _html} = de_live(conn, "/")
     render_async(view)
 
+    # #1320 (Sprint 31 D3): the two are told apart, by their numbers here,
+    # since neither carries an ISIN or a WKN.
     assert note_text(view) ==
              "Nicht in der Summe: 2 gehaltene Positionen ohne Preis — " <>
-               "Placeholder Anleihe 2031 3,25%, Placeholder Anleihe 2031 3,25%. " <>
+               "Placeholder Anleihe 2031 3,25% · Nr. #{bond.id}, " <>
+               "Placeholder Anleihe 2031 3,25% · Nr. #{twin.id}. " <>
                "Details in Vermögen →"
   end
 
@@ -554,6 +559,41 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
     assert note_text(view) =~
              "USD Settlement (1,850.00 USD). Wealth is currently scoped to the view " <>
                "“Nur Neuzugang”; this total counts “Everything”. Details in Wealth →"
+  end
+
+  # User story (#1222, the Overview's polish list #1358; Sprint 31 D3):
+  # As the operator following „In Vermögen ansehen“ from „Gesamtwert“ while
+  # Wealth remembers another view,
+  # I want the widget to say so even when its total leaves nothing out,
+  # so that I do not land on another scope's figure unwarned.
+  #
+  # Acceptance criteria:
+  # - With every balance and position valued, the remembered view „Nur
+  #   Neuzugang“ and the widget on „Alles“, the status region under the
+  #   total holds one line: „Vermögen ist gerade auf die Ansicht „Nur
+  #   Neuzugang“ eingegrenzt; diese Summe zählt „Alles“.“, both names in
+  #   `<bdi>`, and no exclusion note.
+  # - With the views equal the region stays empty (the test above).
+  test "the total names Wealth's other view when it leaves nothing out", %{conn: conn} do
+    world = world()
+    conn = remember_view!(conn, world, "Nur Neuzugang")
+
+    {:ok, view, _html} = de_live(conn, "/")
+    render_async(view)
+
+    refute has_element?(view, "[data-role='wealth-card-excluded']")
+
+    assert [line] =
+             view
+             |> render()
+             |> Floki.parse_document!()
+             |> Floki.find("#dashboard-wealth-card-status [data-role='wealth-card-view']")
+
+    assert text(line) ==
+             "Vermögen ist gerade auf die Ansicht „Nur Neuzugang“ eingegrenzt; " <>
+               "diese Summe zählt „Alles“."
+
+    assert has_element?(view, "[data-role='wealth-card-view'] bdi", "Nur Neuzugang")
   end
 
   # User story (#1081, review round; D-3):

@@ -219,6 +219,12 @@ defmodule Portfolixir.Portfolios.RealizedGains do
   convert is named in `excluded` whether or not it would be among the
   newest.
 
+  `excluded_securities` names, per reason of `excluded.by_reason`, each
+  left-out security by its id and name, one entry per security, by name
+  then id (#1320, Sprint 31 D3): `excluded` names the securities by name
+  alone, as the report does, so two of one name read as one; the note under
+  the Overview's widget tells them apart by their ids.
+
   Options: `:base_currency`, as for `report/1`.
   """
   def newest_trades(limit, opts \\ []) when is_integer(limit) and limit > 0 do
@@ -239,11 +245,34 @@ defmodule Portfolixir.Portfolios.RealizedGains do
       |> Enum.take(limit)
       |> Enum.map(fn {row, trade} -> Map.merge(row, TradeReturn.annualized(trade)) end)
 
+    excluded = Enum.map(excluded, fn {excluded, _trade} -> excluded end)
+
     %{
       base_currency: base,
       trades: trades,
-      excluded: excluded_summary(Enum.map(excluded, fn {excluded, _trade} -> excluded end))
+      excluded: excluded_summary(excluded),
+      excluded_securities: excluded_securities(excluded)
     }
+  end
+
+  @excluded_reasons [
+    :no_rate,
+    :missing_settlement_leg,
+    :third_currency,
+    :other_account_currency,
+    :zero_amount
+  ]
+
+  # #1320: per reason, each left-out security by id and name.
+  defp excluded_securities(excluded) do
+    Map.new(@excluded_reasons, fn reason ->
+      {reason,
+       excluded
+       |> rows_for(reason)
+       |> Enum.uniq_by(& &1.security_id)
+       |> Enum.sort_by(&{&1.security_name, &1.security_id})
+       |> Enum.map(&%{security_id: &1.security_id, security_name: &1.security_name})}
+    end)
   end
 
   # The AGENTS.md metric rule: the two paths of realized_base, as the

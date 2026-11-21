@@ -32,6 +32,7 @@ defmodule PortfolixirWeb.ValuationNotes do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.SecurityNames
 
   # How many names a list shows before it ends in "+N" (#703).
   @names_shown 6
@@ -99,13 +100,13 @@ defmodule PortfolixirWeb.ValuationNotes do
   held in several depots counts once; two securities that share a name count
   twice. A retired security is named too: it is out of the total.
   """
-  def excluded_groups(valuation) do
+  def excluded_groups(valuation, twin_ids \\ %{}) do
     base = valuation.base_currency
 
     [
       cash_group(unvalued_cash(valuation), base),
-      position_group(position_names(valuation, :no_price), :no_price, base),
-      position_group(position_names(valuation, :missing_fx), :missing_fx, base)
+      position_group(position_names(valuation, :no_price, twin_ids), :no_price, base),
+      position_group(position_names(valuation, :missing_fx, twin_ids), :missing_fx, base)
     ]
     |> Enum.reject(&is_nil/1)
   end
@@ -153,12 +154,41 @@ defmodule PortfolixirWeb.ValuationNotes do
   end
 
   # One row per security, not per depot and not per label: the view
-  # valuation carries one position per (depot, security).
-  defp position_names(valuation, reason) do
+  # valuation carries one position per (depot, security). A security whose
+  # name another of the note's carries is named with what tells it apart
+  # (#1320, Sprint 31 D3): `twin_ids`, `%{security_id => twin_id}`, which
+  # the Overview reads with the valuation (`unvalued_twin_ids/1`).
+  defp position_names(valuation, reason, twin_ids \\ %{}) do
     valuation.positions
     |> Enum.filter(&(&1.unvalued_reason == reason))
     |> Enum.uniq_by(& &1.security_id)
+    |> Enum.map(&tagged(&1, Map.get(twin_ids, &1.security_id)))
     |> Enum.map(&overview_entry_label(&1, reason))
+  end
+
+  defp tagged(position, nil), do: position
+
+  defp tagged(position, tag),
+    do: %{
+      position
+      | security_name: SecurityNames.twin_name(position.security_name || gettext("Unsorted"), tag)
+    }
+
+  @doc """
+  The twins among the positions a valuation leaves out of its total,
+  `%{security_id => twin_id}` (#1320): the securities whose names read the
+  same, each with what tells it apart (`PortfolixirWeb.SecurityNames`).
+  Reads the catalog only where two names collide; data only, so an async
+  read may call it.
+  """
+  @spec unvalued_twin_ids(map()) :: %{optional(integer()) => SecurityNames.twin_id()}
+  def unvalued_twin_ids(valuation) do
+    valuation.positions
+    |> Enum.filter(&(&1.unvalued_reason in [:no_price, :missing_fx]))
+    |> Enum.uniq_by(& &1.security_id)
+    |> SecurityNames.put_catalog_twin_ids(& &1.security_name)
+    |> Enum.reject(&is_nil(&1.twin_id))
+    |> Map.new(&{&1.security_id, &1.twin_id})
   end
 
   # The Overview's own label: a priced position's bracket says it holds the
