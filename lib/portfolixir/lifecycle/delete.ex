@@ -12,7 +12,9 @@ defmodule Portfolixir.Lifecycle.Delete do
        securities), so a concurrent merge waits instead of deadlocking; an
        override that names another depot by the time the security is held
        answers `{:error, :raced}`, so the delete never takes a depot after
-       the security;
+       the security. A security's delete takes, in the same pass as its own
+       row and in id order, the securities its news items fall to
+       `FOR KEY SHARE` (`Portfolixir.LockTable`, row 29);
     2. the **reference check**: every foreign key whose delete disposition is
        `:restrict` in `Portfolixir.Lifecycle.ForeignKeys` is counted, per
        referencing table — a transaction once, whichever leg references the
@@ -85,6 +87,10 @@ defmodule Portfolixir.Lifecycle.Delete do
 
   @type remedy :: :merge | :retire
 
+  # How often a security's delete runs again when the securities its news
+  # items fall to changed between their read and their lock (`lock_row/2`).
+  @heir_attempts 3
+
   @tables %{
     CashAccount => "cash_accounts",
     SecuritiesAccount => "securities_accounts",
@@ -117,7 +123,10 @@ defmodule Portfolixir.Lifecycle.Delete do
   @spec delete(Actor.t(), record()) ::
           {:ok, record()}
           | {:error, :not_found | :raced | {:referenced, referenced_by()} | term()}
-  def delete(%Actor{} = actor, %schema{id: id} = record) when is_map_key(@tables, schema) do
+  def delete(%Actor{} = actor, %schema{} = record) when is_map_key(@tables, schema),
+    do: delete(actor, record, @heir_attempts)
+
+  defp delete(actor, %schema{id: id} = record, attempts) do
     fn ->
       depots = lock_override_depots(schema, id)
 
@@ -131,7 +140,11 @@ defmodule Portfolixir.Lifecycle.Delete do
       end
     end
     |> MergeFlow.transaction()
-    |> count_after_refusal(record)
+    |> case do
+      {:error, :heirs_moved} when attempts > 1 -> delete(actor, record, attempts - 1)
+      {:error, :heirs_moved} -> count_after_refusal({:error, :raced}, record)
+      result -> count_after_refusal(result, record)
+    end
   end
 
   @doc """
@@ -259,11 +272,49 @@ defmodule Portfolixir.Lifecycle.Delete do
 
   defp no_late_override_depots(_schema, _id, _locked), do: :ok
 
+  # A security's delete assigns each news item left with one candidate to
+  # that candidate (`News.forget_security/2`), whose foreign key takes the
+  # candidate `FOR KEY SHARE`. Taken then, after the item's row, it closed
+  # a cycle with a merge of the candidate, which holds it `FOR UPDATE` and
+  # then rewrites the item, and with the candidate's own delete, which
+  # holds it and then rewrites the item too (#1470's family; the attack
+  # lens of Sprint 31's K1). So the security `FOR UPDATE` and the
+  # candidates its items fall to `FOR KEY SHARE` are taken in one pass, in
+  # id order, before any item (`Portfolixir.LockTable`, row 29), and the
+  # writers meet at a security. The candidates are read without a lock and
+  # read again under the locks: one that changed in between (a merge
+  # committed meanwhile moved an item onto its target) rolls the attempt
+  # back, releasing all of it, and runs again, at most three times; then
+  # the delete answers `:raced`.
+  defp lock_row(Security, id) do
+    heirs = News.forget_security_heirs(id)
+
+    locked =
+      [id | heirs]
+      |> Enum.uniq()
+      |> Enum.sort()
+      |> Enum.reduce(nil, fn
+        ^id, _locked -> Repo.one(from(s in Security, where: s.id == ^id, lock: "FOR UPDATE"))
+        heir, locked -> key_share_security(heir, locked)
+      end)
+
+    cond do
+      locked == nil -> {:error, :not_found}
+      News.forget_security_heirs(id) -- heirs != [] -> {:error, :heirs_moved}
+      true -> {:ok, locked}
+    end
+  end
+
   defp lock_row(schema, id) do
     case Repo.one(from(r in schema, where: r.id == ^id, lock: "FOR UPDATE")) do
       nil -> {:error, :not_found}
       locked -> {:ok, locked}
     end
+  end
+
+  defp key_share_security(id, locked) do
+    Repo.all(from(s in Security, where: s.id == ^id, lock: "FOR KEY SHARE", select: s.id))
+    locked
   end
 
   defp unreferenced(record) do

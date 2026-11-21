@@ -755,6 +755,28 @@ defmodule Portfolixir.News do
   # --- closing act, Fix-1 -----------------------------------------------------
 
   @doc """
+  The securities that `forget_security/2` assigns items to when
+  `security_id` is deleted: the other candidate of every item ambiguous
+  between it and exactly one more, ascending, read without a lock. The
+  hardened delete takes them `FOR KEY SHARE`, with its own security
+  `FOR UPDATE`, in one pass in id order before any item, and reads them
+  again under those locks (`Portfolixir.Lifecycle.Delete`;
+  `Portfolixir.LockTable`, row 29).
+  """
+  @spec forget_security_heirs(pos_integer()) :: [pos_integer()]
+  def forget_security_heirs(security_id) when is_integer(security_id) do
+    from(i in Item,
+      where:
+        i.assignment == :ambiguous and ^security_id in i.candidates and
+          fragment("cardinality(?) = 2", i.candidates),
+      distinct: true,
+      select: fragment("(array_remove(?, ?))[1]", i.candidates, ^security_id)
+    )
+    |> Repo.all()
+    |> Enum.sort()
+  end
+
+  @doc """
   Drops the security `security_id`, being deleted, from every item's
   candidates, inside the delete's transaction (closing act, EDGE2;
   `Portfolixir.Lifecycle.Delete`). An item left with one candidate is
