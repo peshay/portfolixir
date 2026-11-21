@@ -3,7 +3,7 @@ defmodule Portfolixir.LockRace.DashboardsRaceTest do
   # concurrent writers: the screen and an agent's put on the same
   # lock_version"): two replaces carrying the same lock_version, and two
   # creates at the 50th dashboard, raced on two real connections by the
-  # lock-order harness (#996). `Portfolixir.LockTable` row 28 registers the
+  # lock-order harness (#996). `Portfolixir.LockTable` row 30 registers the
   # locks: a create's advisory lock on the count, a replace's row lock.
   #
   # async: false -- the races share a scratch database and the barrier's
@@ -111,5 +111,38 @@ defmodule Portfolixir.LockRace.DashboardsRaceTest do
     assert {:ok, %Dashboard{name: "Fiftieth"}} = first
     assert second == {:error, :too_many_dashboards}
     assert length(Dashboards.list_dashboards()) == 50
+  end
+
+  # User story:
+  # As the operator deleting a dashboard my agent renames at that moment,
+  # I want the delete's answer to be the dashboard it deleted, as the
+  # journal records it,
+  # so that the screen does not show a name the journal never deleted.
+  #
+  # Acceptance criteria:
+  # - A rename holds the row; the delete waits, then deletes the renamed
+  #   row and answers it, name "After", as its journal entry's before.
+  test "a delete that waited for a rename answers the renamed row", %{db: db} do
+    {:ok, dashboard} = Dashboards.create_dashboard(Actor.owner_ui(), %{"name" => "Before"})
+
+    {first, second} =
+      LockRace.race!(
+        db,
+        {fn -> Dashboards.rename_dashboard(Actor.api_token_rw("mcp"), dashboard.id, "After") end,
+         LockRace.query?("FOR NO KEY UPDATE")},
+        fn -> Dashboards.delete_dashboard(Actor.owner_ui(), dashboard.id) end
+      )
+
+    assert {:ok, %Dashboard{name: "After"}} = first
+    assert {:ok, %Dashboard{name: "After", lock_version: 2}} = second
+
+    [delete] =
+      Journal.list_entries(
+        resource_type: "dashboard",
+        resource_id: to_string(dashboard.id),
+        operation: :delete
+      )
+
+    assert delete.before["name"] == "After"
   end
 end

@@ -87,7 +87,7 @@ defmodule Portfolixir.Dashboards.NoAtomTest do
   test "the count would see a writer that makes atoms" do
     before = :erlang.system_info(:atom_count)
     # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
-    for n <- 1..10, do: String.to_atom(fresh("made#{n}"))
+    _made = for n <- 1..10, do: String.to_atom(fresh("made#{n}"))
     assert :erlang.system_info(:atom_count) - before >= 10
   end
 end

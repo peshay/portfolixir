@@ -209,6 +209,25 @@ defmodule Portfolixir.Dashboards.LayoutTest do
              %{index: 0, field: "settings.view_id", reason: :unknown_view}
   end
 
+  # A view on a kind that takes none (scope :none) is refused like a pin on
+  # a kind without a period: the widget would carry a setting it never
+  # reads.
+  test "a view_id on a kind that takes no view is refused" do
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{"name" => "Synthetic Scope"})
+
+    assert {:ok, _} =
+             Layout.validate([
+               item("movers", "M", 1, 1, %{"settings" => %{"view_id" => view.id}})
+             ])
+
+    for kind <- ~w(due crashes snapshots) do
+      size = if kind == "crashes", do: "M", else: "S"
+
+      assert refusal([item(kind, size, 1, 1, %{"settings" => %{"view_id" => view.id}})]) ==
+               %{index: 0, field: "settings.view_id", reason: :no_view}
+    end
+  end
+
   test "a pinned period on a kind without one, or one it does not take, is refused" do
     pin = fn kind, size, period ->
       item(kind, size, 1, 1, %{"settings" => %{"period" => period}})

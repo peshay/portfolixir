@@ -35,7 +35,7 @@ defmodule Portfolixir.Dashboards do
   @max_id 9_223_372_036_854_775_807
   @resource_type "dashboard"
   # The transaction advisory lock a create takes before it counts
-  # (`Portfolixir.LockTable` row 28).
+  # (`Portfolixir.LockTable` row 30).
   @count_lock "dashboards|count"
 
   @typedoc """
@@ -230,8 +230,10 @@ defmodule Portfolixir.Dashboards do
   @spec delete_dashboard(Actor.t(), term()) :: {:ok, Dashboard.t()} | {:error, :not_found}
   def delete_dashboard(%Actor{} = actor, id) do
     with {:ok, prior} <- fetch(id) do
+      # The row as the journal's lock step re-read it, so the answer is the
+      # row deleted, the entry's before-image, not the earlier read.
       Multi.new()
-      |> Multi.delete(:dashboard, prior)
+      |> Multi.delete(:dashboard, &Journal.locked_row/1)
       |> journal(actor, :delete, prior)
       |> Repo.transaction()
       |> written()
@@ -259,7 +261,13 @@ defmodule Portfolixir.Dashboards do
       if Repo.aggregate(Dashboard, :count) >= @max_dashboards,
         do: Repo.rollback(:too_many_dashboards)
 
-      position = (Repo.one(from(d in Dashboard, select: max(d.position))) || 0) + 1
+      # One past the highest, capped where a reposition stops: two may then
+      # share the last position, and the menu reads them by id.
+      position =
+        min(
+          (Repo.one(from(d in Dashboard, select: max(d.position))) || 0) + 1,
+          Dashboard.max_position()
+        )
 
       Multi.new()
       |> Multi.insert(:dashboard, Ecto.Changeset.put_change(changeset, :position, position))

@@ -8,7 +8,7 @@ defmodule Portfolixir.Dashboards.AttackTest do
   # not write the context, to break it.
   #
   # group: :dashboards -- a create takes the transaction advisory lock that
-  # counts the dashboards (`Portfolixir.LockTable` row 28). Every name is
+  # counts the dashboards (`Portfolixir.LockTable` row 30). Every name is
   # synthetic.
   use Portfolixir.DataCase, async: true, group: :dashboards
 

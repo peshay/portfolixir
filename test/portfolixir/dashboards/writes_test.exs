@@ -6,13 +6,14 @@ defmodule Portfolixir.Dashboards.WritesTest do
   # stored dashboard; at most 50 dashboards; a delete deletes nothing else.
   #
   # group: :dashboards -- a create takes the transaction advisory lock that
-  # counts the dashboards (`Portfolixir.LockTable` row 28), and a sandboxed
+  # counts the dashboards (`Portfolixir.LockTable` row 30), and a sandboxed
   # test never commits: two modules creating at once would wait on each
   # other's lock until the test ended. Every module that creates a
   # dashboard joins this group.
   use Portfolixir.DataCase, async: true, group: :dashboards
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Dashboards
   alias Portfolixir.Dashboards.Dashboard
   alias Portfolixir.Dashboards.Templates
@@ -334,6 +335,89 @@ defmodule Portfolixir.Dashboards.WritesTest do
 
     assert Dashboards.delete_dashboard(agent(), gone.id) == {:error, :not_found}
     assert Dashboards.dry_run_delete_dashboard(agent(), gone.id) == {:error, :not_found}
+  end
+
+  # User story (ADR-0062 §2, "the next save drops the stale id"; the
+  # orchestrator's reconciliation with "nothing is repaired silently"):
+  # As the operator who deleted a view a dashboard's widget named,
+  # I want my next save of that dashboard to go through and drop the id
+  # that went stale, while an id that never named a view is still refused,
+  # so that a deleted view does not lock the dashboard against every edit.
+  #
+  # Acceptance criteria:
+  # - A replace that moves another widget and resends the item with the
+  #   stale id stores it without its view_id.
+  # - An agent resending the stale id on that very item alone: the same.
+  # - A replace naming a view_id that is not in the stored layout and names
+  #   no view is refused, naming the item; a create naming one is refused.
+  test "a stale view_id already stored is dropped on the next save; a new unknown one is refused" do
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{"name" => "Synthetic Short"})
+
+    pinned = %{
+      "kind" => "movers",
+      "size" => "M",
+      "col" => 1,
+      "row" => 1,
+      "settings" => %{"view_id" => view.id, "period" => "1m"}
+    }
+
+    moved = create!("Moved", [pinned, due(7, 1)])
+    resent = create!("Resent", [pinned])
+    {:ok, _} = Buckets.delete_view(Actor.owner_ui(), view)
+
+    assert {:ok, %Dashboard{layout: [movers, due]}} =
+             Dashboards.replace_dashboard(Actor.owner_ui(), moved.id, %{
+               "name" => "Moved",
+               "layout" => [pinned, due(10, 1)],
+               "lock_version" => 1
+             })
+
+    assert movers["settings"] == %{"period" => "1m"}
+    assert due["col"] == 10
+
+    assert {:ok, %Dashboard{layout: [%{"settings" => settings}], lock_version: 2}} =
+             Dashboards.replace_dashboard(agent(), resent.id, %{
+               "name" => "Resent",
+               "layout" => [pinned],
+               "lock_version" => 1
+             })
+
+    assert settings == %{"period" => "1m"}
+    assert Dashboards.get_dashboard(resent.id).layout == [Map.put(pinned, "settings", settings)]
+
+    fresh = put_in(pinned, ["settings", "view_id"], view.id + 1_000)
+
+    assert {:error, %Ecto.Changeset{errors: [layout: {"names no view", meta}]}} =
+             Dashboards.replace_dashboard(agent(), resent.id, %{
+               "name" => "Resent",
+               "layout" => [due(7, 1), fresh],
+               "lock_version" => 2
+             })
+
+    assert meta[:index] == 1
+    assert meta[:field] == "settings.view_id"
+
+    assert {:error, %Ecto.Changeset{errors: [layout: {"names no view", _meta}]}} =
+             Dashboards.create_dashboard(agent(), %{"name" => "New", "layout" => [pinned]})
+  end
+
+  # User story:
+  # As the operator who moved a dashboard to the end of the menu's range,
+  # I want a new dashboard still stored, at that end,
+  # so that a create never stores a position a reposition would refuse.
+  #
+  # Acceptance criteria:
+  # - With a dashboard at the highest position, a create takes that
+  #   position too; the menu then reads by id.
+  test "a create's position is capped at the highest a reposition takes" do
+    last = create!("Last")
+    {:ok, _} = Dashboards.reposition_dashboard(agent(), last.id, Dashboard.max_position())
+
+    assert {:ok, %Dashboard{position: position} = after_it} =
+             Dashboards.create_dashboard(agent(), %{"name" => "After"})
+
+    assert position == Dashboard.max_position()
+    assert Enum.map(Dashboards.list_dashboards(), & &1.id) == [last.id, after_it.id]
   end
 
   test "a dashboard's write moves no derived figure" do
