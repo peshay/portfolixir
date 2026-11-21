@@ -391,3 +391,41 @@ deleted (`DataVersion.compact_settled/1`). A version is the highest event id,
 so every current version stays exactly what it was — the rule the rebuild's
 compaction applies — and a pending event, whose mark makes the post-commit
 bump happen, is never touched. Nothing else in this decision changes.
+
+## Amendment: the default period's windowed reads are warmed too (2026-11-21, Sprint 31, P1)
+
+Idea I34's step 2, decided by the Sprint 31 plan (D-12) on the numbers of
+`perf-2026-11-19-wealth-chart.md` (Sprint 30, M6). The warm-up of ADR-0032
+§5 and the refresh of the 2026-08-15 amendment warm the full walks, which
+re-chain to every period for free; the stacked chart's bands and the
+contribution table under it each run a windowed walk of their own per
+period, and were warmed by nothing, so the first paint at a stacked level
+waited for them (657 ms against 98 ms warm on the server, M6).
+
+`Warmup` therefore also warms **the default period's** (`1y`) bands at the
+value series' default request (level `category`, sort `size`, scale `value`,
+no filter, the default tree) and its contribution table, for the Everything
+scope and **every view**, in the first portfolio's base currency: after boot,
+after each day rollover, and after every write, through the refresher's
+re-warm of the global basis those entries are kept under. It warms nothing
+else of them: one scope warmed for every period and request measured 29 MiB
+of the memo's 128, the two entries about 0.7 MiB.
+
+- It reads through the request path (`Bands.for_view/2`,
+  `Contribution.for_view/2`), so a warmed entry is the entry a request would
+  have stored.
+- It never stands between a request and its figure: it runs in a task of its
+  own at low priority, each scope's reads in a worker under the heap cap; a
+  request never waits for it.
+- It is cancellable: an ask while a warm runs stops that warm after its
+  current scope and starts one fresh warm after it, so a burst of writes
+  never runs two at once; a shutdown waits for the current read. No walk is
+  killed in the middle of a query.
+- It is bounded by the memo's budget: it stops before a scope once the memo
+  holds half its entries or bytes, so it never empties the table a request
+  filled.
+- It is off with the derived layer, as the rest of the warm-up: "off" stays
+  one state (ADR-0032 §7.3).
+
+**To flip** (plan D-12): every period warmed, bounded by the same budget and
+measured before it lands.

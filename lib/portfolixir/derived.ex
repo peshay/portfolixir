@@ -151,6 +151,19 @@ defmodule Portfolixir.Derived do
   end
 
   @doc """
+  Whether the in-memory tier holds less than half its budget, in entries and
+  in bytes (`Memo.budget/0`). A background warm (I34 step 2) asks this before
+  each scope, so warming never fills the half a request's put would need and
+  never empties the table a request filled (the budget rule in `Memo`).
+  """
+  @spec memo_below_half_budget?() :: boolean()
+  def memo_below_half_budget? do
+    %{entries: entries, bytes: bytes} = Memo.usage()
+    budget = Memo.budget()
+    entries < div(budget.entries, 2) and bytes < div(budget.bytes, 2)
+  end
+
+  @doc """
   Drops **every** durable derived value — basis versions are deliberately
   preserved (`DataVersion.compact/1`), which is what keeps the rebuild-identity
   check honest — then recomputes the operative entries through `warm` (a
