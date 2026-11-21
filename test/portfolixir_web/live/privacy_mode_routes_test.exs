@@ -235,10 +235,24 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
   #   a filter, reached from its own bar.
   # - No page's text names an amount or a quantity, and none draws a hidden
   #   figure as its stand-in text instead of the bar.
+  # - #1474 (Sprint 31 M5): each address is requested over HTTP once, its
+  #   connected render joining that response as a browser does, and the
+  #   stack's views are patched into the page open for the same view and
+  #   period, as its own links patch them, instead of each mounting the
+  #   page and walking the whole history again.
   test "every page and every in-place view renders with the privacy mode on and names no amount",
        ctx do
     start = shell_paths(ctx)
-    visited = walk(start, MapSet.new(start), [])
+    {visited, reads} = counting_reads(fn -> walk(start, MapSet.new(start), []) end)
+
+    assert reads.http == length(visited),
+           "the walk requested #{reads.http} pages over HTTP for #{length(visited)} addresses"
+
+    stack_pages = visited |> Enum.map(&stack_page/1) |> Enum.reject(&is_nil/1) |> Enum.uniq()
+
+    assert reads.stack_mounts == length(stack_pages),
+           "the walk mounted the stack #{reads.stack_mounts} times for #{length(stack_pages)} " <>
+             "open pages (#{inspect(stack_pages)})"
 
     # Each kind of view was reached, so the walk did not pass by reading less.
     for expected <- [
@@ -391,10 +405,62 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
     end)
   end
 
-  defp walk([], _seen, visited), do: Enum.reverse(visited)
+  # The walk's reads (#1474): its HTTP requests, and its connected mounts
+  # of the stack's views, counted while `fun` runs.
+  defp counting_reads(fun) do
+    counter = :counters.new(2, [:atomics])
+    handler = "privacy-walk-reads-#{inspect(self())}"
 
-  defp walk([path | rest], seen, visited) do
-    html = open!(path)
+    :telemetry.attach_many(
+      handler,
+      [[:phoenix, :endpoint, :stop], [:phoenix, :live_view, :mount, :start]],
+      &__MODULE__.count_read/4,
+      counter
+    )
+
+    try do
+      result = fun.()
+      {result, %{http: :counters.get(counter, 1), stack_mounts: :counters.get(counter, 2)}}
+    after
+      :telemetry.detach(handler)
+    end
+  end
+
+  @doc false
+  def count_read([:phoenix, :endpoint, :stop], _measurements, _metadata, counter),
+    do: :counters.add(counter, 1, 1)
+
+  def count_read([:phoenix, :live_view, :mount, :start], _measurements, metadata, counter) do
+    %{socket: socket, params: params} = metadata
+
+    if socket.view == PortfolixirWeb.PortfolioLive and Phoenix.LiveView.connected?(socket) and
+         is_map(params) and stack_params?(params),
+       do: :counters.add(counter, 2, 1)
+  end
+
+  # A view of the stacked chart (I23): Wealth's Holdings tab naming a
+  # level. Its page is the address's path, view and period, which only a
+  # mount reads (the view) or which reloads more than the stack (the
+  # period); everything else a stack view names, a patch applies.
+  defp stack_page(path) do
+    uri = URI.parse(path)
+    params = URI.decode_query(uri.query || "")
+
+    if uri.path == "/portfolio" and stack_params?(params),
+      do: {uri.path, params["view"], params["period"]}
+  end
+
+  defp stack_params?(params),
+    do: Map.has_key?(params, "level") and not Map.has_key?(params, "tab")
+
+  # `pages` holds the stack's open pages (`stack_page/1`), each the view
+  # its later stack views are patched into.
+  defp walk(paths, seen, visited, pages \\ %{})
+
+  defp walk([], _seen, visited, _pages), do: Enum.reverse(visited)
+
+  defp walk([path | rest], seen, visited, pages) do
+    {html, pages} = open!(path, pages)
     refute_amounts(path, html)
 
     fresh =
@@ -405,23 +471,55 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
 
     seen = Enum.reduce(fresh, seen, &MapSet.put(&2, &1))
     assert MapSet.size(seen) <= @max_addresses, "the walk keeps finding new addresses"
-    walk(rest ++ fresh, seen, [path | visited])
+    walk(rest ++ fresh, seen, [path | visited], pages)
   end
 
   # The page's HTTP render and its connected render; the connected one's
-  # markup is returned.
-  defp open!(path) do
+  # markup is returned, with the open pages. The connected render joins the
+  # HTTP response, as a browser does, instead of requesting the page a
+  # second time. A view of the stack is patched into the page open for its
+  # view and period, as the stack's own links patch it: a fresh mount of
+  # each walked the whole history, the contribution and the header again
+  # for a change of the bands alone, 80 times (#1474). Its HTTP render
+  # still mounts the address itself.
+  defp open!(path, pages) do
     conn = crash_named(path, "HTTP", fn -> get(masked_conn(), path) end)
 
     assert conn.status < 400,
            "#{path} answered #{conn.status} with the privacy mode on"
 
+    page = stack_page(path)
+
     crash_named(path, "connected", fn ->
-      case live(masked_conn(), path) do
-        {:ok, view, _html} -> render_async(view, 5_000)
-        {:error, {kind, %{to: to}}} -> flunk("#{path} answered a #{kind} to #{to}")
+      case pages[page] do
+        nil ->
+          case live(conn) do
+            {:ok, view, _html} -> {render_async(view, 5_000), open_page(pages, page, view)}
+            {:error, {kind, %{to: to}}} -> flunk("#{path} answered a #{kind} to #{to}")
+          end
+
+        view ->
+          render_patch(view, path)
+          {settled!(view, path, 3), pages}
       end
     end)
+  end
+
+  defp open_page(pages, nil, _view), do: pages
+  defp open_page(pages, page, view), do: Map.put(pages, page, view)
+
+  # A patched view read once nothing on it is still computing: a section
+  # that waits shows `aria-busy`, the stack's skeleton among them, and a
+  # load a patch asked for while another ran starts only when that one
+  # lands, so the walk never reads the page with less on it.
+  defp settled!(view, path, tries) do
+    html = render_async(view, 5_000)
+
+    cond do
+      not String.contains?(html, ~s(aria-busy="true")) -> html
+      tries > 1 -> settled!(view, path, tries - 1)
+      true -> flunk("#{path} was still computing when the walk read it")
+    end
   end
 
   defp crash_named(path, render, fun) do
@@ -519,13 +617,15 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
   end
 
   # The page as the walk reads it, without scripts, styles, templates and
-  # the plain selectors' elements.
+  # the plain selectors' elements. Parsed as a browser parses it (lexbor,
+  # through LazyHTML) and filtered in one pass: Floki's own parser and one
+  # pass per selector cost the walk 3.3 s of 164 pages for the same text
+  # nodes and table cells, page for page (#1474).
   defp readable_tree(html) do
-    tree = Floki.parse_document!(html)
-
-    Enum.reduce(["script", "style", "template" | @plain_selectors], tree, fn selector, acc ->
-      Floki.filter_out(acc, selector)
-    end)
+    html
+    |> LazyHTML.from_document()
+    |> LazyHTML.to_tree()
+    |> Floki.filter_out(Enum.join(["script", "style", "template" | @plain_selectors], ", "))
   end
 
   defp collect_text(nodes) when is_list(nodes), do: Enum.flat_map(nodes, &collect_text/1)
