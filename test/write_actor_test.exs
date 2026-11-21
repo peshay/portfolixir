@@ -30,7 +30,10 @@ defmodule Portfolixir.WriteActorTest do
     # ADR-0055: predictions, born actor-first, their table armed at creation.
     Portfolixir.Predictions => "lib/portfolixir/predictions.ex",
     # #1272: the preference store, whose default-view key is journaled (H61).
-    Portfolixir.Settings => "lib/portfolixir/settings.ex"
+    Portfolixir.Settings => "lib/portfolixir/settings.ex",
+    # ADR-0062 §2 (Sprint 31 D1): dashboards, born actor-first, their table
+    # armed at creation.
+    Portfolixir.Dashboards => "lib/portfolixir/dashboards.ex"
   }
 
   # Contexts whose actor-first refactor + table arming has landed (leaf-first:
@@ -47,7 +50,9 @@ defmodule Portfolixir.WriteActorTest do
     # ADR-0050: born actor-first, its two tables armed at creation.
     Portfolixir.Lifecycle,
     # ADR-0055: born actor-first, its table armed at creation.
-    Portfolixir.Predictions
+    Portfolixir.Predictions,
+    # ADR-0062 §2: born actor-first, its table armed at creation.
+    Portfolixir.Dashboards
   ]
 
   # Migration-only data backfills: arity locked by immutable migrations (which run
@@ -196,8 +201,12 @@ defmodule Portfolixir.WriteActorTest do
                   # the manual windows, armed in the migrations that create
                   # them, so every write is journaled under its token.
                   "crash_window_names",
-                  "crash_manual_windows"
+                  "crash_manual_windows",
                   # --- S29 C3 end ---
+                  # ADR-0062 §2 (Sprint 31 D1): the stored dashboards, armed
+                  # in the migration that creates them, so every write — the
+                  # screen's or an agent's — is journaled under its actor.
+                  "dashboards"
                 ])
 
   # Derived-value tables (ADR-0039): materializations of ledger-derived reads,
