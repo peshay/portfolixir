@@ -2117,10 +2117,51 @@ Wealth page mutes non-deployable rows and labels them with their role.
 
 ## Overview Page
 
-The **Overview** entry (the start page) answers "did anything change, does
+The **Overview** entry (the start page, `/`) is a **dashboard** (ADR-0062,
+Sprint 31): its cards are **widgets**, each one existing read drawn in a
+frame — its title, an ⓘ with the read's computation basis, a ⋯ menu (empty
+for now: pinning a period and editing come later), the figures, and a
+footer naming the view it reads and the way to the full screen.
+
+- **A fresh instance stores nothing.** With no dashboard of your own, `/`
+  shows the shipped template **Overview** read-only, under the banner
+  "Template · shipped, read-only" with **Customize**: that copies the
+  template into a dashboard of yours (one journaled write) and opens it at
+  `/dashboards/<id>`. Reading the page never writes. With dashboards of your
+  own, `/` opens the first in the menu's order and `/dashboards/<id>` the
+  one named; an unknown id opens `/`.
+- **The scope.** Above the widgets, **Everything ▾** names the view the
+  dashboard reads: your default view, else Everything, as the Overview
+  always read it. Picking another puts it in the address only
+  (`/?scope=<view id>`, `/?scope=total`); your default and the view Wealth
+  remembers stay as they are. A widget of a stored dashboard may read a view
+  of its own; where that view has since been deleted, the widget reads the
+  dashboard's scope and its footer says "Its view no longer exists · reads …".
+- **The width decides the layout, never the device.** From 1000 px the
+  widgets stand on a 12-column grid at the places and sizes the layout
+  gives them; from 600 px they stand in two columns, in the layout's
+  reading order (row, then column); under 600 px in one column. Below
+  1000 px each widget shows its **compact form**: phone type, one name and
+  one figure per row, rows at least 44 px tall to tap.
+- **The template's widgets**, in its reading order: **Total value**
+  (with the key-figure strip), **Data quality**, **Due**, **Off target**,
+  **Performance**, **Allocation and drift**, **Tops and flops**, **Crashes
+  compared**, **Bitcoin cycle**, **Sale review** and **Snapshots**. The four
+  that come from Wealth's sections (Performance, Allocation and drift,
+  Crashes compared, Snapshots) show an empty frame with the way to their
+  screen until they are drawn. A widget with nothing to say — no finding,
+  no due date, no closed trade, no security with the cycle view — stays
+  absent, as its card did.
+
+Each widget draws exactly the figures its read answers, which your agent
+reads over the API for the same scope and period. The widgets of today's
+Overview read as follows.
+
+It answers "did anything change, does
 anything need me?" (ADR-0022). With an empty database it is the onboarding
-wizard (the ordered workflow path plus entity counts). Once transactions
-exist it shows one **value card scoped to the default view** — **Everything**
+wizard (the ordered workflow path, shown until the first depot with its
+cash account exists, plus entity counts). Once transactions
+exist **Total value** shows one **value card scoped to the dashboard's view** — **Everything**
 when none is set (ADR-0024: views, not portfolios, are what the dashboard
 aggregates over) — with the total incl. cash and the TTWROR since the start
 of the year as the change signal, said in words on the card ("year to date";
@@ -2143,7 +2184,11 @@ else 1Y), and on the
 view you last picked there: where that view is not the one the card counts,
 the note says so before the link ("Wealth is currently scoped to the view
 “Nur Neuzugang”; this total counts “Everything”."), and nothing is chosen
-for you (issue #1122). When the total leaves nothing out, there is no note. Under the card, the page shows the **key-figure strip**
+for you (issue #1122). When the total leaves nothing out, there is no note;
+where Wealth remembers another view all the same, one quiet line under the
+total says so (issue #1222). Two securities of one name in the note are
+each named with what tells them apart, "Twin Fonds · ISIN DE0000000201"
+(issue #1320). Under the card, the page shows the **key-figure strip**
 (UX-DR2 as amended 2026-09-14, issue #798): four cells, each linking to the surface that owns
 its figure — the **1Y TTWROR** with its IRR (the period MWR for a shorter
 history) leading to Wealth, the **cash quote** with the cash amount leading
@@ -2155,18 +2200,21 @@ sub-line appears only when such securities exist (with none, the date
 alone — a fact, not an all-clear badge) and counts the held securities,
 which is the list its link opens (issue #1417; the catalogue's count stands
 on the data-quality line) — and a basis line under the strip names the
-view, the period and the currency — the **Closed trades** card (UX-DR2 as amended
+view, the period and the currency — the **Sale review** widget, today's
+**Closed trades** card (UX-DR2 as amended
 2026-10-01, issue #984): the five most recently closed round-trips, newest first, each
 with the date it was sold and how long it was held, its realised result in
 the base currency in its sign colour, and under it the return — **per year**
 ("p. a.") from 365 days of holding and where a rate solves the flows,
 **over the whole holding period** ("total") otherwise, as the basis line
 says — each row linking to that security's Trades tab, with
-**All trades →** in the card's head leading to the Trades facet. Its basis
+**All trades →** in the widget's footer leading to the Trades facet. Its basis
 line says it covers **every depot, whatever the view**: the rest of the
 Overview follows the selected view, the trades do not. It lists results, not
 activity, and is absent where no trade has closed; a sale whose close-date
-rate is missing is named on the card, with the backfill under All trades —
+rate is missing is named on the card, with the backfill under All trades,
+that pointer ending the note after the sentences it helps with; two
+securities of one name are each named with their ISIN (issue #1320) —
 an **Off target** list (issue #718 — the
 card is named for what it contains, per UX-DR21) — every targeted category whose
 allocation drift exceeds **±5 percentage points** (ADR-0023 sign: positive =
@@ -2241,18 +2289,20 @@ deliberately no activity feed: the audit journal owns the forensic detail,
 and the Closed trades card shows what a sale realised, never the booking
 itself.
 
-Between the key-figure strip and the Closed trades card, the **Tops and
-flops** card (FR-59, ADR-0061) answers "what moved, and what did it mean for
+The **Tops and flops** widget (FR-59, ADR-0061) answers "what moved, and what did it mean for
 me?" for the same scope as the value card — the default view, else
 **Everything**. A **Period** bar chooses the window: **Day**, **Week**,
 **Month**, **Quarter**, **YTD** or **1Y**, each to today; the choice is in
 the address (`/?movers_period=week`), so a reload or a shared link opens the
 same window, and without it the card opens on **Day**. Two columns stand
-side by side, each with its **Highest** over its **Lowest**, five each (under
-ten the list splits, and no name stands in both halves): **Price return**,
+side by side where the widget is wide enough (stacked otherwise), each with
+its **Highest** over its **Lowest**, five each (under ten the list splits,
+no name stands in both halves, and two securities equal on every key stand
+in the same half): **Price return**,
 each security the scope holds today by its return in EUR from its stored
-closes — on **Day** since each security's previous close, the two dates
-under its name ("Thu 2026-11-12 → Fri 2026-11-13"), elsewhere "last close
+closes — on **Day** since each security's previous close, at most 7 days
+before its latest one, the two dates under its name ("Thu 2026-11-12 → Fri
+2026-11-13"), elsewhere "last close
 …" where that close is before today — and **Contribution**, each position
 by what it added or cost in EUR over the window, as **Contribution by
 position** on Wealth counts it, a position sold in the window included and
@@ -2262,14 +2312,18 @@ price return: 1 without a close at the start, 1 without an exchange rate",
 contribution in the period" (on **Day**, "on its day"): a contribution
 of exactly 0.00, such as a fund with no stored quote valued at its trade
 price every day, stands in neither half, so such funds do not fill
-**Lowest**; nothing is ranked as a zero it does not have. One basis line names the view, the window and its
+**Lowest**; nothing is ranked as a zero it does not have. A position that
+had no price on some days of the window counts zero on those days, as in
+Wealth, and stays ranked with the mark "3 days at zero" — a gain made of
+such days can stand in **Highest**, marked. One basis line names the view, the window and its
 dates, and the method is behind the ⓘ. Each name opens its security;
 **View in Wealth →** opens Wealth with the contribution's window as a custom
 range (`/portfolio?from=…&to=…`), in the view Wealth last showed: the link
 does not change it. Where that view is not the card's, a sentence under the
 basis line names both ("Wealth is currently scoped to the view “…”; this
-card shows “Everything”."), as the note under the value card does. Under
-560 px the two columns stack, price return first. In the privacy mode every
+card shows “Everything”."), as the note under the value card does. In the
+compact form a switch shows **Highest** or **Lowest**, the price returns over
+the contributions. In the privacy mode every
 contribution is hidden, its sign colour, order and bar kept; the percentages
 stay. The card reads in the
 background, with its skeleton while it loads; a view that holds nothing keeps
