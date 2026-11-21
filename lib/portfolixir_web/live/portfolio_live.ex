@@ -1118,25 +1118,41 @@ defmodule PortfolixirWeb.PortfolioLive do
             else: []
           )
 
-      socket
-      |> assign(
-        bands: nil,
-        bands_colors: %{},
-        bands_ancestors: [],
-        bands_for: request,
-        bands_failed: false
-      )
-      |> CappedAsync.start_latest(:bands, fn ->
-        {request,
-         case Bands.for_view(view_id, opts) do
-           {:ok, result} ->
-             {:ok, result, band_colors(result, portfolio_id, view_id, known),
-              filter_ancestors(result)}
+      # I34 step 2: the memo is asked first, in this process. A hit is
+      # drawn in this render, never behind the skeleton; a miss loads in
+      # the background as before. A read still running for an earlier
+      # request lands later and is dropped (`bands_landed/2`).
+      case Bands.cached_for_view(view_id, opts) do
+        {:ok, result} ->
+          socket
+          |> assign(:bands_for, request)
+          |> assign_bands(
+            result,
+            band_colors(result, portfolio_id, view_id, known),
+            filter_ancestors(result)
+          )
 
-           error ->
-             error
-         end}
-      end)
+        :miss ->
+          socket
+          |> assign(
+            bands: nil,
+            bands_colors: %{},
+            bands_ancestors: [],
+            bands_for: request,
+            bands_failed: false
+          )
+          |> CappedAsync.start_latest(:bands, fn ->
+            {request,
+             case Bands.for_view(view_id, opts) do
+               {:ok, result} ->
+                 {:ok, result, band_colors(result, portfolio_id, view_id, known),
+                  filter_ancestors(result)}
+
+               error ->
+                 error
+             end}
+          end)
+      end
     end
   end
 
@@ -1542,14 +1558,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp stack_axis_landed(_other, socket), do: socket
 
   defp bands_answer({:ok, result, colors, ancestors}, socket),
-    do:
-      {:noreply,
-       assign(socket,
-         bands: result,
-         bands_colors: colors,
-         bands_ancestors: ancestors,
-         bands_failed: false
-       )}
+    do: {:noreply, assign_bands(socket, result, colors, ancestors)}
 
   defp bands_answer({:error, :view_not_found}, socket),
     do: {:noreply, socket |> degrade_to_everything() |> assign(:bands_for, nil) |> load_bands()}
@@ -1576,6 +1585,16 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp bands_answer({:error, _reason}, socket),
     do: {:noreply, assign(socket, :bands_failed, true)}
+
+  # A stack's answer on the page: landed from its read, or a memo hit.
+  defp assign_bands(socket, result, colors, ancestors),
+    do:
+      assign(socket,
+        bands: result,
+        bands_colors: colors,
+        bands_ancestors: ancestors,
+        bands_failed: false
+      )
 
   defp contribution_landed({:ok, {_period, {{:error, :view_not_found}, _read}}}, socket) do
     {:noreply, socket |> degrade_to_everything() |> load_contribution()}

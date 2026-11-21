@@ -208,6 +208,43 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   """
   @spec for_view(integer() | nil, keyword()) :: {:ok, map()} | {:error, atom()}
   def for_view(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
+    with {:ok, read} <- view_read(view_id, opts) do
+      {:ok,
+       served(
+         :performance_view_bands,
+         Derived.global_basis(),
+         read.key,
+         {read.period, read.today},
+         read.compute
+       )}
+    end
+  end
+
+  @doc """
+  What `for_view/2` would answer, **only when the memo already holds it**
+  for the basis's current data version: `{:ok, result}`, else `:miss`. It
+  never computes and never stores, so a page can ask it in its own process
+  and draw a hit in the same render instead of a "computing" skeleton
+  (I34 step 2), and load a miss in the background as before. A request
+  `for_view/2` refuses, a period it does not remember (a custom range, a
+  year past today) and the derived layer off are all a miss.
+  """
+  @spec cached_for_view(integer() | nil, keyword()) :: {:ok, map()} | :miss
+  def cached_for_view(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
+    with {:ok, read} <- view_read(view_id, opts),
+         true <- Contribution.fixed_period?(read.period, read.today),
+         {:fresh, value} <-
+           Derived.peek(:performance_view_bands, Derived.global_basis(), read.key) do
+      {:ok, value}
+    else
+      _miss -> :miss
+    end
+  end
+
+  # One read across portfolios, prepared: its request checked, its scope and
+  # tree resolved, its memo key and its computation. `for_view/2` serves it,
+  # `cached_for_view/2` only looks it up, so both answer the same key.
+  defp view_read(view_id, opts) do
     period = Keyword.get(opts, :period, "max")
     base = Keyword.get(opts, :base_currency, @hub)
     today = Keyword.get(opts, :today, Clock.today())
@@ -236,8 +273,7 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
         "view=#{view_id || "unscoped"}|base=#{base}|today=#{today}" <>
           "|period=#{Contribution.period_key(period)}|" <> request_key(request)
 
-      {:ok,
-       served(:performance_view_bands, Derived.global_basis(), key, {period, today}, compute)}
+      {:ok, %{key: key, period: period, today: today, compute: compute}}
     end
   end
 

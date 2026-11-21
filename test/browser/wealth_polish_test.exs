@@ -16,6 +16,8 @@ defmodule PortfolixirWeb.Browser.WealthPolishTest do
   # browser talks to 127.0.0.1.
   use PortfolixirWeb.ConnCase, async: false
 
+  alias Portfolixir.Derived.Memo
+  alias Portfolixir.DerivedConfig
   alias PortfolixirWeb.PreferenceCookieHelpers
 
   @moduletag :browser
@@ -132,6 +134,27 @@ defmodule PortfolixirWeb.Browser.WealthPolishTest do
   test "a tapped slice leaves no tooltip behind", %{base_url: base_url} do
     seed!()
     {result, output} = run!("touch_tooltip", base_url)
+    assert result == %{"ok" => true}, output
+  end
+
+  # User story (I34 step 2, Sprint 31 P2; M6: every warm switch rendered
+  # the skeleton first and the chart second):
+  # As the operator switching the stacked chart between periods,
+  # I want a period whose chart is remembered drawn at once,
+  # so that the chart does not flash "computing" for a figure already known.
+  #
+  # Acceptance criteria (the review seed, /portfolio?level=category, the
+  # derived layer on for this test only):
+  # - A switch to 3 years, not yet read, shows the stack's skeleton while
+  #   it walks (the watch sees a skeleton when there is one).
+  # - A switch back to 1 year, and to 3 years again, both remembered, never
+  #   shows `stack-skeleton` between the click and the chart.
+  test "a warm period switch draws the stack without the skeleton", %{base_url: base_url} do
+    Memo.reset()
+    on_exit(&Memo.reset/0)
+    DerivedConfig.enable!(lifetimes: [])
+    seed!()
+    {result, output} = run!("warm_switch", base_url)
     assert result == %{"ok" => true}, output
   end
 end
