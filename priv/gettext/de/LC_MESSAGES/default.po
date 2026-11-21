@@ -18417,97 +18417,97 @@ msgstr "nur heute gehaltene Wertpapiere."
 msgid "only securities the view holds today."
 msgstr "nur heute gehaltene Wertpapiere der Ansicht."
 
-#: lib/portfolixir/dashboards/widgets.ex:388
+#: lib/portfolixir/dashboards/widgets.ex:389
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Allocation"
 msgstr "Allokation"
 
-#: lib/portfolixir/dashboards/widgets.ex:390
+#: lib/portfolixir/dashboards/widgets.ex:391
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Analyses"
 msgstr "Analysen"
 
-#: lib/portfolixir/dashboards/widgets.ex:386
+#: lib/portfolixir/dashboards/widgets.ex:387
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Overview"
 msgstr "Überblick"
 
-#: lib/portfolixir/dashboards/widgets.ex:387
+#: lib/portfolixir/dashboards/widgets.ex:388
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Performance"
 msgstr "Performance"
 
-#: lib/portfolixir/dashboards/widgets.ex:389
+#: lib/portfolixir/dashboards/widgets.ex:390
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Risk"
 msgstr "Risiko"
 
-#: lib/portfolixir/dashboards/widgets.ex:378
+#: lib/portfolixir/dashboards/widgets.ex:379
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Allocation and drift"
 msgstr "Allokation und Drift"
 
-#: lib/portfolixir/dashboards/widgets.ex:380
+#: lib/portfolixir/dashboards/widgets.ex:381
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Bitcoin cycle"
 msgstr "Bitcoin-Zyklus"
 
-#: lib/portfolixir/dashboards/widgets.ex:379
+#: lib/portfolixir/dashboards/widgets.ex:380
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Crashes compared"
 msgstr "Crashes im Vergleich"
 
-#: lib/portfolixir/dashboards/widgets.ex:372
+#: lib/portfolixir/dashboards/widgets.ex:373
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Data quality"
 msgstr "Datenqualität"
 
-#: lib/portfolixir/dashboards/widgets.ex:373
+#: lib/portfolixir/dashboards/widgets.ex:374
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Due"
 msgstr "Fällig"
 
-#: lib/portfolixir/dashboards/widgets.ex:374
+#: lib/portfolixir/dashboards/widgets.ex:375
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Off target"
 msgstr "Abseits des Ziels"
 
-#: lib/portfolixir/dashboards/widgets.ex:375
+#: lib/portfolixir/dashboards/widgets.ex:376
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Performance"
 msgstr "Wertentwicklung"
 
-#: lib/portfolixir/dashboards/widgets.ex:381
+#: lib/portfolixir/dashboards/widgets.ex:382
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Sale review"
 msgstr "Verkaufsrückblick"
 
-#: lib/portfolixir/dashboards/widgets.ex:377
+#: lib/portfolixir/dashboards/widgets.ex:378
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Snapshots"
 msgstr "Snapshots"
 
-#: lib/portfolixir/dashboards/widgets.ex:376
+#: lib/portfolixir/dashboards/widgets.ex:377
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Tops and flops"
 msgstr "Tops und Flops"
 
-#: lib/portfolixir/dashboards/widgets.ex:371
+#: lib/portfolixir/dashboards/widgets.ex:372
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Total value"
