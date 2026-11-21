@@ -2343,9 +2343,9 @@ verfügbare Zeilen und beschriftet sie mit ihrer Rolle.
 Der Eintrag **Übersicht** (die Startseite, `/`) ist ein **Dashboard**
 (ADR-0062, Sprint 31): Seine Karten sind **Widgets**, jedes ein vorhandener
 Lesezugriff in einem Rahmen — sein Titel, ein ⓘ mit der Rechengrundlage
-des Lesezugriffs, ein Menü ⋯ (noch leer: das Anheften eines Zeitraums und
-das Bearbeiten kommen später), die Zahlen und eine Fußzeile, die die
-gelesene Ansicht nennt und zum ganzen Screen führt.
+des Lesezugriffs, sein Zeitraum-Etikett, ein Menü ⋯ (der eigene Zeitraum
+des Widgets; das Bearbeiten kommt später), die Zahlen und eine Fußzeile,
+die die gelesene Ansicht nennt und zum ganzen Screen führt.
 
 - **Eine frische Instanz speichert nichts.** Ohne eigenes Dashboard zeigt
   `/` die mitgelieferte Vorlage **Überblick** nur lesend, unter dem Hinweis
@@ -2362,6 +2362,34 @@ gelesene Ansicht nennt und zum ganzen Screen führt.
   gespeicherten Dashboards kann eine eigene Ansicht lesen; ist sie
   inzwischen gelöscht, liest es den Umfang des Dashboards, und seine
   Fußzeile sagt „Seine Ansicht gibt es nicht mehr · liest …“.
+- **Ein Zeitraum über jedem Dashboard** (ADR-0062 §5). Neben dem Umfang
+  setzt **1T · 1W · 1M · 3M · YTD · 1J · 3J · Max** den Zeitraum, den jedes
+  Widget mit Zeitraum liest; **1J** ist der Standard, wie auf Vermögen. Die
+  Adresse trägt ihn, wenn er nicht 1J ist (`/?period=3m`), so öffnet ein
+  Link ein Dashboard auf seinem Zeitraum; ein Wert, der kein Zeitraum ist,
+  öffnet 1J. Ihre Wahl merkt sich dieser Browser (wie den Zeitraum von
+  Vermögen und das Thema; auf dem Server wird nichts gespeichert), und sie
+  bleibt, wenn Sie ein anderes Dashboard öffnen. Unter 600 px sind die
+  Zeiträume eine eigene Leiste, die Sie seitwärts wischen.
+- **Jedes Widget sagt, welchen Zeitraum es zeigt**, leise neben seinem ⋯:
+  **folgt · 3M**, solange es der Leiste folgt; **ohne Zeitraum** für ein
+  Widget, dessen Lesezugriff keinen hat (Gesamtwert, Datenqualität,
+  Fällig, Abseits des Ziels, Crashes im Vergleich, Bitcoin-Zyklus,
+  Verkaufsrückblick, Snapshots); und wo das Widget stattdessen sein
+  nächstes eigenes Fenster liest, beides: **Tops und Flops** liest 1T als
+  Tag, 1W als Woche, 1M als Monat, 3M als Quartal, YTD als YTD und 1J, 3J
+  und Max als 1J, bei 3M steht also **folgt · 3M → Quartal**.
+- **Ein Widget kann seinen eigenen Zeitraum festlegen.** Sein Menü ⋯ bietet
+  **Zeitraum festlegen** mit den Zeiträumen, die sein Lesezugriff kennt;
+  die Festlegung steht im Eintrag des Widgets im Layout
+  (`settings.period`, ein Schreibvorgang im Journal, wie ihn ein Agent mit
+  `PUT /api/v1/dashboards/<id>` speichern würde) und erscheint in der
+  Akzentfarbe, **📌 eigener: Max**, damit eine festgelegte Zahl nie als die
+  der Leiste gelesen wird. **Folgt dem Dashboard (…)** im selben Menü hebt
+  sie auf. Die Vorlage ist nur lesend: Ihr Menü bietet stattdessen
+  **Anpassen**. Wurde das Dashboard anderswo geändert, seit die Seite es
+  las (ein anderer Tab, Ihr Agent), wird die Festlegung nicht geschrieben:
+  Die Seite zeigt das Dashboard, wie es gespeichert ist, und sagt es.
 - **Die Breite entscheidet das Layout, nie das Gerät.** Ab 1000 px stehen
   die Widgets in einem Raster aus 12 Spalten an den Plätzen und in den
   Größen, die das Layout ihnen gibt; ab 600 px in zwei Spalten, in der
@@ -2532,11 +2560,12 @@ ein Verkauf realisiert hat, nie die Buchung selbst.
 
 Das Widget **Tops und Flops** (FR-59, ADR-0061) beantwortet „was hat sich
 bewegt, und was hieß das für mich?“ für denselben Umfang wie die Wert-Karte — die
-Standard-Ansicht, sonst **Alles**. Eine Leiste **Zeitraum** wählt das
-Fenster: **Tag**, **Woche**, **Monat**, **Quartal**, **YTD** oder **1J**,
-jeweils bis heute; die Wahl steht in der Adresse (`/?movers_period=week`),
-so öffnen ein Neuladen oder ein weitergegebener Link dasselbe Fenster, und
-ohne sie öffnet die Karte auf **Tag**. Zwei Spalten stehen nebeneinander, wo
+Standard-Ansicht, sonst **Alles**. Sein Fenster — **Tag**, **Woche**,
+**Monat**, **Quartal**, **YTD** oder **1J**, jeweils bis heute — ist der
+Zeitraum des Dashboards (oder die Festlegung des Widgets) nach der Regel
+oben: 1T ist Tag, 1W Woche, 1M Monat, 3M Quartal, YTD YTD, und 1J, 3J und
+Max sind 1J; eigene Zeitraum-Chips hat das Widget nicht mehr (Sprint 31,
+ADR-0062 §5). Zwei Spalten stehen nebeneinander, wo
 das Widget breit genug ist (sonst untereinander), je mit **Höchste** über
 **Niedrigste**, je fünf (unter zehn teilt sich die Liste, kein Name steht in
 beiden Hälften, und zwei in jedem Merkmal gleiche Wertpapiere stehen in

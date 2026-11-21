@@ -267,11 +267,13 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
   #
   # Acceptance criteria:
   # - The compact form's rows under each half are GET /api/v1/movers's rows
-  #   for the same window, in order, each with its return or contribution.
+  #   for the same window, in order, each with its return or contribution:
+  #   the dashboard's default period, 1J, which the widget reads as its
+  #   window 1y (ADR-0062 §5; Sprint 31 D5).
   test "„Tops und Flops“ compact draws GET /api/v1/movers", %{conn: conn} do
     seed()
     doc = loaded(conn)
-    answer = api("/api/v1/movers?window=day")
+    answer = api("/api/v1/movers?window=1y")
     compact = compact(doc, "dashboard-movers")
 
     for half <- ~w(highest lowest) do

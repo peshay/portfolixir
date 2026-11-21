@@ -2119,8 +2119,8 @@ Wealth page mutes non-deployable rows and labels them with their role.
 
 The **Overview** entry (the start page, `/`) is a **dashboard** (ADR-0062,
 Sprint 31): its cards are **widgets**, each one existing read drawn in a
-frame — its title, an ⓘ with the read's computation basis, a ⋯ menu (empty
-for now: pinning a period and editing come later), the figures, and a
+frame — its title, an ⓘ with the read's computation basis, its period tag,
+a ⋯ menu (the widget's own period; editing comes later), the figures, and a
 footer naming the view it reads and the way to the full screen.
 
 - **A fresh instance stores nothing.** With no dashboard of your own, `/`
@@ -2137,6 +2137,31 @@ footer naming the view it reads and the way to the full screen.
   remembers stay as they are. A widget of a stored dashboard may read a view
   of its own; where that view has since been deleted, the widget reads the
   dashboard's scope and its footer says "Its view no longer exists · reads …".
+- **One period above every dashboard** (ADR-0062 §5). Beside the scope,
+  **1D · 1W · 1M · 3M · YTD · 1Y · 3Y · Max** (German 1T … 1J, 3J) sets the
+  period every widget that takes one reads; **1Y** is the default, as on
+  Wealth. The address carries it when it is not 1Y (`/?period=3m`), so a
+  link opens a dashboard on its period; a value that is no period opens
+  1Y. Your pick is remembered in this browser (as Wealth's period and the
+  theme are; nothing is stored on the server) and stays when you open
+  another dashboard. Under 600 px the periods are a strip of their own that
+  you swipe sideways.
+- **Each widget says which period it shows**, quietly beside its ⋯:
+  **follows · 3M** while it follows the bar; **no period** for a widget
+  whose read has none (Total value, Data quality, Due, Off target, Crashes
+  compared, Bitcoin cycle, Sale review, Snapshots); and where the widget
+  reads its nearest own window instead, both: **Tops and flops** reads
+  1D as Day, 1W as Week, 1M as Month, 3M as Quarter, YTD as YTD, and 1Y,
+  3Y and Max as 1Y, so at 3M it says **follows · 3M → Quarter**.
+- **A widget may pin its own period.** Its ⋯ menu offers **Set period**
+  with the periods its read takes; the pin is stored in the widget's item
+  of the layout (`settings.period`, one journaled write, as an agent's
+  `PUT /api/v1/dashboards/<id>` would store it) and drawn in the accent,
+  **📌 own: Max**, so a pinned figure is never read as the bar's. **Follows
+  the dashboard (…)** in the same menu removes the pin. The template is
+  read-only: its menu offers **Customize** instead. Where the dashboard was
+  changed elsewhere since the page read it (another tab, your agent), the
+  pin is not written: the page shows the dashboard as stored and says so.
 - **The width decides the layout, never the device.** From 1000 px the
   widgets stand on a 12-column grid at the places and sizes the layout
   gives them; from 600 px they stand in two columns, in the layout's
@@ -2291,10 +2316,11 @@ itself.
 
 The **Tops and flops** widget (FR-59, ADR-0061) answers "what moved, and what did it mean for
 me?" for the same scope as the value card — the default view, else
-**Everything**. A **Period** bar chooses the window: **Day**, **Week**,
-**Month**, **Quarter**, **YTD** or **1Y**, each to today; the choice is in
-the address (`/?movers_period=week`), so a reload or a shared link opens the
-same window, and without it the card opens on **Day**. Two columns stand
+**Everything**. Its window — **Day**, **Week**, **Month**, **Quarter**,
+**YTD** or **1Y**, each to today — is the dashboard's period (or the
+widget's pin) by the rule above: 1D is Day, 1W Week, 1M Month, 3M Quarter,
+YTD YTD, and 1Y, 3Y and Max are 1Y; the widget has no period chips of its
+own (Sprint 31, ADR-0062 §5). Two columns stand
 side by side where the widget is wide enough (stacked otherwise), each with
 its **Highest** over its **Lowest**, five each (under ten the list splits,
 no name stands in both halves, and two securities equal on every key stand

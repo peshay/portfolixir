@@ -14690,26 +14690,6 @@ dialog.merge-dialog {
   line-height: 1.2;
 }
 
-.widget__menu {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  width: 30px;
-  height: 30px;
-  margin-left: auto;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--color-text-muted);
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-
-.widget__menu:disabled {
-  cursor: default;
-}
-
 .widget__foot {
   display: flex;
   flex-wrap: wrap;
@@ -14943,3 +14923,210 @@ a.widget-row:hover .widget-row__name {
   }
 }
 /* --- S31 D3 end --- */
+
+/* --- S31 D5 begin --- */
+/* ===== One period above every dashboard (ADR-0062 §5, §6; idea board
+   ux-design-2026-11-21-idea-i56 05, A; planning board 01 ①; Sprint 31
+   D5) ===== */
+/* The period at the end of the bar's row, after the scope. In the compact
+   class it takes a row of its own, a strip the thumb swipes sideways
+   (ADR-0062 §6), its chips phone-sized (text 15 px, tap 44 px); the page
+   itself never scrolls sideways. */
+.dashboard-period {
+  min-width: 0;
+  max-width: 100%;
+  margin-left: auto;
+}
+
+@media (width < 600px) {
+  .dashboard-period {
+    flex: 1 0 100%;
+    margin-left: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .dashboard-period::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dashboard-period .segmented-control__option {
+    min-height: 44px;
+    padding-inline: var(--space-3);
+    font-size: 15px;
+    scroll-snap-align: start;
+  }
+}
+
+/* The widget's period tag, quiet beside the ⋯ (board 05 A): „folgt · 3M“
+   outlined, „📌 eigener: Max“ in the accent so a pinned figure is never
+   read as the top bar's, „ohne Zeitraum“ dashed. The title's block wraps,
+   so in a narrow widget the tag goes under the title, never past the
+   frame. */
+.dashboard-widget > .widget__head > .section-title {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.widget__period {
+  flex: none;
+  margin-left: auto;
+  padding: 1px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.widget__period--pinned {
+  border-color: transparent;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.widget__period--none {
+  border-style: dashed;
+  border-color: var(--color-border-strong);
+}
+
+/* The ⋯ menu: a disclosure the browser holds, its panel under the ⋯ at the
+   widget's right edge. */
+.widget__menu {
+  position: relative;
+  flex: none;
+  align-self: flex-start;
+}
+
+.widget__menu > summary {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-weight: 700;
+  letter-spacing: 1px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.widget__menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.widget__menu > summary:hover,
+.widget__menu[open] > summary {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+.widget__menu > summary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.widget__menu-panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  display: grid;
+  gap: var(--space-1);
+  width: max-content;
+  max-width: min(18rem, calc(100vw - 2rem));
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-panel);
+  font-size: 14px;
+}
+
+.widget__menu-note {
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text-muted);
+}
+
+.widget__menu-head {
+  margin: var(--space-1) 0 0;
+  padding: 0 var(--space-2);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.widget__menu-option {
+  justify-content: flex-start;
+  min-height: 32px;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  box-shadow: none;
+  color: var(--color-text);
+  font-weight: 500;
+  text-align: left;
+}
+
+.widget__menu-option:hover,
+.widget__menu-period:hover {
+  background: var(--color-hover);
+  filter: none;
+}
+
+.widget__menu-option.is-active {
+  font-weight: 700;
+}
+
+.widget__menu-option.is-active::before {
+  content: "● ";
+  color: var(--color-accent);
+}
+
+.widget__menu-periods {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.widget__menu-period {
+  justify-content: center;
+  width: 100%;
+  min-height: 32px;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: none;
+  box-shadow: none;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.widget__menu-period.is-active {
+  border-color: transparent;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+@media (pointer: coarse) {
+  .widget__menu > summary,
+  .widget__menu-option,
+  .widget__menu-period {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+/* --- S31 D5 end --- */

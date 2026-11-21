@@ -4,6 +4,13 @@ defmodule PortfolixirWeb.DashboardMoversTest do
   # card „Tops und Flops“, every figure on it compared with the API's answer
   # for the same window (`GET /api/v1/movers`, the Overview's scope when no
   # default view is set; the plan's D-1, criterion 7).
+  #
+  # Sprint 31 D5 (ADR-0062 §5; idea board ux-design-2026-11-21-idea-i56
+  # 05, A, which supersedes the window chips inside the widget): the
+  # dashboard's period above the widgets drives the card's window by the
+  # registry's rule (1T Day, 1W Week, 1M Month, 3M Quarter, YTD, 1J 1Y;
+  # 3J and Max read 1Y and say so), and the address carries it as
+  # `?period=`; dashboard_period_test.exs holds the period itself.
   use PortfolixirWeb.ConnCase
 
   import ExUnit.CaptureLog
@@ -29,7 +36,15 @@ defmodule PortfolixirWeb.DashboardMoversTest do
   alias Portfolixir.Settings
   alias PortfolixirWeb.Format
 
-  @windows ~w(day week month quarter ytd 1y)
+  # The dashboard's period for each of the read's windows.
+  @windows [
+    {"1d", "day"},
+    {"1w", "week"},
+    {"1m", "month"},
+    {"3m", "quarter"},
+    {"ytd", "ytd"},
+    {"1y", "1y"}
+  ]
 
   # Four securities priced every day of the last 400, each on its own slope;
   # the share stops two days ago (a weekend's „Tag“ is Friday against
@@ -109,9 +124,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     doc = document(view)
     assert [_card] = Floki.find(doc, "#dashboard-movers")
     assert Floki.find(doc, "[data-role='movers-skeleton']") == []
-
-    [active] = Floki.find(doc, "[data-role='movers-period'] [aria-current='true']")
-    assert attribute(active, "data-window") == window
+    assert doc |> Floki.find("#dashboard-movers") |> Floki.attribute("data-window") == [window]
     doc
   end
 
@@ -210,11 +223,12 @@ defmodule PortfolixirWeb.DashboardMoversTest do
   #
   # Acceptance criteria:
   # - The card „Tops and flops“ stands under the KPI strip, before the
-  #   closed trades and „Off target“, with the window as chips on the shared
-  #   control bar under „Period“: Day, Week, Month, Quarter, YTD, 1Y; Day
-  #   is the default.
-  # - Each chip patches the address (`?movers_period=`) and the card reads
-  #   that window in the background; every figure on it equals the API's
+  #   closed trades and „Off target“; its window is the dashboard's period
+  #   (Sprint 31 D5: 1Y by default), and it has no chips of its own.
+  # - Each period of the dashboard (1D, 1W, 1M, 3M, YTD, 1Y) patches the
+  #   address (`?period=`, none for 1Y) and the card reads its window (Day,
+  #   Week, Month, Quarter, YTD, 1Y) in the background; every figure on it
+  #   equals the API's
   #   answer for the same window: price return first, contribution beside
   #   it, each with its highest over its lowest, in the API's order, each
   #   name linking to its security.
@@ -229,11 +243,11 @@ defmodule PortfolixirWeb.DashboardMoversTest do
   #   another window whose last close is before the window's end names it.
   # - „View in Wealth →“ opens Wealth with the contribution's window as a
   #   custom range, and no `view=` (#1081's rule).
-  test "every figure on the card is the API's for each window the chips choose", %{conn: conn} do
+  test "every figure on the card is the API's for each window the period chooses", %{conn: conn} do
     %{today: today, share: share, sold: sold} = seed!()
 
     {:ok, view, _html} = live(conn, "/")
-    doc = loaded(view, "day")
+    doc = loaded(view, "1y")
 
     html = render(view)
     {strip_at, _} = :binary.match(html, ~s(id="dashboard-kpi-strip"))
@@ -242,21 +256,19 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     assert strip_at < card_at and card_at < trades_at
 
     assert doc |> Floki.find("#movers-title") |> text() == "Tops and flops"
-    assert doc |> Floki.find("[data-role='movers-bar'] .control-bar__label") |> text() == "Period"
+    assert Floki.find(doc, "[data-role='movers-bar']") == []
+    assert Floki.find(doc, "[data-role='movers-period']") == []
 
-    assert doc |> Floki.find("[data-role='movers-period'] a") |> Enum.map(&text/1) ==
-             ["Day", "Week", "Month", "Quarter", "YTD", "1Y"]
-
-    for window <- @windows do
+    for {period, window} <- @windows do
       doc =
-        if window == "day" do
+        if window == "1y" do
           doc
         else
           view
-          |> element("[data-role='movers-period'] a[data-window='#{window}']")
+          |> element("[data-role='dashboard-period'] button[data-period='#{period}']")
           |> render_click()
 
-          assert_patch(view, "/?movers_period=#{window}")
+          assert_patch(view, "/?period=#{period}")
           loaded(view, window)
         end
 
@@ -355,13 +367,15 @@ defmodule PortfolixirWeb.DashboardMoversTest do
   # so that the link shows what I saw.
   #
   # Acceptance criteria:
-  # - `/?movers_period=quarter` opens the card on „Quarter“, its figures the
-  #   API's for the quarter, its basis line naming the quarter's dates.
-  # - A value the card does not know opens „Day“.
+  # - `/?period=3m` opens the card on „Quarter“, its figures the API's
+  #   for the quarter, its basis line naming the quarter's dates
+  #   (Sprint 31 D5: the dashboard's period in the address).
+  # - `/?period=1d` opens it on „Day“; a value that is no period opens the
+  #   dashboard's default, 1J, the card on „1Y“.
   test "a handed-over link opens the card on its window", %{conn: conn} do
     %{today: today} = seed!()
 
-    {:ok, view, _html} = live(conn, "/?movers_period=quarter")
+    {:ok, view, _html} = live(conn, "/?period=3m")
     doc = loaded(view, "quarter")
     answer = assert_card_is_the_api(doc, "quarter")
 
@@ -371,7 +385,11 @@ defmodule PortfolixirWeb.DashboardMoversTest do
              "View Everything · Quarter: close #{Format.date(start_on)} to #{Format.date(today)}" <>
                " · in EUR, from stored closes and bookings"
 
-    {:ok, view, _html} = live(conn, "/?movers_period=decade")
+    {:ok, view, _html} = live(conn, "/?period=decade")
+    doc = loaded(view, "1y")
+    assert_card_is_the_api(doc, "1y")
+
+    {:ok, view, _html} = live(conn, "/?period=1d")
     doc = loaded(view, "day")
     answer = assert_card_is_the_api(doc, "day")
 
@@ -397,7 +415,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     seed!()
 
     {:ok, view, _html} =
-      conn |> put_preference_cookie("portfolixir_privacy", "on") |> live("/?movers_period=month")
+      conn |> put_preference_cookie("portfolixir_privacy", "on") |> live("/?period=1m")
 
     doc = loaded(view, "month")
     answer = api("/api/v1/movers?window=month")
@@ -453,16 +471,16 @@ defmodule PortfolixirWeb.DashboardMoversTest do
 
   # User story (board 04 ⑤, the states):
   # As the operator whose default view holds nothing yet,
-  # I want the card to keep its bar and say so in one sentence,
+  # I want the card to keep its frame and say so in one sentence,
   # so that an empty list is not mistaken for a quiet market.
   #
   # Acceptance criteria:
-  # - With a default view that holds no depot, the card shows the bar and
-  #   „No holdings in this view.“, no list and no link to Wealth, as the
+  # - With a default view that holds no depot, the card shows its period
+  #   tag and „No holdings in this view.“, no list and no link to Wealth, as the
   #   API's answer for that view holds nothing.
   # - While the card's read runs it shows its block skeleton, marked busy,
-  #   under the bar.
-  test "an empty view keeps the bar and says so; a loading card is busy", %{conn: conn} do
+  #   under its head.
+  test "an empty view keeps the frame and says so; a loading card is busy", %{conn: conn} do
     seed!()
 
     {:ok, empty} =
@@ -471,12 +489,12 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     :ok = set_default_view(empty.id)
 
     first = conn |> get("/") |> html_response(200) |> Floki.parse_document!()
-    assert [_bar] = Floki.find(first, "#dashboard-movers [data-role='movers-bar']")
+    assert [_tag] = Floki.find(first, "#dashboard-movers [data-role='widget-period']")
 
     assert [skeleton] = Floki.find(first, "#dashboard-movers [data-role='movers-skeleton']")
     assert attribute(skeleton, "aria-busy") == "true"
 
-    {:ok, view, _html} = live(conn, "/?movers_period=week")
+    {:ok, view, _html} = live(conn, "/?period=1w")
     doc = loaded(view, "week")
 
     answer = api("/api/v1/views/#{empty.id}/movers?window=week")
@@ -488,33 +506,32 @@ defmodule PortfolixirWeb.DashboardMoversTest do
 
     assert Floki.find(doc, "[data-role='movers-row']") == []
     assert Floki.find(doc, "[data-role='movers-wealth-link']") == []
-    assert [_bar] = Floki.find(doc, "#dashboard-movers [data-role='movers-bar']")
+
+    assert doc |> Floki.find("#dashboard-movers [data-role='widget-period']") |> text() ==
+             "follows · 1W"
   end
 
   # User story (board 04, the German labels):
   # As the operator reading the app in German,
-  # I want the card in German, the chips as the board names them,
+  # I want the card in German, its period as board 05 names it,
   # so that the card reads like the rest of the Overview.
   #
   # Acceptance criteria:
-  # - „Tops und Flops“, „Zeitraum“ with „Tag · Woche · Monat · Quartal ·
-  #   YTD · 1J“, „Kursrendite“ and „Beitrag“, each with „Höchste“ and
-  #   „Niedrigste“, „verkauft“, and „In Vermögen ansehen →“.
+  # - „Tops und Flops“, „folgt · 1W“ (at 3M „folgt · 3M → Quartal“, the
+  #   window it reads), „Kursrendite“ and „Beitrag“, each with „Höchste“
+  #   and „Niedrigste“, „verkauft“, and „In Vermögen ansehen →“.
   test "the card reads in German", %{conn: conn} do
     seed!()
 
     {:ok, view, _html} =
-      conn |> put_preference_cookie("portfolixir_locale", "de") |> live("/?movers_period=week")
+      conn |> put_preference_cookie("portfolixir_locale", "de") |> live("/?period=1w")
 
     doc = loaded(view, "week")
 
     assert doc |> Floki.find("#movers-title") |> text() == "Tops und Flops"
 
-    assert doc |> Floki.find("[data-role='movers-bar'] .control-bar__label") |> text() ==
-             "Zeitraum"
-
-    assert doc |> Floki.find("[data-role='movers-period'] a") |> Enum.map(&text/1) ==
-             ["Tag", "Woche", "Monat", "Quartal", "YTD", "1J"]
+    assert doc |> Floki.find("#dashboard-movers [data-role='widget-period']") |> text() ==
+             "folgt · 1W"
 
     assert doc |> Floki.find("[data-role='movers-return'] h3") |> text() == "Kursrendite"
     assert doc |> Floki.find("[data-role='movers-contribution'] h3") |> text() == "Beitrag"
@@ -526,16 +543,25 @@ defmodule PortfolixirWeb.DashboardMoversTest do
 
     assert doc |> Floki.find("[data-role='movers-wealth-link']") |> text() ==
              "In Vermögen ansehen →"
+
+    view
+    |> element("[data-role='dashboard-period'] button[data-period='3m']")
+    |> render_click()
+
+    doc = loaded(view, "quarter")
+
+    assert doc |> Floki.find("#dashboard-movers [data-role='widget-period']") |> text() ==
+             "folgt · 3M → Quartal"
   end
 
   # User story (board 04, the states; #1351's clamped failure note):
   # As the operator landing on the Overview while the card's read fails,
-  # I want the card to say so in a problem note and keep its bar,
+  # I want the card to say so in a problem note and keep its frame,
   # so that an empty card is never mistaken for a quiet market.
   #
   # Acceptance criteria:
   # - A read that fails renders „Couldn't load the tops and flops.“ as a
-  #   clamped problem note under the bar, and the page stays up.
+  #   clamped problem note under its head, and the page stays up.
   test "a read that fails shows the card's clamped problem note", %{conn: conn} do
     seed!()
 
@@ -555,7 +581,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
                "Couldn't load the tops and flops."
              )
 
-      assert has_element?(view, "#dashboard-movers [data-role='movers-bar']")
+      assert has_element?(view, "#dashboard-movers [data-role='widget-period']")
       assert Process.alive?(view.pid)
     end)
   end
@@ -587,7 +613,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     # explicit choice of another view.
     conn = put_preference_cookie(conn, "portfolixir_view", Integer.to_string(chosen.id))
 
-    {:ok, view, _html} = live(conn, "/?movers_period=month")
+    {:ok, view, _html} = live(conn, "/?period=1m")
     doc = loaded(view, "month")
     assert doc |> Floki.find("[data-role='movers-basis']") |> text() =~ "View Everything"
 
@@ -605,7 +631,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     {:ok, wealth, _html} = live(conn, attribute(link, "href"))
     assert :sys.get_state(wealth.pid).socket.assigns.active_view_id == chosen.id
 
-    {:ok, view, _html} = live(get(conn, "/?locale=de"), "/?locale=de&movers_period=month")
+    {:ok, view, _html} = live(get(conn, "/?locale=de"), "/?locale=de&period=1m")
     doc = loaded(view, "month")
 
     assert wealth_view(doc) ==
@@ -624,7 +650,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
 
     :ok = set_default_view(default.id)
 
-    {:ok, view, _html} = live(conn, "/?movers_period=month")
+    {:ok, view, _html} = live(conn, "/?period=1m")
     doc = loaded(view, "month")
 
     assert doc |> Floki.find("[data-role='movers-basis']") |> text() =~
@@ -633,7 +659,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     assert Floki.find(doc, "[data-role='movers-wealth-view']") == []
 
     conn = put_preference_cookie(conn, "portfolixir_view", "total")
-    {:ok, view, _html} = live(conn, "/?movers_period=month")
+    {:ok, view, _html} = live(conn, "/?period=1m")
     doc = loaded(view, "month")
 
     assert wealth_view(doc) ==
@@ -665,7 +691,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     deliver_untraded!(world, late, "1", date: Date.add(today, -400))
     put_quotes!(late, [{Date.add(today, -1), "40"}, {today, "41"}])
 
-    {:ok, view, _html} = live(conn, "/?movers_period=1y")
+    {:ok, view, _html} = live(conn, "/")
     doc = loaded(view, "1y")
 
     [row] =

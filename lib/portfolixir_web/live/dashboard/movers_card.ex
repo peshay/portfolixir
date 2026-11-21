@@ -5,8 +5,9 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
   A1; Sprint 30, T3).
 
   Every figure it shows is `Portfolixir.Portfolios.Performance.Movers.read/3`
-  for the Overview's scope (the default view, else everything) and the
-  window the chips choose, the read `GET /api/v1/views/:view_id/movers` and
+  for the widget's scope (the default view, else everything) and the
+  window its period reads (the dashboard's period, or the widget's pin,
+  translated by the registry's rule, ADR-0062 §5), the read `GET /api/v1/views/:view_id/movers` and
   `GET /api/v1/movers` answer, so the screen and the agent read one ranking.
   The page loads it in the background (`PortfolixirWeb.DashboardLive`) and
   hands it here; this module only draws.
@@ -18,9 +19,10 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
       „View in Wealth →“, Wealth with the contribution's window as a
       custom range and no `view=` (#1081's rule: a link does not change
       the view Wealth remembers);
-    * the window as one group „Period“ of the shared control bar
-      (`PortfolixirWeb.ControlBar.bar/1`), its chips patch links that keep
-      the window in the address (`?movers_period=`);
+    * no control of its own: the period above the dashboard drives it,
+      and the frame says which window it reads („folgt · 3M → Quartal“;
+      board 05 A supersedes the window chips boards 01 and 03 drew inside
+      the widget; Sprint 31 D5);
     * one basis line: the view, the window and its dates, the currency;
       where the view Wealth remembers is not the card's, one sentence under
       it names both, so the link's reader knows Wealth shows another scope
@@ -49,30 +51,15 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias PortfolixirWeb.AppShell
-  alias PortfolixirWeb.ControlBar
   alias PortfolixirWeb.Dashboard.Widget
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.StoredText
-
-  @windows ~w(day week month quarter ytd 1y)
-  @default_window "day"
 
   # The contribution table's bar scale (DESIGN.md → Drift bars): the largest
   # listed fills 45 % of the track.
   @bar_reach 45
 
   @price_reasons [:no_close_at_start, :no_close_at_end, :no_fx_rate, :one_close_only]
-
-  @doc "The address key the window travels under."
-  def param, do: "movers_period"
-
-  @doc """
-  The window an address names: one of the read's windows, else „Day“, the
-  default (a value the card does not know opens the default).
-  """
-  @spec window(term()) :: String.t()
-  def window(value) when value in @windows, do: value
-  def window(_value), do: @default_window
 
   attr(:item, :map,
     required: true,
@@ -88,13 +75,12 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
     doc: "the view Wealth remembers (`LiveViewScope`), nil for Everything"
   )
 
-  attr(:path, :string, default: "/", doc: "the dashboard's own path, which the chips patch")
-  attr(:scope_param, :string, default: nil, doc: "the dashboard's `?scope=`, kept by the chips")
   attr(:scope_label, :string, default: nil, doc: "the footer's scope")
 
   @doc """
   The widget „Tops und Flops“ (ADR-0062 §12): the Overview's card in the
-  widget's frame, its window chips kept, its link to Wealth in the footer,
+  widget's frame, its window the item's period (`window`, which the frame
+  names on `data-window`), its link to Wealth in the footer,
   and its compact form — the two halves as a two-way switch, one name and
   one figure per row (board 06).
   """
@@ -115,6 +101,7 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
       full_href={@f && @f.wealth_href}
       full_label={gettext("View in Wealth →")}
       full_role="movers-wealth-link"
+      data-window={@window}
     >
       <:info>
         <%= gettext(
@@ -141,28 +128,6 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
           "Day: since each security's previous close, the two dates at the row; the contribution of the latest day with a close."
         ) %>
       </:info>
-      <:controls>
-        <ControlBar.bar fold={560} floor={380} data-role="movers-bar">
-          <:group label={gettext("Period")} label_id={"movers-period-label" <> @uid}>
-            <div
-              class="segmented-control"
-              data-role="movers-period"
-              role="group"
-              aria-labelledby={"movers-period-label" <> @uid}
-            >
-              <.link
-                :for={{key, label} <- windows()}
-                patch={window_href(@path, key, @scope_param)}
-                class={["segmented-control__option", @window == key && "is-active"]}
-                data-window={key}
-                aria-current={if @window == key, do: "true"}
-              >
-                <%= label %>
-              </.link>
-            </div>
-          </:group>
-        </ControlBar.bar>
-      </:controls>
       <:shared>
         <%= cond do %>
           <% is_nil(@card) -> %>
@@ -231,12 +196,6 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
       </:compact>
     </Widget.frame>
     """
-  end
-
-  # The chips keep the dashboard's own path and its `?scope=`.
-  defp window_href(path, key, scope_param) do
-    query = if scope_param, do: [{"scope", scope_param}], else: []
-    path <> "?" <> URI.encode_query(query ++ [{param(), key}])
   end
 
   attr(:f, :map, required: true)
@@ -485,7 +444,14 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
     ]
   end
 
-  defp window_label(window), do: windows() |> List.keyfind(window, 0) |> elem(1)
+  @doc "The name of one of the read's windows („Quartal“), `nil` for another value."
+  @spec window_label(term()) :: String.t() | nil
+  def window_label(window) do
+    case List.keyfind(windows(), window, 0) do
+      {^window, label} -> label
+      nil -> nil
+    end
+  end
 
   defp half_label(:highest), do: gettext("Highest")
   defp half_label(:lowest), do: gettext("Lowest")
