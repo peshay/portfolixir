@@ -5296,6 +5296,29 @@ dropped by the next save, not refused; every other `view_id` must name a
 view. Keys are matched as strings and no atom is made from one; the name
 is stored as text and drawn escaped.
 
+**MCP.** Four tools call these routes. `portfolixir.dashboards.list` reads
+`GET /api/v1/dashboards` and `GET /api/v1/widgets` and answers both as
+`{"data": {"dashboards", "widgets"}}`: the menu and the catalogue in one
+call, so the catalogue needs no tool of its own. `portfolixir.dashboards.get`
+reads one dashboard by `id`, or a template by `template` (its key). Both
+are reads in every profile and answer compact JSON.
+`portfolixir.dashboards.put` writes: without `id`, it creates from
+`dashboard` `{name, layout}`, or copies `template` under `dashboard.name`;
+with `id` and a `layout` it replaces (`PUT`, with `lock_version`), and
+with `id` and no layout it renames or moves (`PATCH`, `lock_version`
+optional). It is a write in `book` and `full`, kept there because putting
+the previous name, layout or place back restores them.
+`portfolixir.dashboards.delete` takes `id` and `dry_run`; it is admin.
+The companion checks a layout's shape before any request (an item's keys,
+a size among `S`, `W`, `M`, `T` and `L`, `col` 1 to 12, at most 40 items, a
+name of at most 60 characters); the API checks the rest and its refusals
+reach the agent as the tool's error, a stale `lock_version`'s `409` with
+the stored dashboard among them. An agent asked for „a dashboard for
+short-term movements“ reads `list`, picks the kinds whose period rule
+answers the short periods (the tops and flops, the performance), pins
+`settings.period` where a widget should not follow the dashboard's
+period, and writes one `put`, journaled under its token.
+
 ## Imports
 
 Portfolio Performance imports (CSV/JSON v1) run through the **Imports view**
@@ -5603,6 +5626,10 @@ since a repeat adds another version; `portfolixir.crashes.put` is routed
 through `PUT` with a key (a name, or a manual window's fields, overwritten)
 and through `POST` without one (a new manual window), so it is destructive,
 and not idempotent, since a repeat without a key adds another window;
+`portfolixir.dashboards.put` is routed through `PUT` (a replace) or `PATCH`
+(a rename or a move) with an id and through `POST` without one (a new
+dashboard or a template's copy), so it is destructive, and not idempotent,
+since a repeat without an id adds another dashboard;
 `openWorldHint` is true for
 `portfolixir.securities.search_online`, `portfolixir.quotes.sync` and
 `portfolixir.exchange_rates.sync`, which reach an external provider, and for
