@@ -197,7 +197,7 @@ function board01() {
   ];
   const rows = catalog.map(([g, ws]) => ws.map(([n, sz, today, hot], i) => `<tr${hot ? ' class="hot"' : ''}>${i === 0 ? `<td class="grp" rowspan="${ws.length}">${g}</td>` : ''}<td>${n}${hot ? ' <span class="mock-tag mock-tag--alt" style="margin:0 0 0 4px;padding:0 6px;font-size:9.5px">von dir: versteckt</span>' : ''}</td><td>${sz.split(' ').map((z) => `<span class="wd-sz">${z}</span>`).join('')}</td><td class="wd-muted">${today}</td></tr>`).join('')).join('');
   return page('Idee I56 — das Widget', `
-<header class="mock-board mock-head"><h1>Idee I56 · 1 von 4 — das Widget als Baustein ${SYN}</h1>
+<header class="mock-board mock-head"><h1>Idee I56 · 1 von 6 — das Widget als Baustein ${SYN}</h1>
 <p class="mock-note">Ideen-Board vom 21.11.2026, kein Sprint-Board. Jede Funktion wird ein Widget: <b>eine Abfrage der bestehenden JSON-API plus ihre Darstellung</b>. Browser, Handy und später native Widgets lesen dieselbe Antwort. Alle Namen und Zahlen sind erfunden. Farben und Karten bleiben wie heute; die Farbfrage ist I48 mit eigenem Board.</p></header>
 
 <section class="mock-board"><h2>Anatomie <small>jedes Widget hat dieselben fünf Teile</small></h2>
@@ -229,7 +229,7 @@ function board02() {
   const shellA = `<div class="wd-shell" style="min-height:430px">${sidebarA()}<div class="wd-main"><div class="wd-top"><h3>Mein Überblick</h3><span class="mock-select">Gesamt ▾</span><span class="wd-sp"></span><span class="wd-btn">Vorlagen</span><span class="wd-btn wd-btn--acc">Bearbeiten</span></div>${miniA}</div></div>`;
   const shellB = `<div class="wd-shell" style="min-height:430px"><aside class="wd-side"><div class="wd-brand">Portfolixir</div><a><span class="wd-ico">⌂</span>Übersicht</a><a class="on"><span class="wd-ico">◔</span>Vermögen</a><a><span class="wd-ico">◎</span>Wertpapiere</a><a><span class="wd-ico">☰</span>News</a><h5>Daten</h5><a class="quiet">Transaktionen</a><a class="quiet">Konten &amp; Depots</a><a class="quiet">Ansichten</a><a class="quiet">Klassifizierungen</a><a class="quiet">Audit-Journal</a><h5>Meine Dashboards</h5><a>▦ Kurzfristig</a><a class="add">+ Neues Dashboard</a></aside><div class="wd-main"><div class="wd-top"><h3>Vermögen</h3><span class="wd-sp"></span><span class="wd-btn">Bearbeiten</span></div><div class="wd-tabs"><span class="on">Bestände</span><span>Allokation &amp; Ziele</span><span>Cashflow</span><span>Snapshots</span><span>Steuer</span><span>Risiko</span><span>Prognosen</span></div><div class="wd-mini"><div class="l">Wertentwicklung nach Kategorien</div><div class="t">Allokation</div><div class="m">Positionen</div><div class="m">Cash-Konten</div></div></div></div>`;
   return page('Idee I56 — Navigation', `
-<header class="mock-board mock-head"><h1>Idee I56 · 2 von 4 — wohin das Menü führt ${SYN}</h1>
+<header class="mock-board mock-head"><h1>Idee I56 · 2 von 6 — wohin das Menü führt ${SYN}</h1>
 <p class="mock-note">Deine offene Frage: Wird das Menü zur Liste der Dashboards, oder bleiben die heutigen Bereiche und Dashboards kommen dazu? Beide Varianten in derselben Breite, mit denselben Widgets.</p>
 <div class="mock-pickbar"><p><b>Zur Wahl:</b> A oder B. Empfohlen ist <b>A</b>: Mit B bleiben die sieben Tabs und mit ihnen das Verstecken. Drift, Snapshots und Crashes lägen weiter im 2., 4. und 6. Tab. A stellt dieselben Widgets auf Dashboards nach Thema zusammen, und jedes Dashboard ist veränderbar.</p><p><b>Umdrehen mit:</b> „Bereiche behalten“ (B).</p></div></header>
 
@@ -262,7 +262,7 @@ function board03() {
 <div class="wd-sub" style="margin-top:8px">Ziehen oder antippen. Dein Agent kann dasselbe über API und MCP.</div></div>`;
   const tpl = (name, desc, cells) => `<div class="wd-tpl"><div class="wd-mini">${cells.map((c) => `<div class="${c}"></div>`).join('')}</div><b>${name}</b><span class="wd-muted">${desc}</span></div>`;
   return page('Idee I56 — ein Dashboard', `
-<header class="mock-board mock-head"><h1>Idee I56 · 3 von 4 — ein Dashboard, bearbeitet und als Vorlage ${SYN}</h1>
+<header class="mock-board mock-head"><h1>Idee I56 · 3 von 6 — ein Dashboard, bearbeitet und als Vorlage ${SYN}</h1>
 <p class="mock-note">„Mein Überblick“, gebaut aus dem, was du am meisten liest. Oben: Hauptchart mit Kategorien und Zeitraum im Widget. Daneben: die Drift-Tabelle, heute im 2. Tab. Dazu Tops und Flops, Crashes (heute im 6. Tab), Zyklus, eingeordnete Nachrichten und Snapshots (heute im 4. Tab). Ein 12-Spalten-Raster: S = 3 Spalten, M = 6, L = 8 × 3 Zeilen, T = 4 × 3 (hoch), W = 6 × 1 (breit).</p></header>
 
 <section class="mock-board"><span class="mock-tag mock-tag--rec">Ansehen</span><h2>Mein Überblick <small>Desktop, 1120 px</small></h2>
@@ -287,13 +287,11 @@ ${tpl('Einkommen &amp; Steuer', 'Einkommen, Kosten, Realisiert, Freibetrag', ['w
 function board04() {
   const phone = [W.total(), W.quality(), W.perfM('m'), W.movers('m'), W.drift('m', false)].join('').replace(/<span class="wd-chips">(<span[^>]*>1W<\/span>)/, '<span class="wd-chips">');
   return page('Idee I56 — Geräte', `
-<header class="mock-board mock-head"><h1>Idee I56 · 4 von 4 — dasselbe Widget auf jedem Gerät ${SYN}</h1>
-<p class="mock-note">Weil ein Widget nur eine API-Antwort in fester Größe ist, trägt das Prinzip über den Browser hinaus. Links das, was im Rahmen der Idee gebaut würde: das Handy im Browser und als Home-Bildschirm-App (I53, Schritt 1). Rechts das, was <b>später</b> kommt: native Widgets in einem eigenen Repository (I53, Schritt 3, eine eigene Planentscheidung).</p></header>
+<header class="mock-board mock-head"><h1>Idee I56 · 4 von 6 — dasselbe Widget auf jedem Gerät ${SYN}</h1>
+<p class="mock-note">Weil ein Widget nur eine API-Antwort in fester Größe ist, trägt das Prinzip über den Browser hinaus. Hier steht, was <b>später</b> kommt: native Widgets in einem eigenen Repository (I53, Schritt 3, eine eigene Planentscheidung). Die App im Handy-Browser und als Home-Bildschirm-App zeigt Board 6 in jeder Größe; die erste Fassung dieses Boards zeichnete dort zu gequetscht.</p></header>
 
-<section class="mock-board"><h2>Handy <small>dasselbe Dashboard, gestapelt; S teilt sich eine Zeile</small></h2>
-<div class="wd-dev"><div><div class="wd-phone"><div class="wd-top" style="margin:0 2px 8px"><h3 style="font-size:15px">Mein Überblick</h3><span class="wd-sp"></span><span class="wd-btn" style="padding:2px 8px">☰</span></div><div class="wd-grid">${phone}</div></div><p class="wd-cap">Die Reihenfolge ist die des Desktop-Rasters, von links oben nach rechts unten. L und T werden auf dem Handy zu M, Voll bleibt eine eigene Seite.</p></div>
-
-<div><div class="wd-home"><div class="ios"><div class="nw s2"><div class="t">Gesamtwert</div><div class="k">${eur(last)}</div><div style="color:#0f766e;font-weight:700">+1,24 % heute</div></div><div class="app"></div><div class="app"></div><div class="app"></div><div class="app"></div><div class="nw m4"><div class="t">Tops und Flops · Woche</div><div style="display:flex;justify-content:space-between;margin-top:4px"><span>Halbleiter AG</span><b style="color:#0f766e">+6,8 %</b></div><div style="display:flex;justify-content:space-between"><span>Welt-ETF</span><b style="color:#0f766e">+2,1 %</b></div><div style="display:flex;justify-content:space-between"><span>Krypto-Münze</span><b style="color:#ce1b42">−5,2 %</b></div></div><div class="app"></div><div class="app"></div><div class="app"></div><div class="app"></div><div class="app"></div><div class="app"></div><div class="app"></div><div class="app"></div></div></div><p class="wd-cap"><span class="mock-tag mock-tag--before" style="margin:0">später</span> iOS-Home-Bildschirm: S als kleines, M als mittleres natives Widget, aus demselben Katalog gewählt.</p></div></div></section>
+<section class="mock-board"><h2>iPhone-Home-Bildschirm <small>später; die Handy-Ansicht der App selbst zeigt Board 6</small></h2>
+<div class="wd-dev"><div><div class="wd-home"><div class="ios"><div class="nw s2"><div class="t">Gesamtwert</div><div class="k">${eur(last)}</div><div style="color:#0f766e;font-weight:700">+1,24 % heute</div></div><div class="app"></div><div class="app"></div><div class="app"></div><div class="app"></div><div class="nw m4"><div class="t">Tops und Flops · Woche</div><div style="display:flex;justify-content:space-between;margin-top:4px"><span>Halbleiter AG</span><b style="color:#0f766e">+6,8 %</b></div><div style="display:flex;justify-content:space-between"><span>Welt-ETF</span><b style="color:#0f766e">+2,1 %</b></div><div style="display:flex;justify-content:space-between"><span>Krypto-Münze</span><b style="color:#ce1b42">−5,2 %</b></div></div><div class="app"></div><div class="app"></div><div class="app"></div><div class="app"></div><div class="app"></div><div class="app"></div><div class="app"></div><div class="app"></div></div></div><p class="wd-cap"><span class="mock-tag mock-tag--before" style="margin:0">später</span> iOS-Home-Bildschirm: S als kleines, M als mittleres natives Widget, aus demselben Katalog gewählt.</p></div></div></section>
 
 <section class="mock-board"><h2>Schreibtisch und Wand <small>später, eigenes Repository</small></h2>
 <div class="wd-dev">
@@ -303,7 +301,91 @@ function board04() {
 <p class="mock-note" style="margin-top:14px"><b>Was das technisch heißt:</b> Ein natives Widget holt sich bei jeder Aktualisierung seine API-Antwort mit eigenem Token, ganz wie ein Agent. Push-Nachrichten an externe Geräte sind gesperrt (B3.7), werden dafür aber nicht gebraucht. Erreichbar ist die Instanz, wo sie heute erreichbar ist (Heimnetz, VPN, eigener Proxy). Die Apps lägen in einem eigenen Repository und lesen nur die API.</p></section>`);
 }
 
-const boards = { '01-widget': board01, '02-navigation': board02, '03-dashboard': board03, '04-devices': board04 };
+// ---------- board 05: the period ----------
+const PERIODS = ['1T', '1W', '1M', '3M', 'YTD', '1J', '3J', 'Max'];
+const pchips = (on) => `<span class="pd-chips">${PERIODS.map((p) => `<span${p === on ? ' class="on"' : ''}>${p}</span>`).join('')}</span>`;
+const phead = (t, badge) => `<div class="wd-h"><span class="wd-t">${t}</span><span class="wd-i">i</span><span class="wd-sp"></span>${badge}<span class="wd-more">⋯</span></div>`;
+function board05() {
+  const perf = (badge, vals, sub, extra = '') => `<section class="wd wd--m" style="position:relative">${phead('Wertentwicklung', badge)}<div class="wd-sub" style="margin:-2px 0 4px">${sub}</div><div class="wd-body">${lineChart(vals, null, 460, 150, null)}</div>${foot('Gesamt · alle Depots', 'Ganze Ansicht')}${extra}</section>`;
+  const menu = `<div class="pd-menu"><div class="hl">● Folgt dem Dashboard (3M)</div><div>Eigener Zeitraum …</div><hr><div>Größe</div><div>Ansicht: Gesamt</div><div>Entfernen</div></div>`;
+  const grid = [
+    perf('<span class="pd-follow">folgt · 3M</span>', total.slice(-65), '<b class="pos">+4,8 %</b> TTWROR in 3 Monaten'),
+    perf('<span class="pd-pin">📌 eigener: Max</span>', total.map((v, i) => v * (0.55 + (0.45 * i) / total.length)), '<b class="pos">+86,0 %</b> TTWROR seit Beginn · bleibt bei Max, egal was oben gewählt ist'),
+    `<section class="wd wd--m">${phead('Tops und Flops', '<span class="pd-follow">folgt · 3M → Quartal</span>')}<div class="wd-sub" style="margin:-2px 0 6px">Das Widget kennt Tag, Woche, Monat, Quartal, YTD und 1 Jahr; 3M wird zum laufenden Quartal, und das steht hier.</div><div class="wd-two"><div><h4>Höchste</h4><table class="wd-tab"><tr><td>Halbleiter AG</td><td class="num pos">+14,2 %</td></tr><tr><td>Welt-ETF</td><td class="num pos">+5,0 %</td></tr></table></div><div><h4>Niedrigste</h4><table class="wd-tab"><tr><td>Krypto-Münze</td><td class="num neg">−9,8 %</td></tr><tr><td>Autobauer Süd</td><td class="num neg">−6,1 %</td></tr></table></div></div>${foot('', 'In Vermögen')}</section>`,
+    `<section class="wd wd--m">${phead('Bitcoin-Zyklus', '<span class="pd-na">ohne Zeitraum</span>')}<div class="wd-body">${cycleMini(460, 140)}</div><div class="wd-sub">Zeigt immer alle Zyklen plus Prognose; der Zeitraum oben gilt hier nicht, und das Etikett sagt es.</div></section>`,
+  ].join('');
+  const mini = (name, cells) => `<div class="mock-frame" style="padding:10px 12px"><div class="pd-bar" style="margin:0 0 8px"><b style="font-size:13px">${name}</b><span class="wd-sp" style="flex:1"></span>${pchips('3M')}</div><div class="wd-mini">${cells}</div></div>`;
+  return page('Idee I56 — der Zeitraum', `
+<header class="mock-board mock-head"><h1>Idee I56 · 5 von 6 — ein Zeitraum für alles, Ausnahmen festgepinnt ${SYN}</h1>
+<p class="mock-note">Deine zwei Wünsche widersprechen sich nur scheinbar: meistens sollen <b>alle Dashboards denselben Zeitraum</b> zeigen, manchmal soll <b>dasselbe Widget mit zwei Zeiträumen nebeneinander</b> stehen. Der Vorschlag: Der Zeitraum ist eine Auswahl oben, die für alle Dashboards gilt und beim Wechsel bleibt. Ein Widget folgt ihr, bis man ihm im ⋯-Menü einen eigenen gibt; dann trägt es eine Marke.</p>
+<div class="mock-pickbar"><p><b>Zur Wahl:</b> A, B oder C (Tabelle unten). Empfohlen ist <b>A</b>.</p><p><b>Umdrehen mit:</b> „Zeitraum je Widget“ (B) oder „Zeitraum je Dashboard“ (C).</p></div></header>
+
+<section class="mock-board"><span class="mock-tag mock-tag--rec">A · empfohlen</span><h2>Ein Zeitraum oben, ein Widget darf abweichen</h2>
+<p class="mock-note">Oben 3M. Das erste Chart folgt und sagt es leise („folgt · 3M“). Das zweite ist auf Max festgepinnt und zeigt das in Akzentfarbe, damit niemand eine Max-Zahl für eine 3M-Zahl hält. Tops und Flops übersetzt 3M in seinen nächsten eigenen Zeitraum und sagt auch das. Der Zyklus hat keinen Zeitraum. Rechts oben das ⋯-Menü des ersten Charts.</p>
+<div class="mock-frame"><div class="pd-bar" style="margin:0 0 12px"><h3 style="margin:0;font-size:16px">Mein Überblick</h3><span class="mock-select">Gesamt ▾</span><span style="flex:1"></span>${pchips('3M')}</div>
+<div class="wd-grid">${grid.replace('<section class="wd wd--m" style="position:relative">', '<section class="wd wd--m" style="position:relative;overflow:visible">').replace(foot('Gesamt · alle Depots', 'Ganze Ansicht') + '</section>', foot('Gesamt · alle Depots', 'Ganze Ansicht') + menu + '</section>')}</div></div></section>
+
+<section class="mock-board"><h2>Der Zeitraum bleibt beim Wechsel <small>von „Mein Überblick“ zu „Risiko &amp; Crashes“</small></h2>
+<p class="mock-note">Der gewählte Zeitraum hängt an dir, nicht am Dashboard: Er wird gemerkt (wie heute Thema und Sprache) und gilt auf jedem Dashboard, bis du ihn änderst. Ein Link auf ein Dashboard darf ihn mitgeben, etwa „Performance auf YTD“.</p>
+<div style="display:grid;grid-template-columns:1fr 40px 1fr;gap:8px;align-items:center">${mini('Mein Überblick', '<div class="s">Gesamtwert</div><div class="s">Datenqualität</div><div class="s">Fällig</div><div class="s">Konzentration</div><div class="l">Wertentwicklung · folgt 3M</div><div class="t">Allokation und Drift</div>')}<div style="text-align:center;font-size:22px;color:var(--color-accent)">→</div>${mini('Risiko &amp; Crashes', '<div class="s">Volatilität · folgt 3M</div><div class="s">Max. Drawdown · folgt 3M</div><div class="s">Konzentration</div><div class="s">Grenzen</div><div class="l">Crashes im Vergleich · ohne Zeitraum</div><div class="t">Kennzahlen · folgt 3M</div>')}</div></section>
+
+<section class="mock-board"><h2>Die drei Möglichkeiten</h2>
+<div class="mock-frame"><table class="pd-var"><tr><th></th><th>Wo der Zeitraum sitzt</th><th>Alle Dashboards gleich</th><th>Zwei Zeiträume nebeneinander</th><th>Preis</th></tr>
+<tr class="rec"><td><b>A</b> · empfohlen</td><td>oben, für alle; ein Widget kann sich festpinnen</td><td>ja, von selbst</td><td>ja, ein Widget festpinnen</td><td>eine Marke am Widget und eine Regel, wie ein Widget einen Zeitraum übersetzt, den es nicht kennt</td></tr>
+<tr><td><b>B</b></td><td>in jedem Widget (Board 1 bis 3)</td><td>nein: jedes Widget einzeln umstellen</td><td>ja</td><td>ein Zeitraum-Wechsel sind viele Klicks</td></tr>
+<tr><td><b>C</b></td><td>oben, je Dashboard</td><td>nein: jedes Dashboard merkt sich seinen</td><td>nein, nur über ein zweites Dashboard</td><td>beim Wechsel springt der Zeitraum</td></tr></table></div></section>`);
+}
+
+// ---------- board 06: screen formats ----------
+function compactScreen(opts) {
+  const { w, h, cls = '', two = false, tab = true, more = false } = opts;
+  const vals = total.slice(-65);
+  const cTotal = `<div class="cp"><div class="cp-h">Gesamtwert</div><div class="cp-k">${eur(last)}</div><div class="cp-s"><span class="pos" style="font-weight:700">+1,24 %</span> heute · <span class="pos">+2.980 €</span></div><div style="margin-top:8px">${spark(total.slice(-60), 300, 40)}</div></div>`;
+  const cQual = `<div class="cp"><div class="cp-line"><span class="wd-dot" style="margin:0"></span><span><b>Datenqualität</b> · 2 Hinweise</span><span class="chev">›</span></div></div>`;
+  const cPerf = `<div class="cp"><div class="cp-h">Wertentwicklung <small>folgt · 3M</small></div><div class="cp-k2 pos">+4,8 %</div><div class="cp-s" style="margin-bottom:6px">TTWROR · Welt-Index +3,1 %</div>${lineChart(vals, null, 340, 170, ['Aug', 'Okt', 'Nov'])}</div>`;
+  const cMov = `<div class="cp"><div class="cp-h">Tops und Flops <small>Quartal</small></div><div class="cp-seg"><span class="on">Höchste</span><span>Niedrigste</span></div>${[['Halbleiter AG', 14.2, 2420], ['Welt-ETF', 5.0, 1980], ['Netz Versorger', 3.9, 410]].map(([n, p, e]) => `<div class="cp-r"><div class="n">${n}<small>+${eur(e)} Beitrag</small></div><div class="v pos">${pct(p)}</div></div>`).join('')}</div>`;
+  const cDrift = `<div class="cp"><div class="cp-h">Drift <small>±3 Punkte</small></div>${[['Aktien Europa', 21.0, 25, -4.0], ['Krypto', 13.6, 10, 3.6], ['Aktien Welt', 41.2, 40, 1.2]].map(([n, i, z, d]) => `<div class="cp-r"><div class="n">${n}<small>${nf(1).format(i)} % · Soll ${z} %</small></div><div class="v" style="${Math.abs(d) > 3 ? 'color:var(--color-warning)' : 'color:var(--color-text-muted);font-weight:600'}">${d > 0 ? '+' : '−'}${nf(1).format(Math.abs(d))} Pkt.</div></div>`).join('')}</div>`;
+  const cSnap = `<div class="cp"><div class="cp-h">Snapshots <small>14</small></div><div class="cp-r"><div class="n">01.11.2026<small>letzter Snapshot</small></div><div class="v pos">+2,3 %</div></div></div>`;
+  const cNews = `<div class="cp"><div class="cp-h">Nachrichten <small>eingeordnet</small></div>${[['Halbleiter AG hebt die Jahresprognose an', 'hoch · Agentur'], ['Notenbank lässt den Leitzins unverändert', 'hoch · Agentur']].map(([t, m]) => `<div class="cp-r"><div class="n">${t}<small>${m}</small></div></div>`).join('')}</div>`;
+  const body = two
+    ? `<div class="cp-col two"><div class="cp-stack">${cPerf}${cDrift}${more ? cNews : ''}</div><div class="cp-stack">${cTotal}${cQual}${cMov}${more ? cSnap : ''}</div></div>`
+    : `<div class="cp-col">${cTotal}${cQual}${cPerf}${cMov}${cDrift}</div>`;
+  const tabbar = tab ? `<div class="cp-tabbar"><span class="on"><b>▦</b>Dashboards</span><span><b>◎</b>Wertpapiere</span><span><b>☰</b>Nachrichten</span><span><b>⋯</b>Mehr</span></div>` : '';
+  return `<div class="cp-dev ${cls}" style="width:${w}px;height:${h}px"><div class="cp-status">9:41</div><div class="cp-appbar"><h3>Mein Überblick ▾</h3><span class="cp-sel">Gesamt</span></div><div class="cp-period">${PERIODS.map((p) => `<span${p === '3M' ? ' class="on"' : ''}>${p}</span>`).join('')}</div>${body}${tabbar}</div>`;
+}
+function board06() {
+  const cap = (t) => `<p class="cp-cap">${t}</p>`;
+  return page('Idee I56 — Bildschirmformate', `
+<header class="mock-board mock-head" style="max-width:1400px"><h1>Idee I56 · 6 von 6 — Bildschirmformate, lesbar auf jedem ${SYN}</h1>
+<p class="mock-note" style="max-width:150ch">Das Handy von Board 4 war gequetscht: Es waren die Desktop-Widgets, nur schmaler. Hier hat jedes Widget eine eigene <b>kompakte Form</b> mit Handy-Schrift (Text 15 bis 17 pt, Zahlen 22 bis 30 pt, nichts unter 12 pt) und Zeilen mit mindestens 44 pt Höhe zum Antippen. In einer Zeile steht höchstens ein Name und eine Zahl, die zweite Zahl steht darunter. Alle Geräte sind <b>1 : 1 in Punkten</b> gezeichnet, bis auf das iPad.</p></header>
+
+<section class="mock-board" style="max-width:1400px"><h2>Die Regel: die Breite entscheidet, nicht das Gerät</h2>
+<div class="mock-frame" style="max-width:900px"><table class="cp-classes"><tr><th>Klasse</th><th>Verfügbare Breite</th><th>Aufbau</th><th>Beispiele</th></tr>
+<tr><td><b>kompakt</b></td><td>unter 600 pt</td><td>eine Spalte, jedes Widget in seiner kompakten Form, Tab-Leiste unten, Zeitraum als wischbare Leiste</td><td>jedes iPhone hochkant, das Faltgerät zugeklappt, ein schmales Fenster auf dem iPad oder Mac</td></tr>
+<tr><td><b>mittel</b></td><td>600 bis 1000 pt</td><td>zwei Spalten aus kompakten Widgets, die Reihenfolge des Desktop-Rasters spaltenweise</td><td>das Faltgerät aufgeklappt, iPad hochkant, iPhone quer</td></tr>
+<tr><td><b>breit</b></td><td>ab 1000 pt</td><td>das 12-Spalten-Raster von Board 3 mit Seitenleiste</td><td>iPad quer, Mac, Desktop-Browser</td></tr></table></div>
+<p class="mock-note" style="margin-top:8px">So muss kein Gerätemodell im Code stehen. Ein neues Format, etwa ein Faltgerät oder ein geteilter Bildschirm, fällt von selbst in eine Klasse.</p></section>
+
+<section class="mock-board" style="max-width:1400px"><h2>iPhone, drei Größen <small>der erste Bildschirm ohne Scrollen, 1 : 1</small></h2>
+<div class="cp-row">
+<div>${compactScreen({ w: 375, h: 667 })}${cap('<b>Klein</b>, 375 × 667 pt (SE-Klasse): gleiche Schrift, nur weniger auf einmal. Darunter wird gescrollt.')}</div>
+<div>${compactScreen({ w: 402, h: 874 })}${cap('<b>Standard</b>, um 400 × 870 pt: Gesamtwert, Datenqualität und das Chart passen auf den ersten Blick.')}</div>
+<div>${compactScreen({ w: 440, h: 956 })}${cap('<b>Max/Plus</b>, 440 × 956 pt: dieselbe Spalte, breiter, und Tops und Flops kommen dazu.')}</div>
+</div></section>
+
+<section class="mock-board" style="max-width:1400px"><h2>Das faltbare iPhone <small>zugeklappt kompakt, aufgeklappt mittel</small></h2>
+<p class="mock-note" style="max-width:150ch"><b>Die Maße sind angenommen</b>: rund 360 × 640 pt außen und ein fast quadratisches, querliegendes Innen-Display von rund 760 × 580 pt. Vor dem Bau gilt das echte Maß. Für die Regel oben spielt das keine Rolle. Zugeklappt ist das Gerät kompakt, aufgeklappt mittel, und beim Aufklappen bleibt die Stelle, an der man gerade liest.</p>
+<div class="cp-row">
+<div>${compactScreen({ w: 360, h: 640, cls: 'fold' })}${cap('<b>Zugeklappt</b>, angenommen 360 × 640 pt: kompakt, eine Spalte.')}</div>
+<div>${compactScreen({ w: 760, h: 580, cls: 'fold', two: true, tab: false })}${cap('<b>Aufgeklappt</b>, angenommen 760 × 580 pt: mittel, zwei Spalten. Das Chart steht links und ist so hoch wie zwei Karten. Die Tab-Leiste wird zur Seitenleiste, sobald die Höhe knapp ist (hier weggelassen).')}</div>
+</div></section>
+
+<section class="mock-board" style="max-width:1400px"><h2>iPad hochkant <small>mittel, auf 60 % verkleinert</small></h2>
+<div style="width:${Math.round(834 * 0.6) + 20}px;height:${Math.round(1194 * 0.6) + 20}px"><div class="cp-scaled" style="transform:scale(.6)">${compactScreen({ w: 834, h: 1194, cls: 'pad', two: true, more: true })}</div></div>
+${cap('<b>834 × 1194 pt</b>: zwei Spalten wie beim aufgeklappten Faltgerät. Quer (1194 pt) wird es breit, mit dem Raster von Board 3.')}</section>`);
+}
+
+const boards = { '01-widget': board01, '02-navigation': board02, '03-dashboard': board03, '04-devices': board04, '05-period': board05, '06-screens': board06 };
 for (const [name, fn] of Object.entries(boards)) {
   fs.writeFileSync(path.join(__dirname, name + '.html'), fn());
   console.log('wrote ' + name + '.html');
