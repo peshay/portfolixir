@@ -430,4 +430,31 @@ defmodule Portfolixir.Portfolios.Performance.SaleHindsightTest do
       assert basis.gaps =~ "7 calendar days"
     end
   end
+
+  # #1473 (ADR-0051's amendment of 2026-11-21, "one rule for every price
+  # read"): the latest span ends on the last positive close; a legacy 0
+  # stored after it is no close, so it neither moves the span's end date
+  # nor leaves the span without an end close. 150 / 100 - 1 = 0.5 (Python
+  # decimal, prec 34).
+  test "a legacy 0 after the latest close does not end the latest span" do
+    %{security: security} = sold_world()
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    {1, _rows} =
+      Repo.insert_all(Portfolixir.Catalog.Quote, [
+        %{
+          security_id: security.id,
+          date: ~D[2026-03-06],
+          close: d("0"),
+          source: "manual",
+          inserted_at: now,
+          updated_at: now
+        }
+      ])
+
+    %{rows: [row]} = SaleHindsight.report(today: @today)
+    latest = span(row, "latest")
+    assert latest.end_on == ~D[2026-03-02]
+    assert_decimal(latest.security.return, "0.5")
+  end
 end
