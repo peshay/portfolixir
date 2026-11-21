@@ -497,14 +497,16 @@ const BARS = {
   },
   // --- S30 T3 begin ---
   // The Overview's card „Tops und Flops“ (Sprint 30 T3; board
-  // ux-design-2026-11-15-sprint30/04-tops-flops, A and A1): its window as
-  // the one group „Zeitraum“, once its read has landed; and the card
-  // itself, its two rankings side by side at 1200 px and stacked, the price
-  // return first, at 390 px, every row inside the card.
+  // ux-design-2026-11-15-sprint30/04-tops-flops, A and A1), once its read
+  // has landed: the card itself, its two rankings side by side at 1200 px
+  // and stacked, the price return first, at 390 px, every row inside the
+  // card. Since Sprint 31 D5 (ADR-0062 §5; idea board 05, A) the card has
+  // no window chips of its own: the dashboard's period drives it, so the
+  // control measured is the period above the dashboard, at 1W.
   movers: {
-    path: "/?movers_period=week",
+    path: "/?period=1w",
     wait: "#dashboard-movers .movers__grid, #dashboard-movers [data-role='movers-empty']",
-    roots: "[data-role='movers-bar']",
+    roots: "[data-role='dashboard-period']",
     shows: [390, 1200],
     everyFamilyNamed: true,
     check: moversCard

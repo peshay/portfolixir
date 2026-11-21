@@ -24,6 +24,19 @@ defmodule PortfolixirWeb.DashboardLive do
     `off_target`, `movers`, `bitcoin_cycle` and `sale_review`, each drawing
     exactly the read the card drew (§12); the four kinds Sprint 31's D4
     draws stand as empty frames until then.
+  * **The period** (ADR-0062 §5; idea board 05, A; Sprint 31 D5). One
+    period above every dashboard, in the top bar: 1T, 1W, 1M, 3M, YTD, 1J,
+    3J, Max (the registry's `Widgets.periods/0`), 1J the default. The
+    address carries it as `?period=` when it is not 1J, so a link opens a
+    dashboard on its period; a value that is no period opens 1J. A pick is
+    remembered per browser (the `PeriodMemory` hook under the key
+    `dashboard.period`, as Wealth keeps its own), so a dashboard opened
+    without one in its address reopens it; a switch to another dashboard
+    on the same page keeps it and writes it into the new address. Each
+    widget follows it, or the period its ⋯ menu pinned (`settings.period`,
+    stored through the journaled replace with the lock_version read; a
+    stale one shows the stored dashboard), and its frame says which
+    (`PortfolixirWeb.Dashboard.Widget.with_period/3`).
   * **The first run.** With no transaction, the page is the onboarding
     wizard; the workflow path stays a first-run card on the template until
     the depot pair exists.
@@ -97,7 +110,9 @@ defmodule PortfolixirWeb.DashboardLive do
         data_quality: nil,
         last_booking: nil,
         stale_ttwror: nil,
-        movers_window: nil,
+        period: Widgets.default_period(),
+        period_addressed: false,
+        pin_error: nil,
         closed_trades: nil,
         customize_error: nil
       )
@@ -120,16 +135,67 @@ defmodule PortfolixirWeb.DashboardLive do
   # --- which dashboard, which scope (ADR-0062 §2, §3) --------------------------
 
   @impl true
-  def handle_params(params, _uri, socket) do
+  def handle_params(params, uri, socket) do
     case board(socket.assigns.live_action, params) do
       :not_found ->
         {:noreply, push_navigate(socket, to: "/")}
 
       board ->
         scope_id = scope_id(params, socket.assigns.views)
-        window = MoversCard.window(params[MoversCard.param()])
-        {:noreply, show(socket, board, scope_id, window)}
+        {period, kept?} = address_period(params, socket)
+
+        socket =
+          socket
+          |> assign(period: period, pin_error: nil)
+          |> first_arrival(Map.has_key?(params, "period"))
+          |> show(board, scope_id)
+
+        # A switch from one dashboard to another on this page keeps the
+        # period, and the new address names it (ADR-0062 §5).
+        if kept? and period != Widgets.default_period(),
+          do: {:noreply, push_patch(socket, to: with_period(uri, period), replace: true)},
+          else: {:noreply, socket}
     end
+  end
+
+  # The period an address names: one of the registry's, else 1J for a
+  # value that is no period. An address that names none keeps the period
+  # this page already shows (a switch between dashboards) or opens 1J, the
+  # default, which the browser's memory may then replace.
+  defp address_period(%{"period" => period}, _socket) do
+    if period in Widgets.periods(),
+      do: {period, false},
+      else: {Widgets.default_period(), false}
+  end
+
+  defp address_period(_params, %{assigns: %{board: %{}, period: period}}), do: {period, true}
+  defp address_period(_params, _socket), do: {Widgets.default_period(), false}
+
+  # Whether the page's first address named a period: the browser's memory
+  # then asks for none (`#dashboard-period-memory`, `data-addressed`).
+  defp first_arrival(%{assigns: %{board: nil}} = socket, named?),
+    do: assign(socket, :period_addressed, named?)
+
+  defp first_arrival(socket, _named?), do: socket
+
+  # `uri`'s path and query with its period replaced by `period`, named
+  # after the address's other pairs, none for the default.
+  defp with_period(uri, period) do
+    uri = URI.parse(uri)
+
+    kept =
+      (uri.query || "")
+      |> URI.query_decoder()
+      |> Enum.reject(fn {key, _value} -> key == "period" end)
+
+    case kept ++ period_pairs(period) do
+      [] -> uri.path
+      pairs -> uri.path <> "?" <> URI.encode_query(pairs)
+    end
+  end
+
+  defp period_pairs(period) do
+    if period == Widgets.default_period(), do: [], else: [{"period", period}]
   end
 
   # The stored dashboards in the menu's order, else the template; an id
@@ -186,13 +252,11 @@ defmodule PortfolixirWeb.DashboardLive do
 
   defp scope_id(_params, _views), do: Settings.default_view_id()
 
-  defp show(socket, board, scope_id, window) do
+  defp show(socket, board, scope_id) do
     key = {board.key, scope_id, board.dashboard && board.dashboard.lock_version}
 
     if socket.assigns.load_key == key do
-      if socket.assigns.movers_window == window,
-        do: socket,
-        else: socket |> assign(movers_window: window, movers: %{}) |> start_movers()
+      start_movers(socket)
     else
       socket
       |> assign(
@@ -200,7 +264,6 @@ defmodule PortfolixirWeb.DashboardLive do
         scope_id: scope_id,
         load_key: key,
         items: Widget.items(board.layout, scope_id, socket.assigns.views),
-        movers_window: window,
         cards: %{},
         attention: %{},
         movers: %{},
@@ -274,12 +337,13 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   # --- S30 T3 begin ---
-  # Sprint 30 T3 (FR-59, ADR-0061 §9; board 04, A): the window of the card
-  # „Tops und Flops“ travels in the address (`?movers_period=`), so a
-  # reload or a handed-over link opens it on the same window; a value the
-  # card does not know opens „Day“. A new window drops the card back to its
-  # busy skeleton and reads again in the background, one read per scope the
-  # dashboard's movers widgets take.
+  # Sprint 30 T3 (FR-59, ADR-0061 §9; board 04, A): the card „Tops und
+  # Flops“ reads in the background, one read per scope and window the
+  # dashboard's movers widgets take. Since Sprint 31 D5 (ADR-0062 §5) the
+  # window is the widget's period — the dashboard's, or its pin —
+  # translated by the registry's rule (`movers_window/1`); a window the
+  # page has read for a scope is not read again, so a period switch shows
+  # the busy skeleton only where a window is new.
   #
   # The read the API answers for the widget's scope: its view, Everything
   # when none is set or it vanished meanwhile (as the value card degrades).
@@ -290,16 +354,18 @@ defmodule PortfolixirWeb.DashboardLive do
   defp start_movers(%{assigns: %{transactions_count: 0}} = socket), do: socket
 
   defp start_movers(socket) do
-    window = socket.assigns.movers_window
-
     socket.assigns.items
     |> Enum.filter(&(&1.kind == "movers"))
-    |> Enum.map(& &1.scope)
+    |> Enum.map(&{&1.scope, item_window(&1, socket.assigns.period)})
     |> Enum.uniq()
-    |> Enum.reduce(socket, fn scope_id, socket ->
+    |> Enum.reject(fn {scope_id, window} ->
+      Map.has_key?(socket.assigns.movers, {scope_id, window}) or
+        MapSet.member?(socket.assigns.reads, {:movers, scope_id, window})
+    end)
+    |> Enum.reduce(socket, fn {scope_id, window}, socket ->
       socket
-      |> reading_if_connected({:movers, scope_id})
-      |> CappedAsync.start_latest({:movers, scope_id}, fn ->
+      |> reading_if_connected({:movers, scope_id, window})
+      |> CappedAsync.start_latest({:movers, scope_id, window}, fn ->
         view = scope_id && Buckets.get_view(scope_id)
 
         case Movers.read(view && view.id, window) do
@@ -312,6 +378,17 @@ defmodule PortfolixirWeb.DashboardLive do
         end
       end)
     end)
+  end
+
+  # The window of the movers read for an item: its period (the pin, else
+  # the dashboard's) by the registry's rule.
+  defp item_window(item, period), do: item |> Widget.with_period(period, false) |> movers_window()
+
+  defp movers_window(%{period: period}) do
+    {:ok, %{"window" => window}} =
+      Widgets.source_params("movers", period, Portfolixir.Clock.today())
+
+    window
   end
 
   # --- S30 T3 end ---
@@ -479,7 +556,7 @@ defmodule PortfolixirWeb.DashboardLive do
   # --- S30 T3 begin ---
   # A read a later chip superseded starts the latest and lands nothing; the
   # read stays running.
-  defp land({:movers, scope_id} = name, result, socket) do
+  defp land({:movers, scope_id, window} = name, result, socket) do
     card =
       case result do
         {:ok, card} -> card
@@ -487,8 +564,11 @@ defmodule PortfolixirWeb.DashboardLive do
       end
 
     case CappedAsync.landed(socket, name) do
-      {:superseded, socket} -> {:running, socket}
-      {:current, socket} -> {:landed, update(socket, :movers, &Map.put(&1, scope_id, card))}
+      {:superseded, socket} ->
+        {:running, socket}
+
+      {:current, socket} ->
+        {:landed, update(socket, :movers, &Map.put(&1, {scope_id, window}, card))}
     end
   end
 
@@ -527,9 +607,120 @@ defmodule PortfolixirWeb.DashboardLive do
     end
   end
 
+  # A pick in the top bar (ADR-0062 §5): the address follows it, so every
+  # link built from the address keeps it, and the browser's memory keeps
+  # it for a dashboard opened without one.
+  def handle_event("set_period", %{"period" => period}, socket) when is_binary(period) do
+    if period in Widgets.periods() do
+      {:noreply,
+       socket
+       |> assign(:period, period)
+       |> push_event("period-memory", %{period: %{"period" => period}})
+       |> push_patch(to: with_period(socket.assigns.page_address, period))}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # The browser's memory (the PeriodMemory hook) asks for the period it
+  # kept, on an address that named none; the page patches to it in place.
+  # An address that named a period wins, and a kept value that is no
+  # period changes nothing.
+  def handle_event(
+        "restore_period",
+        %{"period" => period},
+        %{assigns: %{period_addressed: false}} = socket
+      )
+      when is_binary(period) do
+    if period in Widgets.periods() and period != socket.assigns.period,
+      do:
+        {:noreply,
+         push_patch(socket, to: with_period(socket.assigns.page_address, period), replace: true)},
+      else: {:noreply, socket}
+  end
+
+  # A pin from a widget's ⋯ menu (ADR-0062 §5): stored in the item's
+  # `settings.period` through the journaled replace with the lock_version
+  # the page read; `unpin_period` drops it. Only a stored dashboard takes
+  # one, only for an item of its layout, and only a period its kind
+  # answers (the layout's validation refuses any other).
+  def handle_event("pin_period", %{"index" => index, "period" => period}, socket)
+      when is_binary(period) do
+    {:noreply, pin(socket, index, &Map.put(&1, "period", period))}
+  end
+
+  def handle_event("unpin_period", %{"index" => index}, socket) do
+    {:noreply, pin(socket, index, &Map.delete(&1, "period"))}
+  end
+
   # The overview handles no other events; one pushed to it changes nothing
   # (E25 S4, F17).
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  defp pin(
+         %{assigns: %{board: %{dashboard: %Dashboards.Dashboard{} = dashboard}}} = socket,
+         index,
+         change
+       ) do
+    with index when is_integer(index) <- layout_index(index, dashboard.layout),
+         layout = List.update_at(dashboard.layout, index, &pinned(&1, change)),
+         true <- layout != dashboard.layout do
+      dashboard
+      |> replace_layout(layout)
+      |> pinned_board(socket)
+    else
+      _nothing -> socket
+    end
+  end
+
+  defp pin(socket, _index, _change), do: socket
+
+  defp pinned(item, change), do: Map.put(item, "settings", change.(item["settings"] || %{}))
+
+  defp layout_index(_raw, []), do: nil
+  defp layout_index(raw, layout), do: LiveParam.integer(raw, 0..(length(layout) - 1))
+
+  defp replace_layout(dashboard, layout) do
+    Dashboards.replace_dashboard(Actor.owner_ui(), dashboard.id, %{
+      "name" => dashboard.name,
+      "layout" => layout,
+      "lock_version" => dashboard.lock_version
+    })
+  end
+
+  # The stored dashboard drawn in place: its items with their pins, the
+  # reads it already holds kept (a pin changes no read but a movers
+  # window), a movers window it has not read started. A refusal changes
+  # nothing on the screen but its note.
+  defp pinned_board({:ok, dashboard}, socket) do
+    board = stored(dashboard)
+
+    socket
+    |> assign(
+      board: board,
+      load_key: {board.key, socket.assigns.scope_id, dashboard.lock_version},
+      items: Widget.items(board.layout, socket.assigns.scope_id, socket.assigns.views),
+      pin_error: nil
+    )
+    |> start_movers()
+  end
+
+  # Another write passed the lock_version the page read: the stored
+  # dashboard is drawn and read as on arrival, since its layout may differ
+  # in more than this pin.
+  defp pinned_board({:error, :stale, stored}, socket) do
+    socket
+    |> show(stored(stored), socket.assigns.scope_id)
+    |> assign(
+      :pin_error,
+      gettext(
+        "This dashboard was changed elsewhere and is shown as stored; the period was not set."
+      )
+    )
+  end
+
+  defp pinned_board({:error, _refusal}, socket),
+    do: assign(socket, :pin_error, gettext("Couldn't store the widget's period."))
 
   @impl true
   def render(assigns) do
@@ -546,7 +737,9 @@ defmodule PortfolixirWeb.DashboardLive do
           scope_id={@scope_id}
           views={@views}
           customize_error={@customize_error}
-          movers_window={@movers_window}
+          pin_error={@pin_error}
+          period={@period}
+          period_addressed={@period_addressed}
         />
         <%= if @transactions_count == 0 do %>
           <.wizard {assigns} />
@@ -572,13 +765,16 @@ defmodule PortfolixirWeb.DashboardLive do
   attr(:scope_id, :any, required: true)
   attr(:views, :list, required: true)
   attr(:customize_error, :string, default: nil)
-  attr(:movers_window, :string, default: nil)
+  attr(:pin_error, :string, default: nil)
+  attr(:period, :string, required: true)
+  attr(:period_addressed, :boolean, default: false)
 
   # The bar above the widgets (planning board 01 ①): the dashboard's scope
-  # („Gesamt ▾“), and on a template the banner „Vorlage · mitgeliefert,
-  # nur lesend“ with „Anpassen“. The scope's choices are links that keep it
-  # in the address only; the session's view and the default stay as they
-  # are.
+  # („Gesamt ▾“), the period (board 05 A: 1T … Max, on a narrow window a
+  # strip that scrolls sideways, ADR-0062 §6), and on a template the
+  # banner „Vorlage · mitgeliefert, nur lesend“ with „Anpassen“. The
+  # scope's choices are links that keep it, and the period, in the address
+  # only; the session's view and the default stay as they are.
   defp dashboard_bar(assigns) do
     assigns =
       assign(assigns,
@@ -603,13 +799,44 @@ defmodule PortfolixirWeb.DashboardLive do
           <nav class="dashboard-scope__menu" aria-label={gettext("Scope")}>
             <.link
               :for={{value, name, active?} <- @choices}
-              patch={scope_href(@board.path, value, @movers_window)}
+              patch={scope_href(@board.path, value, @period)}
               class={["dashboard-scope__option", active? && "is-active"]}
               aria-current={if active?, do: "true"}
               data-scope={value}
             ><%= name %></.link>
           </nav>
         </details>
+        <div class="dashboard-period" data-role="dashboard-period-strip">
+          <div
+            class="segmented-control dashboard-period__control"
+            data-role="dashboard-period"
+            role="group"
+            aria-label={gettext("Period")}
+          >
+            <button
+              :for={period <- Widgets.periods()}
+              type="button"
+              class={["segmented-control__option", @period == period && "is-active"]}
+              phx-click="set_period"
+              phx-value-period={period}
+              aria-pressed={to_string(@period == period)}
+              data-period={period}
+            >
+              <%= Widget.period_label(period) %>
+            </button>
+          </div>
+        </div>
+        <%!-- The browser's memory of the last period picked (ADR-0062 §5),
+             read when the address names none and written at each pick;
+             nothing of it reaches the server's storage. --%>
+        <div
+          id="dashboard-period-memory"
+          phx-hook="PeriodMemory"
+          data-storage-key="dashboard.period"
+          data-addressed={to_string(@period_addressed)}
+          hidden
+        >
+        </div>
       </div>
       <div :if={@board.template} class="dashboard-banner" data-role="template-banner">
         <span>
@@ -627,21 +854,17 @@ defmodule PortfolixirWeb.DashboardLive do
       <div id="dashboard-customize-status" role="status"><AppShell.data_note
           :if={@customize_error}
           severity={:problem}
-        ><%= @customize_error %></AppShell.data_note></div>
+        ><%= @customize_error %></AppShell.data_note><AppShell.data_note
+          :if={@pin_error}
+          severity={:problem}
+          data-role="period-pin-status"
+        ><%= @pin_error %></AppShell.data_note></div>
     </section>
     """
   end
 
-  defp scope_href(path, value, window) do
-    query =
-      [{"scope", value}] ++
-        if(window && window != MoversCard.window(nil),
-          do: [{MoversCard.param(), window}],
-          else: []
-        )
-
-    path <> "?" <> URI.encode_query(query)
-  end
+  defp scope_href(path, value, period),
+    do: path <> "?" <> URI.encode_query([{"scope", value}] ++ period_pairs(period))
 
   defp scope_name(nil, _views), do: gettext("Everything")
 
@@ -721,11 +944,22 @@ defmodule PortfolixirWeb.DashboardLive do
         data-role="dashboard-grid"
         aria-busy={if MapSet.size(@reads) > 0, do: "true"}
       >
-        <.widget :for={item <- @items} item={item} {widget_assigns(assigns)} />
+        <.widget
+          :for={item <- periods(@items, @period, @board)}
+          item={item}
+          period={item.period}
+          {widget_assigns(assigns)}
+        />
       </div>
     </div>
     """
   end
+
+  # Each item with its period (ADR-0062 §5): the pin where it holds one,
+  # else the dashboard's; a template's items follow and cannot pin. A
+  # widget receives it as `period` (nil for a kind that takes none).
+  defp periods(items, period, board),
+    do: Enum.map(items, &Widget.with_period(&1, period, is_nil(board.template)))
 
   defp widget_assigns(assigns) do
     Map.take(assigns, [
@@ -740,7 +974,6 @@ defmodule PortfolixirWeb.DashboardLive do
       :views,
       :active_view,
       :privacy_mode,
-      :movers_window,
       :closed_trades,
       :has_sells,
       :upcoming_events,
@@ -1029,19 +1262,20 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   defp widget(%{item: %{kind: "movers"}} = assigns) do
-    assigns = assign(assigns, :card, Map.get(assigns.movers, assigns.item.scope))
+    window = movers_window(assigns.item)
+
+    assigns =
+      assign(assigns, card: Map.get(assigns.movers, {assigns.item.scope, window}), window: window)
 
     ~H"""
     <%!-- Sprint 30 T3 (ADR-0061 §9; board 04, A): which names moved the
          scope the widget names. --%>
     <MoversCard.card
       item={@item}
-      window={@movers_window}
+      window={@window}
       card={@card}
       privacy_mode={@privacy_mode}
       active_view={@active_view}
-      path={@board.path}
-      scope_param={scope_param(@board, @scope_id)}
       scope_label={scope_label(@item, @views)}
     />
     """
@@ -1105,12 +1339,6 @@ defmodule PortfolixirWeb.DashboardLive do
   defp later_kind("snapshots"), do: %{href: "/snapshots"}
   defp later_kind("crashes"), do: %{href: "/risk"}
   defp later_kind(_kind), do: %{href: "/"}
-
-  defp scope_param(%{}, scope_id) do
-    if scope_id == Settings.default_view_id(),
-      do: nil,
-      else: (scope_id && to_string(scope_id)) || "total"
-  end
 
   attr(:card, :any, required: true)
   attr(:stale, :any, required: true)

@@ -5,8 +5,8 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   `ux-design-2026-11-21-sprint31/01` ①; Sprint 31 D3).
 
   A widget is drawn in five parts (board 01): the **head** — its title, its
-  ⓘ with the source's computation basis and the ⋯ menu (a placeholder in
-  this slice: the pin is D5's, the edit actions D6's) —, the **controls**
+  ⓘ with the source's computation basis, its period tag and the ⋯ menu
+  (the pin, Sprint 31 D5; the edit actions are D6's) —, the **controls**
   the kind keeps of its own, the **body** in two forms, and the **footer**
   with its scope and the way into the full view or the source screen.
 
@@ -25,6 +25,16 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   in reading order (row, then col, §4), which is the order the medium and
   compact classes and a screen reader meet them.
 
+  **The period** (ADR-0062 §5; idea board 05, A; Sprint 31 D5): one
+  period above every dashboard, which a widget follows until its ⋯ menu
+  pins its own (`settings.period`). The page hands each item its period
+  (`with_period/3`), and the frame's head says it quietly: „folgt · 3M“,
+  „📌 eigener: Max“ in the accent, „folgt · 3M → Quartal“ where the kind
+  reads its nearest window instead (the registry's rule, `translated`),
+  „ohne Zeitraum“ for a kind that takes none. The menu offers „Zeitraum
+  festlegen“ with the kind's periods on a stored dashboard, and
+  „Anpassen“ on a template, which is read-only.
+
   The frame draws no figure of its own: every figure is in the kind's body,
   from the kind's source read.
   """
@@ -33,6 +43,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
 
   alias Portfolixir.Dashboards.Widgets
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.Dashboard.MoversCard
 
   @doc """
   The items of a layout in reading order (row, then col; ADR-0062 §4), each
@@ -41,14 +52,17 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   its scope: for a kind that takes a view, the item's `settings.view_id`
   where it names one of `views`, else the dashboard's scope `scope_id`,
   marked `dangling` when the item named a view that no longer exists (§2).
-  An item of a kind the registry no longer holds is left out.
+  An item of a kind the registry no longer holds is left out. Each keeps
+  its `index`, its place in the stored layout, which a write to it (the
+  pin) names.
   """
   @spec items([map()], integer() | nil, [map()]) :: [map()]
   def items(layout, scope_id, views) when is_list(layout) do
     view_ids = MapSet.new(views, & &1.id)
 
     layout
-    |> Enum.flat_map(&registered/1)
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {item, index} -> registered(item, index) end)
     |> Enum.sort_by(&{&1.row, &1.col})
     |> Enum.map_reduce(%{}, fn item, seen ->
       n = Map.get(seen, item.kind, 0) + 1
@@ -64,12 +78,13 @@ defmodule PortfolixirWeb.Dashboard.Widget do
     |> elem(0)
   end
 
-  defp registered(%{"kind" => kind, "size" => size, "col" => col, "row" => row} = item) do
+  defp registered(%{"kind" => kind, "size" => size, "col" => col, "row" => row} = item, index) do
     with {:ok, registered} <- Widgets.fetch(kind),
          {:ok, {w, h}} <- Widgets.dimensions(size) do
       [
         %{
           kind: kind,
+          index: index,
           size: size,
           col: col,
           row: row,
@@ -84,7 +99,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
     end
   end
 
-  defp registered(_item), do: []
+  defp registered(_item, _index), do: []
 
   defp scope_of(%{takes_view: false}, _scope_id, _view_ids), do: %{scope: nil, dangling: false}
 
@@ -95,6 +110,86 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   end
 
   defp scope_of(_item, scope_id, _view_ids), do: %{scope: scope_id, dangling: false}
+
+  @doc """
+  The item with its period (ADR-0062 §5): `period`, the period its figures
+  are for — its pin where it holds one the kind takes, else the
+  dashboard's `dashboard_period` —, `nil` for a kind that takes none;
+  `period_state`, `:follows`, `:pinned` or `:none`; `periods`, the
+  dashboard periods the kind answers (its menu's choices); and
+  `pinnable`, whether its menu may pin (a stored dashboard, not a
+  template).
+  """
+  @spec with_period(map(), String.t(), boolean()) :: map()
+  def with_period(%{kind: kind} = item, dashboard_period, pinnable) do
+    periods =
+      case Widgets.fetch(kind) do
+        {:ok, %{period: %{periods: periods}}} -> periods
+        _none -> []
+      end
+
+    pin = Map.get(Map.get(item, :settings, %{}), "period")
+
+    {period, state} =
+      cond do
+        periods == [] -> {nil, :none}
+        is_binary(pin) and pin in periods -> {pin, :pinned}
+        true -> {dashboard_period, :follows}
+      end
+
+    Map.merge(item, %{
+      period: period,
+      period_state: state,
+      dashboard_period: dashboard_period,
+      periods: periods,
+      pinnable: pinnable
+    })
+  end
+
+  @doc "A dashboard period's short label: 1T, 1W, 1M, 3M, YTD, 1J, 3J, Max."
+  @spec period_label(String.t()) :: String.t()
+  def period_label("1d"), do: gettext("1D")
+  def period_label("1w"), do: gettext("1W")
+  def period_label("1m"), do: gettext("1M")
+  def period_label("3m"), do: gettext("3M")
+  def period_label("ytd"), do: gettext("YTD")
+  def period_label("1y"), do: gettext("1Y")
+  def period_label("3y"), do: gettext("3Y")
+  def period_label("max"), do: gettext("Max")
+
+  @doc """
+  The period tag's words for an item `with_period/3` gave its period:
+  „folgt · 3M“, „📌 eigener: Max“, „ohne Zeitraum“, each followed by
+  „→ Quartal“ where the kind reads its nearest window instead (its
+  registry rule's `translated`); `nil` for an item without its period.
+  """
+  @spec period_tag(map()) :: String.t() | nil
+  def period_tag(%{period_state: :none}), do: gettext("no period")
+
+  def period_tag(%{period_state: :follows, period: period} = item),
+    do: gettext("follows · %{period}", period: period_label(period)) <> translated(item)
+
+  def period_tag(%{period_state: :pinned, period: period} = item),
+    do: gettext("own: %{period}", period: period_label(period)) <> translated(item)
+
+  def period_tag(_item), do: nil
+
+  # „ → Quartal“ where the kind answers the period with another span, by
+  # its registry rule; nothing where it answers the period itself.
+  defp translated(%{kind: kind, period: period}) do
+    with {:ok, %{period: %{translated: translated, values: values}}} <- Widgets.fetch(kind),
+         true <- period in translated,
+         {:ok, value} <- Map.fetch(values, period),
+         label when is_binary(label) <- source_label(kind, value) do
+      " → " <> label
+    else
+      _itself -> ""
+    end
+  end
+
+  # The name of a kind's own window, as the kind names it.
+  defp source_label("movers", window), do: MoversCard.window_label(window)
+  defp source_label(_kind, _value), do: nil
 
   attr(:id, :string, required: true)
   attr(:item, :map, required: true)
@@ -141,19 +236,18 @@ defmodule PortfolixirWeb.Dashboard.Widget do
           <AppShell.section_info :if={@info != []} label={@info_label}>
             <:line :for={line <- @info}><%= render_slot(line) %></:line>
           </AppShell.section_info>
+          <%!-- The period tag (ADR-0062 §5): at the title's end, beside
+               the ⋯, and under the title where both do not fit. --%>
+          <span
+            :if={period_tag(@item)}
+            class={["widget__period", "widget__period--#{@item.period_state}"]}
+            data-role="widget-period"
+            data-period-state={@item.period_state}
+          ><span :if={@item.period_state == :pinned} aria-hidden="true">📌 </span><%= period_tag(@item) %></span>
         </div>
-        <%!-- ADR-0062 §5, §7: the ⋯ menu holds the pin (D5) and the edit
-             actions (D6); in this slice it is drawn and offers nothing. --%>
-        <button
-          type="button"
-          class="widget__menu"
-          data-role="widget-menu"
-          aria-label={gettext("Widget menu")}
-          title={gettext("Widget menu")}
-          disabled
-        >
-          <span aria-hidden="true">⋯</span>
-        </button>
+        <%!-- ADR-0062 §5, §7: the ⋯ menu holds the pin (D5); the edit
+             actions (D6) join it. --%>
+        <.menu item={@item} />
       </div>
       <%= render_slot(@controls) %>
       <%= render_slot(@shared) %>
@@ -172,6 +266,85 @@ defmodule PortfolixirWeb.Dashboard.Widget do
         <a :if={@full_href} href={@full_href} data-role={@full_role}><%= @full_label %></a>
       </footer>
     </section>
+    """
+  end
+
+  attr(:item, :map, required: true)
+
+  # The ⋯ menu (board 05 A): whether the widget follows the dashboard, and
+  # „Zeitraum festlegen“ with the kind's periods, each a pin stored in the
+  # item's settings; on a template, which is read-only, „Anpassen“ in their
+  # place; a kind without a period says so. Its choices are buttons the
+  # page answers (`pin_period`, `unpin_period`, `customize`); the menu is a
+  # disclosure the browser holds.
+  defp menu(assigns) do
+    ~H"""
+    <details class="widget__menu" data-role="widget-menu">
+      <summary aria-label={gettext("Widget menu")} title={gettext("Widget menu")}>
+        <span aria-hidden="true">⋯</span>
+      </summary>
+      <div class="widget__menu-panel">
+        <%= cond do %>
+          <% Map.get(@item, :period_state) in [nil, :none] -> %>
+            <p class="widget__menu-note"><%= gettext("This widget has no period.") %></p>
+          <% not @item.pinnable -> %>
+            <p class="widget__menu-note">
+              <%= gettext("Follows the dashboard (%{period})",
+                period: period_label(@item.dashboard_period)
+              ) %>
+            </p>
+            <button
+              type="button"
+              class="widget__menu-option"
+              phx-click="customize"
+              data-role="menu-customize"
+            >
+              <%= gettext("Customize") %>
+            </button>
+            <p class="widget__menu-note">
+              <%= gettext("A template is read-only; only its copy takes a period of its own per widget.") %>
+            </p>
+          <% true -> %>
+            <button
+              type="button"
+              class={["widget__menu-option", @item.period_state == :follows && "is-active"]}
+              phx-click="unpin_period"
+              phx-value-index={@item.index}
+              aria-pressed={to_string(@item.period_state == :follows)}
+              data-role="unpin-period"
+            >
+              <%= gettext("Follows the dashboard (%{period})",
+                period: period_label(@item.dashboard_period)
+              ) %>
+            </button>
+            <p class="widget__menu-head" id={"widget-pin-#{@item.kind}#{@item.uid}"}>
+              <%= gettext("Set period") %>
+            </p>
+            <div
+              class="widget__menu-periods"
+              role="group"
+              aria-labelledby={"widget-pin-#{@item.kind}#{@item.uid}"}
+            >
+              <button
+                :for={period <- @item.periods}
+                type="button"
+                class={[
+                  "widget__menu-period",
+                  @item.period_state == :pinned and @item.period == period && "is-active"
+                ]}
+                phx-click="pin_period"
+                phx-value-index={@item.index}
+                phx-value-period={period}
+                aria-pressed={to_string(@item.period_state == :pinned and @item.period == period)}
+                data-role="pin-period"
+                data-period={period}
+              >
+                <%= period_label(period) %>
+              </button>
+            </div>
+        <% end %>
+      </div>
+    </details>
     """
   end
 
