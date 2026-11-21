@@ -5185,6 +5185,117 @@ rule reads (ADR-0058 §1). No financial decimals are involved.
   is chosen again, and clearing it leaves the manual windows (see Crash
   windows above). The MCP tool is `portfolixir.crashes.benchmark_put`.
 
+## Dashboards and widgets (ADR-0062)
+
+Every function becomes a **widget**: one existing read, drawn in fixed
+sizes. A **dashboard** is a stored arrangement of widgets, its layout, and
+the project ships **templates**, layouts in code that are never stored and
+never edited ([ADR-0062](/decisions/0062-widgets-and-composed-dashboards.html)).
+A widget computes nothing: it draws the figures of its source read, which
+an agent reads at the same route. A dashboard holds no figure and is no
+part of the ledger. Every route takes the API's bearer token; every write
+is journaled under the token (`resource_type` `dashboard`); every read and
+write is closed, so a parameter or field it does not take answers `422`
+naming it. No payload carries a decimal or a verdict, and
+`metrics_carry_no_verdict_test.exs` walks the catalogue and a dashboard.
+
+**`GET /api/v1/widgets`** is the catalogue, so a dashboard can be composed
+without reading the code: `{"data": {"widgets", "groups", "grid",
+"periods", "max_dashboards", "name_max"}}`.
+
+- `widgets`: every registered kind, in the catalogue's order, each with
+  `key` (the stable string a layout names: `total_value`, `data_quality`,
+  `due`, `off_target`, `performance`, `movers`, `snapshots`,
+  `allocation_drift`, `crashes`, `bitcoin_cycle`, `sale_review`), `title`
+  (English) and `title_key` (`{context, msgid}`, the message the screen
+  translates), `group`, `sizes` (a subset of `S`, `W`, `M`, `T`, `L` and
+  `full`), `source` (`routes`, the `GET /api/v1/...` routes it draws;
+  `function`, the context function behind them; `note`, where the figures
+  have no route of their own), `period` (`"none"`, or `{periods, param,
+  values, ranges, translated}`: the dashboard periods it answers, the
+  source's query parameter, each period's value of it, the periods it
+  reads as a trailing `from`/`to` range, and the ones it answers with
+  another span, which the screen labels, for example `3m` read as
+  `quarter`), `scope` (`view` when it takes a view, else `none`) and
+  `compact` (`true`: every kind has its phone form).
+- `groups`: `{key, title}` in order (`overview`, `performance`,
+  `allocation`, `risk`, `analyses`).
+- `grid`: `columns` (12), `max_row` (200), `max_items` (40), `sizes` (each
+  grid size's `{columns, rows}`: `S` 3 × 1, `W` 6 × 1, `M` 6 × 2, `T` 4 ×
+  3, `L` 8 × 3) and `full`, which says that `full` is a page of its own,
+  never placed on the grid.
+- `periods`: `values` (`1d`, `1w`, `1m`, `3m`, `ytd`, `1y`, `3y`, `max`)
+  and `default` (`1y`).
+
+**`GET /api/v1/dashboards`** lists the stored dashboards in the menu's
+order (by `position`, then `id`), then the templates. Each entry is marked
+by `type` (`dashboard` or `template`) and carries `id` (a stored one's, else
+`null`), `key` (a template's, else `null`), `name`, `read_only` (`true` for
+a template), `in_menu` and `item_count`; a stored one also `position`,
+`lock_version`, `inserted_at` and `updated_at`. A template is `in_menu`
+only while no dashboard is stored: a fresh instance shows „Überblick“
+read-only and stores nothing, and the read never writes.
+
+**`GET /api/v1/dashboards/:id`** answers one stored dashboard; a template
+is read as **`GET /api/v1/dashboards/template:<key>`**
+(`template:overview`), in the same shape. Its `layout` is the stored list
+of items, each with `kind`, `size`, `col` (1 to 12), `row` (from 1),
+`settings` (`view_id`, a view overriding the dashboard's scope for this
+widget; `period`, a pinned period), and, from the registry, `title` and
+`source` (`routes`, `function`, `note`): the route to read what the widget
+shows. The source is always the registry's for the kind, never anything a
+layout says. An unknown id, a key that names no template and an id that is
+neither answer `404`.
+
+**`POST /api/v1/dashboards`** creates one from `{"dashboard": {"name",
+"layout"}}` (the layout defaults to empty) or copies a template from
+`{"dashboard": {"template": "overview", "name"}}` (the name defaults to the
+template's title). It answers `201` with the dashboard as the read answers
+it, placed at the end of the menu with `lock_version` 1.
+
+**`PUT /api/v1/dashboards/:id`** replaces the name and the layout:
+`{"dashboard": {"name", "layout", "lock_version"}}`, all three required,
+`lock_version` the one the dashboard was read with. It answers `200` with
+`lock_version` one higher; a replace that changes nothing writes and
+journals nothing. **`PATCH /api/v1/dashboards/:id`** renames and/or moves
+it in the menu: `{"dashboard": {"name", "position", "lock_version"}}`,
+`name` or `position` (a whole number from 1 to 10,000) or both, and
+`lock_version` optional; without it the change applies to the dashboard
+as stored. A `lock_version` that is not the stored one, on either write,
+answers **`409`** `{"errors": {"code": "stale", "detail", "stored"}}`, with
+`stored` the dashboard as the read answers it, and writes nothing, so a
+change racing the screen's save is never lost unseen: build on `stored`
+and send its `lock_version`.
+
+**`DELETE /api/v1/dashboards/:id`** answers `204`. With `dry_run=true` it
+deletes nothing and answers `200` `{"data": {"dry_run": true,
+"would_remove": {"dashboards": {"count": 1, "ids": [<id>]}}}}`, as the
+cascading deletes answer: a dashboard deletes nothing else, no view, no
+figure and no other dashboard. `dry_run` takes `true` or `false`; any
+other value, or another parameter, answers `422` naming it.
+
+**Refusals.** A layout is checked whole, and the first bad item refuses
+the write: `422` `{"errors": {"layout": [<message>], "layout_item":
+{"index", "field", "reason"}}}`, `index` the item's place in the list
+(from 0), `field` the key (`kind`, `size`, `col`, `row`, `settings`,
+`settings.view_id`, `settings.period`) and `reason` one of `unknown_kind`,
+`unsupported_size`, `off_grid`, `overlap` (with `other`, the index of the
+earlier item it meets), `unknown_view`, `no_view` (a view on a kind that
+takes none), `no_period` (a pinned period on a kind without one),
+`unsupported_period`, `unknown_key` (a key an item does not take: an item
+names no route), `unknown_setting`, `missing`, `not_an_integer`,
+`not_an_object`, `too_many_items` (41 items or more, `index` 40) or
+`not_a_list`. Nothing is repaired or moved. A name of more than 60
+characters, with a control character, or blank answers `422` naming
+`name`; the 51st dashboard answers `422` `{"errors": {"code":
+"too_many_dashboards", "detail"}}`; an unknown template `422` naming
+`template`; a write to `template:<key>` `422` naming `id` (a template is
+never written: copy it with `POST`); an unknown id `404`. Nothing is
+written on any refusal. A `view_id` stored before its view was deleted is
+dropped by the next save, not refused; every other `view_id` must name a
+view. Keys are matched as strings and no atom is made from one; the name
+is stored as text and drawn escaped.
+
 ## Imports
 
 Portfolio Performance imports (CSV/JSON v1) run through the **Imports view**

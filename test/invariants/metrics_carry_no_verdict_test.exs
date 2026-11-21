@@ -720,4 +720,41 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   end
 
   # --- S30 T2 end ---
+
+  # --- S31 D2 begin ---
+  # User story (FR-60, ADR-0062 §1, §8; Sprint 31 D2):
+  # As the maintainer holding the scope ladder,
+  # I want the widget catalogue's payload, and a dashboard's, checked the
+  # same way,
+  # so that a widget, which draws its source's figures and carries none of
+  # its own, never carries a verdict either.
+  #
+  # Acceptance criteria:
+  # - No key of GET /api/v1/widgets, nor of the template „Überblick“ as GET
+  #   /api/v1/dashboards/template:overview answers it (each item with its
+  #   source), contains a forbidden word.
+  # - The walk reaches every part (asserted present, so a renamed or
+  #   missing block cannot pass empty): the kinds, their sources and period
+  #   rules, the groups, the grid and the layout's items.
+  test "the widget catalogue and a dashboard carry no verdict key", %{conn: conn} do
+    %{"data" => catalogue} = conn |> get("/api/v1/widgets") |> json_response(200)
+
+    %{"data" => template} =
+      conn |> get("/api/v1/dashboards/template:overview") |> json_response(200)
+
+    walked = keys(catalogue) ++ keys(template)
+
+    for key <- ~w(widgets title_key sizes source routes function period periods param values
+                  ranges translated scope compact groups grid max_items layout settings) do
+      assert key in walked, "the walk misses #{inspect(key)}"
+    end
+
+    for payload <- [catalogue, template] do
+      assert offenders(payload) == [],
+             "ADR-0062 §1: the widget payloads carry verdict keys #{inspect(offenders(payload))}; " <>
+               "a widget draws its source's figures and says nothing about what to do."
+    end
+  end
+
+  # --- S31 D2 end ---
 end

@@ -522,6 +522,20 @@ defmodule PortfolixirWeb.Router do
     delete("/crashes/:key", CrashController, :delete)
     # --- S29 C5 end ---
 
+    # --- S31 D2 begin ---
+    # ADR-0062 §8 (Sprint 31, D2): the widget catalogue, and the dashboards
+    # composed from it — the stored ones and the templates, a template read
+    # as template:<key>; the writes journaled, a replace with lock_version,
+    # a delete with dry_run.
+    get("/widgets", DashboardController, :widgets)
+    get("/dashboards", DashboardController, :index)
+    post("/dashboards", DashboardController, :create)
+    get("/dashboards/:id", DashboardController, :show)
+    put("/dashboards/:id", DashboardController, :replace)
+    patch("/dashboards/:id", DashboardController, :update)
+    delete("/dashboards/:id", DashboardController, :delete)
+    # --- S31 D2 end ---
+
     put("/securities_accounts/:id/buckets", BucketAssignmentController, :set_depot_buckets)
     put("/cash_accounts/:id/buckets", BucketAssignmentController, :set_cash_account_buckets)
 

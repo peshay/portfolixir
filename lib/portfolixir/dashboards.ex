@@ -223,6 +223,58 @@ defmodule Portfolixir.Dashboards do
   end
 
   @doc """
+  Renames and/or moves the dashboard `id` in one write on behalf of `actor`
+  (`PATCH /api/v1/dashboards/:id`, ADR-0062 §8). `attrs` take `name` and
+  `position`, at least one of them, under the rules of `rename_dashboard/3`
+  and `reposition_dashboard/3`, and optionally `lock_version`, the one the
+  caller read: sent, and under the row's lock another than the stored one,
+  the write answers `{:error, :stale, stored}` and writes nothing, so a
+  rename racing a save is never lost unseen; not sent, it applies to the
+  row as stored. One journaled update; lock_version rises by one; one that
+  changes nothing writes and journals nothing.
+  """
+  @spec update_dashboard(Actor.t(), term(), map()) ::
+          {:ok, Dashboard.t()} | {:error, :stale, Dashboard.t()} | {:error, refusal()}
+  def update_dashboard(%Actor{} = actor, id, attrs) when is_map(attrs) do
+    with :ok <- closed(attrs, ~w(name position lock_version), "a dashboard's update"),
+         attrs = string_attrs(attrs),
+         :ok <- one_of(attrs, ~w(name position), "a dashboard's update"),
+         {:ok, read_version} <- optional_lock_version(attrs),
+         {:ok, prior} <- fetch(id) do
+      Multi.new()
+      |> Multi.run(:current, fn _repo, changes ->
+        current = Journal.locked_row(changes)
+
+        if read_version in [nil, current.lock_version],
+          do: {:ok, current},
+          else: {:error, current}
+      end)
+      |> Multi.update(:dashboard, fn %{current: current} -> patch_changeset(current, attrs) end)
+      |> journal(actor, :update, prior)
+      |> Repo.transaction()
+      |> case do
+        {:error, :current, %Dashboard{} = stored, _changes} -> {:error, :stale, stored}
+        result -> written(result)
+      end
+    end
+  end
+
+  # The name's changeset and the position's, merged: each raises
+  # lock_version to the same one past the stored, so either or both raise
+  # it once.
+  defp patch_changeset(current, attrs) do
+    named = Dashboard.changeset(current, Map.take(attrs, ["name"]))
+
+    case Map.fetch(attrs, "position") do
+      {:ok, position} ->
+        Ecto.Changeset.merge(named, Dashboard.position_changeset(current, position))
+
+      :error ->
+        named
+    end
+  end
+
+  @doc """
   Deletes the dashboard `id` on behalf of `actor`, journaled as a delete
   with its before-image. It deletes nothing else: no figure, view or
   other dashboard depends on it.
@@ -345,6 +397,20 @@ defmodule Portfolixir.Dashboards do
         {:error, {:missing_fields, Map.new(missing, &{&1, [message]})}}
     end
   end
+
+  defp one_of(attrs, fields, write) do
+    if Enum.any?(fields, &Map.has_key?(attrs, &1)) do
+      :ok
+    else
+      message = "is required: #{write} takes #{Enum.join(fields, ", ")} or both"
+      {:error, {:missing_fields, Map.new(fields, &{&1, [message]})}}
+    end
+  end
+
+  defp optional_lock_version(attrs) when is_map_key(attrs, "lock_version"),
+    do: lock_version(attrs)
+
+  defp optional_lock_version(_attrs), do: {:ok, nil}
 
   defp lock_version(%{"lock_version" => version})
        when is_integer(version) and version >= 1 and version <= @max_id,

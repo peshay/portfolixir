@@ -45,6 +45,54 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 31,
+      # Sprint 31's sprint PR. Dated after entry 30, because since=
+      # compares strictly after a date. Each story of the sprint appends its
+      # own summary sentence and items between its own markers.
+      date: ~D[2026-11-21],
+      summary:
+        Enum.join(
+          [
+            # --- S31 D2 begin ---
+            "Sprint 31, D2 (FR-60; ADR-0062 §8): GET /api/v1/widgets answers the widget " <>
+              "catalogue, every kind with its key, title and title_key, group, sizes, source " <>
+              "(the GET routes it draws, the function, a note), period rule and scope, beside " <>
+              "the groups, the grid (12 columns; S, W, M, T and L in columns and rows), the " <>
+              "periods and the limits; GET /api/v1/dashboards lists the stored dashboards in " <>
+              "the menu's order and then the templates, each marked by type (in_menu, " <>
+              "read_only); GET /api/v1/dashboards/:id answers one, or a template as " <>
+              "template:<key>, its layout's items each with the registry's source; POST " <>
+              "creates ({dashboard: {name, layout}}) or copies a template ({dashboard: " <>
+              "{template, name?}}), 201; PUT replaces name and layout with lock_version, and " <>
+              "PATCH renames and/or moves with an optional lock_version, a stale one " <>
+              "answering 409 with errors.stored; DELETE answers 204, dry_run=true what it " <>
+              "would remove, the one dashboard. A layout refused answers 422 with " <>
+              "errors.layout_item {index, field, reason} naming its first bad item; the 51st " <>
+              "dashboard 422 too_many_dashboards; a template is never written (422 naming " <>
+              "id). Every write journaled under the token; no figure in any payload."
+            # --- S31 D2 end ---
+          ],
+          " "
+        ),
+      endpoints: [
+        # --- S31 D2 begin ---
+        "GET /api/v1/widgets",
+        "GET /api/v1/dashboards",
+        "POST /api/v1/dashboards",
+        "GET /api/v1/dashboards/:id",
+        "PUT /api/v1/dashboards/:id",
+        "PATCH /api/v1/dashboards/:id",
+        "DELETE /api/v1/dashboards/:id"
+        # --- S31 D2 end ---
+      ],
+      tools: [],
+      parameters: [],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 30,
       # Sprint 30's sprint PR. Dated after entry 29, because since=
       # compares strictly after a date. Each story of the sprint appends its
