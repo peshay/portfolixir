@@ -416,6 +416,44 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
     assert Decimal.equal?(cmp.savings_plan.end_value_delta, d("10"))
   end
 
+  # #1473 (ADR-0051's amendment of 2026-11-21, "one rule for every price
+  # read"): the series' seed is the last positive close before the window,
+  # so a legacy 0 there never hides the close before it.
+  test "a stored close of 0 on the seed's day: the positive close before it carries in" do
+    world = base_world(name: "BS", cash_name: "BS Cash", depot_name: "BS Depot")
+    deposit!(world, "1000", ~D[2026-01-01])
+    deposit!(world, "500", ~D[2026-01-08])
+    bench = benchmark_security!(name: "Zero Seed", ticker: "ZSD")
+    put_quotes!(bench, [{~D[2025-12-28], "50"}, {~D[2026-01-10], "55"}])
+
+    compare = fn ->
+      {:ok, cmp} =
+        Benchmark.for_portfolio(world.portfolio.id, {:security, bench}, today: ~D[2026-01-11])
+
+      Map.drop(cmp, [:as_of])
+    end
+
+    before = compare.()
+    assert before.window.rebase_day == ~D[2026-01-01]
+    assert before.excluded_flows == []
+
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    {1, _rows} =
+      Portfolixir.Repo.insert_all(Portfolixir.Catalog.Quote, [
+        %{
+          security_id: bench.id,
+          date: ~D[2025-12-30],
+          close: d("0"),
+          source: "manual",
+          inserted_at: now,
+          updated_at: now
+        }
+      ])
+
+    assert compare.() == before
+  end
+
   test "a stored close of 0 is not a price: the day is unpriced and the previous close carries" do
     world = base_world(name: "B0", cash_name: "B0 Cash", depot_name: "B0 Depot")
     deposit!(world, "1000", ~D[2026-01-01])

@@ -121,7 +121,8 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
     end)
   end
 
-  # A position is valuable when it has a close on-or-before the as-of date AND
+  # A position is valuable when it has a positive close on-or-before the
+  # as-of date AND
   # the walk's own converter can reach the base currency with the FX rates
   # seeded at the as-of date. The gate deliberately uses the SAME conversion
   # path as the daily walk (review finding: an `Fx.rate/3`-based gate admitted
@@ -147,7 +148,7 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
   end
 
   defp has_seed_quote?(%{security_id: security_id}, as_of) do
-    match?(%{close: %Decimal{}}, Quotes.at_or_before(security_id, as_of))
+    match?(%{close: %Decimal{}}, Quotes.at_or_before(security_id, as_of, positive: true))
   end
 
   defp convertible?(currency, base, fx) do
@@ -158,7 +159,10 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
   defp fx_currency(ccy), do: ccy
 
   # Per-security price pointers: the seed is the last close on-or-before the
-  # as-of date, upcoming points advance the walk (mirrors Performance).
+  # as-of date, upcoming points advance the walk (mirrors Performance). Only
+  # a close above 0 is a price, as for the walk: a stored close of 0 or below
+  # is skipped and the close before it carries (#1473, ADR-0051's amendment
+  # of 2026-11-21).
   #
   # Split basis (ADR-0028 §2, mirrors the Performance walk): every point is
   # converted to its own date's as-traded basis (provider mirrors multiply
@@ -170,7 +174,7 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
       events = Map.get(events_by_security, security_id, [])
 
       carried =
-        case Quotes.at_or_before(security_id, as_of) do
+        case Quotes.at_or_before(security_id, as_of, positive: true) do
           %{close: %Decimal{}} = quote_row ->
             quote_row
             |> raw_basis_close(security, events)
@@ -182,7 +186,7 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
 
       quote_points =
         security_id
-        |> Quotes.range(Date.add(as_of, 1), today)
+        |> Quotes.range(Date.add(as_of, 1), today, positive: true)
         |> Enum.map(&%{date: &1.date, close: raw_basis_close(&1, security, events), rank: 1})
 
       rescale_points =
