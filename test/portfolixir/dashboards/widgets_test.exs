@@ -142,6 +142,25 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
              "Portfolixir.Portfolios.Performance.Movers.read/3"
   end
 
+  # User story:
+  # As the operator reading the widget „Verkaufsrückblick“ on the Overview,
+  # I want it to draw what today's card „Abgeschlossene Trades“ draws,
+  # so that the widget is today's card in a frame (ADR-0062 §12), and the
+  # agent reads the same trades from the route the registry names.
+  #
+  # Acceptance criteria:
+  # - Its source is the realized-gains read: GET /api/v1/realized_gains and
+  #   RealizedGains.newest_trades/2, the function the card reads.
+  test "the sale review draws the realized gains' newest closed trades" do
+    {:ok, review} = Widgets.fetch("sale_review")
+
+    assert review.source.routes == ["GET /api/v1/realized_gains"]
+    assert review.source.function == {Portfolixir.Portfolios.RealizedGains, :newest_trades, 2}
+    assert review.source.note =~ "newest"
+    assert review.scope == :none
+    assert review.period == :none
+  end
+
   test "the movers name both their routes and Movers.read/3" do
     {:ok, movers} = Widgets.fetch("movers")
 

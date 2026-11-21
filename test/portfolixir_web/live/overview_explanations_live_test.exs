@@ -109,7 +109,7 @@ defmodule PortfolixirWeb.OverviewExplanationsLiveTest do
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
 
-    assert text(view, "#dashboard-trades .section-head .section-title > h2") == "Closed trades"
+    assert text(view, "#dashboard-trades .section-head .section-title > h2") == "Sale review"
 
     assert tip_lines(view, "#dashboard-trades") == [
              "p. a. only from 365 days of holding and only where a rate solves the flows"

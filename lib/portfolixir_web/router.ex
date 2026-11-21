@@ -86,7 +86,11 @@ defmodule PortfolixirWeb.Router do
         PortfolixirWeb.LiveViewScope,
         PortfolixirWeb.LiveBenchmarkScope
       ] do
-      live("/", DashboardLive)
+      live("/", DashboardLive, :index)
+      # Sprint 31 D3 (ADR-0062 §3, §12): a stored dashboard by its id;
+      # `/dashboards` opens the first, as `/` does.
+      live("/dashboards", DashboardLive, :index)
+      live("/dashboards/:id", DashboardLive, :show)
       live("/portfolio", PortfolioLive)
       live("/securities", SecuritiesLive)
       live("/securities/:id", SecuritiesLive)

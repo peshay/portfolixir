@@ -549,6 +549,15 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
     |> Enum.map(&"/classifications/#{&1}")
   end
 
+  # Sprint 31 D3: the seed stores no dashboard; the template's copy gives
+  # `/dashboards/:id` one.
+  defp address("/dashboards/:id") do
+    {:ok, board} =
+      Portfolixir.Dashboards.copy_template(Portfolixir.Actor.owner_ui(), "overview", %{})
+
+    ["/dashboards/#{board.id}"]
+  end
+
   defp address(_path), do: []
 
   # --- L5 begin ---

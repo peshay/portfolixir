@@ -63,7 +63,7 @@ defmodule Portfolixir.Invariants.CssStatusRegionTest do
         source = File.read!(template)
 
         assert source =~
-                 ~r/<div (id="[^"]+" )?role="(status|alert)" class="#{class}"( data-role="[^"]+")?><[.A-Z]/,
+                 ~r/<div (id=(?:"[^"]+"|\{[^}]+\}) )?role="(status|alert)" class="#{class}"( data-role="[^"]+")?><[.A-Z]/,
                "#{template}: the #{class} region holds its note and no whitespace"
       end
     end

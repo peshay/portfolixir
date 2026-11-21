@@ -780,9 +780,11 @@ defmodule PortfolixirWeb.DashboardTest do
     refute html =~ "Needs attention"
     assert has_element?(view, "[data-role='attention-explainer']")
 
+    # Sprint 31 D3: the card is the widget „Abseits des Ziels“, its kind's
+    # name (ADR-0062 §1), still named for what it contains.
     de_conn = Phoenix.ConnTest.build_conn() |> put_req_header("accept-language", "de")
-    {:ok, _view, de_html} = live(de_conn, "/")
-    assert de_html =~ "Ziel-Abweichungen"
+    {:ok, de_view, de_html} = live(de_conn, "/")
+    assert has_element?(de_view, "#dashboard-attention h2", "Abseits des Ziels")
     refute de_html =~ "Braucht Aufmerksamkeit"
   end
 end

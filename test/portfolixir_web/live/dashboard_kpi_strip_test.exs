@@ -162,7 +162,9 @@ defmodule PortfolixirWeb.DashboardKpiStripTest do
              ~r/@media \(max-width: 680px\) \{\n  \.kpi-strip__cells \{\n    grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);\n  \}\n\n  \.kpi-strip__cell:nth-child\(3\) \{\n    border-left: 0;\n  \}\n\n  \.kpi-strip__cell:nth-child\(n \+ 3\) \{\n    border-top: 1px solid var\(--color-border\);\n  \}\n\}/
 
     refute css =~ ~r/@media \(max-width: 560px\) \{\n  \.kpi-strip__cells/
-    assert length(Regex.scan(~r/\.kpi-strip__cells \{/, css)) == 2
+    # Sprint 31 D3: the widget „Gesamtwert“ at S stacks the cells by a
+    # rule of its own, scoped to the widget and the wide class.
+    assert length(Regex.scan(~r/(?<!--s )\.kpi-strip__cells \{/, css)) == 2
     refute css =~ ~r/\.kpi-strip__cell strong \{[^}]*clamp\(/
   end
 end

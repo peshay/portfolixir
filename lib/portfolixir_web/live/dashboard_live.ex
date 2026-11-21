@@ -1,12 +1,45 @@
 defmodule PortfolixirWeb.DashboardLive do
+  @moduledoc """
+  The dashboard page (ADR-0062 §3, §4, §6, §12; ADR-0022's amendment of
+  2026-11-21, point 4; Sprint 31 D3): `/` and `/dashboards/:id`.
+
+  * **Which dashboard.** With no stored dashboard, `/` shows the template
+    „Überblick“ read-only, with the banner „Vorlage · mitgeliefert, nur
+    lesend“ and „Anpassen“, which copies it (`Dashboards.copy_template/3`,
+    the first write) and opens the copy. With stored dashboards, `/` opens
+    the first by position and `/dashboards/:id` the one named; an unknown
+    id opens `/`. **A read never writes**: rendering a template stores
+    nothing.
+  * **The scope.** The dashboard reads the user's default view, Everything
+    when none is set, as the Overview did; `?scope=` (a view's id, or
+    `total`) picks another for this address only, never stored. An item's
+    `settings.view_id` overrides it for that widget; a view that no longer
+    exists reads the dashboard's scope and the widget's footer says so
+    (§2).
+  * **The widgets.** Each item of the layout is drawn by its kind in the
+    frame of `PortfolixirWeb.Dashboard.Widget`, in reading order, placed
+    on the 12-column grid in the wide class and in one or two columns of
+    compact forms below it (CSS's choice, by the window's size, §6). The
+    Overview's cards are the kinds `total_value`, `data_quality`, `due`,
+    `off_target`, `movers`, `bitcoin_cycle` and `sale_review`, each drawing
+    exactly the read the card drew (§12); the four kinds Sprint 31's D4
+    draws stand as empty frames until then.
+  * **The first run.** With no transaction, the page is the onboarding
+    wizard; the workflow path stays a first-run card on the template until
+    the depot pair exists.
+  """
   use PortfolixirWeb, :live_view
 
   alias Plug.Conn.Query
+  alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.SecurityCycles
   alias Portfolixir.Classifications
+  alias Portfolixir.Dashboards
+  alias Portfolixir.Dashboards.Templates
+  alias Portfolixir.Dashboards.Widgets
   alias Portfolixir.Knowledge.Events
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
@@ -23,8 +56,10 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Components.CycleChart
   alias PortfolixirWeb.Dashboard.MoversCard
+  alias PortfolixirWeb.Dashboard.Widget
   alias PortfolixirWeb.ExcludedSales
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.SecurityNames
@@ -42,16 +77,29 @@ defmodule PortfolixirWeb.DashboardLive do
   # #984 (pick G1-A): the Overview's closed-trades card lists the newest five.
   @closed_trades_shown 5
 
+  # The kinds whose figures come from the view-scoped value and drift read.
+  @scoped_kinds ~w(total_value off_target)
+
   @impl true
   def mount(_params, _session, socket) do
     socket =
       socket
       |> assign_counts()
-      |> assign(:wealth_card, nil)
-      |> assign(:last_booking, nil)
-      |> assign(:drift_alerts, nil)
-      |> assign(:attention_basis, nil)
-      |> assign(:data_quality, nil)
+      |> assign(
+        board: nil,
+        items: [],
+        scope_id: nil,
+        load_key: nil,
+        cards: %{},
+        attention: %{},
+        movers: %{},
+        data_quality: nil,
+        last_booking: nil,
+        stale_ttwror: nil,
+        movers_window: nil,
+        closed_trades: nil,
+        customize_error: nil
+      )
       # #828 (design pick D3-A): the due dates, read synchronously — the
       # calendar is a small table and the card must not depend on the
       # async overview read that carries the drift alerts.
@@ -64,15 +112,114 @@ defmodule PortfolixirWeb.DashboardLive do
       # is booked — a cheap fact read now, so a ledger without one never
       # paints a placeholder for a card that cannot appear.
       |> assign_has_sells()
-      |> assign(:closed_trades, nil)
-      # Sprint 30 T3 (ADR-0061 §9): the card „Tops und Flops“; its window
-      # comes from the address (`handle_params/3`), which starts its read.
-      |> assign(:movers_window, nil)
-      |> assign(:movers, nil)
-      |> assign_stale_ttwror()
-      |> start_loading()
 
     {:ok, socket}
+  end
+
+  # --- which dashboard, which scope (ADR-0062 §2, §3) --------------------------
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    case board(socket.assigns.live_action, params) do
+      :not_found ->
+        {:noreply, push_navigate(socket, to: "/")}
+
+      board ->
+        scope_id = scope_id(params, socket.assigns.views)
+        window = MoversCard.window(params[MoversCard.param()])
+        {:noreply, show(socket, board, scope_id, window)}
+    end
+  end
+
+  # The stored dashboards in the menu's order, else the template; an id
+  # that names none is not found (as one past the bigint range is, which
+  # `PortfolixirWeb.LiveIdRange` turns away before this runs).
+  defp board(:show, %{"id" => raw}) do
+    with id when is_integer(id) <- LiveParam.id(raw),
+         %Dashboards.Dashboard{} = dashboard <- Dashboards.get_dashboard(id) do
+      stored(dashboard)
+    else
+      _none -> :not_found
+    end
+  end
+
+  defp board(_index, _params) do
+    case Dashboards.list_dashboards() do
+      [first | _rest] -> stored(first)
+      [] -> template(hd(Dashboards.templates()))
+    end
+  end
+
+  defp stored(dashboard),
+    do: %{
+      key: {:dashboard, dashboard.id},
+      template: nil,
+      dashboard: dashboard,
+      layout: dashboard.layout,
+      path: "/dashboards/#{dashboard.id}"
+    }
+
+  defp template(template),
+    do: %{
+      key: {:template, template.key},
+      template: template,
+      dashboard: nil,
+      layout: template.layout,
+      path: "/"
+    }
+
+  # The dashboard's scope: `?scope=` for this address (a view's id or
+  # `total`), else the default view the Overview always read, Everything
+  # when none is set. An id that names no view reads the default; nothing
+  # is stored.
+  defp scope_id(%{"scope" => "total"}, _views), do: nil
+
+  defp scope_id(%{"scope" => raw}, views) do
+    with id when is_integer(id) <- LiveParam.id(raw),
+         %{} <- Enum.find(views, &(&1.id == id)) do
+      id
+    else
+      _none -> Settings.default_view_id()
+    end
+  end
+
+  defp scope_id(_params, _views), do: Settings.default_view_id()
+
+  defp show(socket, board, scope_id, window) do
+    key = {board.key, scope_id, board.dashboard && board.dashboard.lock_version}
+
+    if socket.assigns.load_key == key do
+      if socket.assigns.movers_window == window,
+        do: socket,
+        else: socket |> assign(movers_window: window, movers: %{}) |> start_movers()
+    else
+      socket
+      |> assign(
+        board: board,
+        scope_id: scope_id,
+        load_key: key,
+        items: Widget.items(board.layout, scope_id, socket.assigns.views),
+        movers_window: window,
+        cards: %{},
+        attention: %{},
+        movers: %{},
+        error: nil
+      )
+      |> assign_stale_ttwror()
+      |> start_loading()
+      |> start_movers()
+      |> start_closed_trades()
+    end
+  end
+
+  # The scopes the items read the value and drift under, the dashboard's
+  # first.
+  defp scopes(items, kinds, dashboard_scope) do
+    items
+    |> Enum.filter(&(&1.kind in kinds))
+    |> Enum.map(& &1.scope)
+    |> Enum.uniq()
+    |> Enum.reject(&(&1 == dashboard_scope))
   end
 
   # The dashboard splits on whether any transaction exists: an empty database is
@@ -85,12 +232,14 @@ defmodule PortfolixirWeb.DashboardLive do
 
   defp start_loading(socket) do
     if connected?(socket) do
-      CappedAsync.start_async(socket, :overview, fn ->
-        # One value card scoped to the user's default view — Everything when
+      scope_id = socket.assigns.scope_id
+
+      socket
+      |> CappedAsync.start_async({:overview, scope_id}, fn ->
+        # One value card scoped to the dashboard's view — Everything when
         # none is set (ADR-0024: views, not portfolios, are the grouping the
         # dashboard aggregates over). The drift alerts steer against the same
         # view's SOLL plans (ADR-0020: plans are view-bound).
-        view_id = Settings.default_view_id()
         base_currency = base_currency()
 
         # ADR-0035: the card's view-wide valuation and the per-portfolio drift
@@ -99,13 +248,26 @@ defmodule PortfolixirWeb.DashboardLive do
         # with this task.
         context = PricingContext.for_all_portfolios(base_currency)
 
-        {wealth_card(view_id, base_currency, context), attention_report(view_id, context),
+        {wealth_card(scope_id, base_currency, context), attention_report(scope_id, context),
          data_quality_report(), last_booking()}
       end)
-      |> start_closed_trades()
+      |> start_scoped(scopes(socket.assigns.items, @scoped_kinds, scope_id))
     else
       socket
     end
+  end
+
+  # An item whose `settings.view_id` names another view reads the value and
+  # the drift in it, one read per such view (ADR-0062 §2).
+  defp start_scoped(socket, scopes) do
+    Enum.reduce(scopes, socket, fn scope_id, socket ->
+      CappedAsync.start_async(socket, {:scoped, scope_id}, fn ->
+        base_currency = base_currency()
+        context = PricingContext.for_all_portfolios(base_currency)
+
+        {wealth_card(scope_id, base_currency, context), attention_report(scope_id, context)}
+      end)
+    end)
   end
 
   # --- S30 T3 begin ---
@@ -113,42 +275,37 @@ defmodule PortfolixirWeb.DashboardLive do
   # „Tops und Flops“ travels in the address (`?movers_period=`), so a
   # reload or a handed-over link opens it on the same window; a value the
   # card does not know opens „Day“. A new window drops the card back to its
-  # busy skeleton and reads again in the background.
-  @impl true
-  def handle_params(params, _uri, socket) do
-    window = MoversCard.window(params[MoversCard.param()])
+  # busy skeleton and reads again in the background, one read per scope the
+  # dashboard's movers widgets take.
+  #
+  # The read the API answers for the widget's scope: its view, Everything
+  # when none is set or it vanished meanwhile (as the value card degrades).
+  # The view's name travels raw; „Everything“ is localized at render time,
+  # where the user's locale is set. One read per scope at a time: a chip
+  # pressed while a read runs waits for it, and only the latest window
+  # lands (`CappedAsync.start_latest/3`).
+  defp start_movers(%{assigns: %{transactions_count: 0}} = socket), do: socket
 
-    if socket.assigns.movers_window == window do
-      {:noreply, socket}
-    else
-      {:noreply,
-       socket
-       |> assign(movers_window: window, movers: nil)
-       |> start_movers(window)}
-    end
-  end
+  defp start_movers(socket) do
+    window = socket.assigns.movers_window
 
-  # The read the API answers for the Overview's scope: the default view,
-  # Everything when none is set or it vanished meanwhile (as the value card
-  # degrades). The view's name travels raw; „Everything“ is localized at
-  # render time, where the user's locale is set. One read at a time: a
-  # chip pressed while a read runs waits for it, and only the latest
-  # window lands (`CappedAsync.start_latest/3`).
-  defp start_movers(%{assigns: %{transactions_count: 0}} = socket, _window), do: socket
+    socket.assigns.items
+    |> Enum.filter(&(&1.kind == "movers"))
+    |> Enum.map(& &1.scope)
+    |> Enum.uniq()
+    |> Enum.reduce(socket, fn scope_id, socket ->
+      CappedAsync.start_latest(socket, {:movers, scope_id}, fn ->
+        view = scope_id && Buckets.get_view(scope_id)
 
-  defp start_movers(socket, window) do
-    CappedAsync.start_latest(socket, :movers, fn ->
-      view_id = Settings.default_view_id()
-      view = view_id && Buckets.get_view(view_id)
+        case Movers.read(view && view.id, window) do
+          {:ok, result} ->
+            %{result: result, view_name: view && view.name}
 
-      case Movers.read(view && view.id, window) do
-        {:ok, result} ->
-          %{result: result, view_name: view && view.name}
-
-        {:error, :view_not_found} ->
-          {:ok, result} = Movers.read(nil, window)
-          %{result: result, view_name: nil}
-      end
+          {:error, :view_not_found} ->
+            {:ok, result} = Movers.read(nil, window)
+            %{result: result, view_name: nil}
+        end
+      end)
     end)
   end
 
@@ -167,16 +324,20 @@ defmodule PortfolixirWeb.DashboardLive do
   # the report's newest five, its exclusions and its base currency — not
   # the whole report it used to cut down.
   defp start_closed_trades(%{assigns: %{has_sells: true}} = socket) do
-    CappedAsync.start_async(socket, :closed_trades, fn ->
-      # #1155 (board 08, N14 = A): a twin's identifier on each trade the
-      # card lists, decided over the card's trades.
-      @closed_trades_shown
-      |> RealizedGains.newest_trades()
-      |> Map.update!(
-        :trades,
-        &SecurityNames.put_catalog_twin_ids(&1, fn t -> t.security_name end)
-      )
-    end)
+    if connected?(socket) and Enum.any?(socket.assigns.items, &(&1.kind == "sale_review")) do
+      CappedAsync.start_async(socket, :closed_trades, fn ->
+        # #1155 (board 08, N14 = A): a twin's identifier on each trade the
+        # card lists, decided over the card's trades.
+        @closed_trades_shown
+        |> RealizedGains.newest_trades()
+        |> Map.update!(
+          :trades,
+          &SecurityNames.put_catalog_twin_ids(&1, fn t -> t.security_name end)
+        )
+      end)
+    else
+      socket
+    end
   end
 
   defp start_closed_trades(socket), do: socket
@@ -192,7 +353,7 @@ defmodule PortfolixirWeb.DashboardLive do
 
   defp assign_stale_ttwror(socket) do
     first = Portfolios.first_portfolio()
-    view_id = Settings.default_view_id()
+    view_id = socket.assigns.scope_id
 
     with %{} = portfolio <- first,
          %{daily: [_ | _]} = previous <-
@@ -258,34 +419,46 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   @impl true
-  def handle_async(:overview, {:ok, {wealth_card, attention, data_quality, last_booking}}, socket) do
+  def handle_async(
+        {:overview, scope_id},
+        {:ok, {wealth_card, attention, data_quality, last_booking}},
+        socket
+      ) do
     {:noreply,
-     assign(socket,
-       wealth_card: wealth_card,
-       last_booking: last_booking,
-       drift_alerts: attention.alerts,
-       attention_basis: attention.basis,
-       data_quality: data_quality
-     )}
+     socket
+     |> update(:cards, &Map.put(&1, scope_id, wealth_card))
+     |> update(:attention, &Map.put(&1, scope_id, attention))
+     |> assign(data_quality: data_quality, last_booking: last_booking)}
   end
 
-  def handle_async(:overview, {:exit, _reason}, socket) do
+  def handle_async({:overview, _scope_id}, {:exit, _reason}, socket) do
+    {:noreply, assign(socket, :error, gettext("Couldn't load the dashboard figures."))}
+  end
+
+  def handle_async({:scoped, scope_id}, {:ok, {wealth_card, attention}}, socket) do
+    {:noreply,
+     socket
+     |> update(:cards, &Map.put(&1, scope_id, wealth_card))
+     |> update(:attention, &Map.put(&1, scope_id, attention))}
+  end
+
+  def handle_async({:scoped, _scope_id}, {:exit, _reason}, socket) do
     {:noreply, assign(socket, :error, gettext("Couldn't load the dashboard figures."))}
   end
 
   # --- S30 T3 begin ---
   # A read a later chip superseded starts the latest and lands nothing.
-  def handle_async(:movers, {:ok, card}, socket) do
-    case CappedAsync.landed(socket, :movers) do
+  def handle_async({:movers, scope_id} = name, {:ok, card}, socket) do
+    case CappedAsync.landed(socket, name) do
       {:superseded, socket} -> {:noreply, socket}
-      {:current, socket} -> {:noreply, assign(socket, :movers, card)}
+      {:current, socket} -> {:noreply, update(socket, :movers, &Map.put(&1, scope_id, card))}
     end
   end
 
-  def handle_async(:movers, {:exit, _reason}, socket) do
-    case CappedAsync.landed(socket, :movers) do
+  def handle_async({:movers, scope_id} = name, {:exit, _reason}, socket) do
+    case CappedAsync.landed(socket, name) do
       {:superseded, socket} -> {:noreply, socket}
-      {:current, socket} -> {:noreply, assign(socket, :movers, :error)}
+      {:current, socket} -> {:noreply, update(socket, :movers, &Map.put(&1, scope_id, :error))}
     end
   end
 
@@ -297,9 +470,30 @@ defmodule PortfolixirWeb.DashboardLive do
   def handle_async(:closed_trades, {:exit, _reason}, socket),
     do: {:noreply, assign(socket, :closed_trades, :error)}
 
-  # The overview handles no events of its own; one pushed to it changes
-  # nothing (E25 S4, F17).
+  # „Anpassen“ (ADR-0062 §3): the template copied into a stored dashboard
+  # under the UI's actor — the first write — and the copy opened. Only a
+  # template answers it; a stored dashboard has nothing to copy here.
   @impl true
+  def handle_event("customize", _params, %{assigns: %{board: %{template: %{} = t}}} = socket) do
+    case Dashboards.copy_template(Actor.owner_ui(), t.key, %{}) do
+      {:ok, dashboard} ->
+        {:noreply, push_navigate(socket, to: "/dashboards/#{dashboard.id}")}
+
+      {:error, :too_many_dashboards} ->
+        {:noreply,
+         assign(
+           socket,
+           :customize_error,
+           gettext("Fifty dashboards are stored, the most an instance keeps.")
+         )}
+
+      {:error, _refusal} ->
+        {:noreply, assign(socket, :customize_error, gettext("Couldn't copy the template."))}
+    end
+  end
+
+  # The overview handles no other events; one pushed to it changes nothing
+  # (E25 S4, F17).
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @impl true
@@ -307,13 +501,22 @@ defmodule PortfolixirWeb.DashboardLive do
     ~H"""
     <AppShell.shell page_address={@page_address}
       current_path="/"
-      page_title={gettext("Overview")}
+      page_title={board_title(@board)}
       page_subtitle={gettext("Local portfolio tracking")}
     >
       <div id="dashboard-workspace" class="workspace-page">
+        <.dashboard_bar
+          :if={@board}
+          board={@board}
+          scope_id={@scope_id}
+          views={@views}
+          customize_error={@customize_error}
+          movers_window={@movers_window}
+        />
         <%= if @transactions_count == 0 do %>
           <.wizard {assigns} />
         <% else %>
+          <.workflow_path :if={first_run?(assigns)} />
           <.overview {assigns} />
         <% end %>
       </div>
@@ -321,9 +524,112 @@ defmodule PortfolixirWeb.DashboardLive do
     """
   end
 
+  defp board_title(nil), do: gettext("Overview")
+  defp board_title(%{dashboard: %{name: name}}), do: name
+  defp board_title(%{template: template}), do: Templates.title(template.key)
+
+  # The workflow path stays a first-run card on the template until the
+  # depot pair exists (a depot is always linked to its cash account).
+  defp first_run?(assigns),
+    do: match?(%{template: %{}}, assigns.board) and assigns.securities_accounts_count == 0
+
+  attr(:board, :map, required: true)
+  attr(:scope_id, :any, required: true)
+  attr(:views, :list, required: true)
+  attr(:customize_error, :string, default: nil)
+  attr(:movers_window, :string, default: nil)
+
+  # The bar above the widgets (planning board 01 ①): the dashboard's scope
+  # („Gesamt ▾“), and on a template the banner „Vorlage · mitgeliefert,
+  # nur lesend“ with „Anpassen“. The scope's choices are links that keep it
+  # in the address only; the session's view and the default stay as they
+  # are.
+  defp dashboard_bar(assigns) do
+    assigns =
+      assign(assigns,
+        scope_name: scope_name(assigns.scope_id, assigns.views),
+        choices:
+          [{"total", gettext("Everything"), is_nil(assigns.scope_id)}] ++
+            Enum.map(assigns.views, &{to_string(&1.id), &1.name, &1.id == assigns.scope_id})
+      )
+
+    ~H"""
+    <section
+      id="dashboard-bar"
+      class="workspace-section workspace-section--controls dashboard-bar"
+      aria-label={gettext("Dashboard")}
+    >
+      <div class="dashboard-bar__row">
+        <details class="dashboard-scope" id="dashboard-scope" data-role="dashboard-scope">
+          <summary aria-label={gettext("Scope: %{name}", name: @scope_name)}>
+            <span data-role="dashboard-scope-name"><%= @scope_name %></span>
+            <span aria-hidden="true">▾</span>
+          </summary>
+          <nav class="dashboard-scope__menu" aria-label={gettext("Scope")}>
+            <.link
+              :for={{value, name, active?} <- @choices}
+              patch={scope_href(@board.path, value, @movers_window)}
+              class={["dashboard-scope__option", active? && "is-active"]}
+              aria-current={if active?, do: "true"}
+              data-scope={value}
+            ><%= name %></.link>
+          </nav>
+        </details>
+      </div>
+      <div :if={@board.template} class="dashboard-banner" data-role="template-banner">
+        <span>
+          <strong><%= gettext("Template") %></strong> · <%= gettext("shipped, read-only") %>
+        </span>
+        <button
+          type="button"
+          class="button-primary"
+          phx-click="customize"
+          data-role="customize"
+        >
+          <%= gettext("Customize") %>
+        </button>
+      </div>
+      <div id="dashboard-customize-status" role="status"><AppShell.data_note
+          :if={@customize_error}
+          severity={:problem}
+        ><%= @customize_error %></AppShell.data_note></div>
+    </section>
+    """
+  end
+
+  defp scope_href(path, value, window) do
+    query =
+      [{"scope", value}] ++
+        if(window && window != MoversCard.window(nil),
+          do: [{MoversCard.param(), window}],
+          else: []
+        )
+
+    path <> "?" <> URI.encode_query(query)
+  end
+
+  defp scope_name(nil, _views), do: gettext("Everything")
+
+  defp scope_name(id, views) do
+    case Enum.find(views, &(&1.id == id)) do
+      %{name: name} -> name
+      nil -> gettext("Everything")
+    end
+  end
+
   # Empty-database onboarding: the ordered workflow plus the count cards that
   # link to where each entity is created.
   defp wizard(assigns) do
+    ~H"""
+    <.workflow_path :if={first_run?(assigns)} />
+
+    <.count_cards {assigns} />
+
+    <.cycle_cards views={@cycle_views} />
+    """
+  end
+
+  defp workflow_path(assigns) do
     ~H"""
     <section id="workflow-path" class="workspace-section">
       <h2><%= gettext("Workflow path") %></h2>
@@ -341,10 +647,6 @@ defmodule PortfolixirWeb.DashboardLive do
         <li><a href="/transactions"><%= gettext("Review current holdings") %></a></li>
       </ol>
     </section>
-
-    <.count_cards {assigns} />
-
-    <.cycle_cards views={@cycle_views} />
     """
   end
 
@@ -367,245 +669,256 @@ defmodule PortfolixirWeb.DashboardLive do
 
   # --- S29 H8 end ---
 
-  # Populated dashboard (ADR-0022, reshaped by ADR-0024): one value card
-  # scoped to the default view (Everything when none is set) with the YTD
-  # TTWROR as the change signal, the drift attention list, and the
-  # data-quality card. Deliberately no activity feed and no entity counts —
-  # the audit journal and the admin pages own those.
+  # The populated dashboard: the layout's widgets in reading order on the
+  # grid (ADR-0062 §4, §6). Load failure is a page-level condition, not an
+  # action result: one data note in flow, announced from a region that
+  # exists on load, no floating toast and no timer (#566, UX-DR17).
   defp overview(assigns) do
     ~H"""
-    <div id="dashboard-overview">
-      <%!-- Load failure is a page-level condition, not an action result: one
-           data note in flow, announced from a region that exists on load, no
-           floating toast and no timer (#566, UX-DR17). --%>
+    <div id="dashboard-overview" class="dashboard">
       <div id="dashboard-load-error" role="status">
         <%= if @error do %>
           <AppShell.data_note severity={:problem}><%= @error %></AppShell.data_note>
         <% end %>
       </div>
+      <div class="dashboard-grid" data-role="dashboard-grid">
+        <.widget :for={item <- @items} item={item} {widget_assigns(assigns)} />
+      </div>
+    </div>
+    """
+  end
 
-      <%!-- #1081 (D-3, board 01 pick J1 A): the section holds one card in
-           every state, and under it the note naming what the total leaves
-           out. It is not a `.grid`: a second grid item would become a second
-           column, and a spanning one stops auto-fit from collapsing the
-           empty tracks, so the card would shrink; `.workspace-section` is
-           already a one-column grid with the gap. --%>
-      <section id="dashboard-wealth" class="workspace-section" aria-label={gettext("Wealth value")}>
-        <%= if is_nil(@wealth_card) do %>
-          <%!-- Pending with a prior value (UX-DR20, owner pick P2): the last
-               known value stays in place, dimmed, with a real-text staleness
-               marker BEFORE the digits and the recomputing cue beneath. The
-               slot carries aria-busy and sits in no live region. --%>
-          <article
-            :if={not is_nil(@stale_ttwror) and is_nil(@error)}
-            class="stat"
-            data-role="overview-stale"
-          >
-            <span><%= gettext("year to date") %></span>
-            <strong class="value-slot-stale" aria-busy="true">
-              <span class="visually-hidden"><%= gettext("Last known value —") %></span>
-              <span class="stale-value"><%= signed_percent(@stale_ttwror.ttwror) %>%</span>
-            </strong>
-            <small data-role="stale-ttwror" class="recomputing-cue">
-              <span class="spinner"></span>
-              <%= ngettext(
-                "Last known: %{ttwror}% year to date — one booking through %{last}, as of %{date}. Recomputing.",
-                "Last known: %{ttwror}% year to date — %{count} bookings through %{last}, as of %{date}. Recomputing.",
-                @stale_ttwror.basis.booking_count,
-                ttwror: signed_percent(@stale_ttwror.ttwror),
-                last: Format.date(@stale_ttwror.basis.last_booking_date),
-                date: Format.date(@stale_ttwror.as_of)
-              ) %>
-            </small>
-          </article>
-          <article
-            :if={is_nil(@stale_ttwror) and is_nil(@error)}
-            class="stat"
-            aria-busy="true"
-            data-role="overview-skeleton"
-          >
-            <strong><span class="value-skeleton" aria-hidden="true"></span></strong>
-            <small class="recomputing-cue">
-              <span class="spinner"></span> <%= gettext("computing") %>
-            </small>
-          </article>
-        <% else %>
-          <%!-- #1122 (board 01 ④, option 3): the card's period travels,
-               read on arrival and never stored; no `?view=`. --%>
-          <a id="dashboard-wealth-card" href="/portfolio?period=ytd" class="stat stat--link">
-            <span><%= @wealth_card.name || gettext("Everything") %></span>
-            <strong>
-              <span
-                id="count-wealth-card"
-                class="count-up"
-                phx-hook="CountUp"
-                data-count-to={Format.amount_attribute(@wealth_card.valuation.total_with_cash)}
-                data-decimals="2"
-              ><span data-count-digits><%= Format.money(@wealth_card.valuation.total_with_cash) %></span></span><small class="value-suffix"><%= @wealth_card.valuation.base_currency %></small>
-            </strong>
-            <%!-- The sub-line keeps the YTD change; the cash quote moved to
-                 the strip's own cell (UX-DR2 as amended 2026-09-14). The
-                 card is a link and cannot hold an ⓘ, so it says the period
-                 in words (#1090, board 08 ③) under a msgid of its own: "YTD"
-                 stays the period token of the range controls. --%>
-            <small :if={@wealth_card.ttwror} data-role="card-ttwror">
-              <span class={sign_class(@wealth_card.ttwror)}><%= signed_percent(@wealth_card.ttwror) %>%</span>
-              <%= gettext("year to date") %>
-            </small>
-            <small :if={is_nil(@wealth_card.ttwror)} data-role="card-ttwror">
-              <%= gettext("year to date") %> —
-            </small>
-          </a>
-        <% end %>
+  defp widget_assigns(assigns) do
+    Map.take(assigns, [
+      :cards,
+      :attention,
+      :movers,
+      :data_quality,
+      :last_booking,
+      :stale_ttwror,
+      :scope_id,
+      :error,
+      :views,
+      :active_view,
+      :privacy_mode,
+      :movers_window,
+      :closed_trades,
+      :has_sells,
+      :upcoming_events,
+      :cycle_views,
+      :board
+    ])
+  end
+
+  # The footer's scope (ADR-0062 §2): the view the widget reads; where its
+  # item named a view that no longer exists, that it reads the dashboard's
+  # scope instead. None for a kind that takes no view.
+  defp scope_label(%{takes_view: false}, _views), do: nil
+
+  defp scope_label(%{dangling: true, scope: scope_id}, views),
+    do:
+      gettext("Its view no longer exists · reads %{scope}",
+        scope: scope_name(scope_id, views)
+      )
+
+  defp scope_label(%{scope: scope_id}, views),
+    do: gettext("View %{view}", view: scope_name(scope_id, views))
+
+  # --- the widgets ------------------------------------------------------------
+  #
+  # One clause per kind; each draws exactly the read its Overview card drew
+  # (ADR-0062 §12), in the frame, with its compact form. A card that was
+  # absent while it had nothing to say (data quality, due, closed trades)
+  # stays absent: a finding surface makes no claim before a finding exists
+  # (UX-DR2), and its place on the grid stays empty.
+
+  defp widget(%{item: %{kind: "total_value"}} = assigns) do
+    assigns =
+      assigns
+      |> assign(:card, Map.get(assigns.cards, assigns.item.scope))
+      |> assign(:stale, assigns.item.scope == assigns.scope_id && assigns.stale_ttwror)
+      |> assign(:uid, assigns.item.uid)
+
+    ~H"""
+    <Widget.frame
+      id={"dashboard-wealth" <> @uid}
+      item={@item}
+      title={Widgets.title("total_value")}
+      scope_label={scope_label(@item, @views)}
+      full_href="/portfolio?period=ytd"
+      full_label={gettext("View in Wealth →")}
+    >
+      <:info>
+        <%= gettext("TTWROR — time-weighted return for the selected period (not annualized). Deposits and withdrawals are neutralised so only investment performance counts.") %>
+      </:info>
+      <:info>
+        <%= gettext("IRR — money-weighted return, annualized. Discounts the timing and size of cashflows over the period. Windows shorter than a year show the period MWR — the same figure, not annualized.") %>
+      </:info>
+      <:info>
+        <%= gettext("Cash quote: deployable cash ÷ (securities value + deployable cash). Reserve and credit-line accounts are excluded.") %>
+      </:info>
+      <:shared>
         <%!-- UX-DR25 beside the figure (#1081): one status region that exists
              before the read lands (UX-DR17), so the note arriving with the
              card is announced once; empty — and taking no room — when the
              total leaves nothing out (UX-DR2: no all-clear). No whitespace
              inside it, so `:empty` holds. --%>
-        <div id="dashboard-wealth-card-status" role="status" class="wealth-card-status"><.wealth_card_excluded
-            :if={@wealth_card}
-            valuation={@wealth_card.valuation}
-            card={@wealth_card}
+        <div id={"dashboard-wealth-card-status" <> @uid} role="status" class="wealth-card-status"><.wealth_card_excluded
+            :if={@card}
+            uid={@uid}
+            valuation={@card.valuation}
+            card={@card}
             active_view={@active_view}
           /></div>
-      </section>
-
-      <%!-- #798 (UX-DR2 as amended 2026-09-14): the four questions of the
-           morning on one strip — return, cash quote, last booking, quote
-           freshness — each cell stating its basis and linking to the surface
-           that owns the figure. The Overview's own block, not the Wealth band
-           repeated; absent in the empty state (this component renders only
-           once a transaction exists). --%>
-      <section id="dashboard-kpi-strip" class="workspace-section kpi-strip" aria-label={gettext("Key figures")}>
-        <div class="kpi-strip__cells">
-          <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-ttwror">
-            <span class="kpi-strip__label"><%= gettext("TTWROR") %> <%= gettext("1Y") %></span>
-            <%= if @wealth_card do %>
-              <strong
-                :if={one_year_ttwror(@wealth_card)}
-                class={sign_class(one_year_ttwror(@wealth_card))}
-              >
-                <%= signed_percent(one_year_ttwror(@wealth_card)) %>%
-              </strong>
-              <strong :if={is_nil(one_year_ttwror(@wealth_card))} class="kpi-strip__na">—</strong>
-              <small class="kpi-strip__sub"><%= money_weighted_line(@wealth_card.one_year) %></small>
-            <% else %>
-              <.strip_pending />
-            <% end %>
-          </a>
-          <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-cash-quote">
-            <span class="kpi-strip__label"><%= gettext("Cash quote") %></span>
-            <%= if @wealth_card do %>
-              <strong><%= Format.percent(@wealth_card.valuation.cash_quote) %>%</strong>
-              <small class="kpi-strip__sub">
-                <%= Format.money(@wealth_card.valuation.total_cash) %> <%= @wealth_card.valuation.base_currency %> <%= gettext(
-                  "cash"
-                ) %>
-              </small>
-            <% else %>
-              <.strip_pending />
-            <% end %>
-          </a>
-          <%!-- The ledger's newest booking, kind label localized here at
-               render time (the async task has no user locale). --%>
-          <a href="/transactions" class="kpi-strip__cell" data-role="kpi-last-booking">
-            <span class="kpi-strip__label"><%= gettext("Last booking") %></span>
-            <%= if @wealth_card do %>
-              <strong :if={@last_booking}><%= Format.date(@last_booking.date) %></strong>
-              <strong :if={is_nil(@last_booking)} class="kpi-strip__na">—</strong>
-              <small :if={@last_booking} class="kpi-strip__sub">
-                <%= TransactionKindLabel.label(@last_booking.type) %><%= if @last_booking.subject,
-                  do: " · #{@last_booking.subject}" %>
-              </small>
-            <% else %>
-              <.strip_pending />
-            <% end %>
-          </a>
-          <%!-- Freshness: the newest stored quote across the held positions is
-               the fact; the stale count is the finding, shown only when it
-               exists (no all-clear badge) and linking where the data-quality
-               line's quote count links: the held list (issue 1417). --%>
-          <a
-            href="/securities?dq=stale_quote&holding=held"
-            class="kpi-strip__cell"
-            data-role="kpi-freshness"
-          >
-            <span class="kpi-strip__label"><%= gettext("Quotes") %></span>
-            <%= if @wealth_card do %>
-              <strong :if={@wealth_card.valuation.newest_quote_date}>
-                <%= Format.date(@wealth_card.valuation.newest_quote_date) %>
-              </strong>
-              <strong :if={is_nil(@wealth_card.valuation.newest_quote_date)} class="kpi-strip__na">
-                —
-              </strong>
-              <%!-- The count is the one the link resolves to: the stale_quote
-                   predicate over the held securities, the same rule and
-                   scope as the data-quality finding below and the list the
-                   href opens (#705). Issue 1417 (board
-                   ux-design-2026-11-12-sprint29/04 ② A, reversing J1.2 A of
-                   #1081): "n held stale"; the catalogue count has no room in
-                   a cell that is itself a link, and stands on the line
-                   below. At 390 px it wraps, the glyph on its first line. --%>
-              <small
-                :if={@data_quality && @data_quality.without_quote > 0}
-                class="kpi-strip__sub kpi-strip__sub--attention"
-              >
-                <AppShell.icon name={:alert_triangle} size={12} />
-                <span><%= ngettext(
-                  "%{count} held stale",
-                  "%{count} held stale",
-                  @data_quality.without_quote
-                ) %></span>
-              </small>
-            <% else %>
-              <.strip_pending />
-            <% end %>
-          </a>
-        </div>
-        <%!-- The strip's three domain metrics carry their definition here
-             rather than per cell: a cell is a link, and a <details> inside a
-             link is invalid interactive nesting. One ⓘ on the basis line, the
-             same sentences the Wealth band uses (EXPERIENCE.md → Voice and
-             Tone: one explanation, in one place, in one form). --%>
-        <div :if={@wealth_card} class="summary-basis kpi-strip__basis" data-role="kpi-strip-basis">
-          <%= gettext("View %{view} · return over %{period} to %{date} · in %{currency} · quotes: the newest across held positions",
-            view: @wealth_card.name || gettext("Everything"),
-            period: strip_period(@wealth_card),
-            date: Format.date(strip_as_of(@wealth_card)),
-            currency: @wealth_card.valuation.base_currency
-          ) %>
-          <details class="metric-tooltip metric-tooltip--inline" data-role="kpi-strip-info">
-            <summary aria-label={gettext("About these key figures")}>ⓘ</summary>
-            <p role="tooltip">
-              <%= gettext("TTWROR — time-weighted return for the selected period (not annualized). Deposits and withdrawals are neutralised so only investment performance counts.") %>
-              <%= gettext("IRR — money-weighted return, annualized. Discounts the timing and size of cashflows over the period. Windows shorter than a year show the period MWR — the same figure, not annualized.") %>
-              <%= gettext("Cash quote: deployable cash ÷ (securities value + deployable cash). Reserve and credit-line accounts are excluded.") %>
-            </p>
-          </details>
-        </div>
-      </section>
-
-      <%!-- Sprint 30 T3 (ADR-0061 §9; board 04, A): which names moved the
-           scope the card and the strip above it name, directly under them
-           and before the trades, which count over every depot. --%>
-      <MoversCard.card
-        window={@movers_window}
-        card={@movers}
-        privacy_mode={@privacy_mode}
-        active_view={@active_view}
+      </:shared>
+      <.wealth_value card={@card} stale={@stale} error={@error} uid={@uid} />
+      <.kpi_strip
+        card={@card}
+        data_quality={@data_quality}
+        last_booking={@last_booking}
+        uid={@uid}
       />
+      <:compact>
+        <.total_value_compact
+          card={@card}
+          data_quality={@data_quality}
+          last_booking={@last_booking}
+        />
+      </:compact>
+    </Widget.frame>
+    """
+  end
 
-      <.closed_trades_card :if={@has_sells} card={@closed_trades} />
+  defp widget(%{item: %{kind: "data_quality"}} = assigns) do
+    ~H"""
+    <Widget.frame
+      :if={@data_quality && dq_findings(@data_quality) != []}
+      id={"dashboard-data-quality" <> @item.uid}
+      item={@item}
+      title={Widgets.title("data_quality")}
+      full_href="/securities?holding=held"
+      full_label={gettext("To the securities →")}
+    >
+      <:info>
+        <%= gettext("Each set is counted over the held securities, by the rule the list its link opens applies; the catalogue's count follows where it differs. The ledger's checks count bookings.") %>
+      </:info>
+      <.data_quality_line data_quality={@data_quality} uid={@item.uid} />
+      <:compact>
+        <Widget.row
+          :for={finding <- dq_findings(@data_quality)}
+          href={finding.href}
+          data-compact-role={finding.role}
+        >
+          <:name><%= finding.text %></:name>
+          <:sub :if={finding[:effect]}><%= finding.effect %></:sub>
+        </Widget.row>
+      </:compact>
+    </Widget.frame>
+    """
+  end
 
-      <%!-- ADR-0022: the dashboard answers "does anything need me?". Drift
-           alerts (ADR-0023 sign: positive = overweight) link straight into
-           the Allocation & targets tab; the audit journal keeps the forensic
-           detail that the old activity feed restated. --%>
-      <%!-- #718 (UX-DR21 — a surface names what it aggregates): the card is
-           named for its content, categories off their target weight, not for
-           an urgency or the reaction it hopes to cause. --%>
-      <section id="dashboard-attention" class="workspace-section">
-        <h2><%= gettext("Off target") %></h2>
+  defp widget(%{item: %{kind: "due"}} = assigns) do
+    ~H"""
+    <%!-- #828 (ADR-0048, design pick D3-A): what is due. THE DEFAULT SCOPE
+         IS THE WHOLE CATALOG, not the holdings — a row for a security with
+         no position is marked and kept, never filtered away, because a
+         calendar derived from the position list is exactly how a purchase
+         candidate's reporting date became invisible (§2). --%>
+    <Widget.frame
+      :if={@upcoming_events != []}
+      id={"dashboard-upcoming" <> @item.uid}
+      item={@item}
+      title={Widgets.title("due")}
+    >
+      <%!-- I1 (#1351, board ux-design-2026-11-01-sprint22/01-i1 ① ②):
+           the set and the window stay as the basis line; the rule for a
+           range or a month moves into the heading's ⓘ. --%>
+      <:info>
+        <%= gettext(
+          "A date given as a range or a month counts as due when any day it could fall on is inside the horizon."
+        ) %>
+      </:info>
+      <:shared>
+        <p class="hint" data-role="upcoming-basis">
+          <%= gettext(
+            "Dated facts about any security in the catalog — held or not — falling in the next %{days} days.",
+            days: upcoming_days()
+          ) %>
+        </p>
+      </:shared>
+      <ul class="attention-list">
+        <li :for={row <- @upcoming_events}>
+          <a
+            href={"/securities/#{row.event.security_id}?tab=events"}
+            data-role="upcoming-event"
+            class="attention-item"
+          >
+            <%!-- One name and one right-aligned figure, the anatomy
+                 `.attention-item` is built for: a second `.attention-name`
+                 span floated the kind into the middle of the row and made
+                 hover underline two things as if the row were two links.
+                 The kind and the timing qualifier are the name's sub-line;
+                 the date is the figure, which keeps the nowrap slot short
+                 enough for 390 px. --%>
+            <span class="attention-name">
+              <%= row.security_name %>
+              <span :if={not row.held} class="badge badge--neutral" data-role="upcoming-unheld">
+                <%= gettext("no position") %>
+              </span>
+              <small class="attention-item__sub">
+                <%= SecurityEventLabel.kind(row.event.kind) %>
+                · <%= SecurityEventLabel.timing(row.event.timing) %>
+              </small>
+            </span>
+            <span class="num">
+              <%= Format.date(row.event.date) %>
+            </span>
+          </a>
+        </li>
+      </ul>
+      <:compact>
+        <Widget.row
+          :for={row <- @upcoming_events}
+          href={"/securities/#{row.event.security_id}?tab=events"}
+          data-compact-role="upcoming-event"
+        >
+          <:name><%= row.security_name %></:name>
+          <:sub>
+            <%= SecurityEventLabel.kind(row.event.kind) %><%= unless row.held,
+              do: " · " <> gettext("no position") %>
+          </:sub>
+          <:figure><%= Format.date(row.event.date) %></:figure>
+        </Widget.row>
+      </:compact>
+    </Widget.frame>
+    """
+  end
+
+  defp widget(%{item: %{kind: "off_target"}} = assigns) do
+    assigns =
+      assigns
+      |> assign(:report, Map.get(assigns.attention, assigns.item.scope))
+
+    ~H"""
+    <%!-- ADR-0022: the dashboard answers "does anything need me?". Drift
+         alerts (ADR-0023 sign: positive = overweight) link straight into
+         the Allocation & targets tab; the audit journal keeps the forensic
+         detail that the old activity feed restated. #718 (UX-DR21 — a
+         surface names what it aggregates): the card is named for its
+         content, categories off their target weight, not for an urgency or
+         the reaction it hopes to cause. --%>
+    <Widget.frame
+      id={"dashboard-attention" <> @item.uid}
+      item={@item}
+      title={Widgets.title("off_target")}
+      scope_label={scope_label(@item, @views)}
+      full_href="/portfolio?tab=allocation"
+      full_label={gettext("View in Wealth →")}
+    >
+      <:info>
+        <%= gettext("Drift is the actual weight minus the target weight of the active plan, per category of the steering tree; a category without a target is not listed.") %>
+      </:info>
+      <:shared>
         <%!-- Say WHY these items surface (UAT fix round): the threshold rule,
              derived from the same @drift_threshold the filter uses — and
              WHAT they are computed against (#673, {components.needs-
@@ -613,169 +926,447 @@ defmodule PortfolixirWeb.DashboardLive do
              Names come raw from the async read; gettext runs here, at
              render time, where the user's locale is set. --%>
         <p class="hint" data-role="attention-explainer">
-          <span :if={@attention_basis} data-role="attention-basis"><%= basis_phrase(
-              @attention_basis
+          <span :if={@report && @report.basis} data-role="attention-basis"><%= basis_phrase(
+              @report.basis
             ) %> · </span><%= gettext(
             "Categories drifting more than ±%{pp} pp from their target weight.",
             pp: threshold_pp()
           ) %>
         </p>
-        <%= if is_nil(@drift_alerts) do %>
-          <%!-- A whole absent section keeps its block skeleton (UX-DR20);
-               the cue is the substance, the shimmer stays gated. --%>
-          <%!-- #723: the drift report is a sub-second figure — the block
-               skeleton (UX-DR20) carries the wait without the cue, which at
-               that latency only registers as flicker. --%>
-          <p class="section-skeleton" aria-busy="true" data-role="attention-skeleton"></p>
-        <% else %>
-          <%= if @drift_alerts == [] do %>
-            <p class="hint" data-role="all-clear">
-              <%= gettext("All targets within ±5 pp — nothing needs rebalancing.") %>
-            </p>
-          <% else %>
-            <ul class="attention-list">
-              <li :for={alert <- @drift_alerts}>
-                <a href="/portfolio?tab=allocation" data-role="drift-alert" class="attention-item">
-                  <span class="attention-name">
-                    <%= alert.name %>
-                  </span>
-                  <%!-- #798: a decorative drift bar around zero — aria-hidden;
-                       sign, colour and the direction word stay the accessible
-                       channels (UX-DR7). Scaled to the worst drift listed. --%>
-                  <span class="drift-bar" aria-hidden="true">
-                    <span
-                      class={["drift-bar__fill", drift_bar_side(alert.drift_weight)]}
-                      style={"width: #{drift_bar_width(alert.drift_weight, @drift_alerts)}%"}
-                    >
-                    </span>
-                  </span>
-                  <span class={["num", drift_sign_class(alert.drift_weight)]}>
-                    <%= drift_phrase(alert.drift_weight) %>
-                    · <%= Format.money(alert.drift_value) %> <%= alert.base_currency %>
-                  </span>
-                </a>
-              </li>
-            </ul>
-          <% end %>
-        <% end %>
-      </section>
-
-      <%!-- #828 (ADR-0048, design pick D3-A): what is due, in the attention
-           column that already answers "does anything need me?". THE DEFAULT
-           SCOPE IS THE WHOLE CATALOG, not the holdings — a row for a security
-           with no position is marked and kept, never filtered away, because a
-           calendar derived from the position list is exactly how a purchase
-           candidate's reporting date became invisible (§2). No new route and
-           no sidebar entry: ADR-0024 keeps entities as attributes. --%>
-      <section
-        :if={@upcoming_events != []}
-        id="dashboard-upcoming"
-        class="workspace-section"
-      >
-        <%!-- I1 (#1351, board ux-design-2026-11-01-sprint22/01-i1 ① ②):
-             the set and the window stay as the basis line; the rule for a
-             range or a month moves into the heading's ⓘ. --%>
-        <div class="section-title">
-          <h2><%= gettext("Due") %></h2>
-          <AppShell.section_info>
-            <:line>
-              <%= gettext(
-                "A date given as a range or a month counts as due when any day it could fall on is inside the horizon."
-              ) %>
-            </:line>
-          </AppShell.section_info>
-        </div>
-        <p class="hint" data-role="upcoming-basis">
-          <%= gettext(
-            "Dated facts about any security in the catalog — held or not — falling in the next %{days} days.",
-            days: upcoming_days()
-          ) %>
+        <%!-- #723: the drift report is a sub-second figure — the block
+             skeleton (UX-DR20) carries the wait without the cue, which at
+             that latency only registers as flicker. --%>
+        <p
+          :if={is_nil(@report)}
+          class="section-skeleton"
+          aria-busy="true"
+          data-role="attention-skeleton"
+        >
         </p>
-        <ul class="attention-list">
-          <li :for={row <- @upcoming_events}>
-            <a
-              href={"/securities/#{row.event.security_id}?tab=events"}
-              data-role="upcoming-event"
-              class="attention-item"
-            >
-              <%!-- One name and one right-aligned figure, the anatomy
-                   `.attention-item` is built for: a second `.attention-name`
-                   span floated the kind into the middle of the row and made
-                   hover underline two things as if the row were two links.
-                   The kind and the timing qualifier are the name's sub-line;
-                   the date is the figure, which keeps the nowrap slot short
-                   enough for 390 px. --%>
-              <span class="attention-name">
-                <%= row.security_name %>
-                <span :if={not row.held} class="badge badge--neutral" data-role="upcoming-unheld">
-                  <%= gettext("no position") %>
-                </span>
-                <small class="attention-item__sub">
-                  <%= SecurityEventLabel.kind(row.event.kind) %>
-                  · <%= SecurityEventLabel.timing(row.event.timing) %>
-                </small>
+        <p :if={@report && @report.alerts == []} class="hint" data-role="all-clear">
+          <%= gettext("All targets within ±5 pp — nothing needs rebalancing.") %>
+        </p>
+      </:shared>
+      <ul :if={@report && @report.alerts != []} class="attention-list">
+        <li :for={alert <- @report.alerts}>
+          <a href="/portfolio?tab=allocation" data-role="drift-alert" class="attention-item">
+            <span class="attention-name">
+              <%= alert.name %>
+            </span>
+            <%!-- #798: a decorative drift bar around zero — aria-hidden;
+                 sign, colour and the direction word stay the accessible
+                 channels (UX-DR7). Scaled to the worst drift listed. --%>
+            <span class="drift-bar" aria-hidden="true">
+              <span
+                class={["drift-bar__fill", drift_bar_side(alert.drift_weight)]}
+                style={"width: #{drift_bar_width(alert.drift_weight, @report.alerts)}%"}
+              >
               </span>
-              <span class="num">
-                <%= Format.date(row.event.date) %>
-              </span>
-            </a>
-          </li>
-        </ul>
-      </section>
+            </span>
+            <span class={["num", drift_sign_class(alert.drift_weight)]}>
+              <%= drift_phrase(alert.drift_weight) %>
+              · <%= Format.money(alert.drift_value) %> <%= alert.base_currency %>
+            </span>
+          </a>
+        </li>
+      </ul>
+      <:compact>
+        <Widget.row
+          :for={alert <- (@report && @report.alerts) || []}
+          href="/portfolio?tab=allocation"
+          data-compact-role="drift-alert"
+        >
+          <:name><%= alert.name %></:name>
+          <:sub><%= Format.money(alert.drift_value) %> <%= alert.base_currency %></:sub>
+          <:figure>
+            <span class={drift_sign_class(alert.drift_weight)}><%= drift_points(
+              alert.drift_weight
+            ) %></span>
+          </:figure>
+        </Widget.row>
+      </:compact>
+    </Widget.frame>
+    """
+  end
 
-      <.cycle_cards views={@cycle_views} />
+  defp widget(%{item: %{kind: "movers"}} = assigns) do
+    assigns = assign(assigns, :card, Map.get(assigns.movers, assigns.item.scope))
 
-      <%!-- Data quality is ONE line (UX-DR2, decided 2026-07-12, adopted
-           2026-08-05): rendered only when a count is non-zero, no green
-           all-clear badge, each count linking to the securities list
-           PRE-FILTERED to the offending set (#561, unblocked by #651).
-           While the overview computes, the section is simply absent — a
-           finding surface makes no claim before a finding exists. --%>
-      <section
-        :if={@data_quality && dq_findings(@data_quality) != []}
-        id="dashboard-data-quality"
-        class="workspace-section"
+    ~H"""
+    <%!-- Sprint 30 T3 (ADR-0061 §9; board 04, A): which names moved the
+         scope the widget names. --%>
+    <MoversCard.card
+      item={@item}
+      window={@movers_window}
+      card={@card}
+      privacy_mode={@privacy_mode}
+      active_view={@active_view}
+      path={@board.path}
+      scope_param={scope_param(@board, @scope_id)}
+      scope_label={scope_label(@item, @views)}
+    />
+    """
+  end
+
+  defp widget(%{item: %{kind: "bitcoin_cycle"}} = assigns) do
+    ~H"""
+    <%!-- S29 H8 (ADR-0060 §11): the card „‹Name›-Zyklus“ per security
+         with the cycle view, each its own read; its compact form is the
+         card's list itself, which is already one event per line. --%>
+    <Widget.frame
+      :if={@cycle_views != []}
+      id={"dashboard-cycles" <> @item.uid}
+      item={@item}
+      title={Widgets.title("bitcoin_cycle")}
+      class="widget--single-form"
+    >
+      <:info>
+        <%= gettext(
+          "The range the stored cycles give from the current anchors, with its n and both ends: not a forecast."
+        ) %>
+      </:info>
+      <:shared>
+        <.cycle_cards views={@cycle_views} />
+      </:shared>
+    </Widget.frame>
+    """
+  end
+
+  defp widget(%{item: %{kind: "sale_review"}} = assigns) do
+    ~H"""
+    <.closed_trades_card :if={@has_sells} card={@closed_trades} item={@item} />
+    """
+  end
+
+  # The four kinds Sprint 31's D4 draws (ADR-0062 §12): the frame and the
+  # way to the screen that holds the figures today, no figure yet.
+  defp widget(assigns) do
+    assigns = assign(assigns, :later, later_kind(assigns.item.kind))
+
+    ~H"""
+    <Widget.frame
+      id={"dashboard-#{@item.kind}" <> @item.uid}
+      item={@item}
+      title={Widgets.title(@item.kind)}
+      full_href={@later.href}
+      full_label={gettext("Open the screen →")}
+      class="widget--single-form"
+    >
+      <:shared>
+        <p class="hint" data-role="widget-pending">
+          <%= gettext("This widget is drawn from its screen's read in a later step of this release.") %>
+        </p>
+      </:shared>
+    </Widget.frame>
+    """
+  end
+
+  defp later_kind("performance"), do: %{href: "/portfolio"}
+  defp later_kind("allocation_drift"), do: %{href: "/portfolio?tab=allocation"}
+  defp later_kind("snapshots"), do: %{href: "/snapshots"}
+  defp later_kind("crashes"), do: %{href: "/risk"}
+  defp later_kind(_kind), do: %{href: "/"}
+
+  defp scope_param(%{}, scope_id) do
+    if scope_id == Settings.default_view_id(),
+      do: nil,
+      else: (scope_id && to_string(scope_id)) || "total"
+  end
+
+  attr(:card, :any, required: true)
+  attr(:stale, :any, required: true)
+  attr(:error, :any, required: true)
+  attr(:uid, :string, required: true)
+
+  # #1081 (D-3, board 01 pick J1 A): the value in every state.
+  defp wealth_value(assigns) do
+    ~H"""
+    <%= if is_nil(@card) do %>
+      <%!-- Pending with a prior value (UX-DR20, owner pick P2): the last
+           known value stays in place, dimmed, with a real-text staleness
+           marker BEFORE the digits and the recomputing cue beneath. The
+           slot carries aria-busy and sits in no live region. --%>
+      <article
+        :if={@stale && is_nil(@error)}
+        class="stat"
+        data-role="overview-stale"
       >
-        <h2><%= gettext("Data quality") %></h2>
-        <%!-- One data-note at the highest severity present (UX-DR17); the
-             remedy links live inside the note, in its actions, so the clamp
-             never cuts them (#1351, pick Q1, correction 2). role="status"
-             sits on the region so the async arrival announces once. --%>
-        <div role="status">
-          <AppShell.data_note
-            severity={dq_severity(@data_quality)}
-            id="dashboard-dq-line"
-            data-role="data-quality-line"
-            clamp
-          >
-            <:actions>
-              <%= for {finding, index} <- Enum.with_index(dq_findings(@data_quality)) do %>
-                <%= if index > 0 do %>
-                  <span aria-hidden="true"> · </span>
-                <% end %>
-                <a href={finding.href} data-role={finding.role}><%= finding.text %></a>
-                <%!-- Issue 1417 (board ux-design-2026-11-12-sprint29/04 ② A):
-                     the count is the held securities'; the catalogue's
-                     stands after it in parentheses, as its own link, only
-                     where the two differ. --%>
-                <span :if={finding[:catalog]} class="dq-catalog" data-catalog-of={finding.role}>(<a href={finding.catalog.href}><%= ngettext("%{count} in the catalog", "%{count} in the catalog", finding.catalog.count) %></a>)</span>
-                <%!-- #1121 (board 01 ③, pick N3 A): a finding in the total
-                     says what it does to the total above, after its link and
-                     outside it, so the link still names the list it opens.
-                     The card stays silent (#703's split, D-7). Keyed by
-                     `data-effect-of`, so the line's `data-role`s stay one per
-                     finding. --%>
-                <span :if={finding[:effect]} data-effect-of={finding.role}><%= finding.effect %></span>
-              <% end %>
-            </:actions>
-          </AppShell.data_note>
-        </div>
-      </section>
+        <span><%= gettext("year to date") %></span>
+        <strong class="value-slot-stale" aria-busy="true">
+          <span class="visually-hidden"><%= gettext("Last known value —") %></span>
+          <span class="stale-value"><%= signed_percent(@stale.ttwror) %>%</span>
+        </strong>
+        <small data-role="stale-ttwror" class="recomputing-cue">
+          <span class="spinner"></span>
+          <%= ngettext(
+            "Last known: %{ttwror}% year to date — one booking through %{last}, as of %{date}. Recomputing.",
+            "Last known: %{ttwror}% year to date — %{count} bookings through %{last}, as of %{date}. Recomputing.",
+            @stale.basis.booking_count,
+            ttwror: signed_percent(@stale.ttwror),
+            last: Format.date(@stale.basis.last_booking_date),
+            date: Format.date(@stale.as_of)
+          ) %>
+        </small>
+      </article>
+      <article
+        :if={!@stale && is_nil(@error)}
+        class="stat"
+        aria-busy="true"
+        data-role="overview-skeleton"
+      >
+        <strong><span class="value-skeleton" aria-hidden="true"></span></strong>
+        <small class="recomputing-cue">
+          <span class="spinner"></span> <%= gettext("computing") %>
+        </small>
+      </article>
+    <% else %>
+      <%!-- #1122 (board 01 ④, option 3): the card's period travels,
+           read on arrival and never stored; no `?view=`. --%>
+      <a id={"dashboard-wealth-card" <> @uid} href="/portfolio?period=ytd" class="stat stat--link">
+        <span><%= @card.name || gettext("Everything") %></span>
+        <strong>
+          <span
+            id={"count-wealth-card" <> @uid}
+            class="count-up"
+            phx-hook="CountUp"
+            data-count-to={Format.amount_attribute(@card.valuation.total_with_cash)}
+            data-decimals="2"
+          ><span data-count-digits><%= Format.money(@card.valuation.total_with_cash) %></span></span><small class="value-suffix"><%= @card.valuation.base_currency %></small>
+        </strong>
+        <%!-- The sub-line keeps the YTD change; the cash quote moved to
+             the strip's own cell (UX-DR2 as amended 2026-09-14). The
+             card is a link and cannot hold an ⓘ, so it says the period
+             in words (#1090, board 08 ③) under a msgid of its own: "YTD"
+             stays the period token of the range controls. --%>
+        <small :if={@card.ttwror} data-role="card-ttwror">
+          <span class={sign_class(@card.ttwror)}><%= signed_percent(@card.ttwror) %>%</span>
+          <%= gettext("year to date") %>
+        </small>
+        <small :if={is_nil(@card.ttwror)} data-role="card-ttwror">
+          <%= gettext("year to date") %> —
+        </small>
+      </a>
+    <% end %>
+    """
+  end
+
+  attr(:card, :any, required: true)
+  attr(:data_quality, :any, required: true)
+  attr(:last_booking, :any, required: true)
+  attr(:uid, :string, required: true)
+
+  # #798 (UX-DR2 as amended 2026-09-14): the four questions of the morning
+  # on one strip — return, cash quote, last booking, quote freshness — each
+  # cell stating its basis and linking to the surface that owns the figure.
+  # In the widget „Gesamtwert“ under the value it explains (ADR-0062 §12:
+  # the Overview's value block is one widget).
+  defp kpi_strip(assigns) do
+    ~H"""
+    <div id={"dashboard-kpi-strip" <> @uid} class="kpi-strip" aria-label={gettext("Key figures")} role="group">
+      <div class="kpi-strip__cells">
+        <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-ttwror">
+          <span class="kpi-strip__label"><%= gettext("TTWROR") %> <%= gettext("1Y") %></span>
+          <%= if @card do %>
+            <strong
+              :if={one_year_ttwror(@card)}
+              class={sign_class(one_year_ttwror(@card))}
+            >
+              <%= signed_percent(one_year_ttwror(@card)) %>%
+            </strong>
+            <strong :if={is_nil(one_year_ttwror(@card))} class="kpi-strip__na">—</strong>
+            <small class="kpi-strip__sub"><%= money_weighted_line(@card.one_year) %></small>
+          <% else %>
+            <.strip_pending />
+          <% end %>
+        </a>
+        <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-cash-quote">
+          <span class="kpi-strip__label"><%= gettext("Cash quote") %></span>
+          <%= if @card do %>
+            <strong><%= Format.percent(@card.valuation.cash_quote) %>%</strong>
+            <small class="kpi-strip__sub">
+              <%= Format.money(@card.valuation.total_cash) %> <%= @card.valuation.base_currency %> <%= gettext(
+                "cash"
+              ) %>
+            </small>
+          <% else %>
+            <.strip_pending />
+          <% end %>
+        </a>
+        <%!-- The ledger's newest booking, kind label localized here at
+             render time (the async task has no user locale). --%>
+        <a href="/transactions" class="kpi-strip__cell" data-role="kpi-last-booking">
+          <span class="kpi-strip__label"><%= gettext("Last booking") %></span>
+          <%= if @card do %>
+            <strong :if={@last_booking}><%= Format.date(@last_booking.date) %></strong>
+            <strong :if={is_nil(@last_booking)} class="kpi-strip__na">—</strong>
+            <small :if={@last_booking} class="kpi-strip__sub">
+              <%= TransactionKindLabel.label(@last_booking.type) %><%= if @last_booking.subject,
+                do: " · #{@last_booking.subject}" %>
+            </small>
+          <% else %>
+            <.strip_pending />
+          <% end %>
+        </a>
+        <%!-- Freshness: the newest stored quote across the held positions is
+             the fact; the stale count is the finding, shown only when it
+             exists (no all-clear badge) and linking where the data-quality
+             line's quote count links: the held list (issue 1417). --%>
+        <a
+          href="/securities?dq=stale_quote&holding=held"
+          class="kpi-strip__cell"
+          data-role="kpi-freshness"
+        >
+          <span class="kpi-strip__label"><%= gettext("Quotes") %></span>
+          <%= if @card do %>
+            <strong :if={@card.valuation.newest_quote_date}>
+              <%= Format.date(@card.valuation.newest_quote_date) %>
+            </strong>
+            <strong :if={is_nil(@card.valuation.newest_quote_date)} class="kpi-strip__na">
+              —
+            </strong>
+            <%!-- The count is the one the link resolves to: the stale_quote
+                 predicate over the held securities, the same rule and
+                 scope as the data-quality finding and the list the href
+                 opens (#705). Issue 1417: "n held stale". --%>
+            <small
+              :if={@data_quality && @data_quality.without_quote > 0}
+              class="kpi-strip__sub kpi-strip__sub--attention"
+            >
+              <AppShell.icon name={:alert_triangle} size={12} />
+              <span><%= ngettext(
+                "%{count} held stale",
+                "%{count} held stale",
+                @data_quality.without_quote
+              ) %></span>
+            </small>
+          <% else %>
+            <.strip_pending />
+          <% end %>
+        </a>
+      </div>
+      <%!-- The strip's three domain metrics carry their definition in the
+           widget's ⓘ: a cell is a link, and a <details> inside a link is
+           invalid interactive nesting. The basis line names the view, the
+           period, the date and the currency. --%>
+      <div :if={@card} class="summary-basis kpi-strip__basis" data-role="kpi-strip-basis">
+        <%= gettext("View %{view} · return over %{period} to %{date} · in %{currency} · quotes: the newest across held positions",
+          view: @card.name || gettext("Everything"),
+          period: strip_period(@card),
+          date: Format.date(strip_as_of(@card)),
+          currency: @card.valuation.base_currency
+        ) %>
+      </div>
     </div>
     """
   end
 
   attr(:card, :any, required: true)
+  attr(:data_quality, :any, required: true)
+  attr(:last_booking, :any, required: true)
+
+  # The compact form of „Gesamtwert“ (board 06): the view, the total at
+  # figure size, the year-to-date change under it, then the strip's four
+  # figures one per row.
+  defp total_value_compact(assigns) do
+    ~H"""
+    <%= if @card do %>
+      <a class="widget-total" href="/portfolio?period=ytd" data-compact-role="total">
+        <span class="widget-total__label"><%= @card.name || gettext("Everything") %></span>
+        <strong class="widget-total__figure num">
+          <%= Format.money(@card.valuation.total_with_cash) %>
+          <small class="value-suffix"><%= @card.valuation.base_currency %></small>
+        </strong>
+        <small class="widget-total__sub">
+          <span :if={@card.ttwror} class={sign_class(@card.ttwror)}><%= signed_percent(@card.ttwror) %>%</span><span :if={is_nil(@card.ttwror)}>—</span>
+          <%= gettext("year to date") %>
+        </small>
+      </a>
+      <Widget.row href="/portfolio" data-compact-role="kpi-ttwror">
+        <:name><%= gettext("TTWROR") %> <%= gettext("1Y") %></:name>
+        <:sub><%= money_weighted_line(@card.one_year) %></:sub>
+        <:figure>
+          <span :if={one_year_ttwror(@card)} class={sign_class(one_year_ttwror(@card))}><%= signed_percent(one_year_ttwror(@card)) %>%</span><span :if={is_nil(one_year_ttwror(@card))}>—</span>
+        </:figure>
+      </Widget.row>
+      <Widget.row href="/portfolio" data-compact-role="kpi-cash-quote">
+        <:name><%= gettext("Cash quote") %></:name>
+        <:sub>
+          <%= Format.money(@card.valuation.total_cash) %> <%= @card.valuation.base_currency %> <%= gettext("cash") %>
+        </:sub>
+        <:figure><%= Format.percent(@card.valuation.cash_quote) %>%</:figure>
+      </Widget.row>
+      <Widget.row href="/transactions" data-compact-role="kpi-last-booking">
+        <:name><%= gettext("Last booking") %></:name>
+        <:sub :if={@last_booking}><%= TransactionKindLabel.label(@last_booking.type) %></:sub>
+        <:figure>
+          <%= if @last_booking, do: Format.date(@last_booking.date), else: "—" %>
+        </:figure>
+      </Widget.row>
+      <Widget.row href="/securities?dq=stale_quote&holding=held" data-compact-role="kpi-freshness">
+        <:name><%= gettext("Quotes") %></:name>
+        <:sub :if={@data_quality && @data_quality.without_quote > 0}>
+          <%= ngettext("%{count} held stale", "%{count} held stale", @data_quality.without_quote) %>
+        </:sub>
+        <:figure>
+          <%= if @card.valuation.newest_quote_date,
+            do: Format.date(@card.valuation.newest_quote_date),
+            else: "—" %>
+        </:figure>
+      </Widget.row>
+    <% else %>
+      <p class="section-skeleton" aria-busy="true"></p>
+    <% end %>
+    """
+  end
+
+  attr(:data_quality, :map, required: true)
+  attr(:uid, :string, required: true)
+
+  # Data quality is ONE line (UX-DR2, decided 2026-07-12, adopted
+  # 2026-08-05): drawn only when a count is non-zero, no green all-clear
+  # badge, each count linking to the securities list PRE-FILTERED to the
+  # offending set (#561, unblocked by #651). While the overview computes,
+  # the widget is simply absent — a finding surface makes no claim before a
+  # finding exists. One data-note at the highest severity present
+  # (UX-DR17); the remedy links live inside the note, in its actions, so
+  # the clamp never cuts them (#1351, pick Q1, correction 2). role="status"
+  # sits on the region so the async arrival announces once.
+  defp data_quality_line(assigns) do
+    ~H"""
+    <div role="status">
+      <AppShell.data_note
+        severity={dq_severity(@data_quality)}
+        id={"dashboard-dq-line" <> @uid}
+        data-role="data-quality-line"
+        clamp
+      >
+        <:actions>
+          <%= for {finding, index} <- Enum.with_index(dq_findings(@data_quality)) do %>
+            <%= if index > 0 do %>
+              <span aria-hidden="true"> · </span>
+            <% end %>
+            <a href={finding.href} data-role={finding.role}><%= finding.text %></a>
+            <%!-- Issue 1417 (board ux-design-2026-11-12-sprint29/04 ② A):
+                 the count is the held securities'; the catalogue's
+                 stands after it in parentheses, as its own link, only
+                 where the two differ. --%>
+            <span :if={finding[:catalog]} class="dq-catalog" data-catalog-of={finding.role}>(<a href={finding.catalog.href}><%= ngettext("%{count} in the catalog", "%{count} in the catalog", finding.catalog.count) %></a>)</span>
+            <%!-- #1121 (board 01 ③, pick N3 A): a finding in the total
+                 says what it does to the total above, after its link and
+                 outside it, so the link still names the list it opens.
+                 The card stays silent (#703's split, D-7). Keyed by
+                 `data-effect-of`, so the line's `data-role`s stay one per
+                 finding. --%>
+            <span :if={finding[:effect]} data-effect-of={finding.role}><%= finding.effect %></span>
+          <% end %>
+        </:actions>
+      </AppShell.data_note>
+    </div>
+    """
+  end
+
+  attr(:card, :any, required: true)
+  attr(:item, :map, required: true)
 
   # #984 (board G1, pick A; UX-DR2 amended 2026-10-01 with a fifth block):
   # "was the trade worth it", answered where the owner lands. The newest
@@ -783,8 +1374,9 @@ defmodule PortfolixirWeb.DashboardLive do
   # recent-activity feed, and a sale is listed here for what it realised,
   # never as a booking. The card covers every depot whatever the view, as
   # the realized report does, and its basis line says so. Built from
-  # existing parts: the `.attention-list` of "Off target" and "Due", the
-  # `.kpi-summary__link` of "All key figures → Holdings".
+  # existing parts: the `.attention-list` of "Off target" and "Due". Since
+  # Sprint 31 D3 the widget „Verkaufsrückblick“ (ADR-0062 §12): the same
+  # read, in the widget's frame, its link to every trade in the footer.
   #
   # States: pending — the block skeleton (UX-DR20), no cue, the list is a
   # sub-second read; populated; a sale the rates cannot convert named in an
@@ -795,217 +1387,254 @@ defmodule PortfolixirWeb.DashboardLive do
   defp closed_trades_card(%{card: %{trades: [], excluded: %{count: 0}}} = assigns), do: ~H""
 
   defp closed_trades_card(assigns) do
+    assigns = assign(assigns, :ready, is_map(assigns.card))
+
     ~H"""
-    <section id="dashboard-trades" class="workspace-section">
-      <div class="section-head">
-        <%!-- I1 (#1351, board 01 ① ②): the p. a. rule moves into the
-             heading's ⓘ; the set, the currency and the depots stay as the
-             basis line. --%>
-        <div class="section-title">
-          <h2><%= gettext("Closed trades") %></h2>
-          <AppShell.section_info>
-            <:line>
-              <%= gettext("p. a. only from 365 days of holding and only where a rate solves the flows") %>
-            </:line>
-          </AppShell.section_info>
-        </div>
-        <a class="kpi-summary__link" href="/cashflow?tab=realized"><%= gettext("All trades →") %></a>
-      </div>
-      <%= cond do %>
-        <% is_nil(@card) -> %>
-          <p class="section-skeleton" aria-busy="true" data-role="trades-card-skeleton"></p>
-        <% @card == :error -> %>
-          <AppShell.data_note
-            severity={:problem}
-            id="trades-card-error"
-            data-role="trades-card-error"
-            clamp
+    <Widget.frame
+      id={"dashboard-trades" <> @item.uid}
+      item={@item}
+      title={Widgets.title("sale_review")}
+      scope_label={gettext("Every depot, whatever the view")}
+      full_href="/cashflow?tab=realized"
+      full_label={gettext("All trades →")}
+    >
+      <%!-- I1 (#1351, board 01 ① ②): the p. a. rule in the heading's ⓘ;
+           the set, the currency and the depots stay as the basis line. --%>
+      <:info>
+        <%= gettext("p. a. only from 365 days of holding and only where a rate solves the flows") %>
+      </:info>
+      <:shared>
+        <p
+          :if={is_nil(@card)}
+          class="section-skeleton"
+          aria-busy="true"
+          data-role="trades-card-skeleton"
+        >
+        </p>
+        <AppShell.data_note
+          :if={@card == :error}
+          severity={:problem}
+          id={"trades-card-error" <> @item.uid}
+          data-role="trades-card-error"
+          clamp
+        >
+          <%= gettext("Couldn't load the closed trades.") %>
+        </AppShell.data_note>
+        <.trades_excluded :if={@ready} card={@card} uid={@item.uid} />
+      </:shared>
+      <%= if @ready do %>
+      <p :if={@card.trades != []} class="summary-basis" data-role="trades-card-basis">
+        <%!-- Counts what the card shows: five at most (closing act γ n3).
+             #1171 (board 01 ⑤): both limits of p. a., the facet's clause
+             word for word (DESIGN.md → The list's basis line). --%>
+        <%= ngettext(
+          "The most recently closed · result in %{currency} · FIFO across every depot, whatever the view",
+          "The %{count} most recently closed · result in %{currency} · FIFO across every depot, whatever the view",
+          length(@card.trades),
+          currency: @card.base_currency
+        ) %>
+      </p>
+      <ul :if={@card.trades != []} class="attention-list">
+        <li :for={trade <- @card.trades}>
+          <a
+            href={"/securities/#{trade.security_id}?tab=trades"}
+            class="attention-item"
+            data-role="closed-trade"
           >
-            <%= gettext("Couldn't load the closed trades.") %>
-          </AppShell.data_note>
-        <% true -> %>
-          <AppShell.data_note
-            :if={@card.excluded.count > 0}
-            severity={:attention}
-            id="trades-card-excluded"
-            data-role="trades-card-excluded"
-            clamp
-          >
-            <%!-- #1351 closing act (pick Q1; DESIGN.md ③): with two or more
-                 reasons every reason's count leads, so none falls below the
-                 clamp. --%>
-            <span
-              :if={counts = ExcludedSales.counts(@card.excluded.by_reason)}
-              data-role="trades-card-excluded-counts"
-            ><%= gettext("Left out of the trades: %{counts}.", counts: counts) %> </span>
-            <%!-- #1198 (board 09, pick N8 A): the second reason in a
-                 sentence of its own, the existing pointer to the backfill
-                 after it. --%>
-            <span
-              :if={@card.excluded.by_reason.no_rate.count > 0}
-              data-role="trades-card-excluded-no-rate"
-            ><%= StoredText.ending_on(
-              Enum.join(@card.excluded.by_reason.no_rate.securities, ", "),
-              &ngettext(
-                "%{count} sale with no stored rate on its close date is left out of the trades: %{securities}. The rate backfill is under “All trades”.",
-                "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities}. The rate backfill is under “All trades”.",
-                @card.excluded.by_reason.no_rate.count,
-                securities: &1
-              ),
-              &ngettext(
-                "%{count} sale with no stored rate on its close date is left out of the trades: %{securities} The rate backfill is under “All trades”.",
-                "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities} The rate backfill is under “All trades”.",
-                @card.excluded.by_reason.no_rate.count,
-                securities: &1
-              )
-            ) %></span>
-            <span
-              :if={@card.excluded.by_reason.missing_settlement_leg.count > 0}
-              data-role="trades-card-excluded-missing-leg"
-            ><%= StoredText.ending_on(
-              Enum.join(@card.excluded.by_reason.missing_settlement_leg.securities, ", "),
-              &ngettext(
-                "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}.",
-                "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}.",
-                @card.excluded.by_reason.missing_settlement_leg.count,
-                securities: &1
-              ),
-              &ngettext(
-                "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}",
-                "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}",
-                @card.excluded.by_reason.missing_settlement_leg.count,
-                securities: &1
-              )
-            ) %><%= if @card.excluded.by_reason.no_rate.count == 0,
-              do: " " <> gettext("The rate backfill is under “All trades”.") %></span>
-            <%!-- #1310: a sale or a buy priced in a third currency, which no
-                 rate fixes, in a sentence of its own, with no backfill
-                 pointer. --%>
-            <span
-              :if={@card.excluded.by_reason.third_currency.count > 0}
-              data-role="trades-card-excluded-third-currency"
-            ><%= StoredText.ending_on(
-              Enum.join(@card.excluded.by_reason.third_currency.securities, ", "),
-              &ngettext(
-                "%{count} sale not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — is left out of the trades: %{securities}.",
-                "%{count} sales not convertible — each or a buy it closes is priced in a currency that is neither the security's nor its account's — are left out of the trades: %{securities}.",
-                @card.excluded.by_reason.third_currency.count,
-                securities: &1
-              ),
-              &ngettext(
-                "%{count} sale not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — is left out of the trades: %{securities}",
-                "%{count} sales not convertible — each or a buy it closes is priced in a currency that is neither the security's nor its account's — are left out of the trades: %{securities}",
-                @card.excluded.by_reason.third_currency.count,
-                securities: &1
-              )
-            ) %></span>
-            <%!-- #1310: a buy paid in a currency no leg bridges; no backfill pointer. --%>
-            <span
-              :if={@card.excluded.by_reason.other_account_currency.count > 0}
-              data-role="trades-card-excluded-other-account"
-            ><%= StoredText.ending_on(
-              Enum.join(@card.excluded.by_reason.other_account_currency.securities, ", "),
-              &ngettext(
-                "%{count} sale not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — is left out of the trades: %{securities}.",
-                "%{count} sales not convertible — a buy each closes was paid in another currency than its sale's, which no stored figure bridges — are left out of the trades: %{securities}.",
-                @card.excluded.by_reason.other_account_currency.count,
-                securities: &1
-              ),
-              &ngettext(
-                "%{count} sale not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — is left out of the trades: %{securities}",
-                "%{count} sales not convertible — a buy each closes was paid in another currency than its sale's, which no stored figure bridges — are left out of the trades: %{securities}",
-                @card.excluded.by_reason.other_account_currency.count,
-                securities: &1
-              )
-            ) %></span>
-            <%!-- #1311: a buy of zero amount; no backfill pointer. --%>
-            <span
-              :if={@card.excluded.by_reason.zero_amount.count > 0}
-              data-role="trades-card-excluded-zero-amount"
-            ><%= StoredText.ending_on(
-              Enum.join(@card.excluded.by_reason.zero_amount.securities, ", "),
-              &ngettext(
-                "%{count} sale not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — is left out of the trades: %{securities}.",
-                "%{count} sales not convertible — a buy each closes has an amount of zero, which the rate backfill does not complete — are left out of the trades: %{securities}.",
-                @card.excluded.by_reason.zero_amount.count,
-                securities: &1
-              ),
-              &ngettext(
-                "%{count} sale not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — is left out of the trades: %{securities}",
-                "%{count} sales not convertible — a buy each closes has an amount of zero, which the rate backfill does not complete — are left out of the trades: %{securities}",
-                @card.excluded.by_reason.zero_amount.count,
-                securities: &1
-              )
-            ) %></span>
-          </AppShell.data_note>
-          <p :if={@card.trades != []} class="summary-basis" data-role="trades-card-basis">
-            <%!-- Counts what the card shows: five at most (closing act γ n3).
-                 #1171 (board 01 ⑤): both limits of p. a., the facet's clause
-                 word for word (DESIGN.md → The list's basis line). --%>
-            <%= ngettext(
-              "The most recently closed · result in %{currency} · FIFO across every depot, whatever the view",
-              "The %{count} most recently closed · result in %{currency} · FIFO across every depot, whatever the view",
-              length(@card.trades),
-              currency: @card.base_currency
-            ) %>
-          </p>
-          <ul :if={@card.trades != []} class="attention-list">
-            <li :for={trade <- @card.trades}>
-              <a
-                href={"/securities/#{trade.security_id}?tab=trades"}
-                class="attention-item"
-                data-role="closed-trade"
-              >
-                <span class="attention-name">
-                  <%= trade.security_name %><SecurityNames.twin_id tag={trade.twin_id} />
-                  <small class="attention-item__sub">
-                    <%= gettext("sold %{date}", date: Format.date(trade.close_date)) %> · <%= ngettext(
-                      "%{count} day",
-                      "%{count} days",
-                      trade.holding_period_days
-                    ) %>
-                  </small>
-                </span>
-                <span class="num">
-                  <span class={money_sign_class(trade.realized_base)}><%= Format.signed_decimal(
-                    trade.realized_base,
-                    2
-                  ) %></span><small class="value-suffix"><%= @card.base_currency %></small>
-                  <small class="attention-item__sub">
-                    <%= if trade.annualized_return do %>
-                      <span class={sign_class(trade.annualized_return)}><%= signed_percent(
-                        trade.annualized_return
-                      ) %>%</span>
-                      <%= gettext("p. a.") %>
-                    <% else %>
-                      <%= if trade.realized_pnl_pct do %>
-                        <span class={sign_class(trade.realized_pnl_pct)}><%= signed_percent(
-                          trade.realized_pnl_pct
-                        ) %>%</span>
-                        <%= gettext("total") %>
-                      <% else %>
-                        <%!-- #1142 (board 02, found while drawing 9): a
-                             trade on no cost has no return; the card says
-                             so in words, as the facet's phone row does,
-                             where "0.0% total" read as a flat trade. --%>
-                        <span data-role="return-absent"><span aria-hidden="true">—</span> <%= gettext(
-                            "no cost basis"
-                          ) %></span>
-                      <% end %>
-                    <% end %>
-                  </small>
-                </span>
-              </a>
-            </li>
-          </ul>
+            <span class="attention-name">
+              <%= trade.security_name %><SecurityNames.twin_id tag={trade.twin_id} />
+              <small class="attention-item__sub">
+                <%= gettext("sold %{date}", date: Format.date(trade.close_date)) %> · <%= ngettext(
+                  "%{count} day",
+                  "%{count} days",
+                  trade.holding_period_days
+                ) %>
+              </small>
+            </span>
+            <span class="num">
+              <span class={money_sign_class(trade.realized_base)}><%= Format.signed_decimal(
+                trade.realized_base,
+                2
+              ) %></span><small class="value-suffix"><%= @card.base_currency %></small>
+              <small class="attention-item__sub">
+                <%= if trade.annualized_return do %>
+                  <span class={sign_class(trade.annualized_return)}><%= signed_percent(
+                    trade.annualized_return
+                  ) %>%</span>
+                  <%= gettext("p. a.") %>
+                <% else %>
+                  <%= if trade.realized_pnl_pct do %>
+                    <span class={sign_class(trade.realized_pnl_pct)}><%= signed_percent(
+                      trade.realized_pnl_pct
+                    ) %>%</span>
+                    <%= gettext("total") %>
+                  <% else %>
+                    <%!-- #1142 (board 02, found while drawing 9): a
+                         trade on no cost has no return; the card says
+                         so in words, as the facet's phone row does,
+                         where "0.0% total" read as a flat trade. --%>
+                    <span data-role="return-absent"><span aria-hidden="true">—</span> <%= gettext(
+                        "no cost basis"
+                      ) %></span>
+                  <% end %>
+                <% end %>
+              </small>
+            </span>
+          </a>
+        </li>
+      </ul>
       <% end %>
-    </section>
+      <:compact>
+        <Widget.row
+          :for={trade <- (@ready && @card.trades) || []}
+          href={"/securities/#{trade.security_id}?tab=trades"}
+          data-compact-role="closed-trade"
+        >
+          <:name>
+            <%= trade.security_name %><SecurityNames.twin_id tag={trade.twin_id} />
+          </:name>
+          <:sub><%= gettext("sold %{date}", date: Format.date(trade.close_date)) %></:sub>
+          <:figure>
+            <span class={money_sign_class(trade.realized_base)}><%= Format.signed_decimal(
+              trade.realized_base,
+              2
+            ) %></span>
+          </:figure>
+          <:figure_sub><%= @card.base_currency %></:figure_sub>
+        </Widget.row>
+      </:compact>
+    </Widget.frame>
+    """
+  end
+
+  attr(:card, :map, required: true)
+  attr(:uid, :string, required: true)
+
+  # The sales the rates cannot convert, named (UX-DR25).
+  defp trades_excluded(assigns) do
+    ~H"""
+      <AppShell.data_note
+        :if={@card.excluded.count > 0}
+        severity={:attention}
+        id={"trades-card-excluded" <> @uid}
+        data-role="trades-card-excluded"
+        clamp
+      >
+        <%!-- #1351 closing act (pick Q1; DESIGN.md ③): with two or more
+             reasons every reason's count leads, so none falls below the
+             clamp. --%>
+        <span
+          :if={counts = ExcludedSales.counts(@card.excluded.by_reason)}
+          data-role="trades-card-excluded-counts"
+        ><%= gettext("Left out of the trades: %{counts}.", counts: counts) %> </span>
+        <%!-- #1198 (board 09, pick N8 A): the second reason in a
+             sentence of its own, the existing pointer to the backfill
+             after it. --%>
+        <span
+          :if={@card.excluded.by_reason.no_rate.count > 0}
+          data-role="trades-card-excluded-no-rate"
+        ><%= StoredText.ending_on(
+          Enum.join(@card.excluded.by_reason.no_rate.securities, ", "),
+          &ngettext(
+            "%{count} sale with no stored rate on its close date is left out of the trades: %{securities}. The rate backfill is under “All trades”.",
+            "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities}. The rate backfill is under “All trades”.",
+            @card.excluded.by_reason.no_rate.count,
+            securities: &1
+          ),
+          &ngettext(
+            "%{count} sale with no stored rate on its close date is left out of the trades: %{securities} The rate backfill is under “All trades”.",
+            "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities} The rate backfill is under “All trades”.",
+            @card.excluded.by_reason.no_rate.count,
+            securities: &1
+          )
+        ) %></span>
+        <span
+          :if={@card.excluded.by_reason.missing_settlement_leg.count > 0}
+          data-role="trades-card-excluded-missing-leg"
+        ><%= StoredText.ending_on(
+          Enum.join(@card.excluded.by_reason.missing_settlement_leg.securities, ", "),
+          &ngettext(
+            "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}.",
+            "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}.",
+            @card.excluded.by_reason.missing_settlement_leg.count,
+            securities: &1
+          ),
+          &ngettext(
+            "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}",
+            "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}",
+            @card.excluded.by_reason.missing_settlement_leg.count,
+            securities: &1
+          )
+        ) %><%= if @card.excluded.by_reason.no_rate.count == 0,
+          do: " " <> gettext("The rate backfill is under “All trades”.") %></span>
+        <%!-- #1310: a sale or a buy priced in a third currency, which no
+             rate fixes, in a sentence of its own, with no backfill
+             pointer. --%>
+        <span
+          :if={@card.excluded.by_reason.third_currency.count > 0}
+          data-role="trades-card-excluded-third-currency"
+        ><%= StoredText.ending_on(
+          Enum.join(@card.excluded.by_reason.third_currency.securities, ", "),
+          &ngettext(
+            "%{count} sale not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — is left out of the trades: %{securities}.",
+            "%{count} sales not convertible — each or a buy it closes is priced in a currency that is neither the security's nor its account's — are left out of the trades: %{securities}.",
+            @card.excluded.by_reason.third_currency.count,
+            securities: &1
+          ),
+          &ngettext(
+            "%{count} sale not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — is left out of the trades: %{securities}",
+            "%{count} sales not convertible — each or a buy it closes is priced in a currency that is neither the security's nor its account's — are left out of the trades: %{securities}",
+            @card.excluded.by_reason.third_currency.count,
+            securities: &1
+          )
+        ) %></span>
+        <%!-- #1310: a buy paid in a currency no leg bridges; no backfill pointer. --%>
+        <span
+          :if={@card.excluded.by_reason.other_account_currency.count > 0}
+          data-role="trades-card-excluded-other-account"
+        ><%= StoredText.ending_on(
+          Enum.join(@card.excluded.by_reason.other_account_currency.securities, ", "),
+          &ngettext(
+            "%{count} sale not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — is left out of the trades: %{securities}.",
+            "%{count} sales not convertible — a buy each closes was paid in another currency than its sale's, which no stored figure bridges — are left out of the trades: %{securities}.",
+            @card.excluded.by_reason.other_account_currency.count,
+            securities: &1
+          ),
+          &ngettext(
+            "%{count} sale not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — is left out of the trades: %{securities}",
+            "%{count} sales not convertible — a buy each closes was paid in another currency than its sale's, which no stored figure bridges — are left out of the trades: %{securities}",
+            @card.excluded.by_reason.other_account_currency.count,
+            securities: &1
+          )
+        ) %></span>
+        <%!-- #1311: a buy of zero amount; no backfill pointer. --%>
+        <span
+          :if={@card.excluded.by_reason.zero_amount.count > 0}
+          data-role="trades-card-excluded-zero-amount"
+        ><%= StoredText.ending_on(
+          Enum.join(@card.excluded.by_reason.zero_amount.securities, ", "),
+          &ngettext(
+            "%{count} sale not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — is left out of the trades: %{securities}.",
+            "%{count} sales not convertible — a buy each closes has an amount of zero, which the rate backfill does not complete — are left out of the trades: %{securities}.",
+            @card.excluded.by_reason.zero_amount.count,
+            securities: &1
+          ),
+          &ngettext(
+            "%{count} sale not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — is left out of the trades: %{securities}",
+            "%{count} sales not convertible — a buy each closes has an amount of zero, which the rate backfill does not complete — are left out of the trades: %{securities}",
+            @card.excluded.by_reason.zero_amount.count,
+            securities: &1
+          )
+        ) %></span>
+      </AppShell.data_note>
+
     """
   end
 
   attr(:valuation, :map, required: true)
   attr(:card, :map, required: true)
   attr(:active_view, :any, default: nil)
+  attr(:uid, :string, default: "")
 
   # #1081 (D-3, board 01 pick J1 A; UX-DR25 clauses 1–3): what the card's
   # total leaves out, named beside it — the cash accounts with no rate path
@@ -1036,7 +1665,7 @@ defmodule PortfolixirWeb.DashboardLive do
     <AppShell.data_note
       :if={@groups != []}
       severity={:attention}
-      id="wealth-card-excluded"
+      id={"wealth-card-excluded" <> @uid}
       data-role="wealth-card-excluded"
       clamp
     >
@@ -1328,6 +1957,19 @@ defmodule PortfolixirWeb.DashboardLive do
     else
       gettext("%{pp} pp above target", pp: pp)
     end
+  end
+
+  # The compact form's figure (board 06): the drift alone, signed, in
+  # percentage points; the direction is the sign, the colour follows it.
+  defp drift_points(drift_weight) do
+    sign =
+      case Format.displayed_percent_sign(drift_weight) do
+        :negative -> "−"
+        :positive -> "+"
+        _zero -> ""
+      end
+
+    gettext("%{pp} pp", pp: sign <> Format.percent(Decimal.abs(drift_weight)))
   end
 
   # The ±5 pp threshold as a plain "5" for the explainer copy.

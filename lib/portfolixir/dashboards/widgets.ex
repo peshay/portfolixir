@@ -236,9 +236,12 @@ defmodule Portfolixir.Dashboards.Widgets do
       group: "analyses",
       sizes: ~w(M),
       source: %{
-        routes: ["GET /api/v1/sales/hindsight"],
-        function: {Portfolixir.Portfolios.Performance.SaleHindsight, :report, 1},
-        note: nil
+        routes: ["GET /api/v1/realized_gains"],
+        function: {Portfolixir.Portfolios.RealizedGains, :newest_trades, 2},
+        note:
+          "Today's card „Closed trades“ in a frame (ADR-0062 §12): the newest closed " <>
+            "trades of the realized-gains read, the rows GET /api/v1/realized_gains " <>
+            "answers under trades, newest close first, with its exclusions."
       },
       period: :none,
       scope: :none,

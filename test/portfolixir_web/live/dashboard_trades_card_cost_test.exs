@@ -119,7 +119,7 @@ defmodule PortfolixirWeb.DashboardTradesCardCostTest do
     card = view |> render() |> Floki.parse_document!() |> Floki.find("#dashboard-trades")
 
     %{
-      head: text(Floki.find(card, ".section-head h2, .section-head > a")),
+      head: text(Floki.find(card, ".section-head h2, .widget__foot > a")),
       tip: text(Floki.find(card, ".section-head [data-role='section-info'] p")),
       notes: card |> Floki.find(".data-note") |> Enum.map(&text/1),
       basis: text(Floki.find(card, "[data-role='trades-card-basis']")),
@@ -153,7 +153,7 @@ defmodule PortfolixirWeb.DashboardTradesCardCostTest do
     render_async(view)
 
     assert card_snapshot(view, securities) == %{
-             head: "Closed trades All trades →",
+             head: "Sale review All trades →",
              notes: [
                "Attention 1 sale with no stored rate on its close date is left out of the " <>
                  "trades: Fernhill Energy plc. The rate backfill is under “All trades”."

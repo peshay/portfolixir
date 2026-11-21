@@ -189,7 +189,18 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
     Portfolixir.NewsFixtures.chart_note!(next)
     # --- S28 N9 end ---
 
-    %{sold: sold, next: next, tree: tree, core: core, bonds: [forward, reverse]}
+    # Sprint 31 D3: a stored dashboard, the template's copy, so
+    # `/dashboards/:id` has an address.
+    {:ok, dashboard} = Portfolixir.Dashboards.copy_template(Actor.owner_ui(), "overview", %{})
+
+    %{
+      sold: sold,
+      next: next,
+      tree: tree,
+      core: core,
+      bonds: [forward, reverse],
+      dashboard: dashboard
+    }
   end
 
   defp bond!(name, coupon) do
@@ -393,6 +404,9 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
 
       "/classifications/:id" ->
         ["/classifications/#{ctx.tree.id}"]
+
+      "/dashboards/:id" ->
+        ["/dashboards/#{ctx.dashboard.id}"]
 
       # The value series' category stack, from which the walk follows the
       # bar's links: the stack shows only in the value series.
