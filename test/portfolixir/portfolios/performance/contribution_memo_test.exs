@@ -42,14 +42,16 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
   # Acceptance criteria:
   # - `performance_contribution` (portfolio basis) and
   #   `performance_view_contribution` (global basis) are registered with the
-  #   default lifetime `:request`, at computation version 6 since a row's
-  #   `unvalued_days` counts an unvalued baseline day (#1472, ADR-0051's
+  #   default lifetime `:request`, at computation version 7 since the walk
+  #   reads a close of 0 or below as no price (#1473, ADR-0051's amendment
+  #   of 2026-11-21; 6 since a row's
+  #   `unvalued_days` counts an unvalued baseline day, #1472, ADR-0051's
   #   amendment of 2026-11-19; 5 since every row carries `valued_days`,
   #   ADR-0061 §4, Sprint 30 T1; 4 since a coupon
   #   naming its bond became that position's income (#928, ADR-0051's
   #   amendment of 2026-10-09; 3 since #1154 added each row's `wkn` to their
   #   payload, 2 since #1055 added the unvalued cash accounts)); the walk
-  #   analytics are at version 4, #1055's.
+  #   analytics are at version 5, #1473's.
   # - A fixed-period read is memoised under its analytic, one entry per
   #   scope, walk end date and period; repeating it returns the same figures.
   # - A ledger write is in the next read.
@@ -57,11 +59,11 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
   #   memo budget's rule, E25 S4 G03).
   # - The contribution's walk is never stored as a walk analytic.
   test "the contribution is its own request-lifetime analytic per scope and period" do
-    assert Registry.computation_version!(:performance_contribution) == 6
-    assert Registry.computation_version!(:performance_view_contribution) == 6
+    assert Registry.computation_version!(:performance_contribution) == 7
+    assert Registry.computation_version!(:performance_view_contribution) == 7
     assert Registry.lifetime(:performance_contribution) == :request
     assert Registry.lifetime(:performance_view_contribution) == :request
-    assert Registry.computation_version!(:performance_analysis) == 4
+    assert Registry.computation_version!(:performance_analysis) == 5
 
     world = base_world(name: "Memo", cash_name: "Cash", depot_name: "Depot")
     fund = create_security!(name: "Memo Fund", ticker: "MMF")
@@ -110,11 +112,12 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
   # so that a bond's row never reads its price move alone from a memo.
   #
   # Acceptance criteria:
-  # - Both contribution analytics are registered at computation version 6;
-  #   the walk analytics stay at 4.
-  # - A value stored under version 3, for the very scope, period and data
-  #   version a read asks for, is not served: the read computes afresh.
-  test "a contribution stored under computation version 3 is never served" do
+  # - Both contribution analytics are registered at computation version 7;
+  #   the walk analytics at 5 (#1473).
+  # - A value stored under version 3, or under 6 (the walk valuing a close
+  #   of 0 or below, #1473), for the very scope, period and data version a
+  #   read asks for, is not served: the read computes afresh.
+  test "a contribution stored under an earlier computation version is never served" do
     world = base_world(name: "Memo v3", cash_name: "Cash", depot_name: "Depot")
     fund = create_security!(name: "Memo v3 Fund", ticker: "MV3")
     deposit!(world, "1000", ~D[2026-01-05])
@@ -122,12 +125,12 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
     WorldFixtures.put_quotes!(fund, [{~D[2026-01-05], "100"}, {~D[2026-03-02], "110"}])
     pid = world.portfolio.id
 
-    assert Registry.computation_version!(:performance_contribution) == 6
-    assert Registry.computation_version!(:performance_view_contribution) == 6
-    assert Registry.computation_version!(:performance_analysis) == 4
-    assert Registry.computation_version!(:performance_view_analysis) == 4
+    assert Registry.computation_version!(:performance_contribution) == 7
+    assert Registry.computation_version!(:performance_view_contribution) == 7
+    assert Registry.computation_version!(:performance_analysis) == 5
+    assert Registry.computation_version!(:performance_view_analysis) == 5
 
-    stored_under_v3 = %{stored: :under_version_3}
+    stored_earlier = %{stored: :under_an_earlier_version}
 
     portfolio_basis = Derived.portfolio_basis(pid)
     global_basis = Derived.global_basis()
@@ -137,10 +140,11 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
            "view=unscoped|today=2026-06-30|period=ytd"},
           {:performance_view_contribution, global_basis,
            "view=unscoped|base=EUR|today=2026-06-30|period=ytd"}
-        ] do
+        ],
+        version <- [3, 6] do
       Memo.put(
-        {analytic, basis, key, DataVersion.current(basis), 3},
-        stored_under_v3,
+        {analytic, basis, key, DataVersion.current(basis), version},
+        stored_earlier,
         DateTime.utc_now()
       )
     end

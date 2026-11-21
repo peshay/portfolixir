@@ -48,9 +48,15 @@ defmodule Portfolixir.Derived.Registry do
   # and a row stored at v3 would serve the old conversion. The snapshot
   # comparison reads `trade_costs` from the stored walk, so this version
   # covers it; no other registered analytic reads the figure.
+  # v5 (Sprint 31 Z1, #1473, ADR-0051's amendment of 2026-11-21): the walk
+  # reads a stored close of 0 or below as no price, as it reads a day
+  # without a close: the last positive close carries over it, and a
+  # position with none counts zero. `value`, `flow` and `basis` move on
+  # every day such a close was valued, so a row stored at v4 must not be
+  # served.
   @analytics %{
-    performance_analysis: %{computation_version: 4, default_lifetime: :request},
-    performance_view_analysis: %{computation_version: 4, default_lifetime: :request},
+    performance_analysis: %{computation_version: 5, default_lifetime: :request},
+    performance_view_analysis: %{computation_version: 5, default_lifetime: :request},
     # The contribution analysis (FR-41, ADR-0051 §12, Sprint 18 PR β): the
     # walk keeping each position apart inside a period's window. Its own
     # analytic per scope and period, keyed like the two walk analytics plus
@@ -82,8 +88,12 @@ defmodule Portfolixir.Derived.Registry do
     # no reason, its whole value an unmarked contribution. The money lens's
     # finding 1 rides v6 inside the same PR: a price of 0 or below (a legacy
     # close) counts as no price for that count, its figure unchanged.
-    performance_contribution: %{computation_version: 6, default_lifetime: :request},
-    performance_view_contribution: %{computation_version: 6, default_lifetime: :request},
+    # v7 (Sprint 31 Z1, #1473, ADR-0051's amendment of 2026-11-21): the walk
+    # itself reads a close of 0 or below as no price, so a v6 row of a
+    # position with such a close valued the units at it (its whole value a
+    # contribution, marked); the count's own case for it is gone.
+    performance_contribution: %{computation_version: 7, default_lifetime: :request},
+    performance_view_contribution: %{computation_version: 7, default_lifetime: :request},
     # The stacked value chart's bands (FR-53, I34 step 1, Sprint 29 P1): the
     # contribution walk keeping each window day's terms apart, grouped into
     # bands. Its own analytic per scope, period and request, keyed as the
@@ -95,8 +105,10 @@ defmodule Portfolixir.Derived.Registry do
     # `BlastRadius` widens to every portfolio. `:request` by default, no C3
     # activation; only the fixed periods are memoised, as the contribution
     # table's are.
-    performance_bands: %{computation_version: 1, default_lifetime: :request},
-    performance_view_bands: %{computation_version: 1, default_lifetime: :request},
+    # v2 (Sprint 31 Z1, #1473): the walk reads a close of 0 or below as no
+    # price; a v1 band valued the units at it.
+    performance_bands: %{computation_version: 2, default_lifetime: :request},
+    performance_view_bands: %{computation_version: 2, default_lifetime: :request},
     # The benchmark comparison (ADR-0046 §5, Sprint 11 Lane B): a read model
     # over a walk and a benchmark's price series, keyed under the global
     # basis because a benchmark the portfolio never held is outside the
@@ -108,7 +120,9 @@ defmodule Portfolixir.Derived.Registry do
     # v4 (Sprint 24 B1, ADR-0046 amended 2026-11-04): the comparison carries
     # `costs_paid`, the fees and taxes booked in its window and scope; a v3
     # payload lacks it.
-    benchmark_comparison: %{computation_version: 4, default_lifetime: :request},
+    # v5 (Sprint 31 Z1, #1473): built from the walk, which reads a close of 0
+    # or below as no price; a v4 comparison read the walk that valued it.
+    benchmark_comparison: %{computation_version: 5, default_lifetime: :request},
     # The per-security derived metrics (ADR-0047 §8, Sprint 13 Lane A1).
     # `:none` is the DEFAULT WITH A REASON, not a placeholder. The portfolio
     # radius of a quote write is empty for a security no portfolio has ever
@@ -135,7 +149,10 @@ defmodule Portfolixir.Derived.Registry do
     # walk, a held security's quote or an exchange rate bumps that basis.
     # v2 (E25 S4, F72): the correlation matrix covers a bounded number of
     # leading names and says how many (`leading_names`); a v1 payload lacks it.
-    portfolio_metrics: %{computation_version: 2, default_lifetime: :request},
+    # v3 (Sprint 31 Z1, #1473): the walk-derived figures read the walk's
+    # daily series, which no longer values a close of 0 or below; a v2
+    # volatility or drawdown read the old one.
+    portfolio_metrics: %{computation_version: 3, default_lifetime: :request},
     # The policy findings (ADR-0049 §5, Sprint 15 Lane A2): the operator's
     # rules evaluated over the reads above. `:request`, keyed under the
     # portfolio basis AND the portfolio's rules counter (carried in the entry
@@ -144,7 +161,10 @@ defmodule Portfolixir.Derived.Registry do
     # answer to the only question the read exists for.
     # v2 (E25 S7, G30): a finding carries the author of its version; a v1
     # payload lacks it.
-    policy_findings: %{computation_version: 2, default_lifetime: :request}
+    # v3 (Sprint 31 Z1, #1473): the volatility and drawdown measures are read
+    # off the portfolio metrics, which read the walk; a v2 finding evaluated
+    # them over a walk that valued a close of 0 or below.
+    policy_findings: %{computation_version: 3, default_lifetime: :request}
   }
 
   @doc "All registered analytic ids."
