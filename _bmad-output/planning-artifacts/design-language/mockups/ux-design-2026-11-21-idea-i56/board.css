@@ -168,3 +168,64 @@ table.wd-cat tr.hot td { background: color-mix(in oklab, var(--color-accent) 6%,
 .wd-phone table.wd-tab { font-size: 11px; }
 .wd-phone .wd--s .wd-more { display: none; }
 .wd-phone .wd--m:has(.wd-two) { grid-row: span 4; }
+
+/* Board 05: one period for all dashboards, a widget may pin its own. */
+.pd-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pd-chips { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--color-bg-muted); }
+.pd-chips span { padding: 3px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
+.pd-chips span.on { background: var(--color-accent); color: var(--color-on-accent); }
+.pd-follow { font-size: 10.5px; font-weight: 600; color: var(--color-text-muted); padding: 1px 7px; border-radius: 999px; border: 1px solid var(--color-border); }
+.pd-pin { font-size: 10.5px; font-weight: 700; color: var(--color-accent); padding: 1px 7px; border-radius: 999px; background: var(--color-accent-soft); }
+.pd-na { font-size: 10.5px; font-weight: 600; color: var(--color-text-subtle); padding: 1px 7px; border-radius: 999px; border: 1px dashed var(--color-border-strong); }
+.pd-menu { position: absolute; right: 10px; top: 30px; width: 210px; z-index: 2; border: 1px solid var(--color-border-strong); border-radius: 8px; background: var(--color-bg-elevated); box-shadow: var(--shadow-md); padding: 6px; font-size: 12px; }
+.pd-menu div { padding: 5px 8px; border-radius: 5px; }
+.pd-menu div.hl { background: var(--color-hover); font-weight: 700; }
+.pd-menu hr { border: 0; border-top: 1px solid var(--color-border); margin: 4px 0; }
+table.pd-var { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.pd-var th, table.pd-var td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+table.pd-var th { font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); }
+table.pd-var tr.rec td { background: color-mix(in oklab, var(--color-accent) 7%, transparent); }
+
+/* Board 06: screen formats, compact widgets at 1:1 in points. */
+.cp-row { display: flex; flex-wrap: wrap; gap: 26px; align-items: flex-start; }
+.cp-dev { border: 7px solid #1f2937; border-radius: 40px; overflow: hidden; background: var(--color-bg); box-shadow: var(--shadow-panel); position: relative; }
+.cp-dev.fold { border-radius: 26px; }
+.cp-dev.pad { border-radius: 24px; border-width: 10px; }
+.cp-status { height: 44px; display: flex; align-items: center; justify-content: center; font: 600 15px var(--font-sans); color: var(--color-text); }
+.cp-appbar { display: flex; align-items: center; gap: 8px; padding: 2px 16px 8px; }
+.cp-appbar h3 { margin: 0; font-size: 22px; font-weight: 760; letter-spacing: -.01em; }
+.cp-appbar .cp-sel { margin-left: auto; font-size: 15px; color: var(--color-accent); font-weight: 600; }
+.cp-period { display: flex; gap: 6px; padding: 0 16px 12px; overflow: hidden; white-space: nowrap; }
+.cp-period span { flex: none; padding: 7px 13px; border-radius: 999px; background: var(--color-bg-muted); font-size: 14px; font-weight: 600; color: var(--color-text-muted); }
+.cp-period span.on { background: var(--color-accent); color: var(--color-on-accent); }
+.cp-col { display: grid; gap: 12px; padding: 0 12px 12px; }
+.cp-col.two { grid-template-columns: 1fr 1fr; align-items: start; }
+.cp-col.two > .cp-stack { display: grid; gap: 12px; }
+.cp { background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: 16px; padding: 14px 16px; }
+.cp-h { display: flex; align-items: baseline; gap: 8px; margin: 0 0 6px; font-size: 17px; font-weight: 700; }
+.cp-h small { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--color-text-muted); }
+.cp-k { font-size: 30px; font-weight: 760; letter-spacing: -.015em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.cp-k2 { font-size: 22px; font-weight: 760; font-variant-numeric: tabular-nums; }
+.cp-s { font-size: 15px; color: var(--color-text-muted); }
+.cp svg { display: block; width: 100%; }
+.cp .wd-axis { font-size: 12px; }
+.cp-seg { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; border-radius: 10px; background: var(--color-bg-muted); margin: 4px 0 6px; }
+.cp-seg span { text-align: center; padding: 6px 0; border-radius: 8px; font-size: 15px; font-weight: 600; color: var(--color-text-muted); }
+.cp-seg span.on { background: var(--color-bg-elevated); color: var(--color-text); box-shadow: var(--shadow-sm); }
+.cp-r { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--color-border); }
+.cp-r:last-child { border-bottom: 0; padding-bottom: 2px; }
+.cp-r .n { flex: 1; min-width: 0; font-size: 16px; line-height: 1.25; }
+.cp-r .n small { display: block; font-size: 13px; color: var(--color-text-muted); }
+.cp-r .v { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cp-line { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+.cp-line .chev { margin-left: auto; color: var(--color-text-muted); font-size: 18px; }
+.cp-tabbar { position: absolute; left: 0; right: 0; bottom: 0; height: 74px; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--color-border); background: var(--color-bg-elevated); box-shadow: 0 -6px 14px rgb(15 23 42 / .06); padding-top: 8px; }
+.cp-tabbar span { text-align: center; font-size: 11px; font-weight: 600; color: var(--color-text-muted); }
+.cp-tabbar span b { display: block; font-size: 20px; line-height: 24px; font-weight: 500; }
+.cp-tabbar span.on { color: var(--color-accent); }
+.cp-cap { margin: 8px 0 0; font-size: 12px; color: var(--color-text-muted); max-width: 46ch; line-height: 1.45; }
+.cp-cap b { color: var(--color-text); }
+.cp-scaled { transform-origin: top left; }
+table.cp-classes { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.cp-classes th, table.cp-classes td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+table.cp-classes th { font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); }
