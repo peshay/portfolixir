@@ -36,11 +36,12 @@ updated: 2026-08-12
 
 ## 1. Vision
 
-**Portfolixir is a self-hosted portfolio system with two first-class users: the
-operator, and the LLM agent the operator runs.** Everything it knows is
-reachable through a local JSON API and an MCP companion, and everything it
-knows is also visible on a screen. One dataset, one instance, one operator — no
-cloud, no tenancy, no broker. It keeps every financial instrument complete,
+**Portfolixir is a portfolio tracker with two first-class users: the operator,
+and the LLM agent the operator runs.** Everything it knows is reachable
+through a JSON API and an MCP companion, and everything it knows is also
+visible on a screen. One dataset, one instance, one operator — no tenancy, no
+broker; always on, and reachable by the operator's agent. It runs self-hosted
+today; that is how it runs, not what it is (I46, the owner, 2026-11-19). It keeps every financial instrument complete,
 consistent, and auditable in one place, and serves **precomputed,
 decision-ready analytics** so that an external agent (any MCP client) can
 manage and advise on the portfolio without doing its own arithmetic.
