@@ -917,6 +917,21 @@ defmodule PortfolixirWeb.DashboardLive do
           period={@period}
           period_addressed={@period_addressed}
         />
+        <%!-- Sprint 31 D7 („Neues Dashboard“ → „Leer beginnen“): a stored
+             dashboard with no widget says so and where widgets come from,
+             until the edit mode opens the catalogue itself. --%>
+        <p
+          :if={@board && @board.dashboard && @board.layout == []}
+          class="hint dashboard-empty"
+          data-role="dashboard-empty"
+        >
+          <%= StoredText.isolate(
+            gettext("This dashboard is empty. Add widgets from %{catalogue}.",
+              catalogue: StoredText.slot(:catalogue)
+            ),
+            catalogue: StoredText.link("/widgets", gettext("All widgets"))
+          ) %>
+        </p>
         <%= if @transactions_count == 0 do %>
           <.wizard {assigns} />
         <% else %>

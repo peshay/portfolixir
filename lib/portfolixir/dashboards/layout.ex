@@ -97,6 +97,48 @@ defmodule Portfolixir.Dashboards.Layout do
   def max_row, do: @max_row
 
   @doc """
+  The first place on the grid where a widget of `size` fits beside the
+  items of `layout` (a validated layout): scanning row by row from the top,
+  each row left to right, the first `col` and `row` whose cells no item
+  holds (Sprint 31 D7, „hinzufügen“ in „Alle Widgets“). Reads nothing.
+
+  `{:error, :too_many_items}` when the layout already holds `max_items/0`;
+  `{:error, :unsupported_size}` for `full` or any value that is no grid
+  size; `{:error, :no_room}` when no row up to `max_row/0` has the place.
+  """
+  @spec first_free([item()], term()) ::
+          {:ok, %{String.t() => pos_integer()}}
+          | {:error, :too_many_items | :unsupported_size | :no_room}
+  def first_free(layout, size) when is_list(layout) do
+    case Widgets.dimensions(size) do
+      :error ->
+        {:error, :unsupported_size}
+
+      {:ok, _dimensions} when length(layout) >= @max_items ->
+        {:error, :too_many_items}
+
+      {:ok, {width, height}} ->
+        taken = layout |> Enum.flat_map(&cells/1) |> MapSet.new()
+        places = for row <- 1..@max_row, col <- 1..(@columns - width + 1), do: {col, row}
+
+        Enum.find_value(places, {:error, :no_room}, fn {col, row} ->
+          if Enum.all?(area(col, row, width, height), &(not MapSet.member?(taken, &1))),
+            do: {:ok, %{"col" => col, "row" => row}}
+        end)
+    end
+  end
+
+  defp cells(%{"size" => size, "col" => col, "row" => row}) do
+    case Widgets.dimensions(size) do
+      {:ok, {width, height}} -> area(col, row, width, height)
+      :error -> []
+    end
+  end
+
+  defp area(col, row, width, height),
+    do: for(c <- col..(col + width - 1), r <- row..(row + height - 1), do: {c, r})
+
+  @doc """
   Validates `layout`: `{:ok, normalized}` or `{:error, refusal}` naming the
   first bad item. Reads the views table once, for the view ids the layout
   names, and nothing else.

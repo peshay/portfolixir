@@ -90,7 +90,12 @@ defmodule PortfolixirWeb.Router do
       # Sprint 31 D3 (ADR-0062 §3, §12): a stored dashboard by its id;
       # `/dashboards` opens the first, as `/` does.
       live("/dashboards", DashboardLive, :index)
+      # Sprint 31 D7 (planning board 01 ③): „Neues Dashboard“, before the
+      # id route it would otherwise match.
+      live("/dashboards/new", NewDashboardLive)
       live("/dashboards/:id", DashboardLive, :show)
+      # Sprint 31 D7 (ADR-0062 §1, planning board 01 ②): „Alle Widgets“.
+      live("/widgets", WidgetsLive)
       live("/portfolio", PortfolioLive)
       live("/securities", SecuritiesLive)
       live("/securities/:id", SecuritiesLive)
