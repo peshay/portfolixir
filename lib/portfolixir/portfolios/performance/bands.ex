@@ -1042,7 +1042,8 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
       gaps:
         "a day on which a held security has no price, or no rate path to the base " <>
           "currency, counts zero in its band, as it counts zero in the series; prices and " <>
-          "rates carry the most recent stored point forward (ADR-0010), so a band counts " <>
+          "rates carry the most recent stored point forward (ADR-0010; a stored close of 0 " <>
+          "or below is not a price), so a band counts " <>
           "zero only before its securities' first price or rate, and its line starts on " <>
           "its first day with a value; a security's first quote after trade prices is a " <>
           "basis step, not return. A day whose base (V_prev + inflow + B) is not " <>
@@ -1095,8 +1096,9 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
       gaps:
         "a day on which a held security has no price, or no rate path to the base " <>
           "currency, counts zero in its band, as it counts zero in the series; prices and " <>
-          "rates carry the most recent stored point on or before each day forward, and a " <>
-          "security with no quote yet is priced by its own latest trade (ADR-0010); the " <>
+          "rates carry the most recent stored point on or before each day forward (a stored " <>
+          "close of 0 or below is not a price), and a security with no quote yet is " <>
+          "priced by its own latest trade (ADR-0010); the " <>
           "contribution read of the same window names the affected positions and their " <>
           "days. A foreign-currency cash balance counts zero in the cash band on a day its " <>
           "currency has no rate path. A window holding no walked day is empty: start_date " <>

@@ -416,7 +416,8 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
           "currency, counts zero, as in the walk; the position stays in the sum, and the " <>
           "affected positions are listed with their days (unvalued_days, and " <>
           "unvalued_reason no_price or no_rate; ADR-0051 §10). Prices and rates carry the " <>
-          "most recent stored point on or before each day forward, and a security with no " <>
+          "most recent stored point on or before each day forward (a stored close of 0 or " <>
+          "below is not a price), and a security with no " <>
           "quote yet is priced by its own latest trade (ADR-0010). A window holding no " <>
           "walked day is empty: start_date null and no positions, never a table of zeros " <>
           "(ADR-0051 §4). A foreign-currency cash balance likewise counts zero on a day " <>
