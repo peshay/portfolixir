@@ -266,8 +266,10 @@ defmodule PortfolixirWeb.DashboardLive do
   defp show(socket, board, scope_id) do
     key = {board.key, scope_id, board.dashboard && board.dashboard.lock_version}
 
+    # The same dashboard on another period (D5's switch): the movers and
+    # the D4 widgets read what the new period needs and they have not read.
     if socket.assigns.load_key == key do
-      start_movers(socket)
+      socket |> start_movers() |> start_widget_reads()
     else
       socket
       |> assign(
@@ -862,8 +864,8 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   # The stored dashboard drawn in place: its items with their pins, the
-  # reads it already holds kept (a pin changes no read but a movers
-  # window), a movers window it has not read started. A refusal changes
+  # reads it already holds kept, a movers window or a performance period
+  # it has not read started (Sprint 31 D4). A refusal changes
   # nothing on the screen but its note.
   defp pinned_board({:ok, dashboard}, socket) do
     board = stored(dashboard)
@@ -876,6 +878,7 @@ defmodule PortfolixirWeb.DashboardLive do
       pin_error: nil
     )
     |> start_movers()
+    |> start_widget_reads()
   end
 
   # Another write passed the lock_version the page read: the stored

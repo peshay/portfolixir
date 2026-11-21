@@ -594,4 +594,88 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
 
     assert Floki.find(doc, "#dashboard-wealth [data-role='wealth-card-excluded-short']") == []
   end
+
+  # User story (Sprint 31 D4 on D5's period, ADR-0062 §5):
+  # As the operator switching the period above the dashboard,
+  # I want „Wertentwicklung“ to read the new period, and a widget whose
+  # ⋯ menu pinned its own to keep it,
+  # so that each widget's figures are always for the period it names.
+  #
+  # Acceptance criteria:
+  # - After a switch to 3M the following widget's TTWROR equals
+  #   GET /api/v1/performance for the trailing three months, at S and at
+  #   M, and „Gesamtwert“ at S reads the same change.
+  # - A widget pinned to Max keeps GET /api/v1/performance?period=max.
+  # - A pin set from the ⋯ menu after the switch re-reads that widget for
+  #   its pin.
+  test "a period switch re-reads „Wertentwicklung“; a pin keeps its own", %{conn: conn} do
+    # A price that rose for a year and fell in the last quarter, so the
+    # periods' returns differ.
+    world = base_world()
+    today = Clock.today()
+    gamma = create_security!(name: "Gamma Rise", ticker: "GMR")
+    deposit!(world, "3000", Date.add(today, -420))
+    buy!(world, gamma, quantity: "10", price: "100", date: Date.add(today, -400))
+
+    put_quotes!(
+      gamma,
+      for(days <- -400..0//10, do: {Date.add(today, days), rise_and_fall(days)})
+    )
+
+    {:ok, _} =
+      Dashboards.create_dashboard(Actor.owner_ui(), %{
+        "name" => "Periods",
+        "layout" => [
+          %{"kind" => "performance", "size" => "S", "col" => 1, "row" => 1},
+          %{
+            "kind" => "performance",
+            "size" => "M",
+            "col" => 4,
+            "row" => 1,
+            "settings" => %{"period" => "max"}
+          },
+          %{"kind" => "total_value", "size" => "S", "col" => 10, "row" => 1},
+          %{"kind" => "performance", "size" => "S", "col" => 1, "row" => 3}
+        ]
+      })
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    view |> element("[data-role='dashboard-period'] [data-period='3m']") |> render_click()
+    render_async(view)
+
+    from = today |> Date.shift(month: -3) |> Date.to_iso8601()
+    quarter = api("/api/v1/performance?from=#{from}&to=#{Date.to_iso8601(today)}")
+    max = api("/api/v1/performance?period=max")
+    assert quarter["ttwror"] != max["ttwror"]
+
+    doc = view |> render() |> Floki.parse_document!()
+
+    ttwror = fn doc, widget ->
+      text(Floki.find(wide(doc, widget), "[data-role='performance-ttwror']"))
+    end
+
+    assert ttwror.(doc, "dashboard-performance") == percent(quarter["ttwror"])
+    assert ttwror.(doc, "dashboard-performance-2") == percent(max["ttwror"])
+
+    assert text(Floki.find(compact(doc, "dashboard-performance"), ".widget-figure__value")) ==
+             percent(quarter["ttwror"])
+
+    assert text(Floki.find(wide(doc, "dashboard-wealth"), "[data-role='card-period-change']")) ==
+             percent(quarter["ttwror"]) <> " TTWROR · 3M"
+
+    # The third item, the second S one (row 3), pinned from its menu.
+    view
+    |> element("#dashboard-performance-3 [data-role='pin-period'][data-period='max']")
+    |> render_click()
+
+    render_async(view)
+    doc = view |> render() |> Floki.parse_document!()
+    assert ttwror.(doc, "dashboard-performance-3") == percent(max["ttwror"])
+    assert ttwror.(doc, "dashboard-performance") == percent(quarter["ttwror"])
+  end
+
+  defp rise_and_fall(days) when days <= -100, do: Integer.to_string(200 + div(days + 100, 3))
+  defp rise_and_fall(days), do: Integer.to_string(200 + div(days + 100, -2))
 end
