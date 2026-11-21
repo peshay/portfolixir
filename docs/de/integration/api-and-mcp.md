@@ -5804,6 +5804,33 @@ Zeiträume beantwortet (Tops und Flops, die Wertentwicklung), heftet
 `settings.period` an, wo ein Widget nicht dem Zeitraum des Dashboards
 folgen soll, und schreibt ein `put`, journalisiert unter seinem Token.
 
+**Beispiel.** Ein Dashboard für kurzfristige Bewegungen, Tops und Flops auf
+die Woche angeheftet, neben der Wertentwicklung und dem Fälligen:
+
+```http
+POST /api/v1/dashboards
+Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
+Content-Type: application/json
+
+{"dashboard": {"name": "Kurzfristig", "layout": [
+  {"kind": "movers", "size": "M", "col": 1, "row": 1, "settings": {"period": "1w"}},
+  {"kind": "performance", "size": "M", "col": 7, "row": 1},
+  {"kind": "due", "size": "S", "col": 1, "row": 3}
+]}}
+```
+
+Die Antwort ist `201` mit dem Dashboard, jedes Element mit seinem `title`
+und seiner `source`. Ein späteres `PUT` mit `lock_version` 1, nachdem der
+Betreiber dasselbe Dashboard am Bildschirm gespeichert hat, liefert `409`:
+
+```json
+{"errors": {"code": "stale",
+            "detail": "the dashboard changed since it was read and nothing was written: ...",
+            "stored": {"type": "dashboard", "id": 7, "lock_version": 2, "layout": ["..."]}}}
+```
+
+Eine Anfrage ohne das Token liefert `401`, wie jede Route unter `/api/v1`.
+
 ## Importe
 
 Portfolio-Performance-Importe (CSV/JSON v1) laufen ausschließlich über die
