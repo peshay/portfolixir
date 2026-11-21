@@ -13,6 +13,11 @@ defmodule PortfolixirWeb.DashboardDqHeldFirstTest do
   # form, so no asset class is inferred from it).
   use PortfolixirWeb.ConnCase
 
+  # Sprint 31 D4: the template draws „Gesamtwert“ and „Datenqualität“ at S;
+  # this module pins the strip, the year-to-date change and the line's
+  # full sentences, which M draws, so `/` opens the Overview at M.
+  setup {Portfolixir.DashboardFixtures, :overview_at_m}
+
   import Phoenix.LiveViewTest
 
   import Portfolixir.WorldFixtures,
@@ -226,7 +231,8 @@ defmodule PortfolixirWeb.DashboardDqHeldFirstTest do
   # so that the hint clears without retiring anything.
   #
   # Acceptance criteria:
-  # - No section, no line, the KPI cell without its sub-line.
+  # - No finding, no line, the KPI cell without its sub-line; since Sprint
+  #   31 D4 the widget stays, with its quiet line.
   # - The catalogue sets stay reachable: Wertpapiere's chip lists them,
   #   and the API answers the same count.
   test "no section while every held count is 0; the catalogue stays on Wertpapiere",
@@ -245,7 +251,7 @@ defmodule PortfolixirWeb.DashboardDqHeldFirstTest do
 
     view = overview(conn)
 
-    refute has_element?(view, "#dashboard-data-quality")
+    assert has_element?(view, ~s(#dashboard-data-quality [data-role="data-quality-empty"]))
     refute has_element?(view, ~s([data-role="data-quality-line"]))
     refute has_element?(view, ~s([data-role="kpi-freshness"] .kpi-strip__sub))
 

@@ -71,10 +71,12 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
   # so that the widget and the API never disagree.
   #
   # Acceptance criteria:
-  # - Wide and compact: the total and its currency, the cash quote and the
-  #   cash equal GET /api/v1/valuation; the year-to-date TTWROR equals
-  #   GET /api/v1/performance?period=ytd, the 1Y TTWROR and IRR
-  #   ?period=1y; the quote date is the valuation's newest_quote_date.
+  # - Wide at S (the template's, Sprint 31 D4): the total and its currency
+  #   equal GET /api/v1/valuation; its change is the dashboard period's
+  #   (1J) TTWROR of GET /api/v1/performance?period=1y.
+  # - Compact: the total, the year-to-date TTWROR of ?period=ytd, the 1Y
+  #   TTWROR, the cash quote and the quote date as the routes answer them.
+  # - The strip at M: dashboard_d4_widgets_test.exs.
   test "„Gesamtwert“ draws GET /api/v1/valuation and the performance read", %{conn: conn} do
     seed()
     doc = loaded(conn)
@@ -86,22 +88,12 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
     wide = wide(doc, "dashboard-wealth")
     assert text(Floki.find(wide, "[data-count-digits]")) == total
     assert text(Floki.find(wide, ".value-suffix")) == valuation["base_currency"]
-    assert text(Floki.find(wide, "[data-role='card-ttwror']")) =~ percent(ytd["ttwror"])
 
-    assert text(Floki.find(wide, "[data-role='kpi-ttwror'] strong")) ==
-             percent(one_year["ttwror"])
+    assert text(Floki.find(wide, "[data-role='card-period-change']")) ==
+             percent(one_year["ttwror"]) <> " TTWROR · 1Y"
 
-    assert text(Floki.find(wide, "[data-role='kpi-ttwror'] small")) ==
-             "IRR " <> percent(one_year["irr"])
-
-    assert text(Floki.find(wide, "[data-role='kpi-cash-quote'] strong")) ==
-             Format.percent(Decimal.new(valuation["cash_quote"])) <> "%"
-
-    assert text(Floki.find(wide, "[data-role='kpi-cash-quote'] small")) =~
-             money(valuation["total_cash"])
-
-    assert text(Floki.find(wide, "[data-role='kpi-freshness'] strong")) ==
-             Format.date(Date.from_iso8601!(valuation["newest_quote_date"]))
+    assert Floki.find(wide, "svg[data-role='total-spark']") != []
+    assert Floki.find(wide, "#dashboard-kpi-strip") == []
 
     compact = compact(doc, "dashboard-wealth")
     assert text(Floki.find(compact, ".widget-total__figure")) =~ total
@@ -124,9 +116,10 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
   # so that a count never promises a list of another size.
   #
   # Acceptance criteria:
-  # - Wide and compact: the stale-quote and the missing-logo counts equal
-  #   the lengths of GET /api/v1/securities?data_quality=<set> over the
-  #   held securities.
+  # - Wide at S (the template's, Sprint 31 D4: one short counted line per
+  #   finding) and compact: the stale-quote and the missing-logo counts
+  #   equal the lengths of GET /api/v1/securities?data_quality=<set> over
+  #   the held securities.
   test "„Datenqualität“ counts what GET /api/v1/securities lists", %{conn: conn} do
     seed()
     doc = loaded(conn)
@@ -139,13 +132,12 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
     wide = wide(doc, "dashboard-data-quality")
     compact = compact(doc, "dashboard-data-quality")
 
-    assert text(Floki.find(wide, "[data-role='dq-quotes']")) ==
-             "one held security without a quote in 7 days"
+    assert text(Floki.find(wide, "[data-role='dq-quotes']")) == "#{stale} quote older than 7 days"
 
     assert text(Floki.find(compact, "[data-compact-role='dq-quotes']")) ==
              "one held security without a quote in 7 days"
 
-    assert text(Floki.find(wide, "[data-role='dq-logo']")) =~ "#{logo} without a logo"
+    assert text(Floki.find(wide, "[data-role='dq-logo']")) == "#{logo} securities without a logo"
     assert text(Floki.find(compact, "[data-compact-role='dq-logo']")) =~ "#{logo} without a logo"
   end
 

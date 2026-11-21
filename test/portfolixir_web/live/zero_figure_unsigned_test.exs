@@ -104,6 +104,8 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
   # - The strip's TTWROR reads "0.0%", no "+", `is-flat`.
   test "the Overview's strip reads a TTWROR that rounds to zero unsigned", %{conn: conn} do
     fraction_of_a_cent_world()
+    # Sprint 31 D4: the strip is „Gesamtwert“ at M.
+    Portfolixir.DashboardFixtures.overview_at_m!()
 
     {:ok, view, _html} = live(conn, "/")
     render_async(view)

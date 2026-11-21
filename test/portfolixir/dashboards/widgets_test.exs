@@ -13,7 +13,7 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   # The slice's kinds and sizes (planning board 01 ②, the Sprint 31 brief of
   # Lane D), with the German titles the boards draw.
   @slice %{
-    "total_value" => {~w(S), "overview", "Gesamtwert"},
+    "total_value" => {~w(S M), "overview", "Gesamtwert"},
     "data_quality" => {~w(S M), "overview", "Datenqualität"},
     "due" => {~w(S), "overview", "Fällig"},
     "off_target" => {~w(S), "overview", "Abseits des Ziels"},

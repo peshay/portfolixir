@@ -6,6 +6,11 @@ defmodule PortfolixirWeb.CurrencyMismatchLiveTest do
   # securities page. Every name and figure is invented.
   use PortfolixirWeb.ConnCase
 
+  # Sprint 31 D4: the template draws „Gesamtwert“ and „Datenqualität“ at S;
+  # this module pins the strip, the year-to-date change and the line's
+  # full sentences, which M draws, so `/` opens the Overview at M.
+  setup {Portfolixir.DashboardFixtures, :overview_at_m}
+
   import Phoenix.LiveViewTest
 
   import Portfolixir.WorldFixtures,

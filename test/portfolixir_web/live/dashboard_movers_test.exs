@@ -250,7 +250,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     doc = loaded(view, "1y")
 
     html = render(view)
-    {strip_at, _} = :binary.match(html, ~s(id="dashboard-kpi-strip"))
+    {strip_at, _} = :binary.match(html, ~s(id="dashboard-wealth"))
     {card_at, _} = :binary.match(html, ~s(id="dashboard-movers"))
     {trades_at, _} = :binary.match(html, ~s(id="dashboard-trades"))
     assert strip_at < card_at and card_at < trades_at

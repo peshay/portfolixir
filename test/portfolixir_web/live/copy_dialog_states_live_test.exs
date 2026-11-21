@@ -126,6 +126,8 @@ defmodule PortfolixirWeb.CopyDialogStatesLiveTest do
     #   the token "YTD".
     test "the wealth card says year to date in words", %{conn: conn} do
       world_with_holding()
+      # Sprint 31 D4: the year-to-date change is „Gesamtwert“ at M.
+      Portfolixir.DashboardFixtures.overview_at_m!()
 
       {:ok, view, _html} = live(conn, "/")
       render_async(view)

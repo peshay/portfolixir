@@ -84,7 +84,7 @@ defmodule Portfolixir.Dashboards.Widgets do
       key: "total_value",
       title: "Total value",
       group: "overview",
-      sizes: ~w(S),
+      sizes: ~w(S M),
       source: %{
         routes: ["GET /api/v1/valuation", "GET /api/v1/views/:view_id/valuation"],
         function: {Portfolixir.Portfolios.Valuation, :for_view, 2},
@@ -180,9 +180,14 @@ defmodule Portfolixir.Dashboards.Widgets do
       group: "performance",
       sizes: ~w(S W),
       source: %{
-        routes: ["GET /api/v1/snapshots"],
+        routes: [
+          "GET /api/v1/snapshots",
+          "GET /api/v1/portfolios/:portfolio_id/snapshots/:id/comparison"
+        ],
         function: {Portfolixir.Portfolios.Snapshots, :list_snapshots, 1},
-        note: nil
+        note:
+          "The latest snapshot of the list and its comparison in the first portfolio: " <>
+            "the real TTWROR since its as_of date and its daily chain."
       },
       period: :none,
       scope: :none,
@@ -210,7 +215,9 @@ defmodule Portfolixir.Dashboards.Widgets do
       source: %{
         routes: ["GET /api/v1/crashes", "GET /api/v1/crashes/:key/rankings"],
         function: {Portfolixir.Crashes, :list_windows, 0},
-        note: nil
+        note:
+          "The windows newest first, each with the losers' list over universe=held or " <>
+            "universe=catalogue: its reference.return and its first entry."
       },
       period: :none,
       scope: :none,

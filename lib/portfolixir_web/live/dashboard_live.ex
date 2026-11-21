@@ -22,8 +22,13 @@ defmodule PortfolixirWeb.DashboardLive do
     compact forms below it (CSS's choice, by the window's size, §6). The
     Overview's cards are the kinds `total_value`, `data_quality`, `due`,
     `off_target`, `movers`, `bitcoin_cycle` and `sale_review`, each drawing
-    exactly the read the card drew (§12); the four kinds Sprint 31's D4
-    draws stand as empty frames until then.
+    exactly the read the card drew (§12). Sprint 31 D4 adds the four from
+    Wealth's sections — `performance`, `allocation_drift`, `snapshots` and
+    `crashes`, each drawn by its module under
+    `PortfolixirWeb.Dashboard.Widgets` from its source's read for the
+    widget's scope and its period (below) — gives „Gesamtwert“ and
+    „Datenqualität“ their M size, and draws every widget, one with nothing
+    to say with its quiet line.
   * **The period** (ADR-0062 §5; idea board 05, A; Sprint 31 D5). One
     period above every dashboard, in the top bar: 1T, 1W, 1M, 3M, YTD, 1J,
     3J, Max (the registry's `Widgets.periods/0`), 1J the default. The
@@ -70,6 +75,11 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.Components.CycleChart
   alias PortfolixirWeb.Dashboard.MoversCard
   alias PortfolixirWeb.Dashboard.Widget
+  alias PortfolixirWeb.Dashboard.Widgets.AllocationDrift, as: AllocationDriftWidget
+  alias PortfolixirWeb.Dashboard.Widgets.Crashes, as: CrashesWidget
+  alias PortfolixirWeb.Dashboard.Widgets.Line
+  alias PortfolixirWeb.Dashboard.Widgets.Performance, as: PerformanceWidget
+  alias PortfolixirWeb.Dashboard.Widgets.Snapshots, as: SnapshotsWidget
   alias PortfolixirWeb.ExcludedSales
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
@@ -116,6 +126,7 @@ defmodule PortfolixirWeb.DashboardLive do
         closed_trades: nil,
         customize_error: nil
       )
+      |> assign_widget_reads()
       # #828 (design pick D3-A): the due dates, read synchronously — the
       # calendar is a small table and the card must not depend on the
       # async overview read that carries the drift alerts.
@@ -269,10 +280,12 @@ defmodule PortfolixirWeb.DashboardLive do
         movers: %{},
         error: nil
       )
+      |> assign_widget_reads()
       |> assign_stale_ttwror()
       |> start_loading()
       |> start_movers()
       |> start_closed_trades()
+      |> start_widget_reads()
     end
   end
 
@@ -432,6 +445,139 @@ defmodule PortfolixirWeb.DashboardLive do
 
   defp start_closed_trades(socket), do: socket
 
+  # --- S31 D4 begin ---
+  # Sprint 31 D4 (ADR-0062 §12): the reads of „Wertentwicklung“,
+  # „Allokation und Drift“, „Snapshots“ and „Crashes im Vergleich“, each
+  # its source's, in the background, one per scope and period (a
+  # performance read), per scope (the allocation), per universe (the
+  # crashes) or once (the snapshots). Each lands in its own map, so a
+  # second widget of a kind on the same scope draws the same answer.
+  # `start_widget_reads/1` starts only what is neither loaded nor running,
+  # so a later period (D5's selector) asks it again and reads the new
+  # period's alone. The L size's bands are asked of the memo first, in
+  # this process (I34 step 2): a hit is drawn in the same render.
+  defp assign_widget_reads(socket),
+    do:
+      assign(socket,
+        performance: %{},
+        performance_bands: %{},
+        allocation_drift: %{},
+        snapshots: nil,
+        crashes: %{},
+        crash_universe: Map.get(socket.assigns, :crash_universe, "held")
+      )
+
+  defp start_widget_reads(%{assigns: %{transactions_count: 0}} = socket), do: socket
+
+  defp start_widget_reads(socket) do
+    %{items: items, period: period} = socket.assigns
+
+    socket
+    |> start_bands_from_memo(items, period)
+    |> then(fn socket ->
+      if connected?(socket), do: start_widget_tasks(socket, items, period), else: socket
+    end)
+  end
+
+  # The performance reads the items need, `{scope, period}` each: a
+  # „Wertentwicklung“ item's own period (its pin, else the dashboard's,
+  # Sprint 31 D5), and „Gesamtwert“ at S the dashboard's, whose change it
+  # draws. `large: true` keeps the L items alone (their bands).
+  defp performance_keys(items, period, opts \\ []) do
+    large? = Keyword.get(opts, :large, false)
+
+    own =
+      for item <- items,
+          item.kind == "performance",
+          not large? or item.size == "L",
+          do: {item.scope, Widget.with_period(item, period, false).period}
+
+    changes =
+      if large?,
+        do: [],
+        else:
+          for(
+            item <- items,
+            item.kind == "total_value" and item.size == "S",
+            do: {item.scope, period}
+          )
+
+    Enum.uniq(own ++ changes)
+  end
+
+  defp start_bands_from_memo(socket, items, period) do
+    items
+    |> performance_keys(period, large: true)
+    |> Enum.reduce(socket, fn {scope, item_period} = key, socket ->
+      with false <- Map.has_key?(socket.assigns.performance_bands, key),
+           {:ok, bands} <- PerformanceWidget.cached_bands(scope, item_period, base_currency()) do
+        update(socket, :performance_bands, &Map.put(&1, key, bands))
+      else
+        _miss -> socket
+      end
+    end)
+  end
+
+  defp start_widget_tasks(socket, items, period) do
+    kinds = Enum.group_by(items, & &1.kind)
+    scopes = fn kind -> kinds |> Map.get(kind, []) |> Enum.map(& &1.scope) |> Enum.uniq() end
+
+    socket
+    |> start_each(performance_keys(items, period), :performance, & &1, fn {scope, period} ->
+      PerformanceWidget.read(scope, period, base_currency())
+    end)
+    |> start_each(
+      performance_keys(items, period, large: true),
+      :performance_bands,
+      & &1,
+      fn {scope, period} -> PerformanceWidget.read_bands(scope, period, base_currency()) end
+    )
+    |> start_each(
+      scopes.("allocation_drift"),
+      :allocation_drift,
+      & &1,
+      &AllocationDriftWidget.read/1
+    )
+    |> start_each(
+      if(Map.has_key?(kinds, "crashes"), do: [socket.assigns.crash_universe], else: []),
+      :crashes,
+      & &1,
+      &CrashesWidget.read/1
+    )
+    |> start_snapshots(Map.has_key?(kinds, "snapshots"))
+  end
+
+  # One task per key of `field` that is neither loaded nor running.
+  defp start_each(socket, subjects, field, key_of, read) do
+    Enum.reduce(subjects, socket, fn subject, socket ->
+      key = key_of.(subject)
+      name = {field, key}
+
+      if Map.has_key?(Map.fetch!(socket.assigns, field), key) or
+           MapSet.member?(socket.assigns.reads, name) do
+        socket
+      else
+        socket
+        |> CappedAsync.start_async(name, fn -> read.(key) end)
+        |> reading(name)
+      end
+    end)
+  end
+
+  defp start_snapshots(%{assigns: %{snapshots: nil, reads: reads}} = socket, true) do
+    if MapSet.member?(reads, :snapshots) do
+      socket
+    else
+      socket
+      |> CappedAsync.start_async(:snapshots, fn -> SnapshotsWidget.read() end)
+      |> reading(:snapshots)
+    end
+  end
+
+  defp start_snapshots(socket, _shown), do: socket
+
+  # --- S31 D4 end ---
+
   # ADR-0032 §6 on the dashboard tile: while the overview computes, the last
   # known YTD figure renders immediately -- labelled with the data it contains,
   # never bare (owner requirement). Only the TTWROR half is served this way:
@@ -574,6 +720,26 @@ defmodule PortfolixirWeb.DashboardLive do
 
   # --- S30 T3 end ---
 
+  # --- S31 D4 begin ---
+  defp land({field, key}, result, socket)
+       when field in [:performance, :performance_bands, :allocation_drift, :crashes] do
+    answer =
+      case result do
+        {:ok, {:ok, bands}} -> bands
+        {:ok, answer} -> answer
+        {:exit, _reason} -> :error
+      end
+
+    {:landed, update(socket, field, &Map.put(&1, key, answer))}
+  end
+
+  defp land(:snapshots, {:ok, card}, socket), do: {:landed, assign(socket, :snapshots, card)}
+
+  defp land(:snapshots, {:exit, _reason}, socket),
+    do: {:landed, assign(socket, :snapshots, :error)}
+
+  # --- S31 D4 end ---
+
   defp land(:closed_trades, {:ok, card}, socket),
     do: {:landed, assign(socket, :closed_trades, card)}
 
@@ -651,6 +817,13 @@ defmodule PortfolixirWeb.DashboardLive do
 
   def handle_event("unpin_period", %{"index" => index}, socket) do
     {:noreply, pin(socket, index, &Map.delete(&1, "period"))}
+  end
+
+  # Sprint 31 D4: „Im Depot · Katalog“ on „Crashes im Vergleich“ (as on
+  # Risk › Crashes); a universe the widget does not know reads „Im Depot“.
+  def handle_event("crash_universe", %{"universe" => universe}, socket) do
+    socket = assign(socket, :crash_universe, CrashesWidget.universe(universe))
+    {:noreply, start_widget_reads(socket)}
   end
 
   # The overview handles no other events; one pushed to it changes nothing
@@ -978,7 +1151,13 @@ defmodule PortfolixirWeb.DashboardLive do
       :has_sells,
       :upcoming_events,
       :cycle_views,
-      :board
+      :board,
+      :performance,
+      :performance_bands,
+      :allocation_drift,
+      :snapshots,
+      :crashes,
+      :crash_universe
     ])
   end
 
@@ -999,10 +1178,10 @@ defmodule PortfolixirWeb.DashboardLive do
   # --- the widgets ------------------------------------------------------------
   #
   # One clause per kind; each draws exactly the read its Overview card drew
-  # (ADR-0062 §12), in the frame, with its compact form. A card that was
-  # absent while it had nothing to say (data quality, due, closed trades)
-  # stays absent: a finding surface makes no claim before a finding exists
-  # (UX-DR2), and its place on the grid stays empty.
+  # (ADR-0062 §12), in the frame, with its compact form. Since Sprint 31 D4
+  # a widget with nothing to say (data quality, due, closed trades, the
+  # cycle) is drawn with one quiet line, so the grid keeps its shape; it
+  # still makes no claim before its read has landed (UX-DR2).
 
   defp widget(%{item: %{kind: "total_value"}} = assigns) do
     assigns =
@@ -1010,6 +1189,13 @@ defmodule PortfolixirWeb.DashboardLive do
       |> assign(:card, Map.get(assigns.cards, assigns.item.scope))
       |> assign(:stale, assigns.item.scope == assigns.scope_id && assigns.stale_ttwror)
       |> assign(:uid, assigns.item.uid)
+      # Sprint 31 D4 (board ①): at S the total, its change over the
+      # dashboard's period and the period's value line; at M today's card,
+      # the year-to-date change and the strip.
+      |> assign(
+        :change,
+        Map.get(assigns.performance, {assigns.item.scope, assigns.item.dashboard_period})
+      )
 
     ~H"""
     <Widget.frame
@@ -1043,8 +1229,20 @@ defmodule PortfolixirWeb.DashboardLive do
             active_view={@active_view}
           /></div>
       </:shared>
-      <.wealth_value card={@card} stale={@stale} error={@error} uid={@uid} />
+      <.wealth_value
+        card={@card}
+        stale={@stale}
+        error={@error}
+        uid={@uid}
+        change={if @item.size == "S", do: {@change, @item.dashboard_period}}
+      />
+      <Line.sparkline
+        :if={@item.size == "S" && is_map(@change)}
+        values={Enum.map(@change.result.series, & &1.value)}
+        role="total-spark"
+      />
       <.kpi_strip
+        :if={@item.size != "S"}
         card={@card}
         data_quality={@data_quality}
         last_booking={@last_booking}
@@ -1061,23 +1259,43 @@ defmodule PortfolixirWeb.DashboardLive do
     """
   end
 
+  # Sprint 31 D4: always drawn (a widget leaves no gap in the grid): busy
+  # while the read runs, one quiet line when nothing is found; at S each
+  # finding as a short counted line (board ①), at M the full sentences.
   defp widget(%{item: %{kind: "data_quality"}} = assigns) do
+    assigns = assign(assigns, :findings, dq_findings(assigns.data_quality))
+
     ~H"""
     <Widget.frame
-      :if={@data_quality && dq_findings(@data_quality) != []}
       id={"dashboard-data-quality" <> @item.uid}
       item={@item}
       title={Widgets.title("data_quality")}
       full_href="/securities?holding=held"
-      full_label={gettext("To the securities →")}
+      full_label={if @item.size == "S", do: gettext("Check →"), else: gettext("To the securities →")}
     >
       <:info>
         <%= gettext("Each set is counted over the held securities, by the rule the list its link opens applies; the catalogue's count follows where it differs. The ledger's checks count bookings.") %>
       </:info>
-      <.data_quality_line data_quality={@data_quality} uid={@item.uid} />
+      <:shared>
+        <p :if={is_nil(@data_quality)} class="section-skeleton" aria-busy="true" data-role="data-quality-skeleton"></p>
+        <p :if={@data_quality && @findings == []} class="hint" data-role="data-quality-empty">
+          <%= gettext("No open points.") %>
+        </p>
+      </:shared>
+      <%= if @findings != [] do %>
+        <%= if @item.size == "S" do %>
+          <ul class="widget-findings" data-role="data-quality-short">
+            <li :for={finding <- @findings} class={"widget-findings__item is-" <> Atom.to_string(dq_severity_of(finding))}>
+              <a href={finding.href} data-role={finding.role}><%= finding.short %></a>
+            </li>
+          </ul>
+        <% else %>
+          <.data_quality_line data_quality={@data_quality} uid={@item.uid} />
+        <% end %>
+      <% end %>
       <:compact>
         <Widget.row
-          :for={finding <- dq_findings(@data_quality)}
+          :for={finding <- @findings}
           href={finding.href}
           data-compact-role={finding.role}
         >
@@ -1097,7 +1315,6 @@ defmodule PortfolixirWeb.DashboardLive do
          calendar derived from the position list is exactly how a purchase
          candidate's reporting date became invisible (§2). --%>
     <Widget.frame
-      :if={@upcoming_events != []}
       id={"dashboard-upcoming" <> @item.uid}
       item={@item}
       title={Widgets.title("due")}
@@ -1117,8 +1334,13 @@ defmodule PortfolixirWeb.DashboardLive do
             days: upcoming_days()
           ) %>
         </p>
+        <%!-- Sprint 31 D4: drawn when nothing is due, its quiet line in
+             place of the list (a widget leaves no gap in the grid). --%>
+        <p :if={@upcoming_events == []} class="hint" data-role="upcoming-empty">
+          <%= gettext("Nothing due in the next %{days} days.", days: upcoming_days()) %>
+        </p>
       </:shared>
-      <ul class="attention-list">
+      <ul :if={@upcoming_events != []} class="attention-list">
         <li :for={row <- @upcoming_events}>
           <a
             href={"/securities/#{row.event.security_id}?tab=events"}
@@ -1287,7 +1509,6 @@ defmodule PortfolixirWeb.DashboardLive do
          with the cycle view, each its own read; its compact form is the
          card's list itself, which is already one event per line. --%>
     <Widget.frame
-      :if={@cycle_views != []}
       id={"dashboard-cycles" <> @item.uid}
       item={@item}
       title={Widgets.title("bitcoin_cycle")}
@@ -1300,6 +1521,9 @@ defmodule PortfolixirWeb.DashboardLive do
       </:info>
       <:shared>
         <.cycle_cards views={@cycle_views} />
+        <p :if={@cycle_views == []} class="hint" data-role="cycles-empty">
+          <%= gettext("No security shows the cycle view yet.") %>
+        </p>
       </:shared>
     </Widget.frame>
     """
@@ -1307,43 +1531,64 @@ defmodule PortfolixirWeb.DashboardLive do
 
   defp widget(%{item: %{kind: "sale_review"}} = assigns) do
     ~H"""
-    <.closed_trades_card :if={@has_sells} card={@closed_trades} item={@item} />
+    <.closed_trades_card card={if @has_sells, do: @closed_trades, else: :none} item={@item} />
     """
   end
 
-  # The four kinds Sprint 31's D4 draws (ADR-0062 §12): the frame and the
-  # way to the screen that holds the figures today, no figure yet.
-  defp widget(assigns) do
-    assigns = assign(assigns, :later, later_kind(assigns.item.kind))
+  # --- S31 D4 begin ---
+  # The four kinds Sprint 31's D4 draws (ADR-0062 §12), each in its own
+  # module under `PortfolixirWeb.Dashboard.Widgets`.
+  defp widget(%{item: %{kind: "performance"} = item} = assigns) do
+    assigns =
+      assign(assigns,
+        card: Map.get(assigns.performance, {item.scope, assigns.period}),
+        bands: Map.get(assigns.performance_bands, {item.scope, assigns.period})
+      )
 
     ~H"""
-    <Widget.frame
-      id={"dashboard-#{@item.kind}" <> @item.uid}
+    <PerformanceWidget.widget
       item={@item}
-      title={Widgets.title(@item.kind)}
-      full_href={@later.href}
-      full_label={gettext("Open the screen →")}
-      class="widget--single-form"
-    >
-      <:shared>
-        <p class="hint" data-role="widget-pending">
-          <%= gettext("This widget is drawn from its screen's read in a later step of this release.") %>
-        </p>
-      </:shared>
-    </Widget.frame>
+      period={@period}
+      card={@card}
+      bands={@bands}
+      scope_label={scope_label(@item, @views)}
+    />
     """
   end
 
-  defp later_kind("performance"), do: %{href: "/portfolio"}
-  defp later_kind("allocation_drift"), do: %{href: "/portfolio?tab=allocation"}
-  defp later_kind("snapshots"), do: %{href: "/snapshots"}
-  defp later_kind("crashes"), do: %{href: "/risk"}
-  defp later_kind(_kind), do: %{href: "/"}
+  defp widget(%{item: %{kind: "allocation_drift"} = item} = assigns) do
+    assigns = assign(assigns, :card, Map.get(assigns.allocation_drift, item.scope))
+
+    ~H"""
+    <AllocationDriftWidget.widget item={@item} card={@card} scope_label={scope_label(@item, @views)} />
+    """
+  end
+
+  defp widget(%{item: %{kind: "snapshots"}} = assigns) do
+    ~H"""
+    <SnapshotsWidget.widget item={@item} card={@snapshots} />
+    """
+  end
+
+  defp widget(%{item: %{kind: "crashes"}} = assigns) do
+    assigns = assign(assigns, :card, Map.get(assigns.crashes, assigns.crash_universe))
+
+    ~H"""
+    <CrashesWidget.widget item={@item} universe={@crash_universe} card={@card} />
+    """
+  end
+
+  # --- S31 D4 end ---
 
   attr(:card, :any, required: true)
   attr(:stale, :any, required: true)
   attr(:error, :any, required: true)
   attr(:uid, :string, required: true)
+
+  attr(:change, :any,
+    default: nil,
+    doc: "at S: `{read, period}`, the period's performance read (Sprint 31 D4)"
+  )
 
   # #1081 (D-3, board 01 pick J1 A): the value in every state.
   defp wealth_value(assigns) do
@@ -1405,15 +1650,41 @@ defmodule PortfolixirWeb.DashboardLive do
              card is a link and cannot hold an ⓘ, so it says the period
              in words (#1090, board 08 ③) under a msgid of its own: "YTD"
              stays the period token of the range controls. --%>
-        <small :if={@card.ttwror} data-role="card-ttwror">
-          <span class={sign_class(@card.ttwror)}><%= signed_percent(@card.ttwror) %>%</span>
-          <%= gettext("year to date") %>
-        </small>
-        <small :if={is_nil(@card.ttwror)} data-role="card-ttwror">
-          <%= gettext("year to date") %> —
-        </small>
+        <%= if @change do %>
+          <.period_change change={@change} />
+        <% else %>
+          <small :if={@card.ttwror} data-role="card-ttwror">
+            <span class={sign_class(@card.ttwror)}><%= signed_percent(@card.ttwror) %>%</span>
+            <%= gettext("year to date") %>
+          </small>
+          <small :if={is_nil(@card.ttwror)} data-role="card-ttwror">
+            <%= gettext("year to date") %> —
+          </small>
+        <% end %>
       </a>
     <% end %>
+    """
+  end
+
+  attr(:change, :any, required: true)
+
+  # Sprint 31 D4 (board ①; ADR-0062 §5): the total's change at S, the
+  # period's TTWROR as `GET /api/v1/performance` answers it for the
+  # dashboard's period, labelled with the period; the figure's slot is
+  # held while the read runs.
+  defp period_change(%{change: {read, period}} = assigns) do
+    assigns = assign(assigns, read: read, label: Widget.period_label(period))
+
+    ~H"""
+    <small data-role="card-period-change">
+      <%= if is_map(@read) do %>
+        <span class={sign_class(@read.result.ttwror)}><%= signed_percent(@read.result.ttwror) %>%</span>
+      <% else %>
+        <span :if={is_nil(@read)} class="value-skeleton" aria-hidden="true"></span>
+        <span :if={@read == :error}>—</span>
+      <% end %>
+      <%= gettext("TTWROR · %{period}", period: @label) %>
+    </small>
     """
   end
 
@@ -1651,7 +1922,8 @@ defmodule PortfolixirWeb.DashboardLive do
   # with no closed trade and no exclusion, like "Due" without a date. A sell
   # with no matched buy is no trade, so it is not missing from the five; the
   # facet names it where the totals are read.
-  defp closed_trades_card(%{card: %{trades: [], excluded: %{count: 0}}} = assigns), do: ~H""
+  defp closed_trades_card(%{card: %{trades: [], excluded: %{count: 0}}} = assigns),
+    do: closed_trades_card(%{assigns | card: :none})
 
   defp closed_trades_card(assigns) do
     assigns = assign(assigns, :ready, is_map(assigns.card))
@@ -1677,6 +1949,11 @@ defmodule PortfolixirWeb.DashboardLive do
           aria-busy="true"
           data-role="trades-card-skeleton"
         >
+        </p>
+        <%!-- Sprint 31 D4: drawn with no closed trade, its quiet line in
+             place of the list (a widget leaves no gap in the grid). --%>
+        <p :if={@card == :none} class="hint" data-role="trades-card-empty">
+          <%= gettext("No closed sales booked yet.") %>
         </p>
         <AppShell.data_note
           :if={@card == :error}
@@ -2326,6 +2603,8 @@ defmodule PortfolixirWeb.DashboardLive do
   # direction, close the securities' part with their own noun; #1101 (D-7,
   # board 02 L2 A) the securities whose quotes contradict their bookings,
   # and #1415 those whose provider reports another currency, follow.
+  defp dq_findings(nil), do: []
+
   defp dq_findings(dq) do
     [
       dq.without_quote > 0 && {:quotes, dq.without_quote},
@@ -2344,8 +2623,64 @@ defmodule PortfolixirWeb.DashboardLive do
       finding
       |> dq_finding(count, index == 0)
       |> catalog(count, dq.catalog[finding])
+      |> Map.merge(%{short: dq_short(finding, count), finding: finding})
     end)
   end
+
+  # Sprint 31 D4 (board ①: „2 Kurse älter als 5 Tage“, „1 Wertpapier ohne
+  # Kategorie“): each finding at S as one short counted line, the count the
+  # full sentence's, the link the same list.
+  defp dq_short(:quotes, n),
+    do: ngettext("%{count} quote older than 7 days", "%{count} quotes older than 7 days", n)
+
+  defp dq_short(:class, n),
+    do:
+      ngettext(
+        "%{count} security without an asset class",
+        "%{count} securities without an asset class",
+        n
+      )
+
+  defp dq_short(:logo, n),
+    do: ngettext("%{count} security without a logo", "%{count} securities without a logo", n)
+
+  defp dq_short(:two_scales, n),
+    do: ngettext("%{count} bond on two price scales", "%{count} bonds on two price scales", n)
+
+  defp dq_short(:implausible_quote, n),
+    do:
+      ngettext(
+        "%{count} quote series against its bookings",
+        "%{count} quote series against their bookings",
+        n
+      )
+
+  defp dq_short(:currency_mismatch, n),
+    do: ngettext("%{count} quote currency in doubt", "%{count} quote currencies in doubt", n)
+
+  defp dq_short(:cash_mismatch, n),
+    do:
+      ngettext(
+        "%{count} booking with mismatched cash",
+        "%{count} bookings with mismatched cash",
+        n
+      )
+
+  defp dq_short(:rate_only, n),
+    do:
+      ngettext(
+        "%{count} booking with a rate and no cash",
+        "%{count} bookings with a rate and no cash",
+        n
+      )
+
+  defp dq_short(:incomplete_split, n),
+    do: ngettext("%{count} incomplete split", "%{count} incomplete splits", n)
+
+  # A short line's mark: the full line's severity for that finding alone.
+  defp dq_severity_of(%{finding: :quotes}), do: :attention
+  defp dq_severity_of(%{finding: finding}) when finding in [:class, :logo], do: :note
+  defp dq_severity_of(_finding), do: :problem
 
   # The catalogue count beside a held one, only where the two differ (board
   # 04 ②: "(im Katalog 26)"); a ledger check has none.

@@ -223,6 +223,11 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   attr(:drill_paths, :map, required: true)
   attr(:benchmark_note, :string, default: nil)
 
+  attr(:id_suffix, :string,
+    default: "",
+    doc: "appended to the figure's ids where a page draws more than one (a dashboard's widgets)"
+  )
+
   @doc """
   The stacked bands and their legend. `result` is a `Bands` answer,
   `colors` each band's colour by key (`:other` for the neutral token),
@@ -254,7 +259,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
 
     ~H"""
     <figure
-      id="performance-figure-stack"
+      id={"performance-figure-stack" <> @id_suffix}
       class="perf-figure stack-figure"
       data-level={@result.level}
       data-scale={if @privacy?, do: "percent", else: "value"}
@@ -265,7 +270,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
         <div class="stack-figure__body">
           <div
             class="stack-figure__chart"
-            id="stack-figure-chart"
+            id={"stack-figure-chart" <> @id_suffix}
             phx-hook="ChartScale"
             data-axis-inside-below={@inside_below}
           >
@@ -335,7 +340,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
             </svg>
           </div>
           <table
-            id="stack-legend"
+            id={"stack-legend" <> @id_suffix}
             class="stack-legend"
             data-role="stack-legend"
             data-date={Date.to_iso8601(@result.end_date)}

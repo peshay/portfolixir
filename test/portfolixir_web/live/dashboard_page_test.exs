@@ -156,13 +156,13 @@ defmodule PortfolixirWeb.DashboardPageTest do
 
     {:ok, template} = Templates.fetch("overview")
 
-    # Due and the cycle stay absent while they have nothing to say (no
-    # dated fact, no security with the cycle view), as their cards did.
+    # Sprint 31 D4: every widget is drawn, Due and the cycle too while
+    # they have nothing to say (no dated fact, no security with the cycle
+    # view), each with its quiet line.
     expected =
       template.layout
       |> Enum.sort_by(&{&1["row"], &1["col"]})
       |> Enum.map(& &1["kind"])
-      |> Enum.reject(&(&1 in ~w(due bitcoin_cycle)))
 
     found = kinds(view)
     assert Enum.map(found, &elem(&1, 0)) == expected
@@ -273,9 +273,9 @@ defmodule PortfolixirWeb.DashboardPageTest do
   # still running against the test's database.
   #
   # Acceptance criteria:
-  # - A dashboard holding only „Datenqualität“, absent until its finding
-  #   lands, marks its grid aria-busy while the read runs, and not once it
-  #   has landed.
+  # - A dashboard holding only „Datenqualität“ marks its grid aria-busy
+  #   while the read runs, and not once it has landed (since Sprint 31 D4
+  #   the widget is drawn while it waits, its skeleton in place).
   test "the grid is busy while a read runs that draws no skeleton", %{conn: conn} do
     seed()
 
@@ -287,10 +287,18 @@ defmodule PortfolixirWeb.DashboardPageTest do
 
     {:ok, view, _html} = live(conn, "/dashboards/#{board.id}")
     assert has_element?(view, "[data-role='dashboard-grid'][aria-busy='true']")
-    refute has_element?(view, "[data-widget-kind='data_quality']")
+
+    assert has_element?(
+             view,
+             "[data-widget-kind='data_quality'] [data-role='data-quality-skeleton']"
+           )
 
     render_async(view)
     refute has_element?(view, "[data-role='dashboard-grid'][aria-busy]")
-    assert has_element?(view, "[data-widget-kind='data_quality']")
+
+    refute has_element?(
+             view,
+             "[data-widget-kind='data_quality'] [data-role='data-quality-skeleton']"
+           )
   end
 end

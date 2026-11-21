@@ -79,7 +79,7 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
     html = render(view)
     doc = Floki.parse_document!(html)
 
-    {strip_at, _} = :binary.match(html, ~s(id="dashboard-kpi-strip"))
+    {strip_at, _} = :binary.match(html, ~s(id="dashboard-wealth"))
     {card_at, _} = :binary.match(html, ~s(id="dashboard-trades"))
     {attention_at, _} = :binary.match(html, ~s(id="dashboard-attention"))
     assert strip_at < attention_at and attention_at < card_at
@@ -151,16 +151,25 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
     assert has_element?(view, "#dashboard-trades [data-role='closed-trade']")
   end
 
-  test "without a closed trade the card is absent", %{conn: conn} do
+  # Sprint 31 D4 (a widget is always drawn): without a closed trade the
+  # widget keeps its place and says so in one quiet line.
+  test "without a closed trade the widget says so instead of a list", %{conn: conn} do
     world = WorldFixtures.base_world(name: "No Sells", cash_name: "Giro", depot_name: "Depot")
     held = WorldFixtures.create_security!(name: "Held Co", ticker: "HLD")
     WorldFixtures.deposit!(world, "1000", ~D[2026-01-02])
     WorldFixtures.buy!(world, held, quantity: "1", price: "100", date: ~D[2026-01-05])
 
     {:ok, view, html} = live(conn, "/")
-    refute html =~ ~s(id="dashboard-trades")
+    assert html =~ ~s(data-role="trades-card-empty")
     render_async(view)
-    refute has_element?(view, "#dashboard-trades")
+
+    assert has_element?(
+             view,
+             "#dashboard-trades [data-role='trades-card-empty']",
+             "No closed sales booked yet."
+           )
+
+    refute has_element?(view, "#dashboard-trades [data-role='closed-trade']")
   end
 
   # Acceptance criteria (UX-DR25 on the card; board G1, the exclusion state):
