@@ -19,7 +19,9 @@ description: "Design gate for FR-41 (scope-ladder level (b)), written in Sprint 
   baseline day (security review 2026-10-12, K08; see "Note (2026-10-28)"
   below). 2026-11-19, adopted by the merge of the Sprint 30 sprint PR: an
   unvalued baseline day is counted (#1472; see "Amendment (2026-11-19)"
-  below).
+  below). 2026-11-21, adopted by the merge of the Sprint 31 planning
+  PR: the walk reads a close of 0 or below as no price (#1473; see
+  "Amendment (2026-11-21)" below).
 - **Answers:** FR-41, contribution analysis, scope-ladder level (b):
   *"which position produced how much of the return, over a selectable
   period, scoped to a view."*
@@ -805,3 +807,62 @@ figures and needs its own decision. The change rides computation version
 merge, so no version-6 table without it is ever served. **To flip:**
 "Nullkurs als Kurs zählen" (a close of 0 or below counts as a price for the
 count again, and such a row reads unmarked).
+
+## Amendment (2026-11-21): the walk reads a close of 0 or below as no price (#1473)
+
+Adopted by the merge of the Sprint 31 planning PR; to be built in Sprint
+31, Lane Z. **Risk tier** ([ADR-0036](0036-risk-tier-rides-the-batch.html)):
+money math, since it moves walk figures wherever such closes are stored.
+
+**Why.** The amendment of 2026-11-19 made §10's count read a close of 0 or
+below as no price, but left the walk valuing the units at it, because
+changing that "moves the walk's figures and needs its own decision" (#1473).
+The walk (`held_quotes/3`, `carried_seed/5` in `performance.ex`) takes every
+stored quote as a price, while `WindowReturn`, the crash rankings, sale
+hindsight and the cycle read (ADR-0046, ADR-0058, ADR-0060: "positive closes
+only") take none. Synthetic case: 1 unit, closes 10, a legacy 0, then 11:
+the price side reads +10 %, the money side's day reads a contribution of 11
+instead of 1. A real security does not close at 0: a failing share trades
+for cents until its listing ends, and then no close comes at all; a stored
+0 is a feed's placeholder for a day without a trade, which releases before
+the plausibility bounds could store. The total loss of a failed holding is
+the booking that removes it at 0 (ADR-0010, "a delivery carrying a booked
+price is valued at that price"), never a quote. The owner asked whether
+skipping a 0 hides a failure (2026-11-21); the booking answers that, and
+the owner took the recommendation („hatten wir schon besprochen“).
+
+**What changes.**
+
+1. **The walk skips a close of 0 or below as it skips a day without a
+   close**: the last positive close before it carries, by the walk's
+   existing carry rule; a position with no positive close yet counts zero
+   on that day, by §10, with `unvalued_reason` `no_price`. One rule for
+   every price read in the app.
+2. **§10's count follows the walk again**: a day valued at a carried
+   positive close is a valued day, as a holiday is; the special case the
+   amendment of 2026-11-19 added for a close of 0 or below (counted as
+   `no_price` although the walk valued it) is no longer needed and goes
+   with this change, since the walk no longer values anything at such a
+   close.
+3. **Every analytic that reads the walk's valuation moves one computation
+   version** (`Derived.Registry`): at least `performance_analysis` and
+   `performance_view_analysis` (4 to 5), `performance_contribution` and
+   `performance_view_contribution` (6 to 7) and `performance_bands` and
+   `performance_view_bands` (1 to 2); the build lists every other analytic
+   the registry derives from the walk (`benchmark_comparison`,
+   `portfolio_metrics` among the candidates) and moves each, so no value
+   computed under the old rule is served.
+4. **Pins.** `walk_payload_pin_test.exs` holds every pinned digest: its
+   seed stores no close of 0 or below, so the digests stay; a new pin with a
+   legacy 0 between two positive closes shows the TTWROR series, the money
+   series and the contribution unchanged from the same seed without that
+   row, to the last digit.
+
+**What stays.** The stored quotes: nothing is deleted or rewritten, and a
+legacy 0 stays visible in the security's quotes, where the Datenqualität
+widget's pass (Sprint 32, ADR-0062 §13) will list it for removal. Every
+figure on an instance that stores no such close. The price side's reads,
+which already took none.
+
+**To flip:** „Nullkurs als Kurs werten“ (the walk keeps valuing units at a
+stored 0, and the count of 2026-11-19 stays the only mark).
