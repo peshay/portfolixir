@@ -29,7 +29,8 @@
 //
 // Conventions, so the set stays one set: 1440 px wide at device scale 1, the
 // light theme with the default violet accent, German UI (the locale every
-// earlier screenshot used). A page shot is the browser window: 1440 x 900, or
+// earlier screenshot used); the phone shots (phone-*.png) are a 393 x 852
+// window, and 844 x 390 turned sideways. A page shot is the browser window: 1440 x 900, or
 // the page's whole height where the docs describe the page top to bottom; a
 // dialog or a tab is the 1440 x 900 window with it open. A section of a
 // longer page (the contribution table, the merge list) is cropped to that
@@ -260,7 +261,62 @@ try {
   await visit(page, "/classifications");
   await windowShot(page, "classifications.png");
 
+  // The menu's two pages (Sprint 31 D7): „Alle Widgets“, top to bottom,
+  // and „Neues Dashboard“.
+  await visit(page, "/widgets");
+  await pageShot(page, "widgets.png");
+
+  // A name typed, as board ③ draws it; nothing is created.
+  await visit(page, "/dashboards/new");
+  await page.locator('input[name="dashboard[name]"]').fill("Kurzfristig");
+  await windowShot(page, "new-dashboard.png");
+
   await context.close();
+
+  // The menu on a phone (Sprint 31 D7, ADR-0062 §6): upright, the tab bar at
+  // the foot and its „Mehr“ sheet opened (a popover; nothing is written);
+  // turned sideways, the rail at the side. The window's size picks the
+  // layout, so a phone's window is all it takes.
+  const phone = await browser.newContext({
+    viewport: { width: 393, height: 852 },
+    deviceScaleFactor: 1,
+    isMobile: true,
+    hasTouch: true,
+    locale: "de-DE",
+    colorScheme: "light",
+    reducedMotion: "reduce",
+  });
+
+  await phone.route("**/*", (route) =>
+    allowed(route.request().url()) ? route.continue() : route.abort(),
+  );
+
+  await phone.addInitScript(() => {
+    try {
+      window.localStorage.setItem("portfolixir-theme", "light");
+      window.localStorage.setItem("portfolixir-accent", "violet");
+    } catch (_) {
+      // A blocked storage leaves the system theme, which colorScheme makes light.
+    }
+  });
+
+  const handset = await phone.newPage();
+  await login(handset);
+  await handset.goto(`${BASE}/`);
+  await settle(handset);
+  await save(handset, "phone-tabbar.png");
+
+  await handset.locator("#tab-more").tap();
+  await handset.waitForFunction(() => document.getElementById("app-more").matches(":popover-open"));
+  await handset.waitForTimeout(300);
+  await save(handset, "phone-more.png");
+
+  await handset.setViewportSize({ width: 844, height: 390 });
+  await handset.goto(`${BASE}/`);
+  await settle(handset);
+  await save(handset, "phone-rail.png");
+
+  await phone.close();
 } finally {
   await browser.close();
 }

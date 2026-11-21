@@ -1062,7 +1062,7 @@ Die Buchhaltungs-Entitäten sind Geldkonten und Depots:
 - Geldkonto: verfolgt den Kontext der verfügbaren Liquidität
 - Depot/Konto: speichert Wertpapierpositionen, verknüpft mit diesem Geldkonto
 
-Die Seite **Konten & Depots** (Bereich Verwaltung) zeigt beide in **einer
+Die Seite **Konten & Depots** (Gruppe Pflege) zeigt beide in **einer
 Tabelle, ein Eintrag je Zeile**: jedes Depot bildet eine Zeile, sein
 verknüpftes Verrechnungskonto sitzt eingerückt direkt darunter — mit der
 Kontowährung und dem **Liquiditätsrollen**-Selektor je Konto (freies Cash,
@@ -1330,8 +1330,8 @@ Ihr Agent liest dieselben Protokolle mit `GET /api/v1/merges` (MCP
 ### Portfoliodatensätze (Kompatibilität)
 
 Portfolios bleiben als **interne Kompatibilitätsdatensätze** im Schema, in der
-JSON-API und im Importpfad erhalten. Die Seite **Konten & Depots** im
-Administrationsbereich trägt ein eingeklapptes, schreibgeschütztes Panel
+JSON-API und im Importpfad erhalten. Die Seite **Konten & Depots** in der
+Gruppe Pflege trägt ein eingeklapptes, schreibgeschütztes Panel
 **Portfoliodatensätze (Kompatibilität)**, das jeden Datensatz auflistet —
 Name, Basiswährung, Anlagedatum, Quelle (UI, API, Import oder Seed, abgeleitet
 aus dem Audit-Journal) sowie die Zahl der gebundenen Depots und Geldkonten —
@@ -2340,8 +2340,8 @@ verfügbare Zeilen und beschriftet sie mit ihrer Rolle.
 
 ## Übersichts-Seite
 
-Der Eintrag **Übersicht** (die Startseite, `/`) ist ein **Dashboard**
-(ADR-0062, Sprint 31): Seine Karten sind **Widgets**, jedes ein vorhandener
+Der erste Eintrag der Menügruppe **Dashboards** (die Startseite, `/`) ist
+ein **Dashboard** (ADR-0062, Sprint 31): Seine Karten sind **Widgets**, jedes ein vorhandener
 Lesezugriff in einem Rahmen — sein Titel, ein ⓘ mit der Rechengrundlage
 des Lesezugriffs, sein Zeitraum-Etikett, ein Menü ⋯ (der eigene Zeitraum
 des Widgets; das Bearbeiten kommt später), die Zahlen und eine Fußzeile,
@@ -5551,16 +5551,88 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   Zeile Wert und Ergebnis, auf zwei Zeilen: der Kategoriename (umbrochen statt
   abgeschnitten) mit dem Zähler der verborgenen Positionen oben, Wert und
   Ergebnis darunter unter ihren Spaltenköpfen.
-- Die Seitenleiste ist in aufgabenorientierte Bereiche organisiert (ADR-0022):
-  **Übersicht**, **Vermögen**, **Wertpapiere** und **Transaktionen** auf der
-  obersten Ebene, plus eine Gruppe **Verwaltung** mit **Konten & Depots**,
-  **Ansichten** und **Klassifizierungen**. Sie listet nur existierende
-  Routen — keine deaktivierten Roadmap-Platzhalter. Erträge sind ein Tab des
-  Vermögens-Bereichs und der Import ein Tab des Transaktions-Bereichs, keine
-  eigenen Menüeinträge. Buckets haben keinen eigenen Seitenleisten-Eintrag
-  (ADR-0024): sie werden als Chips auf den Zeilen von Konten & Depots und auf
-  der Ansichten-Seite verwaltet, die der Link **Ansichten** des
-  Sicht-Umschalters öffnet.
+- **Das Menü hat drei Gruppen** (Amendment von ADR-0022 vom 2026-11-21,
+  ADR-0062 §9, Sprint 31):
+  - **Dashboards**: Ihre Dashboards in der Reihenfolge, die Sie ihnen
+    gaben, jedes öffnet `/dashboards/<id>`; ohne gespeichertes Dashboard die
+    mitgelieferte Vorlage **Überblick**, markiert als **Vorlage**, die `/`
+    öffnet. Zuletzt kommt **Neues Dashboard**.
+  - **Entdecken**: **Vermögen** (mit seinen Reitern, bis seine Abschnitte
+    Widgets werden), **Wertpapiere**, **Nachrichten** und **Alle Widgets**.
+  - **Pflege**, ruhiger, am Fuß: **Transaktionen** (mit dem Reiter Import),
+    **Konten & Depots**, **Ansichten**, **Klassifizierungen** und das
+    **Audit-Journal**.
+
+  Der Eintrag der Seite, auf der man steht, ist markiert, wie bisher. Das
+  Menü listet nur, was existiert — keine deaktivierten
+  Roadmap-Platzhalter. Erträge sind ein Reiter von Vermögen und der Import
+  ein Reiter von Transaktionen, keine eigenen Menüeinträge. Buckets haben
+  keinen Menüeintrag (ADR-0024): Sie werden als Chips auf den Zeilen von
+  Konten & Depots und auf der Ansichten-Seite verwaltet, die der Link
+  **Ansichten** des Sicht-Umschalters öffnet. **Jede Adresse des früheren
+  Menüs antwortet weiter** (`/portfolio`, `/cashflow`, `/snapshots`, `/tax`,
+  `/risk`, `/predictions`, `/securities`, `/news`, `/transactions`,
+  `/imports`, `/portfolios`, `/buckets`, `/classifications`, `/journal`;
+  `/income` führt weiter zu `/cashflow`), damit ein Lesezeichen oder ein
+  Link in diesem Handbuch funktioniert.
+- **Alle Widgets** (`/widgets`, ADR-0062 §1) ist der Katalog als Seite:
+  jedes Widget der App, nach Thema (Überblick, Performance, Allokation,
+  Risiko, Analysen), jedes mit den Größen, die es annimmt, als Chips (S, W,
+  M, T, L und **Voll** für seine eigene Seite) und **hinzufügen ›**.
+  **Suchen …** behält die Widgets, deren Name den eingegebenen Text
+  enthält. **hinzufügen ›** fragt, auf welches Ihrer Dashboards: Das
+  Widget kommt dort in seiner kleinsten Größe an den ersten freien Platz
+  des Rasters (Zeile für Zeile, von links nach rechts), als ein
+  Schreibvorgang im Audit-Journal; die Seite sagt dann, wohin es kam, und
+  verlinkt das Dashboard. Wurde dieses Dashboard geändert, seit die Liste
+  gelesen wurde (ein anderer Tab, Ihr Agent), wird nichts hinzugefügt: Die
+  Liste zeigt die Dashboards, wie sie jetzt sind, und Sie wählen erneut.
+  Ein Dashboard mit 40 Widgets, mehr nimmt es nicht, wird abgelehnt. Ist
+  noch kein Dashboard gespeichert, bietet die Wahl an, die Vorlage
+  **Überblick** mit dem Widget zu kopieren oder ein **Neues Dashboard**
+  anzulegen. Die Widgets, die der Umbau der weiteren Screens bringt, stehen
+  **gestrichelt** da, mit „kommt mit dem Umbau seines Screens“ (Beiträge je
+  Position, Allokation, Kennzahlen, Konzentration, Anlageklassen-Grenzen,
+  Prognosen und unter **Einkommen und Steuer** Einkommen, Gebühren und
+  Steuern, Freibetrag): Sie stehen dort, damit man weiß, dass sie kommen,
+  und lassen sich noch nicht hinzufügen — auch die API lehnt sie in einem
+  Layout als unbekannte Art ab.
+- **Neues Dashboard** (`/dashboards/new`) fragt nach einem Namen und dem
+  Beginn: **Leer beginnen**, ein leeres Dashboard, das sich aus „Alle
+  Widgets“ füllt (es sagt das, bis der Bearbeitungsmodus kommt), oder
+  **Aus Vorlage**, eine Kopie von **Überblick** (weitere Vorlagen kommen
+  mit ihren Widgets). **Anlegen** speichert es, ein Schreibvorgang im
+  Audit-Journal, und öffnet es; es steht am Ende des Menüs. Ein Name, der
+  leer ist, länger als 60 Zeichen oder ein Steuerzeichen trägt, wird am
+  Feld abgelehnt; mit 50 gespeicherten Dashboards, mehr hält eine Instanz
+  nicht, wird ein neues mit diesem Grund abgelehnt.
+- **Auf einem schmalen Fenster** (unter 600 px, ein Telefon hochkant) ist
+  das Menü eine **Tab-Leiste am Fuß**: **Dashboards**, **Wertpapiere**,
+  **Nachrichten** und **Mehr**. **Mehr** öffnet ein Blatt mit dem Rest von
+  Entdecken (Vermögen, Alle Widgets) und der ganzen Pflege; Esc oder ein
+  Tipp daneben schließt es. Auf einem Dashboard ist der Titel der
+  **Dashboard-Wechsler**: „Überblick ▾“ listet Ihre Dashboards und **Neues
+  Dashboard**. **Auf einem niedrigen Fenster, breiter als hoch** (ein
+  Telefon quer, unter 900 px breit) stehen dieselben vier Einträge als
+  **Seitenleiste am Rand**, damit die Seite ihre Höhe behält. Ab 900 px ist
+  die Seitenleiste das Menü, wie bisher auf ihre Schiene einklappbar.
+  Welches Layout erscheint, hängt nur von Breite und Höhe des Fensters ab,
+  nie vom Gerät. Jeder Tab und jede Zeile eines Blatts ist mindestens 44 px
+  hoch.
+
+[![Das Menü auf einem breiten Fenster: Dashboards mit der Vorlage Überblick, Entdecken mit Vermögen, Wertpapiere, Nachrichten und Alle Widgets, Pflege am Fuß, neben dem Dashboard Überblick](../screenshots/dashboard.png)](../screenshots/dashboard.png)
+
+[![Alle Widgets: die Widgets nach Thema mit ihren Größen-Chips und hinzufügen, die späteren gestrichelt](../screenshots/widgets.png)](../screenshots/widgets.png)
+
+[![Neues Dashboard: der Name, Leer beginnen oder Aus Vorlage, und Anlegen](../screenshots/new-dashboard.png)](../screenshots/new-dashboard.png)
+
+| Ein Telefon hochkant: die Tab-Leiste | Mehr geöffnet | Ein Telefon quer: die Seitenleiste |
+|---|---|---|
+| [![Der Überblick bei 393 px mit der Tab-Leiste Dashboards, Wertpapiere, Nachrichten, Mehr am Fuß](../screenshots/phone-tabbar.png)](../screenshots/phone-tabbar.png) | [![Das Blatt Mehr über der Tab-Leiste: Vermögen und Alle Widgets unter Entdecken, die fünf Seiten der Pflege](../screenshots/phone-more.png)](../screenshots/phone-more.png) | [![Der Überblick bei 844 × 390 mit den vier Einträgen als Leiste am Rand](../screenshots/phone-rail.png)](../screenshots/phone-rail.png) |
+
+*Die Screens auf dem synthetischen Demo-Datensatz (`priv/demo`), in der
+deutschen Oberfläche.*
+
 - Auf dem Telefon scrollt die Reiterzeile eines Bereichs (Vermögen,
   Transaktionen) seitlich, statt umzubrechen: Der Reiter, auf dem man steht,
   ist beim Öffnen einer Seite sichtbar, ein Verlauf markiert jede Seite, hinter
@@ -5745,7 +5817,7 @@ entfernt oder erneut suchen lässt, nennt, wer es war; nur die Logo-Suche im
 Hintergrund wird als Systemjob journalisiert.
 
 **Die Seite Audit-Journal** (`/journal`, der letzte Eintrag der Gruppe
-Verwaltung in der Seitenleiste) zeigt dasselbe Journal auf dem Bildschirm.
+Pflege im Menü) zeigt dasselbe Journal auf dem Bildschirm.
 Sie listet jeden Eintrag, die neuesten zuerst: die Zeit in UTC auf die
 Sekunde, wer die Änderung machte (Operator, Agent mit dem Namen des Tokens
 darunter, Import oder System), den Vorgang (Angelegt, Geändert, Gelöscht,
