@@ -306,3 +306,32 @@ count as „N Positionen ohne Beitrag im Zeitraum“ („an ihrem Tag“ on
 return, so an exact zero return stays ranked, never read as `-0`.
 **To flip:** "Null-Beitrag ranken" (a contribution of exactly 0 is ranked
 again).
+
+## Amendment of 2026-11-21 — „Tag“'s `P` is no older than 7 days, and twins stand in one half
+
+**Adopted with the Sprint 31 sprint PR** (Lane D, D3), two lines of the
+Overview's polish list (#1358), each seen failing first.
+
+- **`P` takes the bound `E` and `D` have.** §3 gave the price side's `E`
+  and, since the amendment of 2026-11-19, the money side's `D` the 7-day
+  bound of the close lookup, but `P`, the close before `E` on „Tag“, none:
+  a share quoted again after months read the months as one day's move.
+  **`P` is the last positive stored close before `E`, and no more than 7
+  calendar days before it**; with none in reach the row has one close only
+  and is counted `one_close_only`, never ranked. The basis's window rule
+  and its gaps say so. This moves the price return on „Tag“ for a stale
+  `P`; no derived analytic holds the movers (`Derived.Registry` names none),
+  so no computation version moves. **To flip:** "Vortag ohne Altersgrenze"
+  (`P` takes the last close before `E` whatever its age).
+- **Twins stand in one half.** §4's split cut one sorted list by count, so
+  two securities equal on the figure and on every key of the tie order —
+  the name, the ISIN, the ticker, the WKN, the currency — stood one in
+  each half at n = 2, one name in both. **A cut that falls inside such a
+  run moves past it while the half stays within the limit, else before
+  it**, so the run stands in one half or, where the limit leaves no room,
+  in none; every entry stays answered and counted. The basis's `halves`
+  says so. **To flip:** "Zwillinge teilen" (the count alone cuts).
+
+The third line, a gain made of days at zero filling „Höchste“, keeps §4's
+rule as decided: a marked row ranks, and the mark („N Tage mit 0 bewertet“) is
+the answer; a test pins it.

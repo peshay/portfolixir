@@ -18532,7 +18532,7 @@ msgstr "Dashboard"
 #: lib/portfolixir_web/live/dashboard_live.ex:1972
 #, elixir-autogen, elixir-format
 msgid "%{pp} pp"
-msgstr "%{pp} Pkt."
+msgstr "%{pp} pp"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:491
 #, elixir-autogen, elixir-format

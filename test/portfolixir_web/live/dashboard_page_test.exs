@@ -263,4 +263,34 @@ defmodule PortfolixirWeb.DashboardPageTest do
     assert has_element?(view, "#dashboard-wealth-card", "Everything")
     assert stored_count() == 0
   end
+
+  # User story (the Overview's polish list #1358: the privacy walk's log
+  # noise from a widget's background read; Sprint 31 D3):
+  # As the owner who trusts the browser walks,
+  # I want the page to say it is busy while any of its background reads
+  # runs, even one whose widget draws no skeleton,
+  # so that a walk never leaves the page, and ends its test, with a read
+  # still running against the test's database.
+  #
+  # Acceptance criteria:
+  # - A dashboard holding only „Datenqualität“, absent until its finding
+  #   lands, marks its grid aria-busy while the read runs, and not once it
+  #   has landed.
+  test "the grid is busy while a read runs that draws no skeleton", %{conn: conn} do
+    seed()
+
+    {:ok, board} =
+      Dashboards.create_dashboard(Actor.owner_ui(), %{
+        "name" => "Quality",
+        "layout" => [%{"kind" => "data_quality", "size" => "S", "col" => 1, "row" => 1}]
+      })
+
+    {:ok, view, _html} = live(conn, "/dashboards/#{board.id}")
+    assert has_element?(view, "[data-role='dashboard-grid'][aria-busy='true']")
+    refute has_element?(view, "[data-widget-kind='data_quality']")
+
+    render_async(view)
+    refute has_element?(view, "[data-role='dashboard-grid'][aria-busy]")
+    assert has_element?(view, "[data-widget-kind='data_quality']")
+  end
 end

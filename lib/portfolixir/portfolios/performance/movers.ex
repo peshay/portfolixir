@@ -236,10 +236,15 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
     end
   end
 
-  # P: the last positive stored close dated before E, whatever its age.
+  # P: the last positive stored close dated before E, at most the close
+  # lookup's 7 days before it, the bound E and D have (ADR-0061's amendment
+  # of 2026-11-21; the polish list #1358): an older one is no "previous
+  # close", so the row has one close only within reach.
   defp previous_close_on(%Security{id: id}, before) do
+    oldest = Date.add(before, -WindowReturn.staleness_days())
+
     from(q in SecurityQuote,
-      where: q.security_id == ^id and q.date < ^before and q.close > 0,
+      where: q.security_id == ^id and q.date < ^before and q.date >= ^oldest and q.close > 0,
       order_by: [desc: q.date],
       limit: 1,
       select: q.date
@@ -377,17 +382,35 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
   defp halves(entries, figure, limit) do
     n = length(entries)
 
-    {highest, rest} =
-      entries
-      |> Enum.sort(&before?(&1, &2, figure, :desc))
-      |> Enum.split(min(limit, div(n + 1, 2)))
+    sorted = Enum.sort(entries, &before?(&1, &2, figure, :desc))
+    {highest, rest} = Enum.split(sorted, cut(sorted, min(limit, div(n + 1, 2)), limit, figure))
 
-    lowest =
-      rest
-      |> Enum.sort(&before?(&1, &2, figure, :asc))
-      |> Enum.take(min(limit, div(n, 2)))
+    ascending = Enum.sort(rest, &before?(&1, &2, figure, :asc))
+    lowest = Enum.take(ascending, cut(ascending, min(limit, div(n, 2)), limit, figure))
 
     %{highest: Enum.map(highest, &rendered/1), lowest: Enum.map(lowest, &rendered/1)}
+  end
+
+  # Twins — two entries equal on the figure and on every key of the tie
+  # order — are never cut apart (the polish list #1358, Sprint 31 D3): a cut
+  # at `at` that falls inside a run of twins moves past the run while the
+  # half stays within `limit`, else before it, so the run stands in one half
+  # or in none, never one in each.
+  defp cut(sorted, at, limit, figure) do
+    if at > 0 and at < length(sorted) and
+         twins?(Enum.at(sorted, at - 1), Enum.at(sorted, at), figure) do
+      first = Enum.at(sorted, at - 1)
+      run_start = Enum.find_index(sorted, &twins?(&1, first, figure))
+      run_end = run_start + Enum.count(sorted, &twins?(&1, first, figure))
+      if run_end <= limit, do: run_end, else: run_start
+    else
+      at
+    end
+  end
+
+  defp twins?(a, b, figure) do
+    Decimal.equal?(Map.fetch!(a, figure), Map.fetch!(b, figure)) and
+      tie_key(a.security) == tie_key(b.security)
   end
 
   defp before?(a, b, figure, direction) do
@@ -502,7 +525,7 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
           "zero: no_close_at_start (no close standing for the start), no_close_at_end (none " <>
           "standing for the end), no_fx_rate (a close without a stored rate path to EUR)" <>
           if(request.window == "day",
-            do: ", one_close_only (no stored close before the latest)",
+            do: ", one_close_only (no stored close in the 7 days before the latest)",
             else: ""
           ),
       reference: nil
@@ -511,8 +534,9 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
 
   defp price_window_text("day") do
     "per security: its latest close E, the close standing for the end day, against the " <>
-      "stored positive close before it, P, whatever its age; each row names P (start.date) " <>
-      "and E (end.date), so a share and a coin can stand on different days"
+      "stored positive close before it, P, at most 7 calendar days before E, the bound E " <>
+      "and the money side's day have; each row names P (start.date) and E (end.date), so " <>
+      "a share and a coin can stand on different days"
   end
 
   defp price_window_text(_window) do
@@ -613,6 +637,8 @@ defmodule Portfolixir.Portfolios.Performance.Movers do
   defp halves_text(limit, excluded) do
     "one list sorted by the figure: highest takes min(#{limit}, ceil(n / 2)) of the " <>
       "largest, descending; lowest min(#{limit}, floor(n / 2)) of the rest, ascending; " <>
-      "n is the answered entries, and a name is never in both" <> excluded
+      "n is the answered entries, and a name is never in both: entries equal on the figure " <>
+      "and on every key of the tie order stand in one half, the cut moving past them while " <>
+      "the half stays within the limit, else before them" <> excluded
   end
 end
