@@ -74,8 +74,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "call (two reads, no fifth tool), portfolixir.dashboards.get one dashboard or " <>
               "template, both reads in every profile; portfolixir.dashboards.put creates, " <>
               "copies a template, replaces (with a layout) or renames and moves (without), " <>
-              "a write in book and full; portfolixir.dashboards.delete, with dry_run, is admin."
+              "a write in book and full; portfolixir.dashboards.delete, with dry_run, is admin.",
             # --- S31 D2 end ---
+            # --- S31 Z begin ---
+            "Sprint 31, Lane Z (#1473; ADR-0051's amendment of 2026-11-21): a stored close " <>
+              "of 0 or below is no price; no endpoint or tool is added, the reads it moves " <>
+              "are named under parameters."
+            # --- S31 Z end ---
           ],
           " "
         ),
@@ -98,7 +103,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "portfolixir.dashboards.delete"
         # --- S31 D2 end ---
       ],
-      parameters: [],
+      parameters: [
+        # --- S31 Z begin ---
+        "contribution, performance and bands reads: a stored close of 0 or below is no " <>
+          "price for the walk; the last positive close carries (#1473; computation versions " <>
+          "moved)",
+        "live valuation and quote change reads: the latest close is the last positive one " <>
+          "(#1473)"
+        # --- S31 Z end ---
+      ],
       removed_endpoints: [],
       removed_tools: [],
       prompts: [],

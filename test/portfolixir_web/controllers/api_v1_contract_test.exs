@@ -90,6 +90,20 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- S31 D2 end ---
 
+    # --- S31 Z begin ---
+    # Lane Z (#1473): a stored close of 0 or below is no price; no endpoint
+    # or tool, the moved reads under parameters.
+    assert newest["summary"] =~ "Sprint 31, Lane Z (#1473; ADR-0051's amendment of 2026-11-21): "
+
+    assert ("contribution, performance and bands reads: a stored close of 0 or below is no " <>
+              "price for the walk; the last positive close carries (#1473; computation " <>
+              "versions moved)") in newest["parameters"]
+
+    assert ("live valuation and quote change reads: the latest close is the last positive " <>
+              "one (#1473)") in newest["parameters"]
+
+    # --- S31 Z end ---
+
     # Sprint 30's sprint PR (version 30), found by version from Sprint 31
     # on. Dated strictly after entry 29, so since=2026-11-12 still returns
     # it. Each story appends its own items between its own markers.

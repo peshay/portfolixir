@@ -5319,6 +5319,33 @@ answers the short periods (the tops and flops, the performance), pins
 `settings.period` where a widget should not follow the dashboard's
 period, and writes one `put`, journaled under its token.
 
+**Example.** A dashboard for short-term movements, the tops and flops
+pinned to the week beside the performance and what is due:
+
+```http
+POST /api/v1/dashboards
+Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
+Content-Type: application/json
+
+{"dashboard": {"name": "Short term", "layout": [
+  {"kind": "movers", "size": "M", "col": 1, "row": 1, "settings": {"period": "1w"}},
+  {"kind": "performance", "size": "M", "col": 7, "row": 1},
+  {"kind": "due", "size": "S", "col": 1, "row": 3}
+]}}
+```
+
+It answers `201` with the dashboard, each item with its `title` and
+`source`. A later `PUT` sent with `lock_version` 1 after the operator saved
+the same dashboard on the screen answers `409`:
+
+```json
+{"errors": {"code": "stale",
+            "detail": "the dashboard changed since it was read and nothing was written: ...",
+            "stored": {"type": "dashboard", "id": 7, "lock_version": 2, "layout": ["..."]}}}
+```
+
+A request without the token answers `401`, as every `/api/v1` route does.
+
 ## Imports
 
 Portfolio Performance imports (CSV/JSON v1) run through the **Imports view**
