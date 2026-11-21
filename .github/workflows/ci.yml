@@ -80,7 +80,10 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: portfolixir_test
+          # No POSTGRES_DB: the image would create the test database in its
+          # own default collation (en_US.utf8), and `mix ecto.create` would
+          # find it there. The job's step creates it with config/test.exs's
+          # C.UTF-8, as every machine does (Sprint 31 M3, #1475).
           PGDATA: /var/lib/postgresql/18/docker
         ports:
           - 5432:5432
@@ -331,7 +334,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: portfolixir_test
+          # No POSTGRES_DB, as in the test job (Sprint 31 M3, #1475).
           PGDATA: /var/lib/postgresql/18/docker
         ports:
           - 5432:5432
@@ -439,7 +442,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: portfolixir_test
+          # No POSTGRES_DB, as in the test job (Sprint 31 M3, #1475).
           PGDATA: /var/lib/postgresql/18/docker
         ports:
           - 5432:5432

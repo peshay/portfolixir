@@ -71,6 +71,14 @@ Start the project with either:
   DATABASE_NAME=portfolixir_test_2 mix test
   ```
 
+  `mix ecto.create` under `MIX_ENV=test` creates every test database in
+  the libc collation `C.UTF-8`, from `template0` (`config/test.exs`), on
+  every machine and in CI, so no test passes in one collation's name order
+  and fails in another's (#1475);
+  `test/invariants/test_database_collation_test.exs` fails on a test database
+  created otherwise. Recreate one with `MIX_ENV=test mix ecto.drop`, then the
+  two commands above.
+
 - An async test writes exchange rates no other async test writes: its own
   quote currency (or dates no other test writes for that pair). *Why:* in
   the SQL sandbox a second insert on the same rate key (base, quote, date)
