@@ -11,7 +11,7 @@ msgstr ""
 msgid "is invalid"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:146
+#: lib/portfolixir/dashboards/layout.ex:188
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:505
 #, elixir-autogen
 msgid "can't be blank"
@@ -290,67 +290,67 @@ msgstr ""
 msgid "must be after start"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:145
+#: lib/portfolixir/dashboards/layout.ex:187
 #, elixir-autogen, elixir-format
 msgid "is not a key a widget takes"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:161
+#: lib/portfolixir/dashboards/layout.ex:203
 #, elixir-autogen, elixir-format
 msgid "is not a period this widget kind takes"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:147
+#: lib/portfolixir/dashboards/layout.ex:189
 #, elixir-autogen, elixir-format
 msgid "is not a registered widget kind"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:155
+#: lib/portfolixir/dashboards/layout.ex:197
 #, elixir-autogen, elixir-format
 msgid "is not a setting a widget takes"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:150
+#: lib/portfolixir/dashboards/layout.ex:192
 #, elixir-autogen, elixir-format
 msgid "is not a size this widget kind takes"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:153
+#: lib/portfolixir/dashboards/layout.ex:195
 #, elixir-autogen, elixir-format
 msgid "is off the grid"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:142
+#: lib/portfolixir/dashboards/layout.ex:184
 #, elixir-autogen, elixir-format
 msgid "must be a list of widgets"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:152
+#: lib/portfolixir/dashboards/layout.ex:194
 #, elixir-autogen, elixir-format
 msgid "must be a whole number"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:144
+#: lib/portfolixir/dashboards/layout.ex:186
 #, elixir-autogen, elixir-format
 msgid "must be an object"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:143
+#: lib/portfolixir/dashboards/layout.ex:185
 #, elixir-autogen, elixir-format
 msgid "must hold at most 40 widgets"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:156
+#: lib/portfolixir/dashboards/layout.ex:198
 #, elixir-autogen, elixir-format
 msgid "names no view"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:154
+#: lib/portfolixir/dashboards/layout.ex:196
 #, elixir-autogen, elixir-format
 msgid "overlaps another widget"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:157
+#: lib/portfolixir/dashboards/layout.ex:199
 #, elixir-autogen, elixir-format
 msgid "this widget kind takes no period"
 msgstr ""
@@ -360,7 +360,7 @@ msgstr ""
 msgid "must be the whole number the dashboard was read with"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:158
+#: lib/portfolixir/dashboards/layout.ex:200
 #, elixir-autogen, elixir-format
 msgid "this widget kind takes no view"
 msgstr ""

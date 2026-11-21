@@ -15321,3 +15321,220 @@ a.widget-row:hover .widget-row__name {
   margin: 0;
 }
 /* --- S31 D4 end --- */
+
+/* --- S31 D7 begin --- */
+/* ===== „Alle Widgets“ and „Neues Dashboard“ (ADR-0062 §1, §3; Sprint 31
+   D7; planning board ux-design-2026-11-21-sprint31/01 ② ③) ===== */
+.widget-catalogue__bar {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.widget-catalogue__search {
+  width: min(100%, 320px);
+  min-height: 36px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+}
+
+.widget-group__title {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.widget-catalogue {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.widget-card {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-sm);
+}
+
+.widget-card__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.widget-card__sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.widget-size {
+  min-width: 22px;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+}
+
+.widget-card__add {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.widget-card__add:hover {
+  text-decoration: underline;
+}
+
+.widget-card__add:focus-visible,
+.widget-add-dialog__choice:focus-visible,
+.new-dashboard__start:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* A kind a later pass brings: dashed, quiet, and nothing to press. */
+.widget-card--later {
+  border-style: dashed;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-muted);
+}
+
+.widget-card--later .widget-size {
+  border-style: dashed;
+}
+
+.widget-card__later {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.widget-add-dialog__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.widget-add-dialog__choice {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.widget-add-dialog__choice:hover {
+  border-color: var(--color-accent);
+  background: var(--color-hover);
+}
+
+.widget-add-dialog__choices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.new-dashboard__form {
+  display: grid;
+  max-width: 560px;
+  gap: var(--space-3);
+}
+
+.new-dashboard__name {
+  display: grid;
+  gap: var(--space-1);
+  font-weight: 600;
+}
+
+.new-dashboard__name input {
+  min-height: 36px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-weight: 400;
+}
+
+.new-dashboard__starts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.new-dashboard__start {
+  position: relative;
+  display: grid;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  cursor: pointer;
+}
+
+.new-dashboard__start input {
+  position: absolute;
+  opacity: 0;
+}
+
+.new-dashboard__start:has(input:checked) {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.new-dashboard__start-title {
+  font-weight: 700;
+}
+
+.new-dashboard__start-sub {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.dashboard-empty {
+  margin: var(--space-4) clamp(16px, 2.4vw, 28px) 0;
+}
+/* --- S31 D7 end --- */
