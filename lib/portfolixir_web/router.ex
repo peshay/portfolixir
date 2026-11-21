@@ -84,7 +84,9 @@ defmodule PortfolixirWeb.Router do
         PortfolixirWeb.LiveLocale,
         PortfolixirWeb.PrivacyMode,
         PortfolixirWeb.LiveViewScope,
-        PortfolixirWeb.LiveBenchmarkScope
+        PortfolixirWeb.LiveBenchmarkScope,
+        # Sprint 31 D7: the menu's dashboards, read once per mount.
+        PortfolixirWeb.LiveMenu
       ] do
       live("/", DashboardLive, :index)
       # Sprint 31 D3 (ADR-0062 §3, §12): a stored dashboard by its id;

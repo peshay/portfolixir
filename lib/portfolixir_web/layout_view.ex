@@ -1457,6 +1457,16 @@ defmodule PortfolixirWeb.LayoutView do
               }
               var bar = tip.closest("dialog") ? null : document.querySelector(".topbar");
               if (bar) box.top = Math.max(box.top, bar.getBoundingClientRect().bottom);
+              // The compact window's tab bar (Sprint 31 D7) covers the foot
+              // of the content, and the short-wide window's rail its left
+              // edge: a panel stays clear of whichever shows.
+              var tabs = tip.closest("dialog") ? null : document.getElementById("app-tabbar");
+              var tabsBox = tabs && tabs.getClientRects().length ? tabs.getBoundingClientRect() : null;
+              if (tabsBox && tabsBox.width >= root.clientWidth - 1) {
+                box.bottom = Math.min(box.bottom, tabsBox.top);
+              } else if (tabsBox && tabsBox.width > 0) {
+                box.left = Math.max(box.left, tabsBox.right);
+              }
               return box;
             };
             var infoTipPlaces = new WeakMap();

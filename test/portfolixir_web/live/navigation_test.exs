@@ -84,35 +84,53 @@ defmodule PortfolixirWeb.NavigationTest do
     assert has_element?(view, "a#dashboard-transactions-count[href='/transactions']")
   end
 
-  # User story (ADR-0022):
+  # User story (ADR-0022; its amendment of 2026-11-21, Sprint 31 D7):
   # As a local portfolio maintainer,
-  # I want the sidebar organised into task-oriented areas — Overview, Wealth,
-  # Securities, Transactions, and an Administration group — with no roadmap
-  # placeholders and no per-classification tree,
-  # so that every destination answers a task ("how is my wealth doing?",
-  # "record/import data", "configure the system") instead of mirroring the
-  # issue history.
+  # I want the sidebar organised into the dashboards, what I explore
+  # (Wealth, Securities, News, „Alle Widgets“) and a quiet Maintenance group
+  # (Transactions, Accounts & depots, Views, Classifications, the journal),
+  # with no roadmap placeholders and no per-classification tree,
+  # so that every destination answers a task instead of mirroring the issue
+  # history.
   #
   # Acceptance criteria:
-  # - Top level: Overview (/), Wealth (/portfolio), Securities (/securities),
-  #   Transactions (/transactions).
-  # - An "Administration" group holds Accounts & depots (/portfolios),
-  #   Views (/buckets), and Classifications (/classifications).
+  # - Dashboards: Overview (/, the template while none is stored).
+  # - Discover: Wealth (/portfolio), Securities (/securities).
+  # - Maintenance: Transactions (/transactions), Accounts & depots
+  #   (/portfolios), Views (/buckets), and Classifications (/classifications).
   # - The "Portfolio"/"Portfolios" naming collision is resolved: the holdings
   #   view is labelled Wealth, the master-data page Accounts & depots.
   # - Disabled "Soon" placeholders, the Income nav entry (now a Wealth tab),
   #   the Imports nav entry (now a Transactions tab), the developer-facing
   #   group titles, and the sidebar classification tree are gone.
-  test "sidebar shows the five task-oriented areas without placeholders", %{conn: conn} do
+  test "sidebar shows the dashboards, Discover and Maintenance without placeholders", %{
+    conn: conn
+  } do
     {:ok, view, html} = live(conn, "/")
 
-    assert has_element?(view, "#nav-dashboard[href='/']", "Overview")
-    assert has_element?(view, "#nav-portfolio[href='/portfolio']", "Wealth")
-    assert has_element?(view, "#nav-securities[href='/securities']", "Securities")
-    assert has_element?(view, "#nav-transactions[href='/transactions']", "Transactions")
+    assert has_element?(view, ".nav-group--dashboards #nav-dashboard[href='/']", "Overview")
+    assert has_element?(view, ".nav-group--discover #nav-portfolio[href='/portfolio']", "Wealth")
 
-    assert html =~ "Administration"
-    assert has_element?(view, "#nav-portfolios[href='/portfolios']", "Accounts & depots")
+    assert has_element?(
+             view,
+             ".nav-group--discover #nav-securities[href='/securities']",
+             "Securities"
+           )
+
+    assert has_element?(
+             view,
+             ".nav-group--maintenance #nav-transactions[href='/transactions']",
+             "Transactions"
+           )
+
+    assert html =~ "Maintenance"
+
+    assert has_element?(
+             view,
+             ".nav-group--maintenance #nav-portfolios[href='/portfolios']",
+             "Accounts & depots"
+           )
+
     # ADR-0024 modification 6: the sidebar entry is about views (the task of
     # scoping analytics); bucket CRUD is reachable from account-row chips and
     # from the views management page, never as its own sidebar destination.
