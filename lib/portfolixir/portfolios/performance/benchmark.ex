@@ -567,8 +567,10 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
        ) do
     from = Date.add(start_date, -1)
 
+    # The last positive close: a stored 0 is no price, and the close before
+    # it is the seed (#1473, "one rule for every price read").
     seed =
-      case Quotes.at_or_before(security.id, from) do
+      case Quotes.at_or_before(security.id, from, positive: true) do
         nil -> []
         row -> [row]
       end
