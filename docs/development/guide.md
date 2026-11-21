@@ -87,16 +87,25 @@ Start the project with either:
 
 - A linked git worktree is created with `scripts/worktree.sh add <path>
   <base-ref> [branch] [--db <name>]`: it starts from the base you name, links
-  the main checkout's `deps` and `mcp-server/node_modules`, keeps `_build` its
-  own, writes `/deps`, `/_build` and `node_modules` into the shared exclude
-  file, registers the gettext merge driver (see "Integrating gettext
-  catalogues" below), and prints (or with `--db` runs) the test-database
-  commands above.
+  the main checkout's `deps` and `mcp-server/node_modules` (or copies one
+  when the worktree's `mix.lock` or `mcp-server/package-lock.json` differs
+  from the main checkout's), keeps `_build` its own, writes `/deps`,
+  `/_build` and `node_modules` into the shared exclude file, registers the
+  gettext merge driver (see "Integrating gettext catalogues" below), and
+  prints (or with `--db` runs) the test-database commands above.
   *Why:* in Sprint 22 a worktree commit tracked the `deps` symlink, which
   the `.gitignore` line `/deps/` does not match, and cherry-picking it
   replaced the main checkout's `deps` (Sprint 22 retrospective). The
   pre-commit hook `no-symlinks` refuses any commit that tracks a symlink, and
   CI runs it with every other hook.
+  A link is never written through: `mix deps.get`, `deps.update` and
+  `deps.clean` first run `scripts/worktree.sh own deps` (`mix.exs`), which
+  replaces a linked `deps` with a copy of its own, so a lock changed in the
+  worktree is fetched there and not into the main checkout's. npm has no
+  such hook: run `scripts/worktree.sh own mcp-server/node_modules` before
+  `npm ci` or `npm install` in a worktree.
+  *Why:* in Sprint 30 one lane's fetch changed every lane's dependencies
+  through the link (Sprint 30 retrospective, carry-forward 9).
 
 ## Required local checks
 
