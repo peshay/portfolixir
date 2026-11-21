@@ -182,7 +182,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
         <thead>
           <tr>
             <th scope="col"><%= gettext("Window") %></th>
-            <th scope="col" class="num"><bdi><%= @card.benchmark.name %></bdi></th>
+            <th scope="col" class="num"><%= gettext("Benchmark") %></th>
             <th scope="col"><%= lowest_label(@universe) %></th>
           </tr>
         </thead>

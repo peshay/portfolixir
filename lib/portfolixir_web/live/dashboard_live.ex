@@ -1222,11 +1222,14 @@ defmodule PortfolixirWeb.DashboardLive do
              total leaves nothing out (UX-DR2: no all-clear). No whitespace
              inside it, so `:empty` holds. --%>
         <div id={"dashboard-wealth-card-status" <> @uid} role="status" class="wealth-card-status"><.wealth_card_excluded
-            :if={@card}
+            :if={@card && @item.size != "S"}
             uid={@uid}
             valuation={@card.valuation}
             card={@card}
             active_view={@active_view}
+          /><.wealth_card_excluded_short
+            :if={@card && @item.size == "S"}
+            valuation={@card.valuation}
           /></div>
       </:shared>
       <.wealth_value
@@ -2251,6 +2254,23 @@ defmodule PortfolixirWeb.DashboardLive do
       class="hint"
       data-role="wealth-card-view"
     ><%= view_sentence(@active_view, @card) %></p>
+    """
+  end
+
+  attr(:valuation, :map, required: true)
+
+  # Sprint 31 D4 (the orchestrator's follow-up 1; board ①): at S what the
+  # total leaves out in one line, each group's count and the link to
+  # Wealth's notes; the names stay in the full note at M and on Wealth.
+  defp wealth_card_excluded_short(assigns) do
+    assigns = assign(assigns, :counts, ValuationNotes.excluded_counts(assigns.valuation))
+
+    ~H"""
+    <p :if={@counts != []} class="widget-warning" data-role="wealth-card-excluded-short">
+      <AppShell.icon name={:alert_triangle} size={12} />
+      <span><%= gettext("Not in the total: %{counts}.", counts: Enum.join(@counts, ", ")) %></span>
+      <a href="/portfolio?period=ytd"><%= gettext("Details in Wealth →") %></a>
+    </p>
     """
   end
 

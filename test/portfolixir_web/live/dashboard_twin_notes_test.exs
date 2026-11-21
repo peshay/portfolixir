@@ -5,7 +5,11 @@ defmodule PortfolixirWeb.DashboardTwinNotesTest do
   # by what the house's twin rule gives them (`PortfolixirWeb.SecurityNames`,
   # ISIN, else WKN, else the number), from ids the payloads the notes read
   # carry. Synthetic names and identifiers only.
-  use PortfolixirWeb.ConnCase, async: true
+  # group: :dashboards -- the note test stores „Überblick“ at M (Sprint 31
+  # D4: at S the total's note is one line of counts), and a create takes
+  # the advisory lock that counts the dashboards (`Portfolixir.LockTable`
+  # row 28).
+  use PortfolixirWeb.ConnCase, async: true, group: :dashboards
 
   import Phoenix.LiveViewTest
   import Portfolixir.WorldFixtures
@@ -73,6 +77,7 @@ defmodule PortfolixirWeb.DashboardTwinNotesTest do
       deliver_untraded!(world, twin, "1", date: Date.add(Clock.today(), -5))
     end
 
+    Portfolixir.DashboardFixtures.overview_at_m!()
     note = conn |> loaded() |> Floki.find("[data-role='wealth-card-excluded']")
 
     assert text(note) =~

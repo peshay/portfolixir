@@ -552,4 +552,46 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
     assert Floki.find(doc, "[data-role='drift-points']") != []
     assert Floki.find(doc, "#dashboard-performance [data-role='performance-ttwror']") != []
   end
+
+  # User story (Sprint 31 D4, the orchestrator's follow-up 1; board ①):
+  # As the operator reading „Gesamtwert“ at S,
+  # I want what the total leaves out said in one short line with its link,
+  # so that the small widget warns without the full note.
+  #
+  # Acceptance criteria:
+  # - S (the template's): one line with the left-out groups' counts and
+  #   „Details in Wealth →“, no full note naming the accounts.
+  # - M: the full note, as the Overview drew it.
+  test "„Gesamtwert“ says what the total leaves out in one line at S", %{conn: conn} do
+    world = seed()
+
+    {:ok, account} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "USD Settlement",
+        currency_code: "USD",
+        liquidity_role: "free_cash"
+      })
+
+    {:ok, _} =
+      Portfolixir.Ledger.set_cash_balance(Actor.owner_ui(), account, %{
+        date: Date.add(world.today, -5),
+        amount: "1850"
+      })
+
+    doc = loaded(conn)
+    short = Floki.find(doc, "#dashboard-wealth [data-role='wealth-card-excluded-short']")
+    assert text(short) =~ "Not in the total: 1 cash account."
+    assert ["/portfolio?period=ytd"] == short |> Floki.find("a") |> Floki.attribute("href")
+    assert Floki.find(doc, "#dashboard-wealth [data-role='wealth-card-excluded']") == []
+    refute text(Floki.find(doc, "#dashboard-wealth")) =~ "USD Settlement"
+
+    store!([{"total_value", "M", 1, 1}])
+    doc = loaded(conn)
+
+    assert text(Floki.find(doc, "#dashboard-wealth [data-role='wealth-card-excluded']")) =~
+             "USD Settlement"
+
+    assert Floki.find(doc, "#dashboard-wealth [data-role='wealth-card-excluded-short']") == []
+  end
 end
