@@ -142,7 +142,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
       id={"dashboard-crashes" <> @uid}
       item={@item}
       title={Widgets.title("crashes")}
-      scope_label={@ready && gettext("Benchmark %{name} · prices, no verdict", name: @card.benchmark.name)}
+      scope_label={if @ready, do: gettext("Benchmark %{name} · prices, no verdict", name: @card.benchmark.name)}
       full_href="/risk"
       full_label={gettext("All windows →")}
       full_role="crashes-all-windows"
