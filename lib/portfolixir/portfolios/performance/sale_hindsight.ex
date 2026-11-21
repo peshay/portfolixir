@@ -220,8 +220,8 @@ defmodule Portfolixir.Portfolios.Performance.SaleHindsight do
   @doc """
   The end date of each span of a sale (its security preloaded), in
   `span_labels/0` order: `1m`, `3m` and `12m` shifted by calendar months,
-  `latest` the date of the security's latest stored close capped at
-  `today`, or nil when that date is not after the sale day (the span is
+  `latest` the date of the security's latest positive close (a stored close
+  of 0 or below is no price, #1473) capped at `today`, or nil when that date is not after the sale day (the span is
   then incomplete, `:no_end_close`). What a switch cost
   (`Portfolixir.Portfolios.Performance.SaleReinvestment`, ADR-0057 §2)
   measures over the same ends.
@@ -233,7 +233,7 @@ defmodule Portfolixir.Portfolios.Performance.SaleHindsight do
   end
 
   defp latest_end(sale, security, today) do
-    case Quotes.latest(security.id) do
+    case Quotes.latest(security.id, positive: true) do
       %{date: %Date{} = date} ->
         end_on = Enum.min([date, today], Date)
         if Date.compare(end_on, sale.date) == :gt, do: end_on, else: nil
