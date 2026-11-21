@@ -76,8 +76,10 @@ defmodule Portfolixir.News.Stories do
   ## Recluster (`recluster/4`)
 
   Rewrites the stories of one scope and language in one transaction,
-  serialized per scope and language by an advisory lock. Which items it
-  reads:
+  serialized per scope and language by an advisory lock, taken after the
+  scope's security (or category) `FOR KEY SHARE`, as every news writer
+  takes the securities before any news row (#1470; `Portfolixir.LockTable`,
+  row 28). Which items it reads:
 
     1. **the seeds**: the scope's items in no story yet (new, or newly
        assigned), and those first seen within one window before `now` —
@@ -113,6 +115,8 @@ defmodule Portfolixir.News.Stories do
   """
   import Ecto.Query
 
+  alias Portfolixir.Catalog.Security
+  alias Portfolixir.Classifications.Category
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.Item
   alias Portfolixir.Repo
@@ -411,12 +415,33 @@ defmodule Portfolixir.News.Stories do
     end)
   end
 
+  # The scope's lock. **Its parent first** (#1470; `Portfolixir.LockTable`,
+  # row 28): the security (or category) of the scope `FOR KEY SHARE`, then
+  # the advisory lock, then the stories and items. A security merge holds
+  # both securities `FOR UPDATE` and then writes the source's items, its
+  # stories and its items again (row 13), so a recluster that held a story
+  # and then moved an item into it, or held its items (`remove/5`) and then
+  # wrote a story, closed a cycle with it; holding the security first, the
+  # two meet there, and the one that waits holds nothing the other asks
+  # for. A recluster that waited on a merge of its security finds the
+  # source's items moved to the target, and writes nothing. A caller that
+  # holds the security already (`News.assign_item/4`, a rating, a
+  # promotion, the merge's own recluster of its target) takes it again at
+  # no wait.
   defp lock_scope({kind, id}, language) do
+    lock_parent(kind, id)
+
     Repo.query!("SELECT pg_advisory_xact_lock($1, $2)", [
       @lock_key,
       :erlang.phash2({kind, id, language})
     ])
   end
+
+  defp lock_parent(:security, id),
+    do: Repo.all(from(s in Security, where: s.id == ^id, lock: "FOR KEY SHARE", select: s.id))
+
+  defp lock_parent(:category, id),
+    do: Repo.all(from(c in Category, where: c.id == ^id, lock: "FOR KEY SHARE", select: c.id))
 
   defp recluster_locked(scope, language, now, opts) do
     options = [
