@@ -96,13 +96,27 @@ defmodule Portfolixir.Catalog.Quotes do
     where(query, [q], q.date <= ^latest)
   end
 
-  @doc "Closest quote on or before `date`, or nil."
-  def at_or_before(security_id, %Date{} = date) when is_integer(security_id) do
+  @doc """
+  Closest quote on or before `date`, or nil. With `positive: true` only a
+  close above 0 counts: a stored close of 0 or below is no price, and the
+  closest positive one before it answers (the walk's read, ADR-0051's
+  amendment of 2026-11-21).
+  """
+  def at_or_before(security_id, %Date{} = date, opts \\ []) when is_integer(security_id) do
     SecurityQuote
     |> where([q], q.security_id == ^security_id and q.date <= ^date)
+    |> positive_only(opts)
     |> order_by([q], desc: q.date)
     |> limit(1)
     |> Repo.one()
+  end
+
+  # A close of 0 or below, which a release before the plausibility bounds
+  # could store, is no price where a read asks for prices only.
+  defp positive_only(query, opts) do
+    if Keyword.get(opts, :positive, false),
+      do: where(query, [q], q.close > 0),
+      else: query
   end
 
   @doc """
@@ -118,12 +132,17 @@ defmodule Portfolixir.Catalog.Quotes do
     |> Repo.exists?()
   end
 
-  @doc "Quotes between `from` and `to` inclusive, ascending by date."
+  @doc """
+  Quotes between `from` and `to` inclusive, ascending by date. Options:
+  `:limit` (the newest `n` rows of the window) and `positive: true` (only
+  closes above 0, as `at_or_before/3` reads them).
+  """
   def range(security_id, %Date{} = from, %Date{} = to, opts \\ [])
       when is_integer(security_id) do
     query =
       SecurityQuote
       |> where([q], q.security_id == ^security_id and q.date >= ^from and q.date <= ^to)
+      |> positive_only(opts)
 
     # A limit keeps the newest rows of the window (#771), like the transaction
     # and rate lists; the result stays ascending.

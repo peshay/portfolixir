@@ -3808,9 +3808,11 @@ Example account payloads:
   day before the window, whose close is the start value, included, so a
   position whose first price or first rate arrived on the window's first
   day is named rather than read as a clean gain (#1472, ADR-0051's
-  amendment of 2026-11-19; computation version 6). A stored close of 0 or
-  below, which an older release could store, counts as no price there
-  (`no_price`), while the walk still values the units at it. A foreign-currency cash
+  amendment of 2026-11-19). A stored close of 0 or below, which an older
+  release could store, is no price for the walk itself: the last positive
+  close carries over it as over a day without a close, and a position with
+  no positive close yet counts zero with `no_price` (#1473, ADR-0051's
+  amendment of 2026-11-21; computation version 7). A foreign-currency cash
   balance held before its currency's first rate counts zero the same way,
   and the first rate brings its whole value into `cash_currency_effect`:
   `unvalued_cash_accounts` names the account, exactly as the performance
