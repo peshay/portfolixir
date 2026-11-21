@@ -296,7 +296,16 @@ have landed: a page left mid-load kills its load's task mid-query, and that
 takes the test's shared database connection with it.
 `test/invariants/browser_walks_settle_test.exs` refuses a script that
 navigates or closes a page without it. It needs Node, the `playwright` package on Node's module path (`NODE_PATH`) and
-its Chromium (`npx playwright install chromium`). The layout walks measure
+its Chromium (`npx playwright install chromium`). Every walk launches through
+`test/browser/launch.js`, which starts the `chromium-headless-shell` of the
+Playwright release `test/browser/package-lock.json` pins, the browser CI's
+`browser` job runs the walks in: a full Chrome lays the shipped Inter out
+differently, and a walk that passed there by 3 px failed in CI (Sprint 30
+retrospective). A machine that brings its own browser names it in
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE`; the walks then measure in that browser,
+not in CI's. The first launch of a walk logs which one it was, for example
+`launch.js: launched chromium-headless-shell of Playwright 1.65.0, Chromium
+158.0.8127.18`. The layout walks measure
 every bar in Inter, the app's font, and in DejaVu Sans, the fallback a device
 draws in when the font file cannot load (`test/browser/fonts.js`). The app
 ships Inter (`priv/static/fonts/`), and a walk fails unless the page loaded
