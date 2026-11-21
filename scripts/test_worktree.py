@@ -79,6 +79,8 @@ class WorktreeHelperTests(unittest.TestCase):
         # real .gitignore, so they do not match a symlink.
         self._write(".gitignore", "/_build/\n/deps/\n/mcp-server/node_modules/\n")
         self._write("mcp-server/package.json", "{}\n")
+        self._write("mix.lock", '%{"decimal": {:hex, :decimal, "2.3.0"}}\n')
+        self._write("mcp-server/package-lock.json", '{"lockfileVersion": 3}\n')
         self._write("README.md", "base\n")
         self._git("add", "-A")
         self._git("commit", "-q", "-m", "base")
@@ -100,10 +102,30 @@ class WorktreeHelperTests(unittest.TestCase):
         )
         return completed.stdout
 
-    def _helper(self, *args: str) -> subprocess.CompletedProcess:
+    def _helper(self, *args: str, cwd: str | None = None) -> subprocess.CompletedProcess:
         return subprocess.run(
-            ["bash", SCRIPT, *args], cwd=self.main, env=self.env, capture_output=True, text=True, check=False
+            ["bash", SCRIPT, *args], cwd=cwd or self.main, env=self.env, capture_output=True, text=True, check=False
         )
+
+    def _read(self, path: str) -> str:
+        with open(path, encoding="utf-8") as handle:
+            return handle.read()
+
+    def _assert_own_copy(self, path: str, relative: str, sample: str) -> None:
+        """`relative` in the worktree `path` is a directory of its own, with the
+        main checkout's content, and a write into it leaves the main
+        checkout's unchanged."""
+        own = os.path.join(path, relative)
+        self.assertFalse(os.path.islink(own), f"{relative} is still a link")
+        self.assertTrue(os.path.isdir(own))
+        self.assertEqual(
+            self._read(os.path.join(own, sample)), self._read(os.path.join(self.main, relative, sample))
+        )
+        with open(os.path.join(own, sample), "w", encoding="utf-8") as handle:
+            handle.write("# fetched in the worktree\n")
+        os.makedirs(os.path.join(own, "jason"))
+        self.assertNotEqual(self._read(os.path.join(self.main, relative, sample)), "# fetched in the worktree\n")
+        self.assertFalse(os.path.exists(os.path.join(self.main, relative, "jason")))
 
     def _add(self, name: str, *args: str) -> str:
         path = os.path.join(self.directory, name)
@@ -158,6 +180,44 @@ class WorktreeHelperTests(unittest.TestCase):
                 self.assertTrue(os.path.islink(link))
                 self.assertEqual(os.readlink(link), os.path.join(self.main, relative))
         self.assertFalse(os.path.lexists(os.path.join(path, "_build")))
+
+    # Sprint 31 plan M4 (Sprint 30 retrospective, carry-forward 9): one
+    # lane's fetch changed every lane's dependencies through the link.
+    def test_a_worktree_whose_mix_lock_differs_gets_its_own_deps_copy(self):
+        self._write("mix.lock", '%{"decimal": {:hex, :decimal, "2.4.0"}}\n')
+        path = self._add("story", self.base)
+        self._assert_own_copy(path, "deps", os.path.join("decimal", "mix.exs"))
+        # The other lock is the main checkout's: its tree stays a link.
+        node_modules = os.path.join(path, "mcp-server", "node_modules")
+        self.assertTrue(os.path.islink(node_modules))
+        self.assertEqual(self._git("status", "--porcelain", "--untracked-files=all", cwd=path), "")
+
+    def test_a_worktree_whose_package_lock_differs_gets_its_own_node_modules_copy(self):
+        self._write("mcp-server/package-lock.json", '{"lockfileVersion": 3, "packages": {}}\n')
+        path = self._add("story", self.base)
+        self._assert_own_copy(path, os.path.join("mcp-server", "node_modules"), os.path.join("zod", "package.json"))
+        self.assertTrue(os.path.islink(os.path.join(path, "deps")))
+
+    def test_own_turns_a_linked_deps_into_a_copy_before_a_fetch_writes_through_it(self):
+        # What `mix deps.get`, `deps.update` and `deps.clean` run first in a
+        # worktree whose deps is a link (mix.exs aliases): a lock changed
+        # after the worktree was made is fetched into the copy.
+        path = self._add("story", self.base)
+        completed = self._helper("own", "deps", cwd=path)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertIn("deps", completed.stdout)
+        self._assert_own_copy(path, "deps", os.path.join("decimal", "mix.exs"))
+        self.assertEqual(self._git("status", "--porcelain", "--untracked-files=all", cwd=path), "")
+
+        again = self._helper("own", "deps", cwd=path)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertIn("not a link", again.stdout)
+
+    def test_own_leaves_the_main_checkouts_deps_alone(self):
+        completed = self._helper("own", "deps")
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertTrue(os.path.isdir(os.path.join(self.main, "deps", "decimal")))
+        self.assertFalse(os.path.islink(os.path.join(self.main, "deps")))
 
     def test_the_links_leave_the_worktree_clean(self):
         path = self._add("story", self.base)

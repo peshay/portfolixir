@@ -92,7 +92,37 @@ defmodule Portfolixir.MixProject do
     [
       setup: ["deps.get", "ecto.setup"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
-      "ecto.reset": ["ecto.drop", "ecto.setup"]
+      "ecto.reset": ["ecto.drop", "ecto.setup"],
+      "deps.get": [&__MODULE__.own_deps/1, "deps.get"],
+      "deps.update": [&__MODULE__.own_deps/1, "deps.update"],
+      "deps.clean": [&__MODULE__.own_deps/1, "deps.clean"]
     ]
+  end
+
+  # A worktree from scripts/worktree.sh links `deps` to the main checkout's
+  # when their mix.lock files agree. Before a task writes into `deps`, the
+  # link becomes a copy of its own (`scripts/worktree.sh own`), so a fetch
+  # for a lock the worktree changed cannot change the main checkout's
+  # dependencies (Sprint 31 M4, Sprint 30 retrospective carry-forward 9).
+  # Where `deps` is a directory, as in the main checkout, CI and the images,
+  # it does nothing. test/invariants/worktree_deps_guard_test.exs pins the
+  # aliases.
+  #
+  # The paths are literal, relative to the project root Mix runs in, as the
+  # one subprocess test/invariants/scope_b2_outbound_chokepoint_test.exs
+  # registers for this module. The script copies with `cp -a`, which keeps
+  # the modification times Mix's compile checks read.
+  @doc false
+  def own_deps(_args) do
+    case File.lstat("deps") do
+      {:ok, %File.Stat{type: :symlink}} ->
+        case System.cmd("bash", ["scripts/worktree.sh", "own", "deps"], stderr_to_stdout: true) do
+          {output, 0} -> Mix.shell().info(String.trim_trailing(output))
+          {output, _} -> Mix.raise("scripts/worktree.sh could not copy deps:\n" <> output)
+        end
+
+      _ ->
+        :ok
+    end
   end
 end
