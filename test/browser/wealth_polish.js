@@ -13,6 +13,9 @@
 // - `stack_gutter`: the stacked chart beside its legend at 1200 px keeps its
 //   values outside the plot (board 02 ②); at 390 px they stand inside.
 // - `touch_tooltip`: a tapped sunburst slice leaves no floating tooltip.
+// - `warm_switch` (I34 step 2, Sprint 31 P2): a switch to a period whose
+//   stack the memo holds draws the chart without the "computing"
+//   skeleton; a switch to one it does not hold still shows it.
 //
 // Prints one JSON object on stdout: {"ok": true} or {"ok": false, "error":
 // "..."}; the exit status is 0 either way unless the browser itself fails.
@@ -262,7 +265,48 @@ async function touchTooltip(browser) {
   if (errors.length > 0) throw new Error(errors.join("; "));
 }
 
-const CASES = { holdings, stack_gutter: stackGutter, touch_tooltip: touchTooltip };
+// Clicks a period token and waits until the stack shows that period's
+// chart: the token pressed, the chart drawn and no skeleton left. Answers
+// whether a stack skeleton appeared at any moment in between, as a
+// MutationObserver installed before the click saw it.
+async function switchTo(page, period) {
+  await page.evaluate(() => {
+    window.__stackSkeletonSeen = false;
+    if (window.__stackSkeletonWatch) window.__stackSkeletonWatch.disconnect();
+    window.__stackSkeletonWatch = new MutationObserver(() => {
+      if (document.querySelector("[data-role='stack-skeleton']")) window.__stackSkeletonSeen = true;
+    });
+    window.__stackSkeletonWatch.observe(document.body, { childList: true, subtree: true });
+  });
+  await page.click("[data-role='period-tokens'] button[phx-value-period='" + period + "']");
+  await page.waitForFunction(
+    (p) =>
+      document.querySelector("[data-role='period-tokens'] button[aria-pressed='true']")?.getAttribute("phx-value-period") === p &&
+      document.querySelector("#performance-figure-stack svg") !== null &&
+      document.querySelector("[data-role='stack-skeleton']") === null,
+    period,
+    { timeout: 30000 }
+  );
+  await settle(page);
+  return page.evaluate(() => window.__stackSkeletonSeen);
+}
+
+async function warmSwitch(browser) {
+  const ctx = await context(browser, 1200, "de");
+  const page = await ctx.newPage();
+  await open(page, "/portfolio?level=category&period=1y");
+  await page.waitForSelector("#performance-figure-stack svg");
+  const errors = [];
+  // 3 years is not remembered yet: the skeleton shows while it walks.
+  if (!(await switchTo(page, "3y"))) errors.push("a cold switch to 3y showed no skeleton (the walk was not watched)");
+  // Both periods are remembered now.
+  if (await switchTo(page, "1y")) errors.push("a warm switch to 1y showed the skeleton");
+  if (await switchTo(page, "3y")) errors.push("a warm switch to 3y showed the skeleton");
+  await leave(ctx);
+  if (errors.length > 0) throw new Error(errors.join("; "));
+}
+
+const CASES = { holdings, stack_gutter: stackGutter, touch_tooltip: touchTooltip, warm_switch: warmSwitch };
 
 (async () => {
   const browser = await launchChromium();

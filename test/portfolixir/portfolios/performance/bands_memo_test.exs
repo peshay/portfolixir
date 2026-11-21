@@ -258,6 +258,47 @@ defmodule Portfolixir.Portfolios.Performance.BandsMemoTest do
     end
   end
 
+  # User story (I34 step 2, Sprint 31 P2):
+  # As the operator switching to a period whose chart is remembered,
+  # I want the page to find the remembered bands without starting a walk,
+  # so that it can draw them at once instead of a "computing" skeleton.
+  #
+  # Acceptance criteria:
+  # - `cached_for_view/2` answers `{:ok, bands}` only when the memo holds the
+  #   request's bands for the current data version, equal byte for byte to
+  #   what `for_view/2` answers; it never computes and never stores.
+  # - Before a read, after a write that bumps the basis, for a custom range
+  #   and with the derived layer off it answers `:miss`; so does a request
+  #   `for_view/2` refuses.
+  test "the cached read answers a current hit only, and never computes" do
+    w = world!()
+    opts = [period: "1y", classification_id: w.tree.id]
+
+    assert Bands.cached_for_view(nil, cached_opts(opts)) == :miss
+    assert entry_keys(:performance_view_bands) == []
+
+    read = read(w, :everything, opts)
+    assert {:ok, hit} = Bands.cached_for_view(nil, cached_opts(opts))
+    assert bytes(hit) == bytes(read)
+
+    assert Bands.cached_for_view(nil, cached_opts(Keyword.put(opts, :period, "3y"))) == :miss
+    assert Bands.cached_for_view(nil, cached_opts(Keyword.put(opts, :level, :security))) == :miss
+    assert Bands.cached_for_view(nil, cached_opts(Keyword.put(opts, :level, :nope))) == :miss
+
+    ranged = Keyword.put(opts, :period, {:range, ~D[2026-02-01], ~D[2026-05-31]})
+    read(w, :everything, ranged)
+    assert Bands.cached_for_view(nil, cached_opts(ranged)) == :miss
+
+    assert DerivedConfig.with_layer_off(fn -> Bands.cached_for_view(nil, cached_opts(opts)) end) ==
+             :miss
+
+    WorldFixtures.put_quotes!(w.alpha, [{~D[2026-06-15], "130"}])
+    assert Bands.cached_for_view(nil, cached_opts(opts)) == :miss
+    assert entry_keys(:performance_view_bands) |> length() == 1
+  end
+
+  defp cached_opts(opts), do: Keyword.merge([today: @today], opts)
+
   # -- every write that moves the bands invalidates them --------------------------
 
   # The five kinds of write the plan names, each with the requests it moves
