@@ -464,8 +464,9 @@ defmodule PortfolixirWeb.JournalLiveTest do
 
   # User story:
   # As the operator looking for the journal,
-  # I want its entry in the sidebar's „Verwaltung“ group, after
-  # „Klassifizierungen“, where the other record-keeping pages are,
+  # I want its entry in the sidebar's „Pflege“ group („Verwaltung“ until
+  # Sprint 31), after „Klassifizierungen“, where the other record-keeping
+  # pages are,
   # so that the journal is one click from every page and does not claim to
   # be about bookings only (board 03, pick Q6).
   #
@@ -473,7 +474,7 @@ defmodule PortfolixirWeb.JournalLiveTest do
   # - #nav-journal links /journal, reads „Audit-Journal“ and is the last
   #   link of the group, right after #nav-classifications.
   # - On /journal it is the current entry and no other is.
-  test "the sidebar's „Verwaltung“ group ends with the journal", %{conn: conn} do
+  test "the sidebar's „Pflege“ group ends with the journal", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/?locale=de")
 
     assert has_element?(view, "#nav-journal[href='/journal']", "Audit-Journal")
@@ -484,7 +485,9 @@ defmodule PortfolixirWeb.JournalLiveTest do
       |> render()
       |> Floki.parse_fragment!()
 
-    assert group |> Floki.find(".nav-group-head") |> Floki.text() |> String.trim() == "Verwaltung"
+    # Sprint 31 D7: the group is „Pflege“ since ADR-0022's amendment of
+    # 2026-11-21.
+    assert group |> Floki.find(".nav-group-head") |> Floki.text() |> String.trim() == "Pflege"
 
     assert group
            |> Floki.find("a.nav-link")

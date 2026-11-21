@@ -902,8 +902,9 @@ defmodule PortfolixirWeb.DashboardLive do
   def render(assigns) do
     ~H"""
     <AppShell.shell page_address={@page_address}
-      current_path="/"
+      current_path={if @board, do: @board.path, else: "/"}
       page_title={board_title(@board)}
+      switcher={@board != nil}
       page_subtitle={gettext("Local portfolio tracking")}
     >
       <div id="dashboard-workspace" class="workspace-page">

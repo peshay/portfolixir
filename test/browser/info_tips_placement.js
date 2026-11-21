@@ -134,10 +134,13 @@ async function basisLine(browser) {
   assertInside("Wealth's positions ⓘ at 390", open);
   await page.click(tip + " > summary");
 
-  // No room under the line: from the page's top, a window that ends 12 px
-  // under it (scrolling there depends on how long the page below is).
+  // No room under the line: from the page's top, a window whose content
+  // ends 12 px under it (scrolling there depends on how long the page
+  // below is). Since Sprint 31 D7 the compact window's tab bar covers the
+  // foot of the window, so the window is that much taller.
+  const tabBar = await page.evaluate(() => document.getElementById("app-tabbar").getBoundingClientRect().height);
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.setViewportSize({ width: 390, height: Math.round(line.docBottom + 12) });
+  await page.setViewportSize({ width: 390, height: Math.round(line.docBottom + 12 + tabBar) });
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
   const above = await openAndMeasure(page, tip);
   const lineNow = await lineOf(page);

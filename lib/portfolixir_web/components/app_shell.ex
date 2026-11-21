@@ -3,8 +3,11 @@ defmodule PortfolixirWeb.AppShell do
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Dashboards.Templates
   alias Portfolixir.Input.Text
+  alias PortfolixirWeb.LiveMenu
   alias PortfolixirWeb.PageAddress
+  alias PortfolixirWeb.StoredText
 
   attr(:current_path, :string, default: "/")
 
@@ -17,9 +20,16 @@ defmodule PortfolixirWeb.AppShell do
   attr(:page_title, :string, default: nil)
   attr(:page_subtitle, :string, default: nil)
   attr(:main_class, :any, default: "app-main--workspace")
+  # Sprint 31 D7 (ADR-0022's amendment, point 5; planning board 01 ④): on a
+  # dashboard the title is also the dashboard switcher („Überblick ▾“),
+  # which the compact and the short-wide window show in place of the
+  # plain title.
+  attr(:switcher, :boolean, default: false)
   slot(:inner_block, required: true)
 
   def shell(assigns) do
+    assigns = assign(assigns, :groups, nav_groups(LiveMenu.entries()))
+
     ~H"""
     <div id="app-shell" class="app-shell">
       <input
@@ -41,11 +51,9 @@ defmodule PortfolixirWeb.AppShell do
         </a>
 
         <nav class="primary-nav" aria-label={gettext("Primary navigation")}>
-          <%= for group <- nav_groups() do %>
-            <div class={["nav-group", group.title == nil && "nav-group-unlabeled"]}>
-              <%= if group.title do %>
-                <div class="nav-group-head"><span><%= group.title %></span></div>
-              <% end %>
+          <%= for group <- @groups do %>
+            <div class={["nav-group", "nav-group--#{group.key}", group[:quiet] && "nav-group--quiet"]}>
+              <div class="nav-group-head"><span><%= group.title %></span></div>
 
               <%= for item <- group.items do %>
                 <a
@@ -56,7 +64,8 @@ defmodule PortfolixirWeb.AppShell do
                 >
                   <span class="nav-marker" aria-hidden="true"></span>
                   <span class="nav-ico" aria-hidden="true"><%= nav_icon(item[:icon]) %></span>
-                  <span class="nav-label"><%= item.label %></span>
+                  <span class="nav-label"><%= nav_label(item) %></span>
+                  <span :if={item[:badge]} class="nav-badge"><%= item.badge %></span>
                 </a>
               <% end %>
             </div>
@@ -91,7 +100,19 @@ defmodule PortfolixirWeb.AppShell do
 
             <div class="topbar-page" aria-live="polite">
               <%= if @page_title do %>
-                <h1 id="app-topbar-title"><%= @page_title %></h1>
+                <h1 id="app-topbar-title" class={@switcher && "has-switcher"}>
+                  <span class="topbar-title-text"><%= @page_title %></span>
+                  <button
+                    :if={@switcher}
+                    type="button"
+                    class="topbar-switcher"
+                    popovertarget="dashboard-switcher"
+                    aria-label={gettext("%{title}, switch dashboard", title: @page_title)}
+                  >
+                    <span class="topbar-switcher__name"><%= @page_title %></span>
+                    <span class="topbar-switcher__caret" aria-hidden="true">▾</span>
+                  </button>
+                </h1>
               <% end %>
               <%= if @page_subtitle do %>
                 <p id="app-topbar-subtitle"><%= @page_subtitle %></p>
@@ -209,9 +230,154 @@ defmodule PortfolixirWeb.AppShell do
           <%= render_slot(@inner_block) %>
         </main>
       </div>
+
+      <.tab_bar current_path={@current_path} groups={@groups} />
+      <.dashboard_switcher :if={@switcher} current_path={@current_path} groups={@groups} />
     </div>
     """
   end
+
+  # --- Sprint 31 D7 begin ---
+  attr(:current_path, :string, required: true)
+  attr(:groups, :list, required: true)
+
+  # The compact window's tab bar (ADR-0022's amendment, point 5; ADR-0062
+  # §6; planning board 01 ④): „Dashboards“ (the first dashboard; the title
+  # switches between them), „Wertpapiere“, „Nachrichten“, and „Mehr“, a
+  # sheet with the rest of „Entdecken“ and all of „Pflege“. CSS shows it
+  # under 600 px as a bar at the foot and in a short window wider than tall
+  # as a rail at the side, by the window's width and height, never the
+  # device; elsewhere the sidebar is the menu. The sheet is a native
+  # popover: it opens and closes without a script and Esc closes it.
+  defp tab_bar(assigns) do
+    assigns =
+      assign(assigns,
+        more: more_groups(assigns.groups),
+        tab: tab(assigns.current_path, assigns.groups)
+      )
+
+    ~H"""
+    <nav id="app-tabbar" class="app-tabbar" aria-label={gettext("Sections")}>
+      <a
+        id="tab-dashboards"
+        class={["app-tab", @tab == :dashboards && "is-active"]}
+        href="/"
+        aria-current={if @tab == :dashboards, do: "page"}
+      >
+        <span class="app-tab__ico" aria-hidden="true"><%= nav_icon(:dashboard) %></span>
+        <span class="app-tab__label"><%= gettext("Dashboards") %></span>
+      </a>
+      <a
+        id="tab-securities"
+        class={["app-tab", @tab == :securities && "is-active"]}
+        href="/securities"
+        aria-current={if @tab == :securities, do: "page"}
+      >
+        <span class="app-tab__ico" aria-hidden="true"><%= nav_icon(:layers) %></span>
+        <span class="app-tab__label"><%= gettext("Securities") %></span>
+      </a>
+      <a
+        id="tab-news"
+        class={["app-tab", @tab == :news && "is-active"]}
+        href="/news"
+        aria-current={if @tab == :news, do: "page"}
+      >
+        <span class="app-tab__ico" aria-hidden="true"><%= nav_icon(:newspaper) %></span>
+        <span class="app-tab__label"><%= gettext("News") %></span>
+      </a>
+      <button
+        id="tab-more"
+        type="button"
+        class={["app-tab", @tab == :more && "is-active"]}
+        popovertarget="app-more"
+      >
+        <span class="app-tab__ico" aria-hidden="true"><%= nav_icon(:ellipsis) %></span>
+        <span class="app-tab__label"><%= gettext("More") %></span>
+      </button>
+    </nav>
+
+    <div id="app-more" class="app-sheet app-more" popover aria-labelledby="app-more-title">
+      <h2 id="app-more-title" class="app-sheet__title"><%= gettext("More") %></h2>
+      <section :for={group <- @more} class="app-sheet__group">
+        <h3><%= group.title %></h3>
+        <a
+          :for={item <- group.items}
+          class={["app-sheet__link", nav_current?(@current_path, item) && "is-active"]}
+          href={item.href}
+          aria-current={if nav_current?(@current_path, item), do: "page"}
+        >
+          <span class="app-sheet__ico" aria-hidden="true"><%= nav_icon(item[:icon]) %></span>
+          <span><%= item.label %></span>
+        </a>
+      </section>
+    </div>
+    """
+  end
+
+  attr(:current_path, :string, required: true)
+  attr(:groups, :list, required: true)
+
+  # The dashboard switcher the title opens (planning board 01 ④, „Überblick
+  # ▾“): the menu's „Dashboards“ group as a sheet.
+  defp dashboard_switcher(assigns) do
+    assigns = assign(assigns, :items, Enum.find(assigns.groups, &(&1.key == "dashboards")).items)
+
+    ~H"""
+    <div
+      id="dashboard-switcher"
+      class="app-sheet dashboard-switcher"
+      popover
+      aria-labelledby="dashboard-switcher-title"
+    >
+      <h2 id="dashboard-switcher-title" class="app-sheet__title"><%= gettext("Dashboards") %></h2>
+      <a
+        :for={item <- @items}
+        class={["app-sheet__link", nav_current?(@current_path, item) && "is-active"]}
+        href={item.href}
+        aria-current={if nav_current?(@current_path, item), do: "page"}
+      >
+        <span class="app-sheet__ico" aria-hidden="true"><%= nav_icon(item[:icon]) %></span>
+        <span><%= nav_label(item) %></span>
+        <span :if={item[:badge]} class="nav-badge"><%= item.badge %></span>
+      </a>
+    </div>
+    """
+  end
+
+  # „Mehr“: „Entdecken“ without the two pages the bar holds, and „Pflege“.
+  defp more_groups(groups) do
+    groups
+    |> Enum.filter(&(&1.key in ["discover", "maintenance"]))
+    |> Enum.map(fn group ->
+      %{group | items: Enum.reject(group.items, &(&1.id in ["nav-securities", "nav-news"]))}
+    end)
+  end
+
+  # The tab the page belongs to: Dashboards for a dashboard entry's page,
+  # Wertpapiere and Nachrichten for theirs, „Mehr“ for any page of the
+  # sheet.
+  defp tab(path, groups) do
+    current =
+      Enum.find_value(groups, fn group ->
+        case Enum.find(group.items, &nav_current?(path, &1)) do
+          nil -> nil
+          item -> {group.key, item.id}
+        end
+      end)
+
+    case current do
+      {"dashboards", _id} -> :dashboards
+      {_group, "nav-securities"} -> :securities
+      {_group, "nav-news"} -> :news
+      {_group, _id} -> :more
+      nil -> nil
+    end
+  end
+
+  # A stored dashboard's name is the operator's text, isolated.
+  defp nav_label(%{stored: true, label: label}), do: StoredText.bdi(label)
+  defp nav_label(%{label: label}), do: label
+  # --- Sprint 31 D7 end ---
 
   # --- Sprint 28 V2 begin ---
   attr(:version, Portfolixir.BuildVersion, required: true)
@@ -370,23 +536,32 @@ defmodule PortfolixirWeb.AppShell do
     ]
   end
 
-  # The five task-oriented areas (ADR-0022): Overview, Wealth, Securities and
-  # Transactions at the top level, plus the low-traffic Administration group
-  # (Sprint 23 added the Audit journal to it, ADR-0022's amendment).
-  # Income is a Wealth tab and Import a Transactions tab, so neither is a nav
-  # destination; roadmap placeholders live in issues, not here.
-  defp nav_groups do
+  # The menu's three groups (ADR-0022's amendment of 2026-11-21, idea board
+  # I56 02 A, planning board 01 ①; Sprint 31 D7), which replaced the five
+  # task-oriented areas:
+  #
+  # - **Dashboards**: the stored dashboards in their order, or, with none
+  #   stored, the template „Überblick“ marked „Vorlage“ (it opens `/`);
+  #   then „Neues Dashboard“.
+  # - **Entdecken**: Wealth (until its pass turns its tabs into widgets,
+  #   point 1), Securities, News and „Alle Widgets“.
+  # - **Pflege**, quiet at the foot: Transactions (with its Import tab),
+  #   Accounts & depots, Views, Classifications and the Audit journal.
+  #
+  # Income is a Wealth tab and Import a Transactions tab, so neither is a
+  # menu entry; the menu promises only what exists. Every old route still
+  # answers (menu_test.exs).
+  defp nav_groups(entries) do
     [
       %{
-        title: nil,
+        key: "dashboards",
+        title: gettext("Dashboards"),
+        items: Enum.map(entries, &dashboard_item/1) ++ [new_dashboard_item()]
+      },
+      %{
+        key: "discover",
+        title: gettext("Discover"),
         items: [
-          %{
-            id: "nav-dashboard",
-            href: "/",
-            label: gettext("Overview"),
-            section: :dashboard,
-            icon: :dashboard
-          },
           %{
             id: "nav-portfolio",
             href: "/portfolio",
@@ -401,10 +576,8 @@ defmodule PortfolixirWeb.AppShell do
             section: :securities,
             icon: :layers
           },
-          # --- S28 N7 begin ---
-          # ADR-0056 §10 (board ux-design-2026-11-08-sprint28/01 A, plan
-          # D-5; ADR-0022's amendment of 2026-11-09): the news page after
-          # Securities, its own glyph.
+          # ADR-0056 §10 (board ux-design-2026-11-08-sprint28/01 A): the
+          # news page after Securities, its own glyph.
           %{
             id: "nav-news",
             href: "/news",
@@ -412,19 +585,28 @@ defmodule PortfolixirWeb.AppShell do
             section: :news,
             icon: :newspaper
           },
-          # --- S28 N7 end ---
+          # ADR-0062 §1: the catalogue as a page.
+          %{
+            id: "nav-widgets",
+            href: "/widgets",
+            label: gettext("All widgets"),
+            section: :widgets,
+            icon: :columns
+          }
+        ]
+      },
+      %{
+        key: "maintenance",
+        title: gettext("Maintenance"),
+        quiet: true,
+        items: [
           %{
             id: "nav-transactions",
             href: "/transactions",
             label: gettext("Transactions"),
             section: :transactions,
             icon: :bars
-          }
-        ]
-      },
-      %{
-        title: gettext("Administration"),
-        items: [
+          },
           %{
             id: "nav-portfolios",
             href: "/portfolios",
@@ -450,9 +632,8 @@ defmodule PortfolixirWeb.AppShell do
             icon: :tag
           },
           %{
-            # Sprint 23 V3 (U2; board 03, pick Q6): the record-keeping group
-            # holds the journal of every stored change. A Transactions tab
-            # would say the journal is about bookings; it holds every kind.
+            # Sprint 23 V3 (U2; board 03, pick Q6): the journal of every
+            # stored change, of every kind, not only bookings.
             id: "nav-journal",
             href: "/journal",
             label: gettext("Audit journal"),
@@ -464,7 +645,42 @@ defmodule PortfolixirWeb.AppShell do
     ]
   end
 
-  defp nav_current?("/", %{section: :dashboard}), do: true
+  # A template while none is stored opens `/`, keeps the id the menu's
+  # first entry always had, and is marked „Vorlage“; a stored dashboard
+  # opens its own address under its name.
+  defp dashboard_item(%{type: :template, template: template}),
+    do: %{
+      id: "nav-dashboard",
+      href: "/",
+      label: Templates.title(template.key),
+      badge: gettext("Template"),
+      section: :dashboard,
+      icon: :dashboard
+    }
+
+  defp dashboard_item(%{type: :dashboard, dashboard: dashboard}),
+    do: %{
+      id: "nav-dashboard-#{dashboard.id}",
+      href: "/dashboards/#{dashboard.id}",
+      label: dashboard.name,
+      stored: true,
+      section: :dashboard,
+      icon: :dashboard
+    }
+
+  defp new_dashboard_item,
+    do: %{
+      id: "nav-new-dashboard",
+      href: "/dashboards/new",
+      label: gettext("New dashboard"),
+      section: :dashboard,
+      icon: :plus
+    }
+
+  # A dashboard entry is current on its own address: the dashboard page
+  # names the one it shows (its path, `/` for the template), so `/` with
+  # stored dashboards marks the first.
+  defp nav_current?(path, %{section: :dashboard, href: href}), do: path == href
 
   # Wealth covers its Cash-flow, Snapshots and Tax tabs; Transactions covers
   # its Import tab (ADR-0022). Issue 639: /snapshots was missing, so that
@@ -479,11 +695,12 @@ defmodule PortfolixirWeb.AppShell do
         String.starts_with?(path, "/risk") or String.starts_with?(path, "/predictions")
 
   defp nav_current?(path, %{section: :securities}), do: String.starts_with?(path, "/securities")
-  # --- S28 N7 begin ---
+
   defp nav_current?(path, %{section: :news}),
     do: path == "/news" or String.starts_with?(path, "/news?")
 
-  # --- S28 N7 end ---
+  defp nav_current?(path, %{section: :widgets}), do: path == "/widgets"
+
   defp nav_current?(path, %{section: :portfolios}), do: String.starts_with?(path, "/portfolios")
 
   defp nav_current?(path, %{section: :transactions}),
@@ -1141,6 +1358,10 @@ defmodule PortfolixirWeb.AppShell do
 
   defp icon_paths(:refresh_cw),
     do: ~s(<path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 4v5h-5"/>)
+
+  defp icon_paths(:ellipsis),
+    do:
+      ~s(<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>)
 
   defp icon_paths(:ellipsis_vertical),
     do:

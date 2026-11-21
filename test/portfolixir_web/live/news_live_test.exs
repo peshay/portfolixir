@@ -116,7 +116,8 @@ defmodule PortfolixirWeb.NewsLiveTest do
     {:ok, view, _html} = live(conn, "/news")
 
     assert has_element?(view, "#nav-news[href='/news'][aria-current='page']", "News")
-    assert has_element?(view, "#app-sidebar .nav-group:first-child #nav-securities + #nav-news")
+    # Sprint 31 D7: Securities and News stand under „Entdecken“.
+    assert has_element?(view, "#app-sidebar .nav-group--discover #nav-securities + #nav-news")
     assert has_element?(view, "#app-topbar-title", "News")
     assert has_element?(view, "#news-tabs a[aria-current='page'][href='/news']", "Reports")
 
