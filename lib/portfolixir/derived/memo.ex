@@ -118,6 +118,22 @@ defmodule Portfolixir.Derived.Memo do
     end
   end
 
+  @doc """
+  The table's budget: the most entries and bytes it keeps (the
+  `Portfolixir.Derived` configuration's `memo_max_entries` and
+  `memo_max_bytes`, #{@default_max_entries} entries and
+  #{div(@default_max_bytes, 1024 * 1024)} MiB by default).
+  """
+  @spec budget() :: %{entries: pos_integer(), bytes: pos_integer()}
+  def budget do
+    config = Application.get_env(:portfolixir, Portfolixir.Derived, [])
+
+    %{
+      entries: Keyword.get(config, :memo_max_entries, @default_max_entries),
+      bytes: Keyword.get(config, :memo_max_bytes, @default_max_bytes)
+    }
+  end
+
   @doc "Empties the memo. For tests and for the restart-equivalence proof."
   @spec reset() :: :ok
   def reset do
@@ -167,11 +183,9 @@ defmodule Portfolixir.Derived.Memo do
   end
 
   defp over_budget? do
-    config = Application.get_env(:portfolixir, Portfolixir.Derived, [])
     %{entries: entries, bytes: bytes} = usage()
-
-    entries > Keyword.get(config, :memo_max_entries, @default_max_entries) or
-      bytes > Keyword.get(config, :memo_max_bytes, @default_max_bytes)
+    budget = budget()
+    entries > budget.entries or bytes > budget.bytes
   end
 
   defp table?, do: :ets.whereis(@table) != :undefined
