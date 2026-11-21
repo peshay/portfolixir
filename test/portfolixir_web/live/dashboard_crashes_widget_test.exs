@@ -198,7 +198,7 @@ defmodule PortfolixirWeb.DashboardCrashesWidgetTest do
   #
   # Acceptance criteria:
   # - Without a crash benchmark the widget draws its frame and one quiet
-  #   line, and no table.
+  #   line, no table, and no word for a benchmark in its footer.
   test "without a crash benchmark the widget says so", %{conn: conn} do
     world = base_world()
     security = create_security!(name: "Synthetic Plain", ticker: "SPL")
@@ -215,5 +215,9 @@ defmodule PortfolixirWeb.DashboardCrashesWidgetTest do
            )
 
     refute has_element?(view, "#dashboard-crashes [data-role='crashes-table']")
+
+    # The footer names no benchmark it does not have (found on the review
+    # seed's screenshot: a footer reading "false" while the read ran).
+    refute has_element?(view, "#dashboard-crashes [data-role='widget-scope']", "false")
   end
 end
