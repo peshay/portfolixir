@@ -334,6 +334,13 @@ defmodule PortfolixirWeb.DashboardLive do
           :trades,
           &SecurityNames.put_catalog_twin_ids(&1, fn t -> t.security_name end)
         )
+        # #1320 (Sprint 31 D3): each left-out security with what tells it
+        # from a twin of its note, so two of one name read as two.
+        |> Map.update!(:excluded_securities, fn by_reason ->
+          Map.new(by_reason, fn {reason, named} ->
+            {reason, SecurityNames.put_catalog_twin_ids(named, & &1.security_name)}
+          end)
+        end)
       end)
     else
       socket
@@ -385,6 +392,7 @@ defmodule PortfolixirWeb.DashboardLive do
     # One daily walk serves both periods (#798): the card's YTD change signal
     # and the strip's 1Y return chain the same series.
     analysis = view_analysis(view_id, base_currency)
+    valuation = everything_or_view_valuation(view_id, base_currency, context)
 
     %{
       # `name: nil` renders as the localized "Everything" label at render time
@@ -395,7 +403,10 @@ defmodule PortfolixirWeb.DashboardLive do
       # #1122: the card's own view id (nil for Everything), so the note can
       # name the session's view where Wealth would open on another.
       view_id: view_id,
-      valuation: everything_or_view_valuation(view_id, base_currency, context),
+      valuation: valuation,
+      # #1320 (Sprint 31 D3): the twins among the positions the total
+      # leaves out, so the note names each apart.
+      unvalued_twin_ids: ValuationNotes.unvalued_twin_ids(valuation),
       ttwror: ttwror_of(summarise(analysis, "ytd")),
       one_year: summarise(analysis, "1y")
     }
@@ -1507,6 +1518,14 @@ defmodule PortfolixirWeb.DashboardLive do
     """
   end
 
+  # The names of one reason's left-out sales, each security once, a twin
+  # with what tells it apart (#1320).
+  defp excluded_names(card, reason) do
+    card.excluded_securities
+    |> Map.fetch!(reason)
+    |> Enum.map_join(", ", &SecurityNames.twin_name(&1.security_name, &1.twin_id))
+  end
+
   attr(:card, :map, required: true)
   attr(:uid, :string, required: true)
 
@@ -1527,54 +1546,17 @@ defmodule PortfolixirWeb.DashboardLive do
           :if={counts = ExcludedSales.counts(@card.excluded.by_reason)}
           data-role="trades-card-excluded-counts"
         ><%= gettext("Left out of the trades: %{counts}.", counts: counts) %> </span>
-        <%!-- #1198 (board 09, pick N8 A): the second reason in a
-             sentence of its own, the existing pointer to the backfill
-             after it. --%>
-        <span
-          :if={@card.excluded.by_reason.no_rate.count > 0}
-          data-role="trades-card-excluded-no-rate"
-        ><%= StoredText.ending_on(
-          Enum.join(@card.excluded.by_reason.no_rate.securities, ", "),
-          &ngettext(
-            "%{count} sale with no stored rate on its close date is left out of the trades: %{securities}. The rate backfill is under “All trades”.",
-            "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities}. The rate backfill is under “All trades”.",
-            @card.excluded.by_reason.no_rate.count,
-            securities: &1
-          ),
-          &ngettext(
-            "%{count} sale with no stored rate on its close date is left out of the trades: %{securities} The rate backfill is under “All trades”.",
-            "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities} The rate backfill is under “All trades”.",
-            @card.excluded.by_reason.no_rate.count,
-            securities: &1
-          )
-        ) %></span>
-        <span
-          :if={@card.excluded.by_reason.missing_settlement_leg.count > 0}
-          data-role="trades-card-excluded-missing-leg"
-        ><%= StoredText.ending_on(
-          Enum.join(@card.excluded.by_reason.missing_settlement_leg.securities, ", "),
-          &ngettext(
-            "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}.",
-            "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}.",
-            @card.excluded.by_reason.missing_settlement_leg.count,
-            securities: &1
-          ),
-          &ngettext(
-            "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}",
-            "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}",
-            @card.excluded.by_reason.missing_settlement_leg.count,
-            securities: &1
-          )
-        ) %><%= if @card.excluded.by_reason.no_rate.count == 0,
-          do: " " <> gettext("The rate backfill is under “All trades”.") %></span>
-        <%!-- #1310: a sale or a buy priced in a third currency, which no
+        <%!-- The polish list #1358 (Sprint 31 D3): the sentences no rate can
+           fix (#1310, #1311) come first, so the backfill's pointer stands
+           last, right after the sentences it helps with. --%>
+      <%!-- #1310: a sale or a buy priced in a third currency, which no
              rate fixes, in a sentence of its own, with no backfill
              pointer. --%>
         <span
           :if={@card.excluded.by_reason.third_currency.count > 0}
           data-role="trades-card-excluded-third-currency"
         ><%= StoredText.ending_on(
-          Enum.join(@card.excluded.by_reason.third_currency.securities, ", "),
+          excluded_names(@card, :third_currency),
           &ngettext(
             "%{count} sale not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — is left out of the trades: %{securities}.",
             "%{count} sales not convertible — each or a buy it closes is priced in a currency that is neither the security's nor its account's — are left out of the trades: %{securities}.",
@@ -1593,7 +1575,7 @@ defmodule PortfolixirWeb.DashboardLive do
           :if={@card.excluded.by_reason.other_account_currency.count > 0}
           data-role="trades-card-excluded-other-account"
         ><%= StoredText.ending_on(
-          Enum.join(@card.excluded.by_reason.other_account_currency.securities, ", "),
+          excluded_names(@card, :other_account_currency),
           &ngettext(
             "%{count} sale not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — is left out of the trades: %{securities}.",
             "%{count} sales not convertible — a buy each closes was paid in another currency than its sale's, which no stored figure bridges — are left out of the trades: %{securities}.",
@@ -1612,7 +1594,7 @@ defmodule PortfolixirWeb.DashboardLive do
           :if={@card.excluded.by_reason.zero_amount.count > 0}
           data-role="trades-card-excluded-zero-amount"
         ><%= StoredText.ending_on(
-          Enum.join(@card.excluded.by_reason.zero_amount.securities, ", "),
+          excluded_names(@card, :zero_amount),
           &ngettext(
             "%{count} sale not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — is left out of the trades: %{securities}.",
             "%{count} sales not convertible — a buy each closes has an amount of zero, which the rate backfill does not complete — are left out of the trades: %{securities}.",
@@ -1626,6 +1608,46 @@ defmodule PortfolixirWeb.DashboardLive do
             securities: &1
           )
         ) %></span>
+        <%!-- #1198 (board 09, pick N8 A): the second reason in a
+             sentence of its own, the existing pointer to the backfill
+             after it. --%>
+        <span
+          :if={@card.excluded.by_reason.no_rate.count > 0}
+          data-role="trades-card-excluded-no-rate"
+        ><%= StoredText.ending_on(
+          excluded_names(@card, :no_rate),
+          &ngettext(
+            "%{count} sale with no stored rate on its close date is left out of the trades: %{securities}. The rate backfill is under “All trades”.",
+            "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities}. The rate backfill is under “All trades”.",
+            @card.excluded.by_reason.no_rate.count,
+            securities: &1
+          ),
+          &ngettext(
+            "%{count} sale with no stored rate on its close date is left out of the trades: %{securities} The rate backfill is under “All trades”.",
+            "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities} The rate backfill is under “All trades”.",
+            @card.excluded.by_reason.no_rate.count,
+            securities: &1
+          )
+        ) %></span>
+        <span
+          :if={@card.excluded.by_reason.missing_settlement_leg.count > 0}
+          data-role="trades-card-excluded-missing-leg"
+        ><%= StoredText.ending_on(
+          excluded_names(@card, :missing_settlement_leg),
+          &ngettext(
+            "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}.",
+            "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}.",
+            @card.excluded.by_reason.missing_settlement_leg.count,
+            securities: &1
+          ),
+          &ngettext(
+            "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}",
+            "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}",
+            @card.excluded.by_reason.missing_settlement_leg.count,
+            securities: &1
+          )
+        ) %><%= if @card.excluded.by_reason.no_rate.count == 0,
+          do: " " <> gettext("The rate backfill is under “All trades”.") %></span>
       </AppShell.data_note>
 
     """
@@ -1654,7 +1676,10 @@ defmodule PortfolixirWeb.DashboardLive do
   defp wealth_card_excluded(assigns) do
     assigns =
       assigns
-      |> assign(:groups, ValuationNotes.excluded_groups(assigns.valuation))
+      |> assign(
+        :groups,
+        ValuationNotes.excluded_groups(assigns.valuation, assigns.card.unvalued_twin_ids)
+      )
       |> assign(:counts, ValuationNotes.excluded_counts(assigns.valuation))
       |> assign(:active_id, assigns.active_view && assigns.active_view.id)
 
@@ -1684,6 +1709,15 @@ defmodule PortfolixirWeb.DashboardLive do
         <a href="/portfolio?period=ytd" data-role="wealth-card-excluded-link"><%= gettext("Details in Wealth →") %></a>
       </:actions>
     </AppShell.data_note>
+    <%!-- #1222 (the polish list #1358; Sprint 31 D3): where the total
+         leaves nothing out there is no note to carry the sentence, so it
+         stands alone, a quiet line, whenever Wealth would open on another
+         view than the total counts. --%>
+    <p
+      :if={@groups == [] and @active_id != @card.view_id}
+      class="hint"
+      data-role="wealth-card-view"
+    ><%= view_sentence(@active_view, @card) %></p>
     """
   end
 

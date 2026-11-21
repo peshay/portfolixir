@@ -238,6 +238,29 @@ defmodule PortfolixirWeb.SecurityNames do
     """
   end
 
+  @doc """
+  The identifier as running text, for a sentence that names twins
+  (#1320, Sprint 31 D3): "ISIN DE0001", "WKN A1B2C3" or "no. 12"; `nil`
+  for a security without a twin.
+  """
+  @spec twin_text(twin_id()) :: String.t() | nil
+  def twin_text(nil), do: nil
+
+  def twin_text(tag) do
+    case twin_label(tag) do
+      nil -> twin_value(tag)
+      label -> label <> " " <> twin_value(tag)
+    end
+  end
+
+  @doc """
+  `name`, and after a middle dot the identifier `twin_text/1` gives `tag`,
+  for a list of names in a sentence; the name alone without one.
+  """
+  @spec twin_name(String.t(), twin_id()) :: String.t()
+  def twin_name(name, nil), do: name
+  def twin_name(name, tag), do: name <> " · " <> twin_text(tag)
+
   defp twin_label({:isin, _value}), do: gettext("ISIN")
   defp twin_label({:wkn, _value}), do: gettext("WKN")
   defp twin_label(_number_or_nil), do: nil
