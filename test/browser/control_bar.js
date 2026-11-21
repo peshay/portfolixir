@@ -518,29 +518,60 @@ const BARS = {
 // contribution under it at one left edge; no row, figure or bar leaves the
 // card. A seed whose Overview holds nothing (the empty sentence) fails it,
 // as a gate that measured nothing.
+//
+// Sprint 31 D3 (ADR-0062 §6, §12): the card is the widget „Tops und
+// Flops“. In the wide class (1200 px) its wide form stands at the item's
+// size, so its columns follow the card's own width, the rule of
+// `@container movers`: side by side from 640 px of card, stacked below. In
+// the compact class (390 px) the compact form is drawn instead: the switch
+// of the two halves and its rows, every row a tap row of 44 px inside the
+// card, and the wide form not drawn at all.
 function moversCard(page, width) {
   return page.evaluate((width) => {
     const errors = [];
     const card = document.querySelector("#dashboard-movers");
-    const price = card.querySelector("[data-role='movers-return']");
-    const money = card.querySelector("[data-role='movers-contribution']");
-    if (!price || !money) return ["the card shows no rankings"];
     const c = card.getBoundingClientRect();
-    const a = price.getBoundingClientRect();
-    const b = money.getBoundingClientRect();
     const near = (x, y) => Math.abs(x - y) <= 1;
-    if (width >= 1200 && !(near(a.top, b.top) && b.left >= a.right)) {
-      errors.push("at " + width + " px the rankings are not side by side: " + JSON.stringify({ a, b }));
-    }
-    if (width <= 560 && !(near(a.left, b.left) && b.top >= a.bottom)) {
-      errors.push("at " + width + " px the contribution is not under the price return: " + JSON.stringify({ a, b }));
-    }
-    for (const el of card.querySelectorAll("[data-role='movers-row'], [data-role='movers-figure'], .drift-bar")) {
-      const r = el.getBoundingClientRect();
-      if (r.width === 0) continue;
-      if (r.left < c.left - 0.5 || r.right > c.right + 0.5) {
-        errors.push("„" + el.textContent.trim().slice(0, 40) + "“ leaves the card: " + JSON.stringify({ left: r.left, right: r.right, card: [c.left, c.right] }));
+    const inside = (selector) => {
+      for (const el of card.querySelectorAll(selector)) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0) continue;
+        if (r.left < c.left - 0.5 || r.right > c.right + 0.5) {
+          errors.push("„" + el.textContent.trim().slice(0, 40) + "“ leaves the card: " + JSON.stringify({ left: r.left, right: r.right, card: [c.left, c.right] }));
+        }
       }
+    };
+    if (width >= 1000) {
+      const price = card.querySelector("[data-form='wide'] [data-role='movers-return']");
+      const money = card.querySelector("[data-form='wide'] [data-role='movers-contribution']");
+      if (!price || !money) return ["the card shows no rankings"];
+      const a = price.getBoundingClientRect();
+      const b = money.getBoundingClientRect();
+      if (a.width === 0) errors.push("at " + width + " px the wide form is not drawn");
+      if (card.querySelector("[data-form='compact']").getBoundingClientRect().height > 0) {
+        errors.push("at " + width + " px the compact form is drawn");
+      }
+      const sideBySide = near(a.top, b.top) && b.left >= a.right;
+      const stacked = near(a.left, b.left) && b.top >= a.bottom;
+      if (c.width >= 640 && !sideBySide) {
+        errors.push("at " + width + " px a card of " + c.width + " px does not set the rankings side by side: " + JSON.stringify({ a, b }));
+      }
+      if (c.width < 640 && !stacked) {
+        errors.push("at " + width + " px a card of " + c.width + " px does not stack the rankings: " + JSON.stringify({ a, b }));
+      }
+      inside("[data-role='movers-row'], [data-role='movers-figure'], .drift-bar");
+    } else {
+      const wide = card.querySelector("[data-form='wide']").getBoundingClientRect();
+      if (wide.height > 0) errors.push("at " + width + " px the wide form is drawn");
+      const sw = card.querySelector(".movers-compact__switch");
+      if (!sw || sw.getBoundingClientRect().height === 0) errors.push("at " + width + " px the halves' switch is not drawn");
+      const rows = [...card.querySelectorAll("[data-compact-role='movers-row']")].filter((el) => el.getBoundingClientRect().height > 0);
+      if (rows.length === 0) errors.push("at " + width + " px the compact form shows no row");
+      for (const row of rows) {
+        const h = row.getBoundingClientRect().height;
+        if (h < 44 - 0.5) errors.push("„" + row.textContent.trim().slice(0, 40) + "“ is a row of " + h + " px, under 44");
+      }
+      inside("[data-compact-role='movers-row'], .widget-row__figure");
     }
     const scroll = document.documentElement.scrollWidth - document.documentElement.clientWidth;
     if (scroll > 0) errors.push("the page scrolls sideways by " + scroll);
