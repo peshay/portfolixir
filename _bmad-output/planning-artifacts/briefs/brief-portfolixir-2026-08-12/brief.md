@@ -19,11 +19,12 @@ layer, and the README's opening definition.
 
 ## Executive Summary
 
-Portfolixir is a self-hosted portfolio system with **two first-class users: the
-operator, and the LLM agent the operator runs.** Everything it knows is
-reachable through a local JSON API and an MCP companion, and everything it
-knows is also visible on a screen. One dataset, one instance, one operator — no
-cloud, no tenancy, no broker.
+Portfolixir is a portfolio tracker with **two first-class users: the operator,
+and the LLM agent the operator runs.** Everything it knows is reachable
+through a JSON API and an MCP companion, and everything it knows is also
+visible on a screen. One dataset, one instance, one operator — no tenancy, no
+broker; always on, and reachable by the operator's agent. It runs self-hosted
+today; that is how it runs, not what it is (I46, the owner, 2026-11-19).
 
 It exists because portfolio facts that live *next to* a system rot. The
 operator's agent kept dates, theses, target weights and tax state in local files

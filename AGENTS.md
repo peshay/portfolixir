@@ -41,12 +41,16 @@ plans, retrospectives and the close-out log (`sprint-status.yaml`) are in
 
 ## What Portfolixir is
 
-A self-hosted portfolio system with **two first-class users: the operator, and
-the LLM agent the operator runs.** Everything it knows is reachable through the
-local JSON API and the MCP companion, and visible on a screen. One dataset, one
-instance, one operator: no cloud, no tenancy, no broker. *Why:* figures kept
-next to the system drifted within days, and the agent recomputed what the
-server could have handed over (product brief 2026-08-12; PRD §1–2).
+A portfolio tracker with **two first-class users: the operator, and the LLM
+agent the operator runs.** Everything it knows is reachable through the JSON
+API and the MCP companion, and visible on a screen. One dataset, one instance,
+one operator: no tenancy, no broker; always on, and reachable by the
+operator's agent. It runs self-hosted today; that is how it runs, not what it
+is. *Why:* figures kept next to the system drifted within days, and the agent
+recomputed what the server could have handed over (product brief 2026-08-12;
+PRD §1–2); "self-hosted" was stated as identity too hard, and a hosted
+instance per operator stays possible without tenancy (I46, the owner,
+2026-11-19; I19).
 
 Its scope is auditable local records: securities, portfolios, depots linked to
 cash accounts, the Portfolio Performance transaction kinds and their import,

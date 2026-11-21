@@ -9,11 +9,11 @@ lang_de: /de/features.html
 
 # Features
 
-Portfolixir is a self-hosted portfolio record for you and the LLM agent you
-run: your transactions, holdings, valuation, returns and research notes, on
-your own machine, on a screen and behind a local JSON API and an MCP
-companion. This page says first what it does that a newcomer should know,
-then how it breaks down a period's result, and last what it is not. Each claim
+Portfolixir is a portfolio tracker, self-hosted today, for you and the LLM
+agent you run: your transactions, holdings, valuation, returns and research
+notes, on your own machine, on a screen and behind a local JSON API and an MCP
+companion. This page says first what it does that a newcomer should know, then
+how it breaks down a period's result, and last what it is not. Each claim
 links to the page that shows it, so you can check it instead of taking it on
 trust.
 

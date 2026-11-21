@@ -9,14 +9,14 @@ lang_de: /de/features.html
 
 # Funktionen
 
-Portfolixir ist eine selbst gehostete Portfolio-Buchführung für Sie und den
+Portfolixir ist ein Portfolio-Tracker, heute selbst gehostet, für Sie und den
 LLM-Agenten, den Sie betreiben: Ihre Transaktionen, Bestände, Bewertung,
 Renditen und Recherche-Notizen, auf Ihrem eigenen Rechner, auf einem
-Bildschirm und hinter einer lokalen JSON-API und einem MCP-Begleitdienst. Diese
-Seite sagt zuerst, was Portfolixir tut und was Neulinge wissen sollten, dann,
-wie es das Ergebnis eines Zeitraums aufschlüsselt, und zuletzt, was es nicht
-ist. Jede Aussage verlinkt die Seite, die sie zeigt, sodass Sie sie nachprüfen
-können, statt ihr zu glauben.
+Bildschirm und hinter einer lokalen JSON-API und einem MCP-Begleitdienst.
+Diese Seite sagt zuerst, was Portfolixir tut und was Neulinge wissen sollten,
+dann, wie es das Ergebnis eines Zeitraums aufschlüsselt, und zuletzt, was es
+nicht ist. Jede Aussage verlinkt die Seite, die sie zeigt, sodass Sie sie
+nachprüfen können, statt ihr zu glauben.
 
 ## Die App ruft nie ein Sprachmodell auf; Ihr Agent tut es
 

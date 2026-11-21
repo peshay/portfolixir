@@ -8,9 +8,10 @@
   </picture>
 </p>
 
-**A self-hosted portfolio record for you and the LLM agent you run.**
-Portfolixir keeps your transactions, holdings, valuation, returns and research
-notes on your own machine. Everything it knows is on a screen and behind a
+**A portfolio tracker for you and the LLM agent you run — with far more in
+it, always on, and reachable by your agent.**
+Portfolixir runs self-hosted today and keeps your transactions, holdings,
+valuation, returns and research notes on your own machine. Everything it knows is on a screen and behind a
 local JSON API and an MCP companion, so your agent reads and books the same
 figures you look at. No cloud, no broker connection, no advice: it prepares
 decisions, and you make them. [Features](https://portfolixir.app/features.html)
@@ -52,12 +53,12 @@ has the client configurations to copy.
 
 ## What is Portfolixir
 
-Portfolixir is a self-hosted Elixir/Phoenix portfolio system with two
-first-class users: the person who owns the portfolio, and the LLM agent they
-run. Everything it knows is reachable through a local JSON API and an MCP
+Portfolixir is an Elixir/Phoenix portfolio tracker, self-hosted today, with
+two first-class users: the person who owns the portfolio, and the LLM agent
+they run. Everything it knows is reachable through a local JSON API and an MCP
 companion, and everything it knows is also visible on a screen. One dataset,
-one instance, one operator — your holdings, your agent, your machine. No cloud,
-no tenancy, no broker.
+one instance, one operator — your holdings, your agent, your machine. No
+tenancy, no broker.
 
 It exists because portfolio facts that live *next to* a system rot. Target
 weights kept in three places, a note keyed to a taxonomy that died a month ago,
