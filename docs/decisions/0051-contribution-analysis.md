@@ -866,3 +866,16 @@ which already took none.
 
 **To flip:** „Nullkurs als Kurs werten“ (the walk keeps valuing units at a
 stored 0, and the count of 2026-11-19 stays the only mark).
+
+**Built (Sprint 31, Lane Z), 2026-11-21.** As written, with what the build
+found. Every computation basis read from the walk now says "a stored close
+of 0 or below is not a price", so `walk_payload_pin_test.exs`'s digests
+were re-taken, the figures proven unchanged (with the clause removed, each
+payload reads its earlier digest); item 4 had expected the digests to
+stay. "One rule for every price read" also reached the live valuation's
+latest close, the snapshot comparison, the benchmark's seed, the
+securities list's change tiles and price change, and sale hindsight's
+latest span, which still read a stored 0 although "What stays" said the
+price side took none. A price of 0 booked on a buy, a sell or a delivery
+keeps its `no_price` mark in §10's count, since this amendment concerns
+closes.
