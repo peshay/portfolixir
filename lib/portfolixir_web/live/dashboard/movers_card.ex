@@ -50,6 +50,7 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
 
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ControlBar
+  alias PortfolixirWeb.Dashboard.Widget
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.StoredText
 
@@ -73,6 +74,11 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
   def window(value) when value in @windows, do: value
   def window(_value), do: @default_window
 
+  attr(:item, :map,
+    required: true,
+    doc: "the layout item (`PortfolixirWeb.Dashboard.Widget.items/3`)"
+  )
+
   attr(:window, :string, required: true)
   attr(:card, :any, required: true, doc: "nil while the read runs, :error, or the loaded card")
   attr(:privacy_mode, :boolean, default: false)
@@ -82,133 +88,215 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
     doc: "the view Wealth remembers (`LiveViewScope`), nil for Everything"
   )
 
-  @doc "The card, placed by the Overview under its KPI strip."
+  attr(:path, :string, default: "/", doc: "the dashboard's own path, which the chips patch")
+  attr(:scope_param, :string, default: nil, doc: "the dashboard's `?scope=`, kept by the chips")
+  attr(:scope_label, :string, default: nil, doc: "the footer's scope")
+
+  @doc """
+  The widget „Tops und Flops“ (ADR-0062 §12): the Overview's card in the
+  widget's frame, its window chips kept, its link to Wealth in the footer,
+  and its compact form — the two halves as a two-way switch, one name and
+  one figure per row (board 06).
+  """
   def card(assigns) do
-    assigns = assign(assigns, :f, figures(assigns.card, assigns.active_view))
+    assigns =
+      assigns
+      |> assign(:f, figures(assigns.card, assigns.active_view))
+      |> assign(:uid, assigns.item.uid)
 
     ~H"""
-    <section id="dashboard-movers" class="workspace-section movers" aria-labelledby="movers-title">
-      <div class="section-head">
-        <div class="section-title">
-          <h2 id="movers-title"><%= gettext("Tops and flops") %></h2>
-          <AppShell.section_info>
-            <:line>
-              <%= gettext(
-                "Price return: the last stored close in the period ÷ the close before the period − 1, both in EUR at the stored exchange rate of their day; income and costs do not count."
-              ) %>
-            </:line>
-            <:line>
-              <%= gettext(
-                "Contribution: end value − start value − flows + income − costs per position, as “Contribution by position” in Wealth; a position sold in the period counts."
-              ) %>
-            </:line>
-            <:line>
-              <%= gettext(
-                "Five highest and five lowest each; under ten the list splits, and no name stands in both halves."
-              ) %>
-            </:line>
-            <:line>
-              <%= gettext(
-                "No close before the period, none in it, or no exchange rate: no price return. A day without a price counts zero in the contribution, as in Wealth; a position valued on no day, or whose contribution is exactly zero, is counted, not ranked."
-              ) %>
-            </:line>
-            <:line>
-              <%= gettext(
-                "Day: since each security's previous close, the two dates at the row; the contribution of the latest day with a close."
-              ) %>
-            </:line>
-          </AppShell.section_info>
-        </div>
-        <a
-          :if={@f && @f.wealth_href}
-          class="kpi-summary__link"
-          href={@f.wealth_href}
-          data-role="movers-wealth-link"
-        ><%= gettext("View in Wealth →") %></a>
-      </div>
-      <ControlBar.bar fold={560} floor={380} data-role="movers-bar">
-        <:group label={gettext("Period")} label_id="movers-period-label">
-          <div
-            class="segmented-control"
-            data-role="movers-period"
-            role="group"
-            aria-labelledby="movers-period-label"
-          >
-            <.link
-              :for={{key, label} <- windows()}
-              patch={"/?" <> URI.encode_query(%{param() => key})}
-              class={["segmented-control__option", @window == key && "is-active"]}
-              data-window={key}
-              aria-current={if @window == key, do: "true"}
+    <Widget.frame
+      id={"dashboard-movers" <> @uid}
+      item={@item}
+      title={gettext("Tops and flops")}
+      title_id={"movers-title" <> @uid}
+      class="movers"
+      scope_label={@scope_label}
+      full_href={@f && @f.wealth_href}
+      full_label={gettext("View in Wealth →")}
+      full_role="movers-wealth-link"
+    >
+      <:info>
+        <%= gettext(
+          "Price return: the last stored close in the period ÷ the close before the period − 1, both in EUR at the stored exchange rate of their day; income and costs do not count."
+        ) %>
+      </:info>
+      <:info>
+        <%= gettext(
+          "Contribution: end value − start value − flows + income − costs per position, as “Contribution by position” in Wealth; a position sold in the period counts."
+        ) %>
+      </:info>
+      <:info>
+        <%= gettext(
+          "Five highest and five lowest each; under ten the list splits, and no name stands in both halves."
+        ) %>
+      </:info>
+      <:info>
+        <%= gettext(
+          "No close before the period, none in it, or no exchange rate: no price return. A day without a price counts zero in the contribution, as in Wealth; a position valued on no day, or whose contribution is exactly zero, is counted, not ranked."
+        ) %>
+      </:info>
+      <:info>
+        <%= gettext(
+          "Day: since each security's previous close, the two dates at the row; the contribution of the latest day with a close."
+        ) %>
+      </:info>
+      <:controls>
+        <ControlBar.bar fold={560} floor={380} data-role="movers-bar">
+          <:group label={gettext("Period")} label_id={"movers-period-label" <> @uid}>
+            <div
+              class="segmented-control"
+              data-role="movers-period"
+              role="group"
+              aria-labelledby={"movers-period-label" <> @uid}
             >
-              <%= label %>
-            </.link>
-          </div>
-        </:group>
-      </ControlBar.bar>
-      <%= cond do %>
-        <% is_nil(@card) -> %>
-          <p class="section-skeleton" aria-busy="true" data-role="movers-skeleton"></p>
-        <% @card == :error -> %>
-          <AppShell.data_note
-            severity={:problem}
-            id="movers-error"
-            data-role="movers-error"
-            clamp
-          >
-            <%= gettext("Couldn't load the tops and flops.") %>
-          </AppShell.data_note>
-        <% @f.empty? -> %>
-          <p class="empty-state" data-role="movers-empty">
-            <%= gettext("No holdings in this view.") %>
-          </p>
-        <% true -> %>
-          <p class="summary-basis" data-role="movers-basis"><%= @f.basis %></p>
-          <p :if={@f.wealth_view} class="hint" data-role="movers-wealth-view"><%= @f.wealth_view %></p>
-          <div class="movers__grid">
-            <div class="movers__col" data-role="movers-return">
-              <h3><%= pgettext("movers", "Price return") %></h3>
-              <.half
-                :for={{half, rows} <- @f.price_halves}
-                half={half}
-                rows={rows}
-                side={:price}
-                f={@f}
-                privacy_mode={@privacy_mode}
-              />
-              <p :if={@f.price_answered == 0} class="hint" data-role="movers-none">
-                <%= gettext("No figure in this period.") %>
-              </p>
-              <p :if={@f.price_count} class="movers__count" data-role="movers-return-count">
-                <%= @f.price_count %>
-              </p>
-            </div>
-            <div class="movers__col" data-role="movers-contribution">
-              <h3><%= gettext("Contribution") %></h3>
-              <.half
-                :for={{half, rows} <- @f.contribution_halves}
-                half={half}
-                rows={rows}
-                side={:contribution}
-                f={@f}
-                privacy_mode={@privacy_mode}
-              />
-              <p :if={@f.contribution_answered == 0} class="hint" data-role="movers-none">
-                <%= gettext("No figure in this period.") %>
-              </p>
-              <p
-                :for={{reason, line} <- @f.contribution_counts}
-                class="movers__count"
-                data-role="movers-contribution-count"
-                data-reason={reason}
+              <.link
+                :for={{key, label} <- windows()}
+                patch={window_href(@path, key, @scope_param)}
+                class={["segmented-control__option", @window == key && "is-active"]}
+                data-window={key}
+                aria-current={if @window == key, do: "true"}
               >
-                <%= line %>
-              </p>
+                <%= label %>
+              </.link>
             </div>
-          </div>
-      <% end %>
-    </section>
+          </:group>
+        </ControlBar.bar>
+      </:controls>
+      <:shared>
+        <%= cond do %>
+          <% is_nil(@card) -> %>
+            <p class="section-skeleton" aria-busy="true" data-role="movers-skeleton"></p>
+          <% @card == :error -> %>
+            <AppShell.data_note
+              severity={:problem}
+              id={"movers-error" <> @uid}
+              data-role="movers-error"
+              clamp
+            >
+              <%= gettext("Couldn't load the tops and flops.") %>
+            </AppShell.data_note>
+          <% @f.empty? -> %>
+            <p class="empty-state" data-role="movers-empty">
+              <%= gettext("No holdings in this view.") %>
+            </p>
+          <% true -> %>
+            <p class="summary-basis" data-role="movers-basis"><%= @f.basis %></p>
+            <p :if={@f.wealth_view} class="hint" data-role="movers-wealth-view"><%= @f.wealth_view %></p>
+        <% end %>
+      </:shared>
+      <div :if={@f && not @f.empty?} class="movers__grid">
+        <div class="movers__col" data-role="movers-return">
+          <h3><%= pgettext("movers", "Price return") %></h3>
+          <.half
+            :for={{half, rows} <- @f.price_halves}
+            half={half}
+            rows={rows}
+            side={:price}
+            f={@f}
+            privacy_mode={@privacy_mode}
+          />
+          <p :if={@f.price_answered == 0} class="hint" data-role="movers-none">
+            <%= gettext("No figure in this period.") %>
+          </p>
+          <p :if={@f.price_count} class="movers__count" data-role="movers-return-count">
+            <%= @f.price_count %>
+          </p>
+        </div>
+        <div class="movers__col" data-role="movers-contribution">
+          <h3><%= gettext("Contribution") %></h3>
+          <.half
+            :for={{half, rows} <- @f.contribution_halves}
+            half={half}
+            rows={rows}
+            side={:contribution}
+            f={@f}
+            privacy_mode={@privacy_mode}
+          />
+          <p :if={@f.contribution_answered == 0} class="hint" data-role="movers-none">
+            <%= gettext("No figure in this period.") %>
+          </p>
+          <p
+            :for={{reason, line} <- @f.contribution_counts}
+            class="movers__count"
+            data-role="movers-contribution-count"
+            data-reason={reason}
+          >
+            <%= line %>
+          </p>
+        </div>
+      </div>
+      <:compact>
+        <.compact :if={@f && not @f.empty?} f={@f} uid={@uid} privacy_mode={@privacy_mode} />
+      </:compact>
+    </Widget.frame>
     """
+  end
+
+  # The chips keep the dashboard's own path and its `?scope=`.
+  defp window_href(path, key, scope_param) do
+    query = if scope_param, do: [{"scope", scope_param}], else: []
+    path <> "?" <> URI.encode_query(query ++ [{param(), key}])
+  end
+
+  attr(:f, :map, required: true)
+  attr(:uid, :string, required: true)
+  attr(:privacy_mode, :boolean, required: true)
+
+  # The compact form (board 06): „Höchste“ and „Niedrigste“ as a two-way
+  # switch, the price return's rows and under them the contribution's,
+  # one name and one figure per row. The switch is two radio buttons the
+  # browser holds; no event reaches the server.
+  defp compact(assigns) do
+    ~H"""
+    <div class="movers-compact">
+      <div class="movers-compact__switch segmented-control" role="radiogroup" aria-label={gettext("Half")}>
+        <label :for={half <- [:highest, :lowest]} class="segmented-control__option">
+          <input
+            type="radio"
+            name={"movers-half" <> @uid}
+            value={half}
+            checked={half == :highest}
+          />
+          <%= half_label(half) %>
+        </label>
+      </div>
+      <div :for={half <- [:highest, :lowest]} class="movers-compact__half" data-half={half}>
+        <h3><%= pgettext("movers", "Price return") %></h3>
+        <Widget.row
+          :for={entry <- half_rows(@f.price_halves, half)}
+          href={"/securities/#{entry.security.id}"}
+          data-compact-role="movers-row"
+        >
+          <:name><%= security_name(entry.security) %></:name>
+          <:sub :if={price_dates(entry, @f)}><%= price_dates(entry, @f) %></:sub>
+          <:figure>
+            <span class={percent_sign_class(entry.return)}><%= Format.signed_percent(entry.return) %>%</span>
+          </:figure>
+        </Widget.row>
+        <h3><%= gettext("Contribution") %></h3>
+        <Widget.row
+          :for={entry <- half_rows(@f.contribution_halves, half)}
+          href={"/securities/#{entry.security.id}"}
+          data-compact-role="movers-row"
+        >
+          <:name><%= security_name(entry.security) %></:name>
+          <:sub :if={entry.held_at_end == false}><%= pgettext("movers", "sold") %></:sub>
+          <:figure>
+            <span class={money_sign_class(entry.contribution)}><%= Format.signed_decimal(entry.contribution, 2) %></span>
+          </:figure>
+          <:figure_sub :if={not @privacy_mode}>EUR</:figure_sub>
+        </Widget.row>
+      </div>
+    </div>
+    """
+  end
+
+  defp half_rows(halves, half) do
+    case List.keyfind(halves, half, 0) do
+      {^half, rows} -> rows
+      nil -> []
+    end
   end
 
   attr(:half, :atom, required: true)

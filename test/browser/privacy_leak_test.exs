@@ -449,6 +449,13 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
     |> Enum.map(&"/classifications/#{&1}")
   end
 
+  # Sprint 31 D3: the review seed stores no dashboard; the template's
+  # copy gives `/dashboards/:id` one.
+  defp address("/dashboards/:id") do
+    {:ok, board} = Portfolixir.Dashboards.copy_template(Actor.owner_ui(), "overview", %{})
+    ["/dashboards/#{board.id}"]
+  end
+
   defp address(_path), do: []
 
   # The review seed records two open predictions (Sprint 29 L2), and a page

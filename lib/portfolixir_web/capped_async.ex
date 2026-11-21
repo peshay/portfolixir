@@ -58,10 +58,12 @@ defmodule PortfolixirWeb.CappedAsync do
   @doc """
   `start_async/3` for a load asked again before the last one answered
   (#1058): one task under `name` at a time, the latest ask waiting for it.
-  The page's `handle_async/3` for `name` calls `landed/2` first.
+  The page's `handle_async/3` for `name` calls `landed/2` first. The name
+  is any term, as `Phoenix.LiveView.start_async/3`'s is: a page that reads
+  one load per scope names each `{:movers, scope}` (Sprint 31 D3).
   """
-  @spec start_latest(Socket.t(), atom(), (-> term())) :: Socket.t()
-  def start_latest(%Socket{} = socket, name, fun) when is_atom(name) and is_function(fun, 0) do
+  @spec start_latest(Socket.t(), term(), (-> term())) :: Socket.t()
+  def start_latest(%Socket{} = socket, name, fun) when is_function(fun, 0) do
     cond do
       not Phoenix.LiveView.connected?(socket) -> socket
       Map.has_key?(flights(socket), name) -> put_flight(socket, name, {:pending, fun})
@@ -74,8 +76,8 @@ defmodule PortfolixirWeb.CappedAsync do
   when a later ask waited for it, which is started now and whose result is
   the one to land, or `{:current, socket}`.
   """
-  @spec landed(Socket.t(), atom()) :: {:superseded | :current, Socket.t()}
-  def landed(%Socket{} = socket, name) when is_atom(name) do
+  @spec landed(Socket.t(), term()) :: {:superseded | :current, Socket.t()}
+  def landed(%Socket{} = socket, name) do
     case Map.get(flights(socket), name) do
       {:pending, fun} ->
         {:superseded, run(socket, name, fun)}

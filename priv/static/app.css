@@ -14548,3 +14548,398 @@ dialog.merge-dialog {
   }
 }
 /* --- S30 T3 end --- */
+
+/* --- S31 D3 begin --- */
+/* ===== The dashboard page (ADR-0062 §4, §6; Sprint 31 D3; idea board
+   ux-design-2026-11-21-idea-i56 01, 03, 06; planning board 01 ①) ===== */
+/* The bar above the widgets: the scope („Gesamt ▾“) and, on a template,
+   the banner „Vorlage · mitgeliefert, nur lesend“ with „Anpassen“. */
+.dashboard-bar {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+}
+
+.dashboard-bar__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.dashboard-scope {
+  position: relative;
+}
+
+.dashboard-scope > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 32px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+
+.dashboard-scope > summary::-webkit-details-marker {
+  display: none;
+}
+
+.dashboard-scope > summary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.dashboard-scope__menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  display: grid;
+  min-width: 12rem;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-panel);
+}
+
+.dashboard-scope__option {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.dashboard-scope__option:hover {
+  background: var(--color-hover);
+}
+
+.dashboard-scope__option.is-active {
+  background: var(--color-selected);
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.dashboard-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+}
+
+.dashboard-banner strong {
+  color: var(--color-text);
+}
+
+/* The widgets. The class is the window's, chosen here by its width (§6),
+   never by the device: under 600 px one column of compact forms in
+   reading order; from 600 px two columns of compact forms, filled column
+   by column; from 1000 px the 12-column grid, each widget at its col and
+   row with its size's span. The page draws the widgets in reading order
+   (row, then col), so the columns and a screen reader read the order the
+   grid shows. */
+.dashboard {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4) clamp(16px, 2.4vw, 28px) var(--space-6);
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.dashboard-widget {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-sm);
+  break-inside: avoid;
+}
+
+.dashboard-widget > * {
+  min-width: 0;
+}
+
+.dashboard-widget > .widget__head {
+  flex-wrap: nowrap;
+  margin-bottom: 0;
+}
+
+.dashboard-widget > .widget__head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: var(--text-h3-weight);
+  line-height: 1.2;
+}
+
+.widget__menu {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.widget__menu:disabled {
+  cursor: default;
+}
+
+.widget__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  margin-top: auto;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.widget__foot a {
+  margin-left: auto;
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.widget__foot a:hover,
+.widget__foot a:focus-visible {
+  text-decoration: underline;
+}
+
+.widget__wide,
+.widget__compact {
+  gap: var(--space-3);
+}
+
+/* Compact and medium: the compact form, at phone type (§6: text 15 to
+   17 px, figures 22 to 30 px, nothing under 12 px, rows of 44 px). */
+.widget__wide {
+  display: none;
+}
+
+.widget__compact {
+  display: grid;
+  font-size: 16px;
+}
+
+.widget-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: 16px;
+  line-height: 1.3;
+  text-decoration: none;
+}
+
+.widget-row:last-child {
+  border-bottom: 0;
+}
+
+a.widget-row:hover .widget-row__name {
+  text-decoration: underline;
+}
+
+.widget-row__name {
+  display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.widget-row__figure {
+  display: grid;
+  justify-items: end;
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.widget-row__sub {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.widget-total {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.widget-total__label {
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.widget-total__figure {
+  font-size: 28px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+
+.widget-total__figure .value-suffix {
+  margin-left: var(--space-1);
+  font-size: 15px;
+}
+
+.widget-total__sub {
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.widget__compact h3 {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* „Tops und Flops“ compact: „Höchste“ and „Niedrigste“ as a two-way
+   switch the browser holds (board 06). */
+.movers-compact__switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.movers-compact__switch .segmented-control__option {
+  justify-content: center;
+  min-height: 44px;
+  font-size: 15px;
+}
+
+.movers-compact__switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.movers-compact__switch .segmented-control__option:has(input:checked) {
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.movers-compact__switch .segmented-control__option:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.movers-compact:has(input[value="highest"]:checked) [data-half="lowest"],
+.movers-compact:has(input[value="lowest"]:checked) [data-half="highest"] {
+  display: none;
+}
+
+/* A kind with one form (the cycle card, already one event per line). */
+.widget--single-form .cycle-card {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+@media (width >= 600px) {
+  .dashboard-grid {
+    display: block;
+    columns: 2;
+    column-gap: var(--space-3);
+  }
+
+  .dashboard-grid > .dashboard-widget {
+    margin-bottom: var(--space-3);
+  }
+}
+
+@media (width >= 1000px) {
+  .dashboard-grid {
+    display: grid;
+    columns: auto;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-auto-rows: minmax(7rem, auto);
+  }
+
+  .dashboard-grid > .dashboard-widget {
+    grid-column: var(--widget-col) / span var(--widget-w);
+    grid-row: var(--widget-row) / span var(--widget-h);
+    margin-bottom: 0;
+  }
+
+  .widget__wide {
+    display: grid;
+  }
+
+  .widget__compact {
+    display: none;
+  }
+
+  /* „Gesamtwert“ at S: the strip's four figures one under the other. */
+  .widget--s .kpi-strip__cells {
+    grid-template-columns: minmax(0, 1fr);
+    box-shadow: none;
+  }
+
+  .widget--s .kpi-strip__cell {
+    min-height: 0;
+    padding: var(--space-2) var(--space-3);
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+  }
+
+  .widget--s .kpi-strip__cell:first-child {
+    border-top: 0;
+  }
+
+  /* An S widget is three columns wide: a list row's figure goes under its
+     name where both do not fit beside each other, and the decorative drift
+     bar gives way (its sign and words stay). */
+  .widget--s .attention-item {
+    flex-wrap: wrap;
+  }
+
+  .widget--s .attention-item .drift-bar {
+    display: none;
+  }
+
+  .widget--s .attention-item .num {
+    white-space: normal;
+  }
+}
+/* --- S31 D3 end --- */

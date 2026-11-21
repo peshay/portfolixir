@@ -16,8 +16,9 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
   # levels of navigation.
   #
   # Acceptance criteria:
-  # - A "Closed trades" card sits under the KPI strip, before "Off target",
-  #   with "All trades →" in its head linking to /cashflow?tab=realized.
+  # - A "Closed trades" card (since Sprint 31 the widget "Sale review")
+  #   sits under the KPI strip, after "Off target" in the template's order,
+  #   with "All trades →" in its footer linking to /cashflow?tab=realized.
   # - Its basis line says it shows the most recently closed (counted), the result
   #   currency, and that it covers every depot whatever the view.
   # - At most five rows, newest close first, each linking to its security's
@@ -66,6 +67,10 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
       |> Floki.find("#dashboard-trades [data-role='closed-trade']")
       |> Enum.find(&(text(&1) =~ name))
 
+  # Sprint 31 D3 (ADR-0062 §4, §12): the card is the widget
+  # „Verkaufsrückblick“; the template „Überblick“ places it after the
+  # value (row 1) and „Abseits des Ziels“ (row 1), and its link to every
+  # trade stands in the widget's footer.
   test "the Overview lists the last five closed trades under the KPI strip", %{conn: conn} do
     %{long: long, quick: quick} = seed!()
 
@@ -77,11 +82,11 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
     {strip_at, _} = :binary.match(html, ~s(id="dashboard-kpi-strip"))
     {card_at, _} = :binary.match(html, ~s(id="dashboard-trades"))
     {attention_at, _} = :binary.match(html, ~s(id="dashboard-attention"))
-    assert strip_at < card_at and card_at < attention_at
+    assert strip_at < attention_at and attention_at < card_at
 
-    assert text(Floki.find(doc, "#dashboard-trades h2")) == "Closed trades"
+    assert text(Floki.find(doc, "#dashboard-trades h2")) == "Sale review"
 
-    assert [link] = Floki.find(doc, "#dashboard-trades .section-head a")
+    assert [link] = Floki.find(doc, "#dashboard-trades .widget__foot a")
     assert Floki.attribute(link, "href") == ["/cashflow?tab=realized"]
     assert text(link) == "All trades →"
 
@@ -136,7 +141,7 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
     {:ok, view, html} = live(conn, "/")
     doc = Floki.parse_document!(html)
 
-    assert text(Floki.find(doc, "#dashboard-trades h2")) == "Closed trades"
+    assert text(Floki.find(doc, "#dashboard-trades h2")) == "Sale review"
     assert [skeleton] = Floki.find(doc, "#dashboard-trades p.section-skeleton")
     assert Floki.attribute(skeleton, "aria-busy") == ["true"]
     assert Floki.find(doc, "#dashboard-trades [data-role='closed-trade']") == []
@@ -238,8 +243,8 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
     render_async(view)
     doc = document(view)
 
-    assert text(Floki.find(doc, "#dashboard-trades h2")) == "Abgeschlossene Trades"
-    assert text(Floki.find(doc, "#dashboard-trades .section-head a")) == "Alle Trades →"
+    assert text(Floki.find(doc, "#dashboard-trades h2")) == "Verkaufsrückblick"
+    assert text(Floki.find(doc, "#dashboard-trades .widget__foot a")) == "Alle Trades →"
 
     basis = text(Floki.find(doc, "#dashboard-trades [data-role='trades-card-basis']"))
     assert basis =~ "Die 5 zuletzt abgeschlossenen"

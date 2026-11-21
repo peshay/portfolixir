@@ -1,6 +1,8 @@
 defmodule PortfolixirWeb.LiveUrlParamsTest do
   @moduledoc false
-  use PortfolixirWeb.ConnCase, async: true
+  # group: :dashboards -- the setup stores a dashboard, whose create takes
+  # the advisory lock that counts them (`Portfolixir.LockTable` row 28).
+  use PortfolixirWeb.ConnCase, async: true, group: :dashboards
   @moduletag :sweep
 
   import Phoenix.LiveViewTest
@@ -40,7 +42,9 @@ defmodule PortfolixirWeb.LiveUrlParamsTest do
     {:ok, _snapshot} =
       Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Marker", as_of: ~D[2026-01-02]})
 
-    %{security: security, tree: tree}
+    {:ok, dashboard} = Portfolixir.Dashboards.copy_template(Actor.owner_ui(), "overview", %{})
+
+    %{security: security, tree: tree, dashboard: dashboard}
   end
 
   # User story (#868, E25 S4 F16):
@@ -94,6 +98,7 @@ defmodule PortfolixirWeb.LiveUrlParamsTest do
 
   defp page_url("/securities/:id", %{security: security}), do: "/securities/#{security.id}"
   defp page_url("/classifications/:id", %{tree: tree}), do: "/classifications/#{tree.id}"
+  defp page_url("/dashboards/:id", %{dashboard: board}), do: "/dashboards/#{board.id}"
   defp page_url(path, _context), do: path
 
   defp url(base, query), do: base <> "?" <> query

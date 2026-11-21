@@ -103,8 +103,9 @@ defmodule PortfolixirWeb.LiveEventPayloadTest do
 
     {:ok, _bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
     {:ok, _view} = Buckets.create_view(Actor.owner_ui(), %{name: "Everything else"})
+    {:ok, dashboard} = Portfolixir.Dashboards.copy_template(Actor.owner_ui(), "overview", %{})
 
-    %{security: security, tree: tree}
+    %{security: security, tree: tree, dashboard: dashboard}
   end
 
   # A process that dies holding the sandbox connection takes the connection
@@ -127,6 +128,7 @@ defmodule PortfolixirWeb.LiveEventPayloadTest do
 
   defp page_url("/securities/:id", %{security: security}), do: "/securities/#{security.id}"
   defp page_url("/classifications/:id", %{tree: tree}), do: "/classifications/#{tree.id}"
+  defp page_url("/dashboards/:id", %{dashboard: board}), do: "/dashboards/#{board.id}"
   defp page_url(path, _context), do: path
 
   # `{:ok, view}` while the page lives (`{:ok, nil}` after it navigated away,
