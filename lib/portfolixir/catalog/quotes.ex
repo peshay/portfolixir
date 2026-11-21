@@ -48,12 +48,17 @@ defmodule Portfolixir.Catalog.Quotes do
 
   @doc """
   Most recent quote for the security, or nil. Like every latest read here, it
-  never serves a row dated past `MarketDataBounds.latest_date/0` (E25 S3, F26).
+  never serves a row dated past `MarketDataBounds.latest_date/0` (E25 S3, F26),
+  and it serves the most recent **positive** close: a stored close of 0 or
+  below is no price (#1473, ADR-0051's amendment of 2026-11-21, "one rule
+  for every price read in the app"). `positive: false` serves the stored
+  newest row as it is, for a surface that shows stored rows.
   """
-  def latest(security_id) when is_integer(security_id) do
+  def latest(security_id, opts \\ []) when is_integer(security_id) do
     SecurityQuote
     |> where([q], q.security_id == ^security_id)
     |> plausibly_dated()
+    |> positive_only(latest_opts(opts))
     |> order_by([q], desc: q.date)
     |> limit(1)
     |> Repo.one()
@@ -61,18 +66,22 @@ defmodule Portfolixir.Catalog.Quotes do
 
   @doc """
   Most recent quote per security for `security_ids`, as a map
-  `%{security_id => %Quote{}}`; securities without quotes are absent.
+  `%{security_id => %Quote{}}`; securities without quotes are absent. As
+  `latest/2`: the most recent positive close, unless `positive: false`.
 
   One `DISTINCT ON` query regardless of list size (#481 slice 2a fix round):
   the allocation breakdown prices its unheld SOLL rows from this instead of a
   per-security `latest/1` loop.
   """
-  def latest_by_security_ids([]), do: %{}
+  def latest_by_security_ids(security_ids, opts \\ [])
 
-  def latest_by_security_ids(security_ids) when is_list(security_ids) do
+  def latest_by_security_ids([], _opts), do: %{}
+
+  def latest_by_security_ids(security_ids, opts) when is_list(security_ids) do
     SecurityQuote
     |> where([q], q.security_id in ^security_ids)
     |> plausibly_dated()
+    |> positive_only(latest_opts(opts))
     |> distinct([q], q.security_id)
     |> order_by([q], asc: q.security_id, desc: q.date)
     |> Repo.all()
@@ -88,6 +97,9 @@ defmodule Portfolixir.Catalog.Quotes do
     |> limit(2)
     |> Repo.all()
   end
+
+  # The latest reads take only positive closes unless told otherwise (#1473).
+  defp latest_opts(opts), do: Keyword.put_new(opts, :positive, true)
 
   # The latest reads' cap (F26): a row stored before the bound existed and
   # dated past it is never the latest quote.
@@ -222,7 +234,8 @@ defmodule Portfolixir.Catalog.Quotes do
   `latest/1` in the current display basis (ADR-0028 §2), or nil: a stale raw
   close from before an effective date is divided by the cumulative later
   ratio, so it never prices a post-split quantity at the unsplit value.
-  Returns `%{date, close, stored_close, source, basis, adjusted?}`.
+  Returns `%{date, close, stored_close, source, basis, adjusted?}`. The most
+  recent positive close, as `latest/2` reads it.
   """
   def adjusted_latest(security_id) when is_integer(security_id) do
     case latest(security_id) do
@@ -245,8 +258,9 @@ defmodule Portfolixir.Catalog.Quotes do
   end
 
   @doc """
-  `latest_by_security_ids/1` in the current display basis (ADR-0028 §2):
-  `%{security_id => %{date, close, stored_close, source, basis, adjusted?}}`.
+  `latest_by_security_ids/2` in the current display basis (ADR-0028 §2):
+  `%{security_id => %{date, close, stored_close, source, basis, adjusted?}}`,
+  each the most recent positive close.
   """
   def adjusted_latest_by_security_ids([]), do: %{}
 
