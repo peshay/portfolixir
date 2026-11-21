@@ -383,10 +383,11 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
 
     # #1055 added keys to the stored walk payloads (each day's unvalued cash,
     # and the accounts' names beside it), so both computation versions moved
-    # with them; no figure did. #1051 rides the same versions: of the walk's
-    # figures, only a cross-currency trade's trade costs moved.
-    assert Registry.computation_version!(:performance_analysis) == 4
-    assert Registry.computation_version!(:performance_view_analysis) == 4
+    # with them; no figure did. #1051 rode the same versions: of the walk's
+    # figures, only a cross-currency trade's trade costs moved. #1473 moved
+    # both to 5: a close of 0 or below is no price for the walk.
+    assert Registry.computation_version!(:performance_analysis) == 5
+    assert Registry.computation_version!(:performance_view_analysis) == 5
   end
 
   # I9 for one scope and period: the walk that keeps the figures apart

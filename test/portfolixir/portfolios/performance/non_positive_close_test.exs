@@ -14,6 +14,7 @@ defmodule Portfolixir.Portfolios.Performance.NonPositiveCloseTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog.Quote, as: SecurityQuote
+  alias Portfolixir.Derived.Registry
   alias Portfolixir.Ledger.Splits
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Performance.Bands
@@ -230,5 +231,53 @@ defmodule Portfolixir.Portfolios.Performance.NonPositiveCloseTest do
       walk = Performance.analysis(world.portfolio.id, today: @today)
       assert Enum.all?(walk.daily, &Decimal.equal?(&1.value, 0)), name
     end
+  end
+
+  # User story (#1473, ADR-0051's amendment of 2026-11-21, item 3; ADR-0039
+  # §5):
+  # As the operator reading any figure the walk feeds,
+  # I want no value computed while the walk read a close of 0 or below as a
+  # price served after the change,
+  # so that a remembered figure never disagrees with a fresh one.
+  #
+  # Acceptance criteria:
+  # - Every analytic the registry derives from the walk is one computation
+  #   version up: the two walks, the two contribution tables, the two band
+  #   reads, the benchmark comparison (built from the walk), the portfolio
+  #   metrics (the walk's daily series) and the policy findings (volatility
+  #   and drawdown read off those metrics).
+  # - The security reads, which read a security's own closes and never the
+  #   walk, keep theirs.
+  test "every analytic the registry derives from the walk moves one computation version" do
+    assert Map.new(
+             [
+               :performance_analysis,
+               :performance_view_analysis,
+               :performance_contribution,
+               :performance_view_contribution,
+               :performance_bands,
+               :performance_view_bands,
+               :benchmark_comparison,
+               :portfolio_metrics,
+               :policy_findings,
+               :security_metrics,
+               :security_cycles
+             ],
+             &{&1, Registry.computation_version!(&1)}
+           ) == %{
+             performance_analysis: 5,
+             performance_view_analysis: 5,
+             performance_contribution: 7,
+             performance_view_contribution: 7,
+             performance_bands: 2,
+             performance_view_bands: 2,
+             benchmark_comparison: 5,
+             portfolio_metrics: 3,
+             policy_findings: 3,
+             security_metrics: 1,
+             security_cycles: 1
+           }
+
+    assert length(Registry.analytics()) == 11
   end
 end
