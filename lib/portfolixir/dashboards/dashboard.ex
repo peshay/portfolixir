@@ -105,7 +105,9 @@ defmodule Portfolixir.Dashboards.Dashboard do
         changeset
 
       {:ok, raw} ->
-        case Layout.validate(raw) do
+        # A replace drops a view id its stored layout already holds and
+        # whose view is gone (ADR-0062 §2); a create has none stored.
+        case Layout.validate(raw, stored: changeset.data.layout) do
           {:ok, layout} ->
             put_change(changeset, :layout, layout)
 

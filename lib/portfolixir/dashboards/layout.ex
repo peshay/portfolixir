@@ -6,12 +6,22 @@ defmodule Portfolixir.Dashboards.Layout do
   a registered `kind` (`Portfolixir.Dashboards.Widgets`), a `size` the kind
   supports on the grid (`full` is a page, never placed), its `col` (1 to 12)
   and `row` (1 to `max_row/0`) on the 12-column wide grid, and optional
-  `settings`: `view_id` (a view that exists) and `period` (a pin, one of the
-  dashboard periods the kind answers).
+  `settings`: `view_id` (a view that exists, on a kind that takes a view)
+  and `period` (a pin, one of the dashboard periods the kind answers).
 
-  `validate/1` refuses the **first** bad item, naming its index (0-based,
+  `validate/2` refuses the **first** bad item, naming its index (0-based,
   the item's place in the list), the field and the reason; nothing is
-  repaired, moved or dropped. It is strict: a key the item or its settings
+  repaired, moved or dropped. A layout of more than `max_items/0` items is
+  refused as a whole, before any item is read, with the index of the first
+  item past the cap (40): no item there is bad in itself.
+
+  **One exception, a stale view** (ADR-0062 §2: "A deleted view leaves an
+  item's `view_id` dangling … the next save drops the stale id"): a
+  `view_id` that names no view is dropped from its item's settings, not
+  refused, when the same id is already stored in the dashboard's current
+  layout (`stored:`), since it went stale when its view was deleted. Any
+  other `view_id` that names no view is refused, and a create, which has
+  no stored layout, refuses every one. It is strict: a key the item or its settings
   do not take is refused too, so a layout carries nothing the server does
   not read. Keys are strings (an atom key written in code is read as its
   string; no atom is ever made from a key), values are matched as strings
@@ -56,6 +66,7 @@ defmodule Portfolixir.Dashboards.Layout do
           | :overlap
           | :unknown_setting
           | :unknown_view
+          | :no_view
           | :no_period
           | :unsupported_period
 
@@ -89,13 +100,22 @@ defmodule Portfolixir.Dashboards.Layout do
   Validates `layout`: `{:ok, normalized}` or `{:error, refusal}` naming the
   first bad item. Reads the views table once, for the view ids the layout
   names, and nothing else.
+
+  Option `stored:` is the dashboard's layout as stored, when the write
+  replaces one: a view id it already holds that names no view any more is
+  dropped from the item that sends it (see the moduledoc).
   """
-  @spec validate(term()) :: {:ok, [item()]} | {:error, refusal()}
-  def validate(layout) when is_list(layout) do
+  @spec validate(term(), keyword()) :: {:ok, [item()]} | {:error, refusal()}
+  def validate(layout, opts \\ [])
+
+  def validate(layout, opts) when is_list(layout) and is_list(opts) do
     if length(layout) > @max_items do
       refuse(@max_items, nil, :too_many_items)
     else
-      views = existing_views(layout)
+      views = %{
+        existing: existing_views(layout),
+        stored: stored_views(Keyword.get(opts, :stored, []))
+      }
 
       layout
       |> Enum.with_index()
@@ -112,7 +132,7 @@ defmodule Portfolixir.Dashboards.Layout do
     end
   end
 
-  def validate(_layout), do: refuse(nil, nil, :not_a_list)
+  def validate(_layout, _opts), do: refuse(nil, nil, :not_a_list)
 
   @doc """
   The English message of a refusal's reason, an `errors` msgid the screen
@@ -135,6 +155,7 @@ defmodule Portfolixir.Dashboards.Layout do
   def message(:unknown_setting), do: dgettext_noop("errors", "is not a setting a widget takes")
   def message(:unknown_view), do: dgettext_noop("errors", "names no view")
   def message(:no_period), do: dgettext_noop("errors", "this widget kind takes no period")
+  def message(:no_view), do: dgettext_noop("errors", "this widget kind takes no view")
 
   def message(:unsupported_period),
     do: dgettext_noop("errors", "is not a period this widget kind takes")
@@ -236,7 +257,7 @@ defmodule Portfolixir.Dashboards.Layout do
 
       raw when is_map(raw) ->
         with {:ok, settings} <- string_keys(raw, @setting_keys, index, &setting_key_refusal/2),
-             :ok <- view_setting(settings, views, index),
+             {:ok, settings} <- view_setting(settings, kind, views, index),
              :ok <- period_setting(settings, kind, index) do
           {:ok, settings}
         end
@@ -246,13 +267,20 @@ defmodule Portfolixir.Dashboards.Layout do
     end
   end
 
-  defp view_setting(%{"view_id" => id}, views, index) do
-    if view_id?(id) and MapSet.member?(views, id),
-      do: :ok,
-      else: refuse(index, "settings.view_id", :unknown_view)
+  defp view_setting(%{"view_id" => _id}, %{scope: :none}, _views, index),
+    do: refuse(index, "settings.view_id", :no_view)
+
+  defp view_setting(%{"view_id" => id} = settings, _kind, views, index) do
+    cond do
+      not view_id?(id) -> refuse(index, "settings.view_id", :unknown_view)
+      MapSet.member?(views.existing, id) -> {:ok, settings}
+      # Stale: stored before its view was deleted; the save drops it (§2).
+      MapSet.member?(views.stored, id) -> {:ok, Map.delete(settings, "view_id")}
+      true -> refuse(index, "settings.view_id", :unknown_view)
+    end
   end
 
-  defp view_setting(_settings, _views, _index), do: :ok
+  defp view_setting(settings, _kind, _views, _index), do: {:ok, settings}
 
   defp period_setting(%{"period" => period}, kind, index) do
     cond do
@@ -283,6 +311,13 @@ defmodule Portfolixir.Dashboards.Layout do
       ids -> MapSet.new(Repo.all(from(v in View, where: v.id in ^ids, select: v.id)))
     end
   end
+
+  # The view ids a stored (normalized) layout holds.
+  defp stored_views(stored) when is_list(stored) do
+    for %{"settings" => %{"view_id" => id}} <- stored, view_id?(id), into: MapSet.new(), do: id
+  end
+
+  defp stored_views(_stored), do: MapSet.new()
 
   # --- the grid -------------------------------------------------------------
 
