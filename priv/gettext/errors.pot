@@ -295,7 +295,7 @@ msgstr ""
 msgid "is not a key a widget takes"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:135
+#: lib/portfolixir/dashboards/layout.ex:140
 #, elixir-autogen, elixir-format
 msgid "is not a period this widget kind takes"
 msgstr ""
@@ -305,17 +305,17 @@ msgstr ""
 msgid "is not a registered widget kind"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:132
+#: lib/portfolixir/dashboards/layout.ex:135
 #, elixir-autogen, elixir-format
 msgid "is not a setting a widget takes"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:128
+#: lib/portfolixir/dashboards/layout.ex:130
 #, elixir-autogen, elixir-format
 msgid "is not a size this widget kind takes"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:130
+#: lib/portfolixir/dashboards/layout.ex:133
 #, elixir-autogen, elixir-format
 msgid "is off the grid"
 msgstr ""
@@ -325,7 +325,7 @@ msgstr ""
 msgid "must be a list of widgets"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:129
+#: lib/portfolixir/dashboards/layout.ex:132
 #, elixir-autogen, elixir-format
 msgid "must be a whole number"
 msgstr ""
@@ -340,17 +340,22 @@ msgstr ""
 msgid "must hold at most 40 widgets"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:133
+#: lib/portfolixir/dashboards/layout.ex:136
 #, elixir-autogen, elixir-format
 msgid "names no view"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:131
+#: lib/portfolixir/dashboards/layout.ex:134
 #, elixir-autogen, elixir-format
 msgid "overlaps another widget"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:134
+#: lib/portfolixir/dashboards/layout.ex:137
 #, elixir-autogen, elixir-format
 msgid "this widget kind takes no period"
+msgstr ""
+
+#: lib/portfolixir/dashboards.ex:351
+#, elixir-autogen, elixir-format
+msgid "must be the whole number the dashboard was read with"
 msgstr ""

@@ -74,16 +74,22 @@ defmodule Portfolixir.Dashboards.Dashboard do
   `max_position/0`.
   """
   @spec position_changeset(t(), term()) :: Ecto.Changeset.t()
-  def position_changeset(%__MODULE__{} = dashboard, position) do
+  def position_changeset(%__MODULE__{} = dashboard, position) when is_integer(position) do
     dashboard
-    |> cast(%{position: position}, [:position])
-    |> validate_required([:position])
+    |> change(position: position)
     |> validate_number(:position,
       greater_than_or_equal_to: 1,
       less_than_or_equal_to: max_position()
     )
     |> check_constraint(:position, name: :dashboards_position_check)
     |> bump_lock_version()
+  end
+
+  # A whole number only: "2" or 2.0 is refused, never read as 2.
+  def position_changeset(%__MODULE__{} = dashboard, _position) do
+    dashboard
+    |> change()
+    |> add_error(:position, "must be a whole number", validation: :integer)
   end
 
   @doc "The highest position a write may name."

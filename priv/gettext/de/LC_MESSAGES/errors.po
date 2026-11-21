@@ -287,7 +287,7 @@ msgstr "muss nach dem Hoch liegen"
 msgid "is not a key a widget takes"
 msgstr "ist kein Schlüssel, den ein Widget kennt"
 
-#: lib/portfolixir/dashboards/layout.ex:135
+#: lib/portfolixir/dashboards/layout.ex:140
 #, elixir-autogen, elixir-format
 msgid "is not a period this widget kind takes"
 msgstr "ist kein Zeitraum, den diese Widget-Art kennt"
@@ -297,17 +297,17 @@ msgstr "ist kein Zeitraum, den diese Widget-Art kennt"
 msgid "is not a registered widget kind"
 msgstr "ist keine registrierte Widget-Art"
 
-#: lib/portfolixir/dashboards/layout.ex:132
+#: lib/portfolixir/dashboards/layout.ex:135
 #, elixir-autogen, elixir-format
 msgid "is not a setting a widget takes"
 msgstr "ist keine Einstellung, die ein Widget kennt"
 
-#: lib/portfolixir/dashboards/layout.ex:128
+#: lib/portfolixir/dashboards/layout.ex:130
 #, elixir-autogen, elixir-format
 msgid "is not a size this widget kind takes"
 msgstr "ist keine Größe, die diese Widget-Art kennt"
 
-#: lib/portfolixir/dashboards/layout.ex:130
+#: lib/portfolixir/dashboards/layout.ex:133
 #, elixir-autogen, elixir-format
 msgid "is off the grid"
 msgstr "liegt außerhalb des Rasters"
@@ -317,7 +317,7 @@ msgstr "liegt außerhalb des Rasters"
 msgid "must be a list of widgets"
 msgstr "muss eine Liste von Widgets sein"
 
-#: lib/portfolixir/dashboards/layout.ex:129
+#: lib/portfolixir/dashboards/layout.ex:132
 #, elixir-autogen, elixir-format
 msgid "must be a whole number"
 msgstr "muss eine ganze Zahl sein"
@@ -332,17 +332,22 @@ msgstr "muss ein Objekt sein"
 msgid "must hold at most 40 widgets"
 msgstr "darf höchstens 40 Widgets enthalten"
 
-#: lib/portfolixir/dashboards/layout.ex:133
+#: lib/portfolixir/dashboards/layout.ex:136
 #, elixir-autogen, elixir-format
 msgid "names no view"
 msgstr "nennt keine vorhandene Ansicht"
 
-#: lib/portfolixir/dashboards/layout.ex:131
+#: lib/portfolixir/dashboards/layout.ex:134
 #, elixir-autogen, elixir-format
 msgid "overlaps another widget"
 msgstr "überdeckt ein anderes Widget"
 
-#: lib/portfolixir/dashboards/layout.ex:134
+#: lib/portfolixir/dashboards/layout.ex:137
 #, elixir-autogen, elixir-format
 msgid "this widget kind takes no period"
 msgstr "diese Widget-Art hat keinen Zeitraum"
+
+#: lib/portfolixir/dashboards.ex:351
+#, elixir-autogen, elixir-format
+msgid "must be the whole number the dashboard was read with"
+msgstr "muss die ganze Zahl sein, mit der das Dashboard gelesen wurde"

@@ -40,6 +40,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Crashes.ManualWindow
   alias Portfolixir.Crashes.WindowName
+  alias Portfolixir.Dashboards.Dashboard
   alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.Ledger.Transaction
@@ -128,6 +129,11 @@ defmodule Portfolixir.Derived.BlastRadius do
   def for_write("crash_manual_window", %{__struct__: ManualWindow}), do: []
   # --- S29 C3 end ---
 
+  # A dashboard (ADR-0062 §2) is an arrangement of widgets, not data: no
+  # walk, quote, rate or rule reads it, so no portfolio's derived values
+  # move. Resolved per struct, like the knowledge records above.
+  def for_write("dashboard", %{__struct__: Dashboard}), do: []
+
   # An authored write to a security's quotes (E25 S6, T-9) is journaled as
   # one aggregate of the security's rows: its radius is a quote write's, every
   # portfolio that ever transacted the security — resolved per struct.
@@ -167,7 +173,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   # it and so widens.
   @feeds_no_security_data ~w(
     allowance_order bucket cash_account cash_account_bucket_assignment category
-    classification crash_manual_window crash_window_name depot_bucket_assignment merge_record news_item news_label policy_rule
+    classification crash_manual_window crash_window_name dashboard depot_bucket_assignment merge_record news_item news_label policy_rule
     policy_rule_version portfolio position_bucket_override prediction retired_import_hash
     securities_account security_category_assignment security_event security_identifier_alias
     security_note setting snapshot target target_plan tax_parameters tax_profile
