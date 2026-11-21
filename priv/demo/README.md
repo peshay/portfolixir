@@ -277,5 +277,6 @@ The script talks to `http://127.0.0.1:$PORT` only — the browser aborts every
 request to another host or port — and changes nothing on the instance: the
 dialogs it photographs are opened, never confirmed. Every image is 1440 px
 wide (the contribution table and the merge list are cropped to their section
-of the page, 1220 px), in the light theme with the violet accent, and in
-German, the locale the set has always used.
+of the page, 1220 px; the menu's phone shots `phone-*.png` are a 393 × 852
+window and, turned sideways, 844 × 390), in the light theme with the violet
+accent, and in German, the locale the set has always used.

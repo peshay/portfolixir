@@ -960,7 +960,7 @@ The bookkeeping entities are cash accounts and depots:
 - cash account: tracks available liquidity context
 - depot/account: stores security positions linked to that cash account
 
-The **Accounts & depots** page (Administration area) shows both in **one
+The **Accounts & depots** page (Maintenance group) shows both in **one
 table, one entity per row**: each depot renders as a row with its linked
 cash account indented directly beneath it, carrying the account currency and
 the labeled per-account **liquidity role** selector (free cash, credit line,
@@ -1199,7 +1199,7 @@ Your agent reads the same records with `GET /api/v1/merges` (MCP
 
 Portfolios remain in the schema, the JSON API, and the import path as
 **internal compatibility records** only. The **Accounts & depots** page in the
-Administration area carries a collapsed, read-only **Portfolio records
+Maintenance group carries a collapsed, read-only **Portfolio records
 (compatibility)** panel listing every record — name, base currency, creation
 date, source (UI, API, Import, or Seeded, derived from the audit journal) and
 the count of bound depots and cash accounts — so records created over the
@@ -2117,11 +2117,12 @@ Wealth page mutes non-deployable rows and labels them with their role.
 
 ## Overview Page
 
-The **Overview** entry (the start page, `/`) is a **dashboard** (ADR-0062,
-Sprint 31): its cards are **widgets**, each one existing read drawn in a
-frame — its title, an ⓘ with the read's computation basis, its period tag,
-a ⋯ menu (the widget's own period; editing comes later), the figures, and a
-footer naming the view it reads and the way to the full screen.
+The first entry of the menu's **Dashboards** group (the start page, `/`) is
+a **dashboard** (ADR-0062, Sprint 31): its cards are **widgets**, each one
+existing read drawn in a frame — its title, an ⓘ with the read's
+computation basis, its period tag, a ⋯ menu (the widget's own period;
+editing comes later), the figures, and a footer naming the view it reads
+and the way to the full screen.
 
 - **A fresh instance stores nothing.** With no dashboard of your own, `/`
   shows the shipped template **Overview** read-only, under the banner
@@ -5023,15 +5024,81 @@ naming the already-booked event) stays inline in the dialog.
   the row keeps the value and the result, on two lines: the category's name
   (wrapped rather than cut) with its hidden-positions count first, the value
   and the result under their column heads below it.
-- The sidebar is organised into task-oriented areas (ADR-0022): **Overview**,
-  **Wealth**, **Securities**, and **Transactions** at the top level, plus an
-  **Administration** group with **Accounts & depots**, **Views**, and
-  **Classifications**. It lists only routes that exist — no disabled roadmap
-  placeholders. Cash flow is a tab of the Wealth area and Import a tab of the
-  Transactions area, not separate menu entries. Buckets have no sidebar entry
-  of their own (ADR-0024): they are managed as chips on the Accounts & depots
-  rows and on the Views page, which the view switcher's **Views** link
-  opens.
+- **The menu has three groups** (ADR-0022's amendment of 2026-11-21,
+  ADR-0062 §9, Sprint 31):
+  - **Dashboards**: your dashboards in the order you gave them, each
+    opening `/dashboards/<id>`; with none stored, the shipped template
+    **Overview**, marked **Template**, which opens `/`. Last comes **New
+    dashboard**.
+  - **Discover**: **Wealth** (with its tabs, until its sections become
+    widgets), **Securities**, **News** and **All widgets**.
+  - **Maintenance**, quieter, at the foot: **Transactions** (with its Import
+    tab), **Accounts & depots**, **Views**, **Classifications** and the
+    **Audit journal**.
+
+  The entry of the page you are on is marked, as before. The menu lists
+  only what exists — no disabled roadmap placeholders. Cash flow is a tab of
+  Wealth and Import a tab of Transactions, not menu entries of their own.
+  Buckets have no menu entry (ADR-0024): they are managed as chips on the
+  Accounts & depots rows and on the Views page, which the view switcher's
+  **Views** link opens. **Every address of the earlier menu still answers**
+  (`/portfolio`, `/cashflow`, `/snapshots`, `/tax`, `/risk`,
+  `/predictions`, `/securities`, `/news`, `/transactions`, `/imports`,
+  `/portfolios`, `/buckets`, `/classifications`, `/journal`; `/income`
+  still leads to `/cashflow`), so a bookmark or a link in these pages
+  keeps working.
+- **All widgets** (`/widgets`, ADR-0062 §1) is the catalogue as a page:
+  every widget the app has, by topic (Overview, Performance, Allocation,
+  Risk, Analyses), each with the sizes it takes as chips (S, W, M, T, L,
+  and **Full** for its own page) and **add ›**. **Search …** keeps the
+  widgets whose name holds what you type. **add ›** asks which of your
+  dashboards: the widget goes there at its smallest size, at the first free
+  place of the grid (row by row, left to right), as one write in the audit
+  journal; the page then says where it went and links the dashboard. If
+  that dashboard was changed since the list was read (another tab, your
+  agent), nothing is added: the list shows the dashboards as they are now,
+  and you choose again. A dashboard holding 40 widgets, the most it takes,
+  is refused. With no dashboard stored yet, the choice offers to copy the
+  template **Overview** with the widget, or to start a **New dashboard**.
+  The widgets each later screen's rework brings stand **dashed**, with
+  "comes with its screen's rework" (Contribution by position, Allocation,
+  Key figures, Concentration, Asset class limits, Predictions, and under
+  **Income and tax** Income, Fees and taxes, Tax allowance): they are
+  shown so you know they are coming, and cannot be added yet — the API
+  refuses them in a layout as unknown kinds too.
+- **New dashboard** (`/dashboards/new`) asks for a name and how to start:
+  **Start empty**, an empty dashboard to fill from All widgets (it says so
+  until the edit mode lands), or **From a template**, a copy of
+  **Overview** (more templates come with their widgets). **Create** stores
+  it, one write in the audit journal, and opens it; it joins the end of the
+  menu. A name that is empty, longer than 60 characters or carries a
+  control character is refused at the field; with 50 dashboards stored,
+  the most an instance keeps, a new one is refused with that reason.
+- **On a narrow window** (under 600 px, a phone held upright) the menu is a
+  **tab bar at the foot**: **Dashboards**, **Securities**, **News** and
+  **More**. **More** opens a sheet with the rest of Discover (Wealth, All
+  widgets) and all of Maintenance; Esc or a tap outside closes it. On a
+  dashboard the title is the **dashboard switcher**: "Overview ▾" lists your
+  dashboards and **New dashboard**. **On a short window wider than tall**
+  (a phone turned sideways, under 900 px wide) the same four entries stand
+  as a **rail at the side**, so the page keeps its height. From 900 px the
+  sidebar is the menu, collapsible to its rail as before. Which layout shows
+  depends on the window's width and height only, never on the device. Every
+  tab and every row of a sheet is at least 44 px tall to tap.
+
+[![The menu on a wide window: Dashboards with the template Overview, Discover with Wealth, Securities, News and All widgets, Maintenance at the foot, beside the Overview dashboard](screenshots/dashboard.png)](screenshots/dashboard.png)
+
+[![All widgets: the widgets by topic with their size chips and add, the later ones dashed](screenshots/widgets.png)](screenshots/widgets.png)
+
+[![New dashboard: the name, Start empty or From a template, and Create](screenshots/new-dashboard.png)](screenshots/new-dashboard.png)
+
+| A phone upright: the tab bar | More opened | A phone sideways: the rail |
+|---|---|---|
+| [![The Overview at 393 px with the tab bar Dashboards, Securities, News, More at the foot](screenshots/phone-tabbar.png)](screenshots/phone-tabbar.png) | [![The More sheet above the tab bar: Wealth and All widgets under Discover, the five Maintenance pages](screenshots/phone-more.png)](screenshots/phone-more.png) | [![The Overview at 844 × 390 with the four entries as a rail at the side](screenshots/phone-rail.png)](screenshots/phone-rail.png) |
+
+*The screens on the synthetic demo dataset (`priv/demo`), in the German
+interface.*
+
 - On a phone, a section's tab row (Wealth, Transactions) scrolls sideways
   instead of wrapping: the tab you are on is in view when a page opens, a fade
   marks each side beyond which more tabs lie, and the row always comes to rest
@@ -5194,8 +5261,8 @@ buckets and views, and the default view the pages open on. A logo someone
 sets, removes or searches again names who did; only the background logo
 discovery is journaled as a system job.
 
-**The Audit journal page** (`/journal`, the last entry of the sidebar's
-Administration group) shows the same journal on screen. It lists every
+**The Audit journal page** (`/journal`, the last entry of the menu's
+Maintenance group) shows the same journal on screen. It lists every
 entry newest first: the time in UTC to the second, who made the change
 (Operator, Agent with the token's name beneath, Import or System), the
 operation (Created, Changed, Deleted, Created or replaced) and the entry —
