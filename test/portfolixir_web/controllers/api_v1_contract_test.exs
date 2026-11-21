@@ -49,9 +49,44 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 30's sprint PR (version 30). Dated strictly after entry 29, so
-    # since=2026-11-12 still returns it. Each story appends its own items
+    # Sprint 31's sprint PR (version 31). Dated strictly after entry 30, so
+    # since=2026-11-15 still returns it. Each story appends its own items
     # between its own markers.
+    assert newest["version"] == 31
+    assert newest["date"] == "2026-11-21"
+
+    # --- S31 D2 begin ---
+    # D2 (FR-60, ADR-0062 §8): the widget catalogue and the dashboards, seven
+    # routes.
+    assert newest["summary"] =~ "Sprint 31, D2 (FR-60; ADR-0062 §8): "
+
+    for endpoint <- [
+          "GET /api/v1/widgets",
+          "GET /api/v1/dashboards",
+          "POST /api/v1/dashboards",
+          "GET /api/v1/dashboards/:id",
+          "PUT /api/v1/dashboards/:id",
+          "PATCH /api/v1/dashboards/:id",
+          "DELETE /api/v1/dashboards/:id"
+        ],
+        do: assert(endpoint in newest["endpoints"], endpoint)
+
+    for part <- [
+          "template:<key>",
+          "lock_version",
+          "409 with errors.stored",
+          "errors.layout_item {index, field, reason}",
+          "too_many_dashboards",
+          "dry_run=true"
+        ],
+        do: assert(newest["summary"] =~ part, part)
+
+    # --- S31 D2 end ---
+
+    # Sprint 30's sprint PR (version 30), found by version from Sprint 31
+    # on. Dated strictly after entry 29, so since=2026-11-12 still returns
+    # it. Each story appends its own items between its own markers.
+    newest = Enum.find(data["entries"], &(&1["version"] == 30))
     assert newest["version"] == 30
     assert newest["date"] == "2026-11-15"
 

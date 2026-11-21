@@ -347,7 +347,7 @@ msgstr "überdeckt ein anderes Widget"
 msgid "this widget kind takes no period"
 msgstr "diese Widget-Art hat keinen Zeitraum"
 
-#: lib/portfolixir/dashboards.ex:359
+#: lib/portfolixir/dashboards.ex:425
 #, elixir-autogen, elixir-format
 msgid "must be the whole number the dashboard was read with"
 msgstr "muss die ganze Zahl sein, mit der das Dashboard gelesen wurde"

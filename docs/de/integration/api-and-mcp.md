@@ -5659,6 +5659,126 @@ Decimals kommen hier nicht vor.
   Zurücksetzen lässt die manuellen Fenster stehen (siehe Crash-Fenster
   oben). Das MCP-Tool ist `portfolixir.crashes.benchmark_put`.
 
+## Dashboards und Widgets (ADR-0062)
+
+Jede Funktion wird ein **Widget**: eine bestehende Lesung, in festen Größen
+gezeichnet. Ein **Dashboard** ist eine gespeicherte Anordnung von Widgets,
+sein Layout, und das Projekt liefert **Vorlagen** mit, Layouts im Code, die
+nie gespeichert und nie bearbeitet werden
+([ADR-0062](/decisions/0062-widgets-and-composed-dashboards.html)). Ein
+Widget rechnet nichts: Es zeichnet die Zahlen seiner Quell-Lesung, die ein
+Agent unter derselben Route liest. Ein Dashboard hält keine Zahl und ist
+kein Teil des Ledgers. Jede Route verlangt das Bearer-Token der API; jeder
+Schreibzugriff wird unter dem Token journalisiert (`resource_type`
+`dashboard`); jede Lesung und jeder Schreibzugriff ist geschlossen, ein
+Parameter oder Feld, das er nicht nimmt, liefert also `422` und nennt es.
+Keine Antwort trägt ein Decimal oder ein Urteil, und
+`metrics_carry_no_verdict_test.exs` durchläuft den Katalog und ein Dashboard.
+
+**`GET /api/v1/widgets`** ist der Katalog, damit sich ein Dashboard
+zusammenstellen lässt, ohne den Code zu lesen: `{"data": {"widgets",
+"groups", "grid", "periods", "max_dashboards", "name_max"}}`.
+
+- `widgets`: jede registrierte Art in der Reihenfolge des Katalogs, jede mit
+  `key` (der stabile String, den ein Layout nennt: `total_value`,
+  `data_quality`, `due`, `off_target`, `performance`, `movers`, `snapshots`,
+  `allocation_drift`, `crashes`, `bitcoin_cycle`, `sale_review`), `title`
+  (englisch) und `title_key` (`{context, msgid}`, die Meldung, die der
+  Bildschirm übersetzt), `group`, `sizes` (eine Teilmenge von `S`, `W`, `M`,
+  `T`, `L` und `full`), `source` (`routes`, die `GET /api/v1/...`-Routen,
+  die es zeichnet; `function`, die Kontextfunktion dahinter; `note`, wo die
+  Zahlen keine eigene Route haben), `period` (`"none"` oder `{periods, param,
+  values, ranges, translated}`: die Dashboard-Zeiträume, die es beantwortet,
+  der Abfrageparameter der Quelle, sein Wert je Zeitraum, die Zeiträume,
+  die es als nachlaufenden `from`/`to`-Bereich liest, und die, die es mit
+  einer anderen Spanne beantwortet, was der Bildschirm beschriftet, etwa
+  `3m` als `quarter`), `scope` (`view`, wenn es eine View nimmt, sonst
+  `none`) und `compact` (`true`: jede Art hat ihre Telefon-Form).
+- `groups`: `{key, title}` in ihrer Reihenfolge (`overview`, `performance`,
+  `allocation`, `risk`, `analyses`).
+- `grid`: `columns` (12), `max_row` (200), `max_items` (40), `sizes` (je
+  Rastergröße `{columns, rows}`: `S` 3 × 1, `W` 6 × 1, `M` 6 × 2, `T` 4 × 3,
+  `L` 8 × 3) und `full`, das sagt, dass `full` eine eigene Seite ist und nie
+  im Raster steht.
+- `periods`: `values` (`1d`, `1w`, `1m`, `3m`, `ytd`, `1y`, `3y`, `max`) und
+  `default` (`1y`).
+
+**`GET /api/v1/dashboards`** listet die gespeicherten Dashboards in der
+Reihenfolge des Menüs (nach `position`, dann `id`), danach die Vorlagen.
+Jeder Eintrag ist mit `type` markiert (`dashboard` oder `template`) und
+trägt `id` (die eines gespeicherten, sonst `null`), `key` (der einer
+Vorlage, sonst `null`), `name`, `read_only` (`true` für eine Vorlage),
+`in_menu` und `item_count`; ein gespeichertes zusätzlich `position`,
+`lock_version`, `inserted_at` und `updated_at`. Eine Vorlage ist nur
+`in_menu`, solange kein Dashboard gespeichert ist: Eine frische Instanz
+zeigt „Überblick“ schreibgeschützt und speichert nichts, und die Lesung
+schreibt nie.
+
+**`GET /api/v1/dashboards/:id`** liefert ein gespeichertes Dashboard; eine
+Vorlage liest **`GET /api/v1/dashboards/template:<key>`**
+(`template:overview`), in derselben Form. Sein `layout` ist die
+gespeicherte Liste der Elemente, jedes mit `kind`, `size`, `col` (1 bis 12),
+`row` (ab 1), `settings` (`view_id`, eine View, die den Umfang des
+Dashboards für dieses Widget ersetzt; `period`, ein angehefteter Zeitraum)
+und, aus der Registry, `title` und `source` (`routes`, `function`, `note`):
+die Route, unter der sich lesen lässt, was das Widget zeigt. Die Quelle ist
+immer die der Registry für die Art, nie etwas, das ein Layout sagt. Eine
+unbekannte id, ein Schlüssel ohne Vorlage und eine id, die keines von
+beiden ist, liefern `404`.
+
+**`POST /api/v1/dashboards`** legt eines aus `{"dashboard": {"name",
+"layout"}}` an (das Layout ist ohne Angabe leer) oder kopiert eine Vorlage
+aus `{"dashboard": {"template": "overview", "name"}}` (der Name ist ohne
+Angabe der Titel der Vorlage). Die Antwort ist `201` mit dem Dashboard, wie
+die Lesung es liefert, am Ende des Menüs, mit `lock_version` 1.
+
+**`PUT /api/v1/dashboards/:id`** ersetzt Namen und Layout:
+`{"dashboard": {"name", "layout", "lock_version"}}`, alle drei Pflicht,
+`lock_version` die, mit der das Dashboard gelesen wurde. Die Antwort ist
+`200` mit einer um eins höheren `lock_version`; ein Ersetzen, das nichts
+ändert, schreibt und journalisiert nichts. **`PATCH
+/api/v1/dashboards/:id`** benennt um und/oder verschiebt im Menü:
+`{"dashboard": {"name", "position", "lock_version"}}`, `name` oder
+`position` (eine ganze Zahl von 1 bis 10.000) oder beide, `lock_version`
+optional; ohne sie gilt die Änderung für das Dashboard, wie es gespeichert
+ist. Eine `lock_version`, die nicht die gespeicherte ist, liefert bei beiden
+Schreibzugriffen **`409`** `{"errors": {"code": "stale", "detail",
+"stored"}}`, `stored` das Dashboard, wie die Lesung es liefert, und schreibt
+nichts, damit eine Änderung, die mit dem Speichern am Bildschirm
+zusammenfällt, nie ungesehen verloren geht: auf `stored` aufbauen und seine
+`lock_version` senden.
+
+**`DELETE /api/v1/dashboards/:id`** liefert `204`. Mit `dry_run=true` löscht
+es nichts und liefert `200` `{"data": {"dry_run": true, "would_remove":
+{"dashboards": {"count": 1, "ids": [<id>]}}}}`, wie die kaskadierenden
+Löschungen antworten: Ein Dashboard löscht nichts anderes, keine View, keine
+Zahl und kein anderes Dashboard. `dry_run` nimmt `true` oder `false`; jeder
+andere Wert und jeder andere Parameter liefert `422` und nennt ihn.
+
+**Ablehnungen.** Ein Layout wird ganz geprüft, und das erste fehlerhafte
+Element lehnt den Schreibzugriff ab: `422` `{"errors": {"layout":
+[<Meldung>], "layout_item": {"index", "field", "reason"}}}`, `index` die
+Stelle des Elements in der Liste (ab 0), `field` der Schlüssel (`kind`,
+`size`, `col`, `row`, `settings`, `settings.view_id`, `settings.period`)
+und `reason` eines von `unknown_kind`, `unsupported_size`, `off_grid`,
+`overlap` (mit `other`, dem Index des früheren Elements, auf das es trifft),
+`unknown_view`, `no_view` (eine View an einer Art, die keine nimmt),
+`no_period` (ein angehefteter Zeitraum an einer Art ohne Zeitraum),
+`unsupported_period`, `unknown_key` (ein Schlüssel, den ein Element nicht
+nimmt: Ein Element nennt keine Route), `unknown_setting`, `missing`,
+`not_an_integer`, `not_an_object`, `too_many_items` (41 Elemente oder mehr,
+`index` 40) oder `not_a_list`. Nichts wird repariert oder verschoben. Ein
+Name über 60 Zeichen, mit einem Steuerzeichen oder leer liefert `422` und
+nennt `name`; das 51. Dashboard liefert `422` `{"errors": {"code":
+"too_many_dashboards", "detail"}}`; eine unbekannte Vorlage `422` mit
+`template`; ein Schreibzugriff auf `template:<key>` `422` mit `id` (eine
+Vorlage wird nie geschrieben: mit `POST` kopieren); eine unbekannte id
+`404`. Bei keiner Ablehnung wird etwas geschrieben. Eine `view_id`, die
+gespeichert wurde, bevor ihre View gelöscht wurde, entfernt das nächste
+Speichern, statt abzulehnen; jede andere `view_id` muss eine View nennen.
+Schlüssel werden als Strings verglichen, aus keinem wird ein Atom; der Name
+wird als Text gespeichert und maskiert gezeichnet.
+
 ## Importe
 
 Portfolio-Performance-Importe (CSV/JSON v1) laufen ausschließlich über die

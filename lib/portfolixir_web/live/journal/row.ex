@@ -26,7 +26,7 @@ defmodule PortfolixirWeb.Journal.Row do
             securities_account cash_account_bucket_assignment depot_bucket_assignment
             position_bucket_override portfolio bucket view classification category
             target target_plan policy_rule policy_rule_version crash_window_name
-            crash_manual_window snapshot
+            crash_manual_window snapshot dashboard
             tax_statement_snapshot tax_profile tax_parameters allowance_order setting
             merge_record retired_import_hash)
 
@@ -111,6 +111,8 @@ defmodule PortfolixirWeb.Journal.Row do
   def kind_label("crash_window_name"), do: pgettext("journal kind", "Crash window name")
   def kind_label("crash_manual_window"), do: pgettext("journal kind", "Manual crash window")
   def kind_label("snapshot"), do: pgettext("journal kind", "Snapshot")
+  # Sprint 31 D2: a dashboard's writes (ADR-0062 §2), found missing by D1's lens.
+  def kind_label("dashboard"), do: pgettext("journal kind", "Dashboard")
   def kind_label("tax_statement_snapshot"), do: pgettext("journal kind", "Recorded statement")
   def kind_label("tax_profile"), do: pgettext("journal kind", "Tax profile")
   def kind_label("tax_parameters"), do: pgettext("journal kind", "Tax parameters")
