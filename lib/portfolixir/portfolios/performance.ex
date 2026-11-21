@@ -801,8 +801,9 @@ defmodule Portfolixir.Portfolios.Performance do
       reference: nil,
       gaps:
         "prices and exchange rates carry the most recent stored point on or " <>
-          "before each day forward; a security with no quote yet is priced by " <>
-          "its own latest trade; a missing conversion path contributes zero " <>
+          "before each day forward (a stored close of 0 or below is not a price); a " <>
+          "security with no quote yet is priced by its own latest trade; a missing " <>
+          "conversion path contributes zero " <>
           "(ADR-0010). A cash account whose non-zero balance counted zero for want " <>
           "of a rate path on a window day or on the day before the window (the " <>
           "start value) is listed in unvalued_cash_accounts with its native balance, " <>
@@ -1528,11 +1529,16 @@ defmodule Portfolixir.Portfolios.Performance do
   # older one is the carried seed), then every close from `from` through
   # the last day the position is held. Before `from` only the latest close
   # sets the carried price, and after the position ends for good no day
-  # values it again.
+  # values it again. Only a close above 0 is a price: a stored close of 0
+  # or below (a feed's placeholder from before the plausibility bounds) is
+  # skipped as a day without a close is, so the last positive close
+  # carries over it, and a position with none counts zero by ADR-0051 §10
+  # (#1473, ADR-0051's amendment of 2026-11-21).
   defp held_quotes(security_id, walk_start, {from, until}) do
     lead =
       with :gt <- Date.compare(from, walk_start),
-           %{date: date} = row <- Quotes.at_or_before(security_id, Date.add(from, -1)),
+           %{date: date} = row <-
+             Quotes.at_or_before(security_id, Date.add(from, -1), positive: true),
            true <- Date.compare(date, walk_start) != :lt do
         [row]
       else
@@ -1542,16 +1548,20 @@ defmodule Portfolixir.Portfolios.Performance do
     lead ++ held_range(security_id, from, until)
   end
 
-  defp held_range(security_id, from, :open), do: Quotes.range(security_id, from, ~D[9999-12-31])
+  defp held_range(security_id, from, :open),
+    do: Quotes.range(security_id, from, ~D[9999-12-31], positive: true)
 
   defp held_range(security_id, from, %Date{} = until) do
-    if Date.compare(until, from) == :lt, do: [], else: Quotes.range(security_id, from, until)
+    if Date.compare(until, from) == :lt,
+      do: [],
+      else: Quotes.range(security_id, from, until, positive: true)
   end
 
   defp held_range(_security_id, _from, :never), do: []
 
   # Whether a close exists after the last one loaded: the retired-security
   # rule (#610) asks whether any close lies ahead, wherever the load ends.
+  # A close of 0 or below is none, as for the load itself (#1473).
   defp quoted_beyond?(_security_id, _from, :open), do: false
 
   defp quoted_beyond?(security_id, from, until) do
@@ -1561,7 +1571,8 @@ defmodule Portfolixir.Portfolios.Performance do
         :never -> Date.add(from, -1)
       end
 
-    Quotes.range(security_id, Date.add(through, 1), ~D[9999-12-31], limit: 1) != []
+    Quotes.range(security_id, Date.add(through, 1), ~D[9999-12-31], limit: 1, positive: true) !=
+      []
   end
 
   defp security_retired?(%Portfolixir.Catalog.Security{is_retired: retired?}),
@@ -1569,13 +1580,14 @@ defmodule Portfolixir.Portfolios.Performance do
 
   defp security_retired?(_security), do: false
 
-  # The seed close (last close before the walk) converted into the basis era
-  # of the day before the walk starts: as-traded at its own date, then
-  # rebased across any effective date between the quote and the walk.
+  # The seed close (last positive close before the walk, #1473) converted
+  # into the basis era of the day before the walk starts: as-traded at its
+  # own date, then rebased across any effective date between the quote and
+  # the walk.
   defp carried_seed(security_id, walk_start, currency, security, events) do
     seed_day = Date.add(walk_start, -1)
 
-    case Quotes.at_or_before(security_id, seed_day) do
+    case Quotes.at_or_before(security_id, seed_day, positive: true) do
       %{close: %Decimal{}} = quote_row ->
         close =
           quote_row
@@ -2327,10 +2339,14 @@ defmodule Portfolixir.Portfolios.Performance do
   end
 
   # The two ways `security_value/3` counts a held position zero: no price at
-  # all, or no rate path from the price's currency to the base. A price of 0
-  # or below (a legacy close from before the plausibility bounds) is no price
-  # for the count, as for `WindowReturn` (ADR-0046), although the walk still
-  # values the units at it (ADR-0051 §10 as amended 2026-11-19).
+  # all, or no rate path from the price's currency to the base. The walk
+  # reads no close of 0 or below as a price (`held_quotes/3`, #1473), so no
+  # close reaches the case below; a price of 0 or below now comes only from
+  # a booking (a buy, a sell or a delivery booked at 0, ADR-0010), which the
+  # walk values at it, and which stays no price for the count, as before:
+  # the units counted zero there, so their whole value would otherwise read
+  # as an unmarked contribution when the first close arrives (#1472's
+  # failure). ADR-0051's amendment of 2026-11-21 concerns closes only.
   defp unvalued_reason(security_id, context) do
     case Map.get(context.pricing, security_id) do
       %{price: %{close: %Decimal{} = close, currency: currency}} ->

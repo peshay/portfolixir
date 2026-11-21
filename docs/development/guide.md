@@ -71,6 +71,14 @@ Start the project with either:
   DATABASE_NAME=portfolixir_test_2 mix test
   ```
 
+  `mix ecto.create` under `MIX_ENV=test` creates every test database in
+  the libc collation `C.UTF-8`, from `template0` (`config/test.exs`), on
+  every machine and in CI, so no test passes in one collation's name order
+  and fails in another's (#1475);
+  `test/invariants/test_database_collation_test.exs` fails on a test database
+  created otherwise. Recreate one with `MIX_ENV=test mix ecto.drop`, then the
+  two commands above.
+
 - An async test writes exchange rates no other async test writes: its own
   quote currency (or dates no other test writes for that pair). *Why:* in
   the SQL sandbox a second insert on the same rate key (base, quote, date)
@@ -79,16 +87,25 @@ Start the project with either:
 
 - A linked git worktree is created with `scripts/worktree.sh add <path>
   <base-ref> [branch] [--db <name>]`: it starts from the base you name, links
-  the main checkout's `deps` and `mcp-server/node_modules`, keeps `_build` its
-  own, writes `/deps`, `/_build` and `node_modules` into the shared exclude
-  file, registers the gettext merge driver (see "Integrating gettext
-  catalogues" below), and prints (or with `--db` runs) the test-database
-  commands above.
+  the main checkout's `deps` and `mcp-server/node_modules` (or copies one
+  when the worktree's `mix.lock` or `mcp-server/package-lock.json` differs
+  from the main checkout's), keeps `_build` its own, writes `/deps`,
+  `/_build` and `node_modules` into the shared exclude file, registers the
+  gettext merge driver (see "Integrating gettext catalogues" below), and
+  prints (or with `--db` runs) the test-database commands above.
   *Why:* in Sprint 22 a worktree commit tracked the `deps` symlink, which
   the `.gitignore` line `/deps/` does not match, and cherry-picking it
   replaced the main checkout's `deps` (Sprint 22 retrospective). The
   pre-commit hook `no-symlinks` refuses any commit that tracks a symlink, and
   CI runs it with every other hook.
+  A link is never written through: `mix deps.get`, `deps.update` and
+  `deps.clean` first run `scripts/worktree.sh own deps` (`mix.exs`), which
+  replaces a linked `deps` with a copy of its own, so a lock changed in the
+  worktree is fetched there and not into the main checkout's. npm has no
+  such hook: run `scripts/worktree.sh own mcp-server/node_modules` before
+  `npm ci` or `npm install` in a worktree.
+  *Why:* in Sprint 30 one lane's fetch changed every lane's dependencies
+  through the link (Sprint 30 retrospective, carry-forward 9).
 
 ## Required local checks
 
@@ -296,7 +313,16 @@ have landed: a page left mid-load kills its load's task mid-query, and that
 takes the test's shared database connection with it.
 `test/invariants/browser_walks_settle_test.exs` refuses a script that
 navigates or closes a page without it. It needs Node, the `playwright` package on Node's module path (`NODE_PATH`) and
-its Chromium (`npx playwright install chromium`). The layout walks measure
+its Chromium (`npx playwright install chromium`). Every walk launches through
+`test/browser/launch.js`, which starts the `chromium-headless-shell` of the
+Playwright release `test/browser/package-lock.json` pins, the browser CI's
+`browser` job runs the walks in: a full Chrome lays the shipped Inter out
+differently, and a walk that passed there by 3 px failed in CI (Sprint 30
+retrospective). A machine that brings its own browser names it in
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE`; the walks then measure in that browser,
+not in CI's. The first launch of a walk logs which one it was, for example
+`launch.js: launched chromium-headless-shell of Playwright 1.65.0, Chromium
+158.0.8127.18`. The layout walks measure
 every bar in Inter, the app's font, and in DejaVu Sans, the fallback a device
 draws in when the font file cannot load (`test/browser/fonts.js`). The app
 ships Inter (`priv/static/fonts/`), and a walk fails unless the page loaded

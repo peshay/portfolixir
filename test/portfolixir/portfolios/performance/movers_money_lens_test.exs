@@ -157,15 +157,15 @@ defmodule Portfolixir.Portfolios.Performance.MoversMoneyLensTest do
   end
 
   # A legacy zero close (stored by a release before the plausibility bounds)
-  # is no price for the price side (WindowReturn, ADR-0046), but the walk
-  # reads it as a price of 0: on day D = 12 November the baseline (the 11th)
-  # values Nova at 0, so its whole value, 1 x 11 - 1 x 0 = 11, reads as its
-  # day's money move where its move is 1 x (11 - 10) = 1. The walk's figure
-  # stays (which closes it reads is its own decision); the count names the
-  # baseline day as no price, so the row is ranked marked, as #1472's is
-  # (Sprint 30 closing act, money lens, finding 1; ADR-0051 §10 as amended
-  # 2026-11-19).
-  test "a legacy zero close on the baseline day: the money side is marked" do
+  # is no price, for the price side (WindowReturn, ADR-0046) and for the walk
+  # alike (#1473, ADR-0051's amendment of 2026-11-21): on day D = 12
+  # November the baseline (the 11th) carries the 10th's close, so Nova moves
+  # by 1 x (11 - 10) = 1 on the money side and by 11 / 10 - 1 = 0.1 on the
+  # price side, valued on every day and unmarked. Sprint 30's walk read the
+  # 0 as a price and showed 1 x 11 - 1 x 0 = 11, its whole value, which the
+  # count of 2026-11-19 could only mark. Python's decimal at 34 digits:
+  # 1 * 11 - 1 * 10 = 1; 11 / 10 - 1 = 0.1.
+  test "a legacy zero close on the baseline day: the walk carries the last close" do
     {world, view} = world!("Nova")
     nova = security!(%{name: "Nova Zero Between"})
     deliver_untraded!(world, nova, "1", date: ~D[2026-10-20])
@@ -188,10 +188,11 @@ defmodule Portfolixir.Portfolios.Performance.MoversMoneyLensTest do
     [price] = read.price_return.highest
     assert Decimal.equal?(price.return, Decimal.new("0.1"))
     [money] = read.contribution.highest
-    assert Decimal.equal?(money.contribution, Decimal.new("11"))
-    assert Decimal.equal?(money.start_value, Decimal.new("0"))
+    assert Decimal.equal?(money.contribution, Decimal.new("1"))
+    assert Decimal.equal?(money.start_value, Decimal.new("10"))
+    assert Decimal.equal?(money.end_value, Decimal.new("11"))
     assert money.held_at_start and money.held_at_end
-    assert {money.unvalued_days, money.unvalued_reason, money.valued_days} == {1, :no_price, 1}
+    assert {money.unvalued_days, money.unvalued_reason, money.valued_days} == {0, nil, 1}
     assert read.contribution.unanswered == %{no_valuation: 0, zero_contribution: 0}
 
     # Wealth's table for the same day reads the same row.
@@ -203,8 +204,8 @@ defmodule Portfolixir.Portfolios.Performance.MoversMoneyLensTest do
       )
 
     row = Enum.find(wealth.positions, &(&1.security_id == nova.id))
-    assert Decimal.equal?(row.contribution, Decimal.new("11"))
-    assert {row.unvalued_days, row.unvalued_reason} == {1, :no_price}
+    assert Decimal.equal?(row.contribution, Decimal.new("1"))
+    assert {row.unvalued_days, row.unvalued_reason} == {0, nil}
   end
 
   # ADR-0061 §6 item 7, as corrected (Sprint 30 closing act, money lens,

@@ -48,12 +48,17 @@ defmodule Portfolixir.Catalog.Quotes do
 
   @doc """
   Most recent quote for the security, or nil. Like every latest read here, it
-  never serves a row dated past `MarketDataBounds.latest_date/0` (E25 S3, F26).
+  never serves a row dated past `MarketDataBounds.latest_date/0` (E25 S3, F26),
+  and it serves the most recent **positive** close: a stored close of 0 or
+  below is no price (#1473, ADR-0051's amendment of 2026-11-21, "one rule
+  for every price read in the app"). `positive: false` serves the stored
+  newest row as it is, for a surface that shows stored rows.
   """
-  def latest(security_id) when is_integer(security_id) do
+  def latest(security_id, opts \\ []) when is_integer(security_id) do
     SecurityQuote
     |> where([q], q.security_id == ^security_id)
     |> plausibly_dated()
+    |> positive_only(latest_opts(opts))
     |> order_by([q], desc: q.date)
     |> limit(1)
     |> Repo.one()
@@ -61,18 +66,22 @@ defmodule Portfolixir.Catalog.Quotes do
 
   @doc """
   Most recent quote per security for `security_ids`, as a map
-  `%{security_id => %Quote{}}`; securities without quotes are absent.
+  `%{security_id => %Quote{}}`; securities without quotes are absent. As
+  `latest/2`: the most recent positive close, unless `positive: false`.
 
   One `DISTINCT ON` query regardless of list size (#481 slice 2a fix round):
   the allocation breakdown prices its unheld SOLL rows from this instead of a
   per-security `latest/1` loop.
   """
-  def latest_by_security_ids([]), do: %{}
+  def latest_by_security_ids(security_ids, opts \\ [])
 
-  def latest_by_security_ids(security_ids) when is_list(security_ids) do
+  def latest_by_security_ids([], _opts), do: %{}
+
+  def latest_by_security_ids(security_ids, opts) when is_list(security_ids) do
     SecurityQuote
     |> where([q], q.security_id in ^security_ids)
     |> plausibly_dated()
+    |> positive_only(latest_opts(opts))
     |> distinct([q], q.security_id)
     |> order_by([q], asc: q.security_id, desc: q.date)
     |> Repo.all()
@@ -89,6 +98,9 @@ defmodule Portfolixir.Catalog.Quotes do
     |> Repo.all()
   end
 
+  # The latest reads take only positive closes unless told otherwise (#1473).
+  defp latest_opts(opts), do: Keyword.put_new(opts, :positive, true)
+
   # The latest reads' cap (F26): a row stored before the bound existed and
   # dated past it is never the latest quote.
   defp plausibly_dated(query) do
@@ -96,13 +108,27 @@ defmodule Portfolixir.Catalog.Quotes do
     where(query, [q], q.date <= ^latest)
   end
 
-  @doc "Closest quote on or before `date`, or nil."
-  def at_or_before(security_id, %Date{} = date) when is_integer(security_id) do
+  @doc """
+  Closest quote on or before `date`, or nil. With `positive: true` only a
+  close above 0 counts: a stored close of 0 or below is no price, and the
+  closest positive one before it answers (the walk's read, ADR-0051's
+  amendment of 2026-11-21).
+  """
+  def at_or_before(security_id, %Date{} = date, opts \\ []) when is_integer(security_id) do
     SecurityQuote
     |> where([q], q.security_id == ^security_id and q.date <= ^date)
+    |> positive_only(opts)
     |> order_by([q], desc: q.date)
     |> limit(1)
     |> Repo.one()
+  end
+
+  # A close of 0 or below, which a release before the plausibility bounds
+  # could store, is no price where a read asks for prices only.
+  defp positive_only(query, opts) do
+    if Keyword.get(opts, :positive, false),
+      do: where(query, [q], q.close > 0),
+      else: query
   end
 
   @doc """
@@ -118,12 +144,17 @@ defmodule Portfolixir.Catalog.Quotes do
     |> Repo.exists?()
   end
 
-  @doc "Quotes between `from` and `to` inclusive, ascending by date."
+  @doc """
+  Quotes between `from` and `to` inclusive, ascending by date. Options:
+  `:limit` (the newest `n` rows of the window) and `positive: true` (only
+  closes above 0, as `at_or_before/3` reads them).
+  """
   def range(security_id, %Date{} = from, %Date{} = to, opts \\ [])
       when is_integer(security_id) do
     query =
       SecurityQuote
       |> where([q], q.security_id == ^security_id and q.date >= ^from and q.date <= ^to)
+      |> positive_only(opts)
 
     # A limit keeps the newest rows of the window (#771), like the transaction
     # and rate lists; the result stays ascending.
@@ -203,7 +234,8 @@ defmodule Portfolixir.Catalog.Quotes do
   `latest/1` in the current display basis (ADR-0028 §2), or nil: a stale raw
   close from before an effective date is divided by the cumulative later
   ratio, so it never prices a post-split quantity at the unsplit value.
-  Returns `%{date, close, stored_close, source, basis, adjusted?}`.
+  Returns `%{date, close, stored_close, source, basis, adjusted?}`. The most
+  recent positive close, as `latest/2` reads it.
   """
   def adjusted_latest(security_id) when is_integer(security_id) do
     case latest(security_id) do
@@ -226,8 +258,9 @@ defmodule Portfolixir.Catalog.Quotes do
   end
 
   @doc """
-  `latest_by_security_ids/1` in the current display basis (ADR-0028 §2):
-  `%{security_id => %{date, close, stored_close, source, basis, adjusted?}}`.
+  `latest_by_security_ids/2` in the current display basis (ADR-0028 §2):
+  `%{security_id => %{date, close, stored_close, source, basis, adjusted?}}`,
+  each the most recent positive close.
   """
   def adjusted_latest_by_security_ids([]), do: %{}
 
@@ -668,7 +701,8 @@ defmodule Portfolixir.Catalog.Quotes do
   Returns the relative price change between today's most recent close and
   the close on/before `(today - days_back)`, as a Decimal in fraction form
   (e.g. `Decimal.new("0.10")` for +10 %). Returns nil when either side is
-  missing.
+  missing. Both sides are positive closes: a stored close of 0 or below is
+  no price (#1473).
   """
   def performance(security_id, days_back)
       when is_integer(security_id) and is_integer(days_back) and days_back > 0 do
@@ -676,7 +710,7 @@ defmodule Portfolixir.Catalog.Quotes do
     baseline_date = Date.add(today, -days_back)
 
     with %{close: latest_close} <- adjusted_latest(security_id),
-         %SecurityQuote{} = baseline <- at_or_before(security_id, baseline_date),
+         %SecurityQuote{} = baseline <- at_or_before(security_id, baseline_date, positive: true),
          %Decimal{} = baseline_close <- adjusted_close(baseline, security_id),
          false <- Decimal.equal?(baseline_close, 0) do
       latest_close
@@ -715,7 +749,8 @@ defmodule Portfolixir.Catalog.Quotes do
   # The SQL is a literal with positional parameters only ($1..$4); nothing is
   # interpolated into the query string. The latest and previous closes are
   # capped at MarketDataBounds.latest_date/0 like every latest read (F26), so a
-  # row dated past it neither prices a security nor hides a stale quote.
+  # row dated past it neither prices a security nor hides a stale quote. Every
+  # close read is positive: a stored close of 0 or below is no price (#1473).
   # sobelow_skip ["SQL.Query"]
   def attach_metrics(securities) when is_list(securities) do
     ids = Enum.map(securities, & &1.id)
@@ -741,28 +776,28 @@ defmodule Portfolixir.Catalog.Quotes do
     LEFT JOIN LATERAL (
       SELECT q.close, q.date, q.source
       FROM security_quotes q
-      WHERE q.security_id = s.id AND q.date <= $4
+      WHERE q.security_id = s.id AND q.date <= $4 AND q.close > 0
       ORDER BY q.date DESC
       LIMIT 1
     ) latest ON TRUE
     LEFT JOIN LATERAL (
       SELECT q.close, q.date, q.source
       FROM security_quotes q
-      WHERE q.security_id = s.id AND q.date <= $4
+      WHERE q.security_id = s.id AND q.date <= $4 AND q.close > 0
       ORDER BY q.date DESC
       OFFSET 1 LIMIT 1
     ) prev ON TRUE
     LEFT JOIN LATERAL (
       SELECT q.close, q.date, q.source
       FROM security_quotes q
-      WHERE q.security_id = s.id AND q.date <= $2
+      WHERE q.security_id = s.id AND q.date <= $2 AND q.close > 0
       ORDER BY q.date DESC
       LIMIT 1
     ) one_m ON TRUE
     LEFT JOIN LATERAL (
       SELECT q.close, q.date, q.source
       FROM security_quotes q
-      WHERE q.security_id = s.id AND q.date <= $3
+      WHERE q.security_id = s.id AND q.date <= $3 AND q.close > 0
       ORDER BY q.date DESC
       LIMIT 1
     ) one_y ON TRUE

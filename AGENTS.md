@@ -358,8 +358,11 @@ mix test test/browser --only browser
 deps.audit` read a live advisory database, so a gate can turn red with nobody
 pushing: that is a new advisory, not a regression. The browser tests need
 `npm ci --prefix test/browser` and that Playwright's Chromium (`npx --prefix
-test/browser playwright install chromium`); a machine with a Chromium of its
-own names it in `PLAYWRIGHT_CHROMIUM_EXECUTABLE`. The layout walks measure
+test/browser playwright install chromium`); the walks launch its
+`chromium-headless-shell`, as CI does, and log which browser they launched.
+A machine with a Chromium of its own names it in
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE`, and then measures in that browser, not
+CI's. The layout walks measure
 every bar in Inter, which the app ships, and in DejaVu Sans, which the
 machine needs (`fonts-dejavu-core` on Debian or Ubuntu, as CI installs it;
 `test/browser/fonts.js` fails a walk without it, or when the page did not

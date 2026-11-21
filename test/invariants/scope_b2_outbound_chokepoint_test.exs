@@ -397,6 +397,13 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       reason:
         "compile-time version read for FR-55 (Sprint 28 D-7); runs git on the local " <>
           "checkout, opens no connection"
+    },
+    {"Portfolixir.MixProject", "bash"} => %{
+      args: [["scripts/worktree.sh", "own", "deps"]],
+      reason:
+        "before a Mix task writes into deps, the repository's worktree helper replaces " <>
+          "a worktree's deps link with a local copy (Sprint 31 M4); copies files, opens " <>
+          "no connection"
     }
   }
 

@@ -440,121 +440,127 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
   # assumptions name the new income term and the narrower interest line. The
   # figures did not move: the walk's new interest clause under the old basis
   # text reproduced every digest before they were re-taken (this ledger's
-  # interest bookings name no security).
+  # interest bookings name no security). Every "performance …" and
+  # "contribution …" digest was re-taken a second time for #1473 (ADR-0051's
+  # amendment of 2026-11-21, Sprint 31 Z1): each basis's gaps text says a
+  # stored close of 0 or below is not a price. The figures did not move:
+  # with that clause removed from every string, each payload's digest was
+  # the one pinned before, and the five walk digests, which carry no basis,
+  # are unchanged.
   @pinned %{
     "analysis later" => "e62134dd762e2fbf",
     "analysis pin" => "60c06f98a124bcaf",
     "analysis pin core" => "95fb7ae18a87f890",
-    "contribution core 1y" => "22f3178f7658ef06",
-    "contribution core 3y" => "e4a1f01f101c7614",
-    "contribution core 5y" => "13e928ff66625850",
-    "contribution core max" => "9531fea9665661a2",
-    "contribution core range 2020-01-01..2022-12-31" => "2442e3c0cf01996c",
-    "contribution core range 2023-01-02..2023-01-31" => "8306f5de64e16cc0",
-    "contribution core range 2023-07-01..2023-12-31" => "0b1a696c549cdadc",
-    "contribution core range 2024-06-01..2024-06-30" => "f6ce58dc95e79c56",
-    "contribution core year 2023" => "9768e0f0c48f994a",
-    "contribution core year 2024" => "47f56555d31057f2",
-    "contribution core ytd" => "46588704d980d310",
-    "contribution later 1y" => "ad126d20660650f3",
-    "contribution later 3y" => "4a811b475e553197",
-    "contribution later 5y" => "2851bca22e357bf7",
-    "contribution later max" => "a7725366a161fd92",
-    "contribution later range 2020-01-01..2022-12-31" => "77a21db5d1866d03",
-    "contribution later range 2023-01-02..2023-01-31" => "9d4a382a874df264",
-    "contribution later range 2023-07-01..2023-12-31" => "0213c371be1fd7b5",
-    "contribution later range 2024-06-01..2024-06-30" => "ea23a005fdc720b5",
-    "contribution later year 2023" => "d0b4e5f5947ad0d1",
-    "contribution later year 2024" => "2d0e15a47aed9e35",
-    "contribution later ytd" => "77d60dd14085b9b0",
-    "contribution pin 1y" => "52d53df936810049",
-    "contribution pin 3y" => "fcc700f8e8a0d74a",
-    "contribution pin 5y" => "27f0e601359f7921",
-    "contribution pin core 1y" => "ee7e239cd37be887",
-    "contribution pin core 3y" => "9a619bb1c44894ae",
-    "contribution pin core 5y" => "d240c114f7bc3593",
-    "contribution pin core max" => "c4a651d5e244ac76",
-    "contribution pin core range 2020-01-01..2022-12-31" => "4602cd48c5b4c0fb",
-    "contribution pin core range 2023-01-02..2023-01-31" => "c2e027a82fe7b36b",
-    "contribution pin core range 2023-07-01..2023-12-31" => "e35924506ef9a801",
-    "contribution pin core range 2024-06-01..2024-06-30" => "7e285482b7d4d9e9",
-    "contribution pin core year 2023" => "5a94935c34c22a86",
-    "contribution pin core year 2024" => "8e085d895983a2e5",
-    "contribution pin core ytd" => "0c34dc1ff0e7cf78",
-    "contribution pin max" => "34afadae8db115d6",
-    "contribution pin range 2020-01-01..2022-12-31" => "f4c27ec16249390d",
-    "contribution pin range 2023-01-02..2023-01-31" => "f20e9c03386796ac",
-    "contribution pin range 2023-07-01..2023-12-31" => "f58402b17b3416c1",
-    "contribution pin range 2024-06-01..2024-06-30" => "8781c3aae44d314c",
-    "contribution pin year 2023" => "f909f07a2a76cb87",
-    "contribution pin year 2024" => "3d4627056e38ff1d",
-    "contribution pin ytd" => "afdc9e8c6a5e1da8",
-    "contribution view 1y" => "feec415894426bd6",
-    "contribution view 3y" => "025e9efca2dc8bda",
-    "contribution view 5y" => "b0a0343a138ef9bc",
-    "contribution view max" => "54ed45f0ede1c83a",
-    "contribution view range 2020-01-01..2022-12-31" => "ebfcbb54789833e2",
-    "contribution view range 2023-01-02..2023-01-31" => "47e5eb9bbef6f943",
-    "contribution view range 2023-07-01..2023-12-31" => "99d8243a6627e0d3",
-    "contribution view range 2024-06-01..2024-06-30" => "a8728f7b0bb34ab2",
-    "contribution view year 2023" => "a85a23413e17adfe",
-    "contribution view year 2024" => "303a7e3886b57a8f",
-    "contribution view ytd" => "27c8fc14ac0a32cb",
-    "performance core 1y" => "145b4bd7e158b5dc",
-    "performance core 3y" => "e6bc8b5462714cce",
-    "performance core 5y" => "92c0d83179fd3cac",
-    "performance core max" => "358304c7e174fb01",
-    "performance core range 2020-01-01..2022-12-31" => "bc7dea730174e871",
-    "performance core range 2023-01-02..2023-01-31" => "39f3d92a78058070",
-    "performance core range 2023-07-01..2023-12-31" => "9fd9ffcda038ca86",
-    "performance core range 2024-06-01..2024-06-30" => "3b874c692011b55b",
-    "performance core year 2023" => "87f2f3e24646e7b1",
-    "performance core year 2024" => "eb6253cfff52c5e6",
-    "performance core ytd" => "8371e0147bfc7fb7",
-    "performance later 1y" => "2730c9019658d05a",
-    "performance later 3y" => "616d2f62d9777eea",
-    "performance later 5y" => "6f3c9ce0bb5d061d",
-    "performance later max" => "191822971c65a3ee",
-    "performance later range 2020-01-01..2022-12-31" => "a686bc4d1abf9de5",
-    "performance later range 2023-01-02..2023-01-31" => "3403c7333832fd5d",
-    "performance later range 2023-07-01..2023-12-31" => "036813feb29a2dbe",
-    "performance later range 2024-06-01..2024-06-30" => "f7ed58605122de12",
-    "performance later year 2023" => "234faa31c1bccb8a",
-    "performance later year 2024" => "d35d8773cb7af67b",
-    "performance later ytd" => "f90249ae298e0e44",
-    "performance pin 1y" => "1de582c262c323c1",
-    "performance pin 3y" => "c752411685bc4f2b",
-    "performance pin 5y" => "c44900a8edc1310e",
-    "performance pin core 1y" => "d5971b093e56e61d",
-    "performance pin core 3y" => "b2741d84d38f66d0",
-    "performance pin core 5y" => "ec7f791cb64837a8",
-    "performance pin core max" => "235a3e90b3b245be",
-    "performance pin core range 2020-01-01..2022-12-31" => "7ecdb190dbba6050",
-    "performance pin core range 2023-01-02..2023-01-31" => "ad7345a2d7b8f229",
-    "performance pin core range 2023-07-01..2023-12-31" => "bd88d4dbfbde5933",
-    "performance pin core range 2024-06-01..2024-06-30" => "4cb9fdc544d74c87",
-    "performance pin core year 2023" => "2423778dbafec350",
-    "performance pin core year 2024" => "4aa605dc2b2e2d2e",
-    "performance pin core ytd" => "9b18d30f73f3b453",
-    "performance pin max" => "bba2a19179e66534",
-    "performance pin range 2020-01-01..2022-12-31" => "7ecdb190dbba6050",
-    "performance pin range 2023-01-02..2023-01-31" => "7c6fe8e1009b9d8a",
-    "performance pin range 2023-07-01..2023-12-31" => "5ae8b96455fc1f00",
-    "performance pin range 2024-06-01..2024-06-30" => "50a05b22e902ee49",
-    "performance pin year 2023" => "7387db515866e6bd",
-    "performance pin year 2024" => "1695928a8e0ca810",
-    "performance pin ytd" => "a4113434986839be",
-    "performance view 1y" => "41a1483cc3b5744a",
-    "performance view 3y" => "32bc4902466b8d7d",
-    "performance view 5y" => "cffb9cb9970e69fc",
-    "performance view max" => "a5b2db5acb8ed928",
-    "performance view range 2020-01-01..2022-12-31" => "ff8c055cc1ce4615",
-    "performance view range 2023-01-02..2023-01-31" => "f737ea2d6804d06c",
-    "performance view range 2023-07-01..2023-12-31" => "163be9c2885f4bb0",
-    "performance view range 2024-06-01..2024-06-30" => "a1dcd5365fcd1a2a",
-    "performance view year 2023" => "98478a36b329a90f",
-    "performance view year 2024" => "a0634d744ede85fa",
-    "performance view ytd" => "a37bf3079cae7af0",
+    "contribution core 1y" => "9a811135c651a995",
+    "contribution core 3y" => "fed41b76ef069e40",
+    "contribution core 5y" => "514003816114f6e7",
+    "contribution core max" => "b4080e83b8933b0d",
+    "contribution core range 2020-01-01..2022-12-31" => "993ebc4d812fa2cd",
+    "contribution core range 2023-01-02..2023-01-31" => "49fc5e2e860f2c4c",
+    "contribution core range 2023-07-01..2023-12-31" => "e51d831f3e0a1c65",
+    "contribution core range 2024-06-01..2024-06-30" => "86e8d3ad29ebfba6",
+    "contribution core year 2023" => "cb91e4bd7baa32b5",
+    "contribution core year 2024" => "1b11cee274f0f098",
+    "contribution core ytd" => "4e1c29d365124e4d",
+    "contribution later 1y" => "8ac7bf270faf4c07",
+    "contribution later 3y" => "88e17f50d8d2e7d9",
+    "contribution later 5y" => "e6fdd316a122d51d",
+    "contribution later max" => "b830f6abfe376fba",
+    "contribution later range 2020-01-01..2022-12-31" => "bfdcfdacd13de93c",
+    "contribution later range 2023-01-02..2023-01-31" => "e0b119e46f17086e",
+    "contribution later range 2023-07-01..2023-12-31" => "b18501474075cebc",
+    "contribution later range 2024-06-01..2024-06-30" => "9aea8c72e3aba7fa",
+    "contribution later year 2023" => "ddb6aa9390d201ce",
+    "contribution later year 2024" => "235e8b237899e03b",
+    "contribution later ytd" => "c564d6e9a9d3b315",
+    "contribution pin 1y" => "5ce75e9b06d4490c",
+    "contribution pin 3y" => "796af6ccec1b3d61",
+    "contribution pin 5y" => "250bcd3f1243d2a7",
+    "contribution pin core 1y" => "d7cdecd9f50a3f51",
+    "contribution pin core 3y" => "4d2929ada0a177c7",
+    "contribution pin core 5y" => "95e5afb0cd52f51b",
+    "contribution pin core max" => "7630d93cb7d4e79b",
+    "contribution pin core range 2020-01-01..2022-12-31" => "abd6918a0dcfb21d",
+    "contribution pin core range 2023-01-02..2023-01-31" => "2414dce0866bc414",
+    "contribution pin core range 2023-07-01..2023-12-31" => "64ebc8a0b42d4e50",
+    "contribution pin core range 2024-06-01..2024-06-30" => "a30e77a5f772f781",
+    "contribution pin core year 2023" => "9d1e01b8a822d02d",
+    "contribution pin core year 2024" => "d004d359f0eadc24",
+    "contribution pin core ytd" => "c4fd9574daa90e36",
+    "contribution pin max" => "54232d5eb4743fbe",
+    "contribution pin range 2020-01-01..2022-12-31" => "6aff3ce074f48f41",
+    "contribution pin range 2023-01-02..2023-01-31" => "55401d9817a7f405",
+    "contribution pin range 2023-07-01..2023-12-31" => "52a05e547f54dda6",
+    "contribution pin range 2024-06-01..2024-06-30" => "268cf4b8d1522528",
+    "contribution pin year 2023" => "2b025ec1f40f42f1",
+    "contribution pin year 2024" => "e2258cf7975544d1",
+    "contribution pin ytd" => "51cb866a4cdbdd38",
+    "contribution view 1y" => "561623994dcf839d",
+    "contribution view 3y" => "cb81fa6e9945c767",
+    "contribution view 5y" => "765298ffb33113ef",
+    "contribution view max" => "92b8946d8935a25e",
+    "contribution view range 2020-01-01..2022-12-31" => "c73db15e21869289",
+    "contribution view range 2023-01-02..2023-01-31" => "2f187a3588fdf319",
+    "contribution view range 2023-07-01..2023-12-31" => "c58089d358296bc5",
+    "contribution view range 2024-06-01..2024-06-30" => "4948535addb59216",
+    "contribution view year 2023" => "0fd266c2fba163a6",
+    "contribution view year 2024" => "78ae14261d597468",
+    "contribution view ytd" => "588e3bf7109b8f41",
+    "performance core 1y" => "ba1ac873dd61e4fa",
+    "performance core 3y" => "b3908dac3dfbe802",
+    "performance core 5y" => "3271ae20c005b3f1",
+    "performance core max" => "ba06bd52f3d301e6",
+    "performance core range 2020-01-01..2022-12-31" => "300c72b824aa6ea2",
+    "performance core range 2023-01-02..2023-01-31" => "3f9ab830ad3d49f2",
+    "performance core range 2023-07-01..2023-12-31" => "18217a607e4c2160",
+    "performance core range 2024-06-01..2024-06-30" => "263c23d0734904cf",
+    "performance core year 2023" => "8ece8acec46547dd",
+    "performance core year 2024" => "2e23f04db0869f1d",
+    "performance core ytd" => "c294d083d0197244",
+    "performance later 1y" => "4f3617731076a541",
+    "performance later 3y" => "59415ca43f9f5ee9",
+    "performance later 5y" => "c7bedfabdc314113",
+    "performance later max" => "abac876a8a39aaa8",
+    "performance later range 2020-01-01..2022-12-31" => "3c597fd3ed786c31",
+    "performance later range 2023-01-02..2023-01-31" => "40ae7896b9f53bcd",
+    "performance later range 2023-07-01..2023-12-31" => "312235c2780ca776",
+    "performance later range 2024-06-01..2024-06-30" => "68a5323c4afedfab",
+    "performance later year 2023" => "e8ec2a690cc929f3",
+    "performance later year 2024" => "296c0a3dec9a6811",
+    "performance later ytd" => "72a0ee8cdf364fd5",
+    "performance pin 1y" => "c85a2396e09fba18",
+    "performance pin 3y" => "0cb260be3f0c8b68",
+    "performance pin 5y" => "e93d97b50177b2a1",
+    "performance pin core 1y" => "69ba48a09efdfda9",
+    "performance pin core 3y" => "93e7056bdb011c0e",
+    "performance pin core 5y" => "8492e6bf47236031",
+    "performance pin core max" => "31d0947e2c16d98d",
+    "performance pin core range 2020-01-01..2022-12-31" => "bcd53c53ac44382f",
+    "performance pin core range 2023-01-02..2023-01-31" => "15be116d8cdbcf2d",
+    "performance pin core range 2023-07-01..2023-12-31" => "abadc4a6d05b832f",
+    "performance pin core range 2024-06-01..2024-06-30" => "3a35a9e6f146a0a2",
+    "performance pin core year 2023" => "e1fdc03246a5c4bc",
+    "performance pin core year 2024" => "efb698b592fee92d",
+    "performance pin core ytd" => "7b00807213a69d1d",
+    "performance pin max" => "3ab5f8d594c46b94",
+    "performance pin range 2020-01-01..2022-12-31" => "bcd53c53ac44382f",
+    "performance pin range 2023-01-02..2023-01-31" => "1e6fd7e099390a91",
+    "performance pin range 2023-07-01..2023-12-31" => "085db2573c3e9295",
+    "performance pin range 2024-06-01..2024-06-30" => "a5f3849ce82d8321",
+    "performance pin year 2023" => "fec7b65e894fab08",
+    "performance pin year 2024" => "400236d65879ba0a",
+    "performance pin ytd" => "ae1d9dad9de5de9a",
+    "performance view 1y" => "06a3d0d35d9e7a77",
+    "performance view 3y" => "8bad8172e6b2c83c",
+    "performance view 5y" => "5aa3735ba6c56430",
+    "performance view max" => "216af00e5026648b",
+    "performance view range 2020-01-01..2022-12-31" => "d6a70955528e289a",
+    "performance view range 2023-01-02..2023-01-31" => "2aedebf1ae035c19",
+    "performance view range 2023-07-01..2023-12-31" => "18a543c62c3e6a24",
+    "performance view range 2024-06-01..2024-06-30" => "b05e8e1a835da703",
+    "performance view year 2023" => "259fbb0cf88b5e5b",
+    "performance view year 2024" => "512a019ae8e473cf",
+    "performance view ytd" => "550d74e621eeb4d9",
     "view analysis" => "92e0bed4fa9d7010",
     "view analysis core" => "2571ee5b8b796e4e"
   }
@@ -572,7 +578,77 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
   #   change, Decimal for Decimal, to the representation.
   # - The headline figures read as captured.
   test "every performance read over the review seed's shapes keeps its pinned payload" do
+    assert_pinned!(seed_ledger!())
+  end
+
+  # User story (#1473, ADR-0051's amendment of 2026-11-21):
+  # As the operator and the agent reading performance figures on an
+  # instance whose older release stored a close of 0 or below,
+  # I want the walk to read such a close as no price, as every other price
+  # read does,
+  # so that a feed's placeholder never reads as a total loss and back.
+  #
+  # Acceptance criteria:
+  # - The pinned ledger with legacy closes of 0 and below added between its
+  #   positive closes (on window baseline days, on a window's last day, on
+  #   the day a carried seed is read, before a first booking, while a
+  #   position is priced by its trade, in USD, before a split, and in the
+  #   second portfolio) reads every pinned payload, Decimal for Decimal:
+  #   the same seed without those rows.
+  test "legacy closes of 0 and below leave every pinned payload as it is" do
     ledger = seed_ledger!()
+    legacy_closes!()
+    assert_pinned!(ledger)
+  end
+
+  # Rows a release before the plausibility bounds could store, written past
+  # the changeset as they sit in such a table, each on a day without a close
+  # of the seed's (its closes are weekly, on Mondays).
+  defp legacy_closes! do
+    by_name = Map.new(Repo.all(Portfolixir.Catalog.Security), &{&1.name, &1.id})
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    rows =
+      for {name, date, close} <- [
+            # The day before Alpha's first buy: the lead close of its load.
+            {"Pin Alpha", ~D[2023-02-28], "0"},
+            # The baseline day of the range from 2023-07-01.
+            {"Pin Alpha", ~D[2023-06-30], "0"},
+            # The last day of 2023 and of the second half's range, and the
+            # baseline day of 2024.
+            {"Pin Alpha", ~D[2023-12-31], "-3"},
+            # The seed day of a walk from the baseline of the June 2024 range.
+            {"Pin Alpha", ~D[2024-05-30], "0"},
+            # The June 2024 range's last day.
+            {"Pin Alpha", ~D[2024-06-30], "0"},
+            # Zeta, priced by its buy until its first close on 2023-08-07.
+            {"Pin Zeta", ~D[2023-07-03], "0"},
+            # Epsilon, never quoted while held.
+            {"Pin Epsilon", ~D[2023-08-01], "0"},
+            # Eta, the day before its 2:1 split.
+            {"Pin Eta", ~D[2024-04-14], "0"},
+            # Theta, a dollar position.
+            {"Pin Theta", ~D[2023-08-15], "-0.01"},
+            # Iota, delivered without a price.
+            {"Pin Iota", ~D[2024-01-03], "0"},
+            # Beta in the later portfolio.
+            {"Pin Beta", ~D[2024-03-05], "0"}
+          ] do
+        %{
+          security_id: Map.fetch!(by_name, name),
+          date: date,
+          close: Decimal.new(close),
+          source: "manual",
+          inserted_at: now,
+          updated_at: now
+        }
+      end
+
+    {11, _rows} = Repo.insert_all(SecurityQuote, rows)
+    :ok
+  end
+
+  defp assert_pinned!(ledger) do
     reads = reads(ledger)
     ids = ids()
     actual = Map.new(reads, fn {name, payload} -> {name, digest(payload, ids)} end)

@@ -6,7 +6,9 @@ defmodule Portfolixir.LockTable do
   the chain reader against itself and a rebinding, since Sprint 30 a news
   fetch, a feed's write and the news matcher against the security merge
   (the matcher against a security's delete too) and a setting's write
-  against another of the same setting, with
+  against another of the same setting, since Sprint 31 a recluster of a
+  scope's stories against the security merge, and a security's delete
+  against the merge and another delete, with
   the locks it takes in the order it takes them (Sprint 21's D-7;
   Sprint 20's retrospective). The lock-race harness (`Portfolixir.LockRace`)
   pins the pairs that meet; this table is what a new lock is checked
@@ -75,11 +77,13 @@ defmodule Portfolixir.LockTable do
   | 20 | **The import preview's dry run** (`Imports.Applier.reimport_counts/3`, run by the Imports page, and `Imports.Applier.economic_keys/2`, the same simulation, run by the import correction) | None: a read-only transaction that writes nothing (security review 2026-10-12, H53). It takes neither the account-identity lock (a holder of it stops the dry run at once) nor an ISIN write lock, inserts nothing, and reads the cash currencies without `KS`; a read that would wait for a lock stops it after a short wait. Locks no row. |
   | 21 | **news.assign** (`News.assign_item/4`: API, MCP; closing act, AT4) | every security it may touch `KS`, id order, off an unlocked read of the item: its own, its candidates, and the target or, for `null`, the securities the matcher names then → `adv(matcher)` (ORD5) → `adv(story scope)` of the item's security (`Stories.lock/2`) → the item `U` → the target's `adv(story scope)` → its UPDATE and the reclusters (the stories of both scopes, under the scope locks it holds). Should the item, read again under its lock, or the matcher's answer then name a security the first step did not hold, the transaction rolls back, releasing all of it, and runs again (at most three times, then `422` on `news_id`): no security is locked out of order. |
   | 22 | **A news rating** (`News.Sources.put_source/4` → `News.Retier.run/3`: API, MCP, a seed; ADR-0056 E1, S29 N1) | the source row `U` (or its INSERT, `ON CONFLICT DO NOTHING`) → `adv(news tier)` of its domain `X` and of each parent domain of two labels or more `S`, ascending key → when the write changes the tier and an unpromoted item it decides changes with it: the securities those items name (their own and an ambiguous one's candidates) `KS`, id order (off an unlocked read of the items, under the tier lock, so their set cannot grow) → `adv(matcher)` → `adv(story scope)` of each item's scope and language, in order → the items `U`, id order → their UPDATE, or for a block `Stories.remove/5` (it takes again the scope lock the rating holds) and the DELETE of the unassigned ones → the full reclusters of the scopes (under the scope locks held). An item that moved into a scope whose lock it does not hold rolls the whole write back, releasing all of it, and runs again (at most three times, then `422` on `domain`). |
-  | 23 | **A news fetch** (`News.Ingest.ingest/3`; ADR-0056 E1, S29 N1, S30 K1) | the feed's parent, its security or its category, `KS`, off the caller's read of the feed (#1457) → the feed `U`, read again under it (a feed whose parent changed in between rolls the attempt back, releasing both, and runs again on the parent it names now, at most three times) → `adv(news tier)` of every suffix of its items' domains `S`, ascending key, held to its commit → the tier read and the INSERTs (`FK` on the feed, held `U`, and on the parent, held `KS`) → after the commit, in transactions of their own, the matcher (row 26) and the reclusters (`adv(story scope)`). |
+  | 23 | **A news fetch** (`News.Ingest.ingest/3`; ADR-0056 E1, S29 N1, S30 K1) | the feed's parent, its security or its category, `KS`, off the caller's read of the feed (#1457) → the feed `U`, read again under it (a feed whose parent changed in between rolls the attempt back, releasing both, and runs again on the parent it names now, at most three times) → `adv(news tier)` of every suffix of its items' domains `S`, ascending key, held to its commit → the tier read and the INSERTs (`FK` on the feed, held `U`, and on the parent, held `KS`) → after the commit, in transactions of their own, the matcher (row 26) and the reclusters (row 28). |
   | 24 | **A chain read's writes** (`Chains.Reader.run/2`: the scheduled run and the on-demand refresh; ADR-0059 §5, §6, S29 H3) | an on-demand refresh first claims its try: one conditional upsert of the state row (`chain_reads`, its row lock for that one statement, no transaction; the closing act) → the network reads, outside any transaction → `adv(chain read, chain)` → every security bound to the chain `S`, id order, the binding read again under it → per halving `Events.put_chain_halving/6`: the security `S` again (held), the event `NKU` (the journal's lock step) or its INSERT (`FK` on the security, `KS`) → the state row's upsert (`chain_reads`, unjournaled). Locks no booking. |
   | 25 | **A feed's write** (`News.put_feed/3` on a stored feed: API, MCP; S30 K2) | the feed's security as the caller read it and the security the write binds it to `KS`, id order, or the category the write binds it to `KS` (#1457; never the old category, the closing act's order lens, finding 1) → the feed `NKU` (the journal's lock step), read again under it (a feed whose parent changed in between rolls the attempt back, releasing all of it, and runs again on the feed as it is now, at most three times, then `422` on its binding) → the COR1 check (plain reads of its items) → UPDATE (`FK` on a changed security or category, held `KS`). A create is an INSERT (`FK` on its parent). Locks no item. |
-  | 26 | **The news matcher** (`News.assign_aggregator_items/2`: a fetch's match after its commit, row 23; `News.rematch_recent/1`, run by `Catalog`'s news identity change, after its commit or inside a caller's transaction, a merge's included; S30 K2) | an unlocked read of the open aggregator items and of the universe → the securities they match `KS`, id order (#1457) → in a savepoint: `adv(matcher)` (ORD5) → the items `U`, id order → the universe compiled again (ORD5) → when it names a security the first step did not hold (an alias committed in between), a rollback to the savepoint, releasing every lock the attempt took, and a run again holding that one too (at most three times, then it raises, writing nothing) → the items' UPDATE (`FK` on an assigned security, held `KS`) → after the commit, the reclusters (`adv(story scope)`). Inside a caller's transaction that already holds `adv(matcher)`, the rollback to the savepoint keeps that lock. |
+  | 26 | **The news matcher** (`News.assign_aggregator_items/2`: a fetch's match after its commit, row 23; `News.rematch_recent/1`, run by `Catalog`'s news identity change, after its commit or inside a caller's transaction, a merge's included; S30 K2) | an unlocked read of the open aggregator items and of the universe → the securities they match `KS`, id order (#1457) → in a savepoint: `adv(matcher)` (ORD5) → the items `U`, id order → the universe compiled again (ORD5) → when it names a security the first step did not hold (an alias committed in between), a rollback to the savepoint, releasing every lock the attempt took, and a run again holding that one too (at most three times, then it raises, writing nothing) → the items' UPDATE (`FK` on an assigned security, held `KS`) → after the commit, the reclusters (row 28). Inside a caller's transaction that already holds `adv(matcher)`, the rollback to the savepoint keeps that lock. |
   | 27 | **A setting's write** (`Settings.set_default_view/2`, `set_news_cluster_window_hours/2`, `set_news_cluster_similarity/2`, `set_crash_benchmark/2`: API, MCP, the view switcher, the news settings; S29 C1, S30 A3) | `adv(setting key)` of the one setting it writes → the setting row `U`, read again under it (none while unset) → the crash benchmark only: its security read (plain reads, `BenchmarkSecurity.resolve/1`) → the upsert or DELETE of the setting row. Locks no other row. Without the advisory lock two first writes both read "none" and the later one's journal entry named no before (#1421, #1356). |
+  | 28 | **A recluster** (`News.Stories.recluster/4`: a fetch's after its commit, row 23, the matcher's, row 26, a merge's of its target, row 13, an assignment's, row 21, a rating's, row 22, a security delete's of the securities its items fall to (`News.forget_security/2`); `Stories.remove/5`: retention and a rating's block; `Stories.lock/2`: an assignment, a rating, a promotion; ADR-0056 B3, S31 K1) | the scope's parent, its security or its category, `KS` (#1470; none when it no longer exists) → `adv(story scope)` of the scope and language → `remove/5` only: the doomed items `U`, then their `cluster_id` cleared, emptied stories deleted (`U`) and the others' representatives rewritten, the items deleted → the plain reads of the scope's items and stories → each story's UPDATE (the row `NKU`; a changed representative `FK`: the item `KS`) or INSERT (`FK` on the parent, held `KS`, and on the representative item, `KS`) → the items moved into the stories, UPDATE (`NKU`; `FK` on the story `KS`) → the merged stories' DELETE (`U`). A caller that already holds the parent (rows 13, 21, 22, a promotion) takes it again at no wait. Locks no booking. |
+  | 29 | **A security's delete** (`Lifecycle.Delete.delete/2` for a security: `Catalog.delete_security/2`, API, MCP, the screen; S31 K1's attack lens) | the depots its position overrides name `NKU`, id order → an unlocked read of the securities its news items fall to (the other candidate of each item ambiguous between it and one more, `News.forget_security_heirs/1`) → in one pass, id order: the security `U` and each of those `KS` → that read again under the locks (one changed in between rolls the attempt back, releasing all of it, and runs again, at most three times, then `:raced`) → the late-override check and the reference count (plain reads) → the memberships, each row `U` → `News.forget_security/2`: the items listing it, UPDATE (`NKU`; an item assigned `FK` on its new security, held `KS`) → the reclusters of the securities they fell to (row 28; their parent held `KS`) → DELETE, journaled. Locks no booking. |
 
   ## Where two rows meet
 
@@ -171,6 +175,46 @@ defmodule Portfolixir.LockTable do
       merge finds the story moved to the target and refuses it, naming
       `cluster_id`. Before, the promotion held the members and then the
       note's `FK` asked the security, and both orders deadlocked.
+    * Row 28 against row 13 (#1470, S31 K1): the merge holds both
+      securities `U` and then UPDATEs the source's items (`scope_at`), its
+      stories (`security_id`, a column of a unique index, so each story
+      `U`, its items following by the cascade) and its items again; a
+      recluster of the source's scope (a fetch's after its commit, the
+      matcher's, an assignment's) takes the security `KS` before its
+      advisory lock and any story or item, so whichever reaches the
+      security first goes through and the other waits there holding
+      nothing the first asks for. A recluster that waited on the merge
+      reads the source's scope empty and writes nothing; the merge's own
+      full recluster of the target has folded its items in. Before, the
+      recluster held a story it had written and then asked the items it
+      moved into it, while the merge held those items and then asked the
+      story, and both orders deadlocked; the fetch's recluster, lost that
+      way, was only logged. Retention (`remove/5`) takes the same parent
+      first, before its items `U`, whose story INSERT would otherwise have
+      asked the security after them.
+    * Row 28 against a label write, a promotion, a feed's write (row 25)
+      and a category's delete: the label write holds its suggested
+      security `KS` and its story `KS`, which a recluster's `KS` and a
+      story's UPDATE (`NKU`) do not conflict with; a recluster deleting
+      that story waits for the label, which asks nothing the recluster
+      holds. A promotion takes its story's security `KS` before the same
+      advisory lock, as row 28 does. A feed's write locks no story or
+      item. A category's delete holds the category `U` and then checks the
+      rows that name it `KS`: a recluster of the category's scope meets it
+      at the category, before any story or item.
+    * Row 29 against row 13 and row 29 (S31 K1's attack lens, #1470's
+      family): a news item ambiguous between two securities, X and d. A
+      merge of X holds X and its target `U` and then rewrites the item's
+      candidates; a delete of X holds X `U` and then rewrites the item. A
+      delete of d takes d `U` and X `KS` in one pass, in id order, before
+      the item, so it meets either at X (or at d, for a delete of X): the
+      one that waits holds nothing the other asks for. A delete of d
+      released by a merge of X finds the item listing the target, reads
+      its heirs again, and runs again holding the target instead; one
+      released by a delete of X finds the item assigned to d and is
+      refused, the item referencing it. Before, the delete of d held the
+      item and then its foreign key asked X `KS`, and both orders
+      deadlocked.
     * Row 13 against a label write (`News.Labels.put/2`, `news.label`; the
       closing act's order lens, finding 3): `adv(news label, story, model,
       prompt version)` → the suggested security `KS` → the story `KS` → the

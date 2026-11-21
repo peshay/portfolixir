@@ -4170,10 +4170,12 @@ Beispiel-Payloads für Konten:
   dessen Schlusswert der Startwert ist, eingeschlossen, sodass eine
   Position, deren erster Preis oder erster Wechselkurs am ersten Tag des
   Fensters kam, benannt und nicht als glatter Gewinn gelesen wird (#1472,
-  Amendment von ADR-0051 vom 2026-11-19; Berechnungsversion 6). Ein
-  gespeicherter Schlusskurs von 0 oder darunter, wie ihn ein älteres Release
-  speichern konnte, zählt dort als kein Preis (`no_price`), während der Walk
-  die Stücke weiter mit ihm bewertet. Ein
+  Amendment von ADR-0051 vom 2026-11-19). Ein gespeicherter Schlusskurs von
+  0 oder darunter, wie ihn ein älteres Release speichern konnte, ist auch für
+  den Walk selbst kein Preis: der letzte positive Schlusskurs gilt über ihn
+  hinweg weiter wie über einen Tag ohne Schlusskurs, und eine Position ohne
+  bisherigen positiven Schlusskurs zählt null mit `no_price` (#1473,
+  Amendment von ADR-0051 vom 2026-11-21; Berechnungsversion 7). Ein
   Fremdwährungssaldo vor dem ersten
   Wechselkurs seiner Währung zählt ebenso null, und der erste Wechselkurs
   bringt seinen ganzen Wert in `cash_currency_effect`:

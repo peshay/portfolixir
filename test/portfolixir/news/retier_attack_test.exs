@@ -874,10 +874,13 @@ defmodule Portfolixir.LockRace.NewsRetierAttackTest do
       security = WorldFixtures.create_security!(name: "Retention First Quay AG", ticker: nil)
       {old, story} = story!(security, rated, 100 * 86_400)
 
+      # Retention holds the scope's advisory lock; since #1470 it takes the
+      # scope's security `FOR KEY SHARE` first, which the rating's own
+      # `FOR KEY SHARE` does not wait on (`Portfolixir.LockTable`, row 28).
       {retained, rating} =
         LockRace.race!(
           db,
-          {fn -> Retention.run(DateTime.utc_now()) end, &LockRace.lock?/1},
+          {fn -> Retention.run(DateTime.utc_now()) end, LockRace.query?("pg_advisory_xact_lock")},
           fn -> Sources.put_source(agent(), rated, :awareness) end
         )
 

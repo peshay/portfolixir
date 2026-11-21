@@ -323,7 +323,8 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
       gaps:
         "a walked day whose return base (previous value + flow + basis step) is zero or " <>
           "negative produces no return observation rather than a zero return; the walk's " <>
-          "own carry-forward of prices and rates is unchanged, so a day on which nothing " <>
+          "own carry-forward of prices and rates (a stored close of 0 or below is not a " <>
+          "price) is unchanged, so a day on which nothing " <>
           "was re-priced is an observation of no movement (ADR-0047 §5). A correlation " <>
           "pair reads only the days on which BOTH securities have a stored close, with " <>
           "returns between consecutive shared days, and a close before its currency's " <>
