@@ -5,6 +5,11 @@ defmodule PortfolixirWeb.OverviewExplanationsLiveTest do
   # clamps, its count and its link in view. Every name is synthetic.
   use PortfolixirWeb.ConnCase
 
+  # Sprint 31 D4: the template draws „Gesamtwert“ and „Datenqualität“ at S;
+  # this module pins the strip, the year-to-date change and the line's
+  # full sentences, which M draws, so `/` opens the Overview at M.
+  setup {Portfolixir.DashboardFixtures, :overview_at_m}
+
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Actor

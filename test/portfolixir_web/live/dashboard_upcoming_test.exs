@@ -84,9 +84,17 @@ defmodule PortfolixirWeb.DashboardUpcomingTest do
     assert view |> element("#dashboard-upcoming") |> render() =~ "Candidate Co"
   end
 
-  test "with nothing due the card is absent rather than empty", %{conn: conn} do
+  # Sprint 31 D4 (a widget is always drawn): with nothing due the widget
+  # keeps its place in the grid and says so in one quiet line, no list.
+  test "with nothing due the widget says so instead of a list", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/")
 
-    refute has_element?(view, "#dashboard-upcoming")
+    assert has_element?(
+             view,
+             "#dashboard-upcoming [data-role='upcoming-empty']",
+             "Nothing due in the next 30 days."
+           )
+
+    refute has_element?(view, "#dashboard-upcoming [data-role='upcoming-event']")
   end
 end

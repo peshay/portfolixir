@@ -15130,3 +15130,168 @@ a.widget-row:hover .widget-row__name {
   }
 }
 /* --- S31 D5 end --- */
+
+/* --- S31 D4 begin --- */
+/* The four widgets the owner named (ADR-0062 §12; planning board
+   ux-design-2026-11-21-sprint31/01 ①; idea boards 01, 03, 06). A figure
+   with its sub-line and a line under it (S, compact); the M value line;
+   the drift and crash tables; the switch „Im Depot · Katalog“; the
+   short data-quality lines. Compact type stays at 12 px and up. */
+.widget-figure {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.widget-figure__value {
+  font-size: 26px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+
+.widget-figure__sub {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.widget__compact .widget-figure__value {
+  font-size: 28px;
+}
+
+.widget__compact .widget-figure__sub {
+  font-size: 15px;
+}
+
+.widget-spark {
+  display: block;
+  width: 100%;
+  height: 32px;
+  color: var(--color-accent);
+}
+
+.widget-line {
+  display: block;
+  width: 100%;
+  height: 180px;
+  color: var(--color-accent);
+}
+
+.widget-line .chart-axis-y,
+.widget-line .chart-axis-x {
+  fill: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.widget-drift-table,
+.widget-crash-table {
+  width: 100%;
+  font-size: 13px;
+}
+
+.widget-drift-table th,
+.widget-drift-table td,
+.widget-crash-table th,
+.widget-crash-table td {
+  padding: var(--space-1) var(--space-2);
+}
+
+.widget-drift-table tbody th,
+.widget-crash-table tbody th {
+  font-weight: 500;
+  text-align: start;
+}
+
+.widget-drift-table__drift {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.widget-drift-table__drift .drift-bar {
+  flex: 0 1 64px;
+  min-width: 40px;
+}
+
+.widget-crash-table__dates {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.widget-crash-table td[data-role="crash-lowest"] .num {
+  margin-left: var(--space-1);
+}
+
+.widget-drift-hint,
+.widget-compact-note {
+  margin: 0;
+  font-size: 13px;
+}
+
+.widget__compact .widget-compact-note {
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.widget-switch {
+  justify-self: start;
+}
+
+.widget-switch .segmented-control__option.is-active {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.widget-findings {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.widget-findings__item {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+
+.widget-findings__item::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  transform: translateY(-1px);
+}
+
+.widget-findings__item.is-problem::before {
+  background: var(--color-danger);
+}
+
+.widget-findings__item.is-attention::before {
+  background: var(--color-warning);
+}
+
+.widget-findings a {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.widget-findings a:hover,
+.widget-findings a:focus-visible {
+  text-decoration: underline;
+}
+
+/* „Wertentwicklung“ at L: Wealth's stack in the widget, its legend under
+   the chart where the widget is narrower than the page's chart. */
+.dashboard-widget .stack-figure {
+  margin: 0;
+}
+/* --- S31 D4 end --- */
