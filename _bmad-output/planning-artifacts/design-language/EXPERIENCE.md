@@ -536,7 +536,7 @@ Amendments (2026-08-05):
 
 ### UX-DR12 — Responsive behavior *(amended)*
 
-Breakpoints {spacing.bp-sidebar} (off-canvas sidebar) / {spacing.bp-dialog} (single-column dialogs, bottom-sheet kebab) / {spacing.bp-density} (14px base, hidden subtitles, table scroll); `pointer: coarse` for touch sizing; same IA on all three surfaces. Amendment: **cross-references UX-DR15** — width handling above {spacing.bp-density} is not a breakpoint concern but a per-block scroller concern, and treating it as a breakpoint concern is what produced #560.
+Breakpoints {spacing.bp-sidebar} (off-canvas sidebar) / {spacing.bp-dialog} (single-column dialogs, bottom-sheet kebab) / {spacing.bp-density} (14px base, hidden subtitles, table scroll); `pointer: coarse` for touch sizing; same IA on all three surfaces. Amendment: **cross-references UX-DR15** — width handling above {spacing.bp-density} is not a breakpoint concern but a per-block scroller concern, and treating it as a breakpoint concern is what produced #560. *Amended 2026-11-21 (ADR-0062 §6):* the dashboard's widgets follow three width classes of their own — compact under 600 px, medium 600 to 1000 px, wide from 1000 px, and the short wide window's rail — chosen in CSS by the window's size, never by the device; their look is `DESIGN.md`'s amendment of 2026-11-21.
 
 ### UX-DR13 — State patterns *(section written 2026-08-05)*
 
@@ -1195,3 +1195,89 @@ the phone); detail pane **A** (reading overview); tree rows **A** (column head);
 bucket cell **A** (chips with a scope line). All nine land their anatomy in
 `DESIGN.md` → Components with their stories; C3-A's appearance is already
 decided in `DESIGN.md`'s 2026-09-12 amendment (two-line phone rows).
+
+## Amendment 2026-11-21 — The dashboard's period, and its edit mode *(Sprint 31 D8, FR-60, idea I56; ADR-0062 §5, §7; idea boards `mockups/ux-design-2026-11-21-idea-i56` 03 (the edit mode) and 05 (the period, A), as the owner answered them; planning board `mockups/ux-design-2026-11-21-sprint31/01` ①; plan D-4)*
+
+How the dashboards behave. Their look (the widget's frame, the sizes, the
+compact type floor and the width classes) is `DESIGN.md`'s amendment of
+the same day; the decision and its reasons are ADR-0062. The period rule
+is written as D5 built it; the edit mode is written from ADR-0062 §7 and
+the plan's D6 row, ahead of its build, and is reconciled with the build
+where they differ.
+
+### The period: one above every dashboard *(ADR-0062 §5; board 05 A)*
+
+- **One period selector**, in the dashboard's bar above the widgets: 1T,
+  1W, 1M, 3M, YTD, 1J, 3J, Max (`Portfolixir.Dashboards.Widgets.periods/0`),
+  a segmented control whose active option is pressed (`aria-pressed`). It
+  applies to every widget that takes a period. The default is Wealth's, 1J.
+- **Remembered per browser**, as the theme and Wealth's period are: the
+  last pick is kept under `dashboard.period` in this browser's storage
+  (the `PeriodMemory` hook), never on the server. Blocked or empty storage
+  is not an error: the page opens on 1J and a pick still works for the
+  page.
+- **Kept across dashboards**: a dashboard opened next, from the menu or
+  the switcher, with no period in its address, opens on the remembered
+  period and its address then names it. Switching dashboards never jumps
+  the period (the owner's reason for A over C).
+- **In the address when it is not 1J**: `?period=3m`, so a link opens a
+  dashboard on a period; an address that names a period wins over the
+  browser's memory; a value that is no period opens 1J; 1J is never
+  written. The scope's links keep the period.
+- **A widget follows** the selector and says so quietly in its head:
+  „folgt · 3M“.
+- **A widget may pin its own** in its ⋯ menu: „Zeitraum festlegen“ lists
+  the kind's periods, and a pick stores the pin in the item's
+  `settings.period` (one stored write, journaled as every write is);
+  „Folgt dem Dashboard (1J)“ removes it. A pinned widget is marked in the
+  accent, „📌 eigener: Max“, so a pinned figure is never read as the
+  selector's; a period change above it leaves it as it is. A template is
+  read-only: its menu offers „Anpassen“ instead, which copies it first.
+- **A widget that lacks the period translates it** by its kind's stated
+  rule and says so: „Tops und Flops“ reads ADR-0061's windows (1T Tag, 1W
+  Woche, 1M Monat, 3M Quartal, YTD YTD, 1J, 3J and Max 1J), and its tag
+  names a window that differs from the period: „folgt · 3M → Quartal“,
+  „folgt · Max → 1J“. „Wertentwicklung“ answers every period itself (the
+  four short ones as a trailing range ending today), so it translates
+  none.
+- **A widget with no period says so**: „ohne Zeitraum“, and its menu:
+  „Dieses Widget hat keinen Zeitraum.“ In the slice only
+  „Wertentwicklung“ and „Tops und Flops“ take a period; the other nine
+  kinds take none (the registry's `period: :none`). „Gesamtwert“ is
+  among them, yet its S form's line under the total follows the
+  dashboard's period („TTWROR · 3M“) under a head that says „ohne
+  Zeitraum“, and its menu cannot pin it: a mismatch the D8 report names,
+  not a rule.
+- **Under 600 px** the selector is a strip of its own row that the thumb
+  swipes sideways, its chips 44 px tall; „Max“ is always reachable, and
+  the page itself never scrolls sideways.
+
+### The edit mode *(ADR-0062 §7; board 03; the plan's D6)*
+
+- **„Bearbeiten“** switches a stored dashboard into its edit mode; a
+  template has none, its „Anpassen“ copies it first. Nothing is stored
+  while the mode is open: a move, a size or a removal is a change on the
+  screen, not a write.
+- **Each widget** shows a handle to move it, a size switch with exactly
+  the sizes its kind supports (the current one pressed), and × to remove
+  it. The widgets keep their content, so the operator sees what moves.
+- **The catalogue opens beside the grid**: the kinds by group, each with
+  its sizes; adding one places it at the first free place.
+- **„Zurücksetzen“** discards the unsaved edit and shows the stored layout
+  again; **„Fertig“** saves the whole edit as **one write** (`PUT` with
+  the `lock_version` it read): one journal entry per save, however many
+  moves it holds.
+- **The keyboard path**: every action reachable without a pointer. With a
+  widget's handle focused the arrow keys move it, the size switch's
+  buttons size it, Delete removes it; each change is announced to a screen
+  reader in a status region (the widget, its new place or size, or that it
+  was removed).
+- **In the compact class** the mode offers reorder, size and remove: the
+  one column has no grid to place on, so a move is up or down in the
+  reading order. Placement on the grid is the wide and medium classes'.
+- **A stale save**: when another write (an agent's `put`, another tab)
+  changed the dashboard since it was read, „Fertig“ is refused with the
+  409; the page shows the stored layout the refusal returned and offers to
+  load it, so neither edit is lost unseen. Nothing is merged silently.
+- **Refusals name the item**: a layout the server refuses (422) leaves the
+  mode open with the edit intact and the first bad item named.
