@@ -87,7 +87,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
                  "max" => "1y"
                },
                "ranges" => [],
-               "translated" => ~w(3m 3y max)
+               "translated" => ~w(1d 1w 1m 3m 3y max)
              },
              "scope" => "view",
              "compact" => true

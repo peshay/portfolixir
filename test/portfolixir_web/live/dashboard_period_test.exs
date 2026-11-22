@@ -168,8 +168,9 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
   # Acceptance criteria:
   # - A widget that takes the period says „folgt · 3M“.
   # - Tops und Flops, which knows Tag, Woche, Monat, Quartal, YTD and 1J,
-  #   says what it reads instead („folgt · 3M → Quartal“; 3J and Max read
-  #   1J) and reads that window; a period it has says no arrow.
+  #   says what it reads instead („folgt · 3M → Quartal“, „folgt · 1W →
+  #   Woche“: its calendar windows to date; 3J and Max read 1J) and reads
+  #   that window; YTD and 1J, its own, say no arrow.
   # - A widget without a period says „ohne Zeitraum“.
   # - The widget's own period chips are gone: the dashboard's drives it.
   test "a widget follows, translates, or has no period, and says so", %{conn: conn} do
@@ -194,7 +195,9 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
 
     pick(view, "1w")
     render_async(view)
-    assert tag_text(view, "movers") == "folgt · 1W"
+    # Tops und Flops reads the calendar week to date, not performance's
+    # seven trailing days, and says so (Sprint 31 closing act, C1).
+    assert tag_text(view, "movers") == "folgt · 1W → Woche"
     assert has_element?(view, "#dashboard-movers[data-window='week']")
 
     pick(view, "max")
@@ -247,12 +250,12 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
 
     pick(view, "1w")
     assert tag_text(view, "performance") == "📌 eigener: Max"
-    assert tag_text(view, "movers") == "folgt · 1W"
+    assert tag_text(view, "movers") == "folgt · 1W → Woche"
 
     pin(view, "movers", "1m")
     render_async(view)
     assert stored_settings(dashboard.id, "movers") == %{"period" => "1m"}
-    assert tag_text(view, "movers") == "📌 eigener: 1M"
+    assert tag_text(view, "movers") == "📌 eigener: 1M → Monat"
     assert has_element?(view, "#dashboard-movers[data-window='month']")
 
     view
@@ -363,7 +366,7 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
 
     assert stored_settings(dashboard.id, "performance") == %{}
     assert stored_settings(dashboard.id, "movers") == %{"period" => "1w"}
-    assert tag_text(view, "movers") == "📌 eigener: 1W"
+    assert tag_text(view, "movers") == "📌 eigener: 1W → Woche"
     assert tag_text(view, "performance") == "folgt · 1J"
     assert has_element?(view, "[data-role='period-pin-status']", "anderswo geändert")
 

@@ -23,8 +23,9 @@ defmodule Portfolixir.Dashboards.Widgets do
       period (§5): `periods` (the dashboard periods it answers), `param`
       (the source route's query parameter), `values` (dashboard period →
       the source's own value of `param`), `ranges` (the dashboard periods
-      it answers as the trailing `from`/`to` range ending today, for a route
-      that takes one) and `translated` (the dashboard periods it answers
+      it answers as a `from`/`to` range ending today, for a route that
+      takes one: ADR-0061 §3's money window, `range_start/2`) and
+      `translated` (the dashboard periods it answers
       with a different span, which the screen says: „3M → Quartal“).
     * `scope` — `:view` when it takes a view (all of today's portfolio reads
       do), else `:none`.
@@ -64,13 +65,17 @@ defmodule Portfolixir.Dashboards.Widgets do
       "max" => "1y"
     },
     ranges: [],
-    translated: ~w(3m 3y max)
+    # Tag, Woche and Monat are calendar windows to date (ADR-0061 §3),
+    # not the spans ending today that performance reads for 1T, 1W and
+    # 1M, so the screen says them too: „folgt · 1W → Woche“ (Sprint 31
+    # closing act, correctness lens C1).
+    translated: ~w(1d 1w 1m 3m 3y max)
   }
 
   # The performance family takes ytd, 1y, 3y and max as `period=`, and any
   # span as `from=`/`to=` (`PortfolixirWeb.Api.V1.PeriodParam`), so the four
-  # short periods are the trailing range ending today: every period is its
-  # own, none translated.
+  # short periods are a range ending today (`range_start/2`): every period
+  # is its own, none translated.
   @performance_period %{
     periods: @periods,
     param: "period",
@@ -337,8 +342,8 @@ defmodule Portfolixir.Dashboards.Widgets do
   @doc """
   The query parameters of the kind's source route for the dashboard period
   `period` on `today`: `{:ok, %{"window" => "quarter"}}`, `{:ok,
-  %{"period" => "ytd"}}`, or for a trailing range `{:ok, %{"from" =>
-  "2026-10-21", "to" => "2026-11-21"}}`. `{:error, :no_period}` for a kind
+  %{"period" => "ytd"}}`, or for a range ending today `{:ok, %{"from" =>
+  "2026-10-22", "to" => "2026-11-21"}}`. `{:error, :no_period}` for a kind
   that takes none, `{:error, :unknown_period}` for a period it does not
   answer, `{:error, :unknown_kind}` for an unknown key.
   """
@@ -370,10 +375,17 @@ defmodule Portfolixir.Dashboards.Widgets do
 
   defp rule_params(_rule, _period, _today), do: {:error, :unknown_period}
 
-  defp range_start("1d", today), do: Date.add(today, -1)
-  defp range_start("1w", today), do: Date.add(today, -7)
-  defp range_start("1m", today), do: Date.shift(today, month: -1)
-  defp range_start("3m", today), do: Date.shift(today, month: -3)
+  # A range's `from` is its first chained day: its baseline is the close
+  # of the day before (`Portfolixir.Portfolios.Performance`, as Wealth's
+  # own `ytd` starts on 1 January from 31 December's close). So each short
+  # period is ADR-0061 §3's money window, `S + 1` to `T`, its start day `S`
+  # one day, seven days, one month and three months before today: 1T is
+  # today alone, from the close before it, as the movers' Tag reads it
+  # (Sprint 31 closing act, correctness lens C1, money lens MO1).
+  defp range_start("1d", today), do: today
+  defp range_start("1w", today), do: Date.add(today, -6)
+  defp range_start("1m", today), do: today |> Date.shift(month: -1) |> Date.add(1)
+  defp range_start("3m", today), do: today |> Date.shift(month: -3) |> Date.add(1)
 
   @doc "`{module, name, arity}` written as Elixir names it: `Mod.fun/2`."
   @spec function_name(mfa()) :: String.t()

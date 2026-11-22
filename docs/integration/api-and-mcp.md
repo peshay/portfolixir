@@ -5221,7 +5221,7 @@ without reading the code: `{"data": {"widgets", "groups", "grid",
   have no route of their own), `period` (`"none"`, or `{periods, param,
   values, ranges, translated}`: the dashboard periods it answers, the
   source's query parameter, each period's value of it, the periods it
-  reads as a trailing `from`/`to` range, and the ones it answers with
+  reads as a `from`/`to` range ending today, and the ones it answers with
   another span, which the screen labels, for example `3m` read as
   `quarter`), `scope` (`view` when it takes a view, else `none`) and
   `compact` (`true`: every kind has its phone form).
@@ -5232,7 +5232,13 @@ without reading the code: `{"data": {"widgets", "groups", "grid",
   3, `L` 8 × 3) and `full`, which says that `full` is a page of its own,
   never placed on the grid.
 - `periods`: `values` (`1d`, `1w`, `1m`, `3m`, `ytd`, `1y`, `3y`, `max`)
-  and `default` (`1y`).
+  and `default` (`1y`). A range ending today is ADR-0061 §3's money
+  window, from the day after its start day to today, its baseline the
+  start day's close: `1d` is `from` = `to` = today (today's change from
+  the close before it), `1w` starts six days back, `1m` and `3m` the day
+  after the date one and three months back. The movers read `day`,
+  `week` and `month`, calendar windows to date, for `1d`, `1w` and `1m`,
+  so those are `translated` there.
 
 **`GET /api/v1/dashboards`** lists the stored dashboards in the menu's
 order (by `position`, then `id`), then the templates. Each entry is marked

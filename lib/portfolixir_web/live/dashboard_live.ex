@@ -1603,6 +1603,9 @@ defmodule PortfolixirWeb.DashboardLive do
         :change,
         Map.get(assigns.performance, {assigns.item.scope, assigns.item.period})
       )
+      # Wealth on the item's period, as „Wertentwicklung“'s link opens it
+      # (Sprint 31 closing act, C2/MO1): the card's figures are its.
+      |> assign(:wealth_href, PerformanceWidget.wealth_href(assigns.item.period, "S"))
 
     ~H"""
     <Widget.frame
@@ -1610,7 +1613,7 @@ defmodule PortfolixirWeb.DashboardLive do
       item={@item}
       title={Widgets.title("total_value")}
       scope_label={scope_label(@item, @views)}
-      full_href="/portfolio?period=ytd"
+      full_href={@wealth_href}
       full_label={gettext("View in Wealth →")}
     >
       <:info>
@@ -1634,9 +1637,11 @@ defmodule PortfolixirWeb.DashboardLive do
             valuation={@card.valuation}
             card={@card}
             active_view={@active_view}
+            wealth_href={@wealth_href}
           /><.wealth_card_excluded_short
             :if={@card && @item.size == "S"}
             valuation={@card.valuation}
+            wealth_href={@wealth_href}
           /></div>
       </:shared>
       <.wealth_value
@@ -1645,6 +1650,7 @@ defmodule PortfolixirWeb.DashboardLive do
         error={@error}
         uid={@uid}
         change={if @item.size == "S", do: {@change, @item.period}}
+        wealth_href={@wealth_href}
       />
       <Line.sparkline
         :if={@item.size == "S" && is_map(@change)}
@@ -1663,6 +1669,7 @@ defmodule PortfolixirWeb.DashboardLive do
           card={@card}
           data_quality={@data_quality}
           last_booking={@last_booking}
+          wealth_href={@wealth_href}
         />
       </:compact>
     </Widget.frame>
@@ -2000,6 +2007,8 @@ defmodule PortfolixirWeb.DashboardLive do
     doc: "at S: `{read, period}`, the period's performance read (Sprint 31 D4)"
   )
 
+  attr(:wealth_href, :string, required: true)
+
   # #1081 (D-3, board 01 pick J1 A): the value in every state.
   defp wealth_value(assigns) do
     ~H"""
@@ -2044,7 +2053,7 @@ defmodule PortfolixirWeb.DashboardLive do
     <% else %>
       <%!-- #1122 (board 01 ④, option 3): the card's period travels,
            read on arrival and never stored; no `?view=`. --%>
-      <a id={"dashboard-wealth-card" <> @uid} href="/portfolio?period=ytd" class="stat stat--link">
+      <a id={"dashboard-wealth-card" <> @uid} href={@wealth_href} class="stat stat--link">
         <span><%= @card.name || gettext("Everything") %></span>
         <strong>
           <span
@@ -2211,6 +2220,7 @@ defmodule PortfolixirWeb.DashboardLive do
   attr(:card, :any, required: true)
   attr(:data_quality, :any, required: true)
   attr(:last_booking, :any, required: true)
+  attr(:wealth_href, :string, required: true)
 
   # The compact form of „Gesamtwert“ (board 06): the view, the total at
   # figure size, the year-to-date change under it, then the strip's four
@@ -2218,7 +2228,7 @@ defmodule PortfolixirWeb.DashboardLive do
   defp total_value_compact(assigns) do
     ~H"""
     <%= if @card do %>
-      <a class="widget-total" href="/portfolio?period=ytd" data-compact-role="total">
+      <a class="widget-total" href={@wealth_href} data-compact-role="total">
         <span class="widget-total__label"><%= @card.name || gettext("Everything") %></span>
         <strong class="widget-total__figure num">
           <%= Format.money(@card.valuation.total_with_cash) %>
@@ -2600,6 +2610,7 @@ defmodule PortfolixirWeb.DashboardLive do
   attr(:card, :map, required: true)
   attr(:active_view, :any, default: nil)
   attr(:uid, :string, default: "")
+  attr(:wealth_href, :string, required: true)
 
   # #1081 (D-3, board 01 pick J1 A; UX-DR25 clauses 1–3): what the card's
   # total leaves out, named beside it — the cash accounts with no rate path
@@ -2610,7 +2621,7 @@ defmodule PortfolixirWeb.DashboardLive do
   # It reads only the valuation the card already reads, and its names come
   # from the helpers Wealth's notes use. No control: the rate sync and the
   # price are fixed on Wealth, so the note links there. The link is the
-  # card's own `/portfolio?period=ytd` — the card's period, read on arrival;
+  # card's own — Wealth on the card's period, read on arrival;
   # the session's view, no `?view=`, nothing stored (#1122, board 01 ④,
   # option 3). Where the session's view is not the card's, one sentence
   # before the link names both, so the reader knows Wealth will show
@@ -2649,7 +2660,7 @@ defmodule PortfolixirWeb.DashboardLive do
            drops whitespace-only text between two elements keeps it. --%>
       <span :if={@active_id != @card.view_id} data-role="wealth-card-view"><%= view_sentence(@active_view, @card) %> </span>
       <:actions>
-        <a href="/portfolio?period=ytd" data-role="wealth-card-excluded-link"><%= gettext("Details in Wealth →") %></a>
+        <a href={@wealth_href} data-role="wealth-card-excluded-link"><%= gettext("Details in Wealth →") %></a>
       </:actions>
     </AppShell.data_note>
     <%!-- #1222 (the polish list #1358; Sprint 31 D3): where the total
@@ -2665,6 +2676,7 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   attr(:valuation, :map, required: true)
+  attr(:wealth_href, :string, required: true)
 
   # Sprint 31 D4 (the orchestrator's follow-up 1; board ①): at S what the
   # total leaves out in one line, each group's count and the link to
@@ -2676,7 +2688,7 @@ defmodule PortfolixirWeb.DashboardLive do
     <p :if={@counts != []} class="widget-warning" data-role="wealth-card-excluded-short">
       <AppShell.icon name={:alert_triangle} size={12} />
       <span><%= gettext("Not in the total: %{counts}.", counts: Enum.join(@counts, ", ")) %></span>
-      <a href="/portfolio?period=ytd"><%= gettext("Details in Wealth →") %></a>
+      <a href={@wealth_href}><%= gettext("Details in Wealth →") %></a>
     </p>
     """
   end

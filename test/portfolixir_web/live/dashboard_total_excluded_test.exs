@@ -126,7 +126,7 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
 
     assert has_element?(
              view,
-             "[data-role='wealth-card-excluded'] a[href='/portfolio?period=ytd']",
+             "[data-role='wealth-card-excluded'] a[href='/portfolio']",
              "Details in Vermögen →"
            )
 
@@ -524,7 +524,9 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
   # the named rows went — without the Overview making a view choice for me.
   #
   # Acceptance criteria:
-  # - The card's `href` and the note's link are `/portfolio?period=ytd`; no
+  # - The card's `href` and the note's link open Wealth on the widget's
+  #   period — `/portfolio` on 1J, Wealth's default, and
+  #   `/portfolio?period=ytd` on YTD (Sprint 31 closing act, C2/MO1); no
   #   `?view=` (nothing is stored, #1081's rule).
   # - With the remembered view „Nur Neuzugang“ and the card on „Alles“, one
   #   sentence before the link reads "Vermögen ist gerade auf die Ansicht
@@ -547,7 +549,16 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
                "USD Settlement (1.850,00 USD). Vermögen ist gerade auf die Ansicht " <>
                "„Nur Neuzugang“ eingegrenzt; diese Summe zählt „Alles“. Details in Vermögen →"
 
-    assert has_element?(view, "a#dashboard-wealth-card[href='/portfolio?period=ytd']")
+    assert has_element?(view, "a#dashboard-wealth-card[href='/portfolio']")
+
+    {:ok, ytd, _html} = live(conn, "/?period=ytd")
+    render_async(ytd)
+    assert has_element?(ytd, "a#dashboard-wealth-card[href='/portfolio?period=ytd']")
+
+    assert has_element?(
+             ytd,
+             "[data-role='wealth-card-excluded-link'][href='/portfolio?period=ytd']"
+           )
 
     assert has_element?(
              view,

@@ -5698,7 +5698,7 @@ zusammenstellen lässt, ohne den Code zu lesen: `{"data": {"widgets",
   Zahlen keine eigene Route haben), `period` (`"none"` oder `{periods, param,
   values, ranges, translated}`: die Dashboard-Zeiträume, die es beantwortet,
   der Abfrageparameter der Quelle, sein Wert je Zeitraum, die Zeiträume,
-  die es als nachlaufenden `from`/`to`-Bereich liest, und die, die es mit
+  die es als `from`/`to`-Bereich bis heute liest, und die, die es mit
   einer anderen Spanne beantwortet, was der Bildschirm beschriftet, etwa
   `3m` als `quarter`), `scope` (`view`, wenn es eine View nimmt, sonst
   `none`) und `compact` (`true`: jede Art hat ihre Telefon-Form).
@@ -5709,7 +5709,13 @@ zusammenstellen lässt, ohne den Code zu lesen: `{"data": {"widgets",
   `L` 8 × 3) und `full`, das sagt, dass `full` eine eigene Seite ist und nie
   im Raster steht.
 - `periods`: `values` (`1d`, `1w`, `1m`, `3m`, `ytd`, `1y`, `3y`, `max`) und
-  `default` (`1y`).
+  `default` (`1y`). Ein Bereich bis heute ist das Geldfenster aus
+  ADR-0061 §3, vom Tag nach seinem Starttag bis heute, seine Basis der
+  Schlusskurs des Starttags: `1d` ist `from` = `to` = heute (die Änderung
+  heute gegenüber dem Schlusskurs davor), `1w` beginnt sechs Tage zurück,
+  `1m` und `3m` am Tag nach dem Datum einen und drei Monate zurück. Die
+  Tops und Flops lesen für `1d`, `1w` und `1m` `day`, `week` und `month`,
+  Kalenderfenster bis heute; dort sind sie deshalb `translated`.
 
 **`GET /api/v1/dashboards`** listet die gespeicherten Dashboards in der
 Reihenfolge des Menüs (nach `position`, dann `id`), danach die Vorlagen.
