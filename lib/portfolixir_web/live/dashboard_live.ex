@@ -955,7 +955,9 @@ defmodule PortfolixirWeb.DashboardLive do
         %{assigns: %{edit: %Edit{}}} = socket
       )
       when is_binary(key) do
-    edit_step(socket, raw, fn edit, item ->
+    focus = if key in ["Delete", "Backspace"], do: :remove, else: :handle
+
+    edit_step(socket, raw, focus, fn edit, item ->
       case key do
         "ArrowLeft" -> Edit.move(edit, item, :left)
         "ArrowRight" -> Edit.move(edit, item, :right)
@@ -975,7 +977,7 @@ defmodule PortfolixirWeb.DashboardLive do
       ) do
     places = 1..Layout.max_row()
 
-    edit_step(socket, raw, fn edit, item ->
+    edit_step(socket, raw, :handle, fn edit, item ->
       Edit.place(edit, item, LiveParam.integer(col, places), LiveParam.integer(row, places))
     end)
   end
@@ -985,17 +987,17 @@ defmodule PortfolixirWeb.DashboardLive do
         %{"item" => raw, "size" => size},
         %{assigns: %{edit: %Edit{}}} = socket
       ),
-      do: edit_step(socket, raw, &Edit.resize(&1, &2, size))
+      do: edit_step(socket, raw, {:resize, size}, &Edit.resize(&1, &2, size))
 
   def handle_event("edit_remove", %{"item" => raw}, %{assigns: %{edit: %Edit{}}} = socket),
-    do: edit_step(socket, raw, &Edit.remove/2)
+    do: edit_step(socket, raw, :remove, &Edit.remove/2)
 
   def handle_event(
         "edit_reorder",
         %{"item" => raw, "direction" => direction},
         %{assigns: %{edit: %Edit{}}} = socket
       ) do
-    edit_step(socket, raw, fn edit, item ->
+    edit_step(socket, raw, {:reorder, direction}, fn edit, item ->
       case direction do
         "up" -> Edit.reorder(edit, item, :up)
         "down" -> Edit.reorder(edit, item, :down)
@@ -1005,7 +1007,7 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   def handle_event("edit_add", %{"kind" => kind}, %{assigns: %{edit: %Edit{} = edit}} = socket),
-    do: {:noreply, stepped(socket, Edit.add(edit, kind))}
+    do: {:noreply, stepped(socket, Edit.add(edit, kind), :handle)}
 
   def handle_event("edit_reset", _params, %{assigns: %{edit: %Edit{} = edit}} = socket) do
     {:noreply,
@@ -1074,30 +1076,55 @@ defmodule PortfolixirWeb.DashboardLive do
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   # --- S31 D6 begin ---
-  defp edit_step(%{assigns: %{edit: edit}} = socket, raw, step) do
+  defp edit_step(%{assigns: %{edit: edit}} = socket, raw, focus, step) do
     case Edit.key(edit, raw) do
       nil -> {:noreply, socket}
-      item -> {:noreply, stepped(socket, step.(edit, item))}
+      item -> {:noreply, stepped(socket, step.(edit, item), focus)}
     end
   end
 
   # A step applied: the edit drawn, its sentence said, the focus on the
-  # handle it names (the „Fertig“ button when none is left), and a read
-  # started for a widget the page has not read yet. A refused step is
-  # said and changes nothing else.
-  defp stepped(socket, {:ok, edit, say, focus}) do
+  # control the step names, and a read started for a widget the page has
+  # not read yet. A refused step is said and changes nothing else.
+  #
+  # The focus goes to the first of a list of ids the page has drawn and
+  # shows (the DashboardEdit hook), since the compact class hides the
+  # handle and the wide class the ↑ and ↓ (Sprint 31 closing act, Y1): the
+  # control just used, on the widget it moved — ↑ or ↓ after a reorder, a
+  # size after a resize —, else that widget's handle; after a removal the
+  # next widget's handle or ×; „Fertig“ when no widget is left.
+  defp stepped(socket, {:ok, edit, say, key}, focus) do
     socket
     |> assign(edit: edit, edit_say: say)
     |> assign_items()
-    |> push_event("dashboard-edit-focus", %{id: focus_id(focus)})
+    |> push_event("dashboard-edit-focus", %{ids: focus_ids(focus, key)})
     |> start_added_reads()
   end
 
-  defp stepped(socket, {:refused, say}), do: assign(socket, :edit_say, say)
-  defp stepped(socket, :error), do: socket
+  defp stepped(socket, {:refused, say}, _focus), do: assign(socket, :edit_say, say)
+  defp stepped(socket, :error, _focus), do: socket
 
-  defp focus_id(nil), do: "dashboard-edit-done"
-  defp focus_id(key), do: "dashboard-edit-handle-#{key}"
+  defp focus_ids(_focus, nil), do: ["dashboard-edit-done"]
+
+  defp focus_ids({:reorder, direction}, key),
+    do: [
+      "dashboard-edit-#{direction}-#{key}",
+      "dashboard-edit-handle-#{key}",
+      "dashboard-edit-done"
+    ]
+
+  defp focus_ids({:resize, size}, key),
+    do: [
+      "dashboard-edit-handle-#{key}",
+      "dashboard-edit-size-#{key}-#{size}",
+      "dashboard-edit-done"
+    ]
+
+  defp focus_ids(:remove, key),
+    do: ["dashboard-edit-handle-#{key}", "dashboard-edit-remove-#{key}", "dashboard-edit-done"]
+
+  defp focus_ids(:handle, key),
+    do: ["dashboard-edit-handle-#{key}", "dashboard-edit-up-#{key}", "dashboard-edit-done"]
 
   defp start_added_reads(socket) do
     socket

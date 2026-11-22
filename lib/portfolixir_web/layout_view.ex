@@ -2217,9 +2217,18 @@ defmodule PortfolixirWeb.LayoutView do
                   return best;
                 }
 
+                // The focus after a step: the first of the ids the page
+                // drew and shows (the compact class hides the handle, the
+                // wide class the reorder buttons; Sprint 31 closing act, Y1).
                 this.handleEvent("dashboard-edit-focus", function (payload) {
-                  var target = payload && payload.id ? document.getElementById(payload.id) : null;
-                  if (target) target.focus();
+                  var ids = (payload && payload.ids) || [];
+                  for (var i = 0; i < ids.length; i++) {
+                    var target = document.getElementById(ids[i]);
+                    if (target && target.getClientRects().length > 0) {
+                      target.focus();
+                      return;
+                    }
+                  }
                 });
 
                 this._onKeydown = function (event) {
