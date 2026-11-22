@@ -133,9 +133,10 @@ defmodule PortfolixirWeb.DashboardTest do
     assert html =~ ">#{expected}</span>"
     assert html =~ "EUR"
 
-    # The change signal: the card carries the TTWROR since the start of the
-    # year, said in words (#1090, board 08 ③).
-    assert has_element?(view, "[data-role='card-ttwror']", "year to date")
+    # The change signal: the card carries the TTWROR over the widget's
+    # period, labelled with it — 1J, the default (#1090, board 08 ③;
+    # Sprint 31 closing act, F1).
+    assert has_element?(view, "[data-role='card-period-change']", "TTWROR · 1Y")
 
     # No per-portfolio cards (ADR-0024: portfolios are no longer the
     # user-facing grouping), no activity feed, no count cards.
@@ -220,11 +221,12 @@ defmodule PortfolixirWeb.DashboardTest do
         %{date: %{Date.utc_today() | month: 1, day: 2}, close: "100.00", source: "manual"}
       ])
 
-    {:ok, view, _html} = live(conn, "/")
+    {:ok, view, _html} = live(conn, "/?period=ytd")
     render_async(view)
 
-    # 10 @ 100 bought, quoted 120 today: a positive YTD change.
-    assert view |> element("[data-role='card-ttwror']") |> render() =~ "is-positive"
+    # 10 @ 100 bought, quoted 120 today: a positive YTD change, on the
+    # widget's period line since Sprint 31's closing act (F1).
+    assert view |> element("[data-role='card-period-change']") |> render() =~ "is-positive"
   end
 
   # User story (ADR-0024):

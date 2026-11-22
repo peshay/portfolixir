@@ -117,28 +117,29 @@ defmodule PortfolixirWeb.CopyDialogStatesLiveTest do
 
     # User story (#1090, board 08 ③):
     # As a newcomer reading the Overview,
-    # I want the wealth card to say "since the start of the year" in words,
-    # so that I do not have to know what "YTD" stands for; the card is a link
-    # and cannot carry an ⓘ.
+    # I want the wealth card to say the period of its change,
+    # so that I do not have to guess what span the figure covers; the card
+    # is a link and cannot carry an ⓘ.
     #
     # Acceptance criteria:
-    # - The card's change reads "year to date" (de "seit Jahresbeginn"), never
-    #   the token "YTD".
-    test "the wealth card says year to date in words", %{conn: conn} do
+    # - The card's change names the widget's period (Sprint 31 closing act,
+    #   F1: at M as at S): "TTWROR · 1Y" (de "TTWROR · 1J") on the default
+    #   period, never a bare "YTD" it does not cover.
+    test "the wealth card says the period of its change", %{conn: conn} do
       world_with_holding()
-      # Sprint 31 D4: the year-to-date change is „Gesamtwert“ at M.
+      # Sprint 31 D4: the strip is „Gesamtwert“ at M.
       Portfolixir.DashboardFixtures.overview_at_m!()
 
       {:ok, view, _html} = live(conn, "/")
       render_async(view)
-      card = view |> element("[data-role='card-ttwror']") |> render() |> text()
-      assert card =~ "year to date"
+      card = view |> element("[data-role='card-period-change']") |> render() |> text()
+      assert card =~ "TTWROR · 1Y"
       refute card =~ "YTD"
 
       {:ok, view, _html} = live(german(conn), "/")
       render_async(view)
-      card = view |> element("[data-role='card-ttwror']") |> render() |> text()
-      assert card =~ "seit Jahresbeginn"
+      card = view |> element("[data-role='card-period-change']") |> render() |> text()
+      assert card =~ "TTWROR · 1J"
       refute card =~ "YTD"
     end
 
