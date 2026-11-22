@@ -1666,13 +1666,12 @@ defmodule PortfolixirWeb.DashboardLive do
   # On the wizard too: a watched coin needs no transaction.
   defp cycle_cards(assigns) do
     ~H"""
-    <CycleChart.card
-      :for={payload <- @views}
-      payload={payload}
-      href={"/securities/#{payload.security_id}?tab=chart&cycles=1"}
-    />
+    <CycleChart.card :for={payload <- @views} payload={payload} href={cycle_href(payload)} />
     """
   end
+
+  defp cycle_href(nil), do: nil
+  defp cycle_href(payload), do: "/securities/#{payload.security_id}?tab=chart&cycles=1"
 
   # --- S29 H8 end ---
 
@@ -2141,11 +2140,16 @@ defmodule PortfolixirWeb.DashboardLive do
     <%!-- S29 H8 (ADR-0060 §11): the card „‹Name›-Zyklus“ per security
          with the cycle view, each its own read; its compact form is the
          card's list itself, which is already one event per line. --%>
+    <%!-- Sprint 31 closing act, DS5 (board 02 ⑤): the frame's title is
+         the widget's heading, each security's name a sub-line, and the
+         first one's chart the footer's „Ganze Ansicht →“. --%>
     <Widget.frame
       id={"dashboard-cycles" <> @item.uid}
       item={@item}
       title={Widgets.title("bitcoin_cycle")}
       class="widget--single-form"
+      full_href={cycle_href(List.first(@cycle_views))}
+      full_label={gettext("Full view →")}
     >
       <:info>
         <%= gettext(
@@ -2153,7 +2157,13 @@ defmodule PortfolixirWeb.DashboardLive do
         ) %>
       </:info>
       <:shared>
-        <.cycle_cards views={@cycle_views} />
+        <CycleChart.card
+          :for={payload <- @cycle_views}
+          payload={payload}
+          href={cycle_href(payload)}
+          in_widget
+          linked={length(@cycle_views) > 1}
+        />
         <p :if={@cycle_views == []} class="hint" data-role="cycles-empty">
           <%= gettext("No security shows the cycle view yet.") %>
         </p>

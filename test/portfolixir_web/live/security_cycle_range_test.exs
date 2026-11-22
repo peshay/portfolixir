@@ -15,7 +15,7 @@ defmodule PortfolixirWeb.SecurityCycleRangeTest do
 
   import Phoenix.LiveViewTest
   import Portfolixir.CycleFixtures
-  import Portfolixir.WorldFixtures, only: [create_security!: 1]
+  import Portfolixir.WorldFixtures, only: [base_world: 0, create_security!: 1, deposit!: 3]
   import PortfolixirWeb.PreferenceCookieHelpers, only: [put_preference_cookie: 3]
 
   alias Portfolixir.Clock
@@ -202,6 +202,40 @@ defmodule PortfolixirWeb.SecurityCycleRangeTest do
   # - Its link opens the security's chart with cycles on and „Zyklus“.
   # - The privacy mode hides the prices; the German page names the card
   #   „‹Name›-Zyklus“.
+  # User story (Sprint 31 closing act, DS5; board
+  # ux-design-2026-11-21-sprint31/02 ⑤):
+  # As the operator reading the widget „Bitcoin-Zyklus“ on the grid,
+  # I want its frame's title the only heading and its way to the chart in
+  # its footer, as every widget has it,
+  # so that the page's headings run h1 → h2 and the widget reads like its
+  # neighbours.
+  #
+  # Acceptance criteria:
+  # - Inside the widget no heading but the frame's h2: the security's name
+  #   is a sub-line.
+  # - The footer's „Ganze Ansicht →“ opens the chart with cycles on; the
+  #   card's own link is not drawn in the widget.
+  test "the cycle widget names its security in a sub-line, its link in the footer",
+       %{conn: conn} do
+    world = base_world()
+    deposit!(world, "1000", Date.add(Clock.today(), -30))
+    coin = recent_coin!(name: "Alpha Cycle Coin")
+
+    {:ok, view, _html} =
+      conn |> put_preference_cookie("portfolixir_locale", "de") |> live("/")
+
+    assert view |> nodes("#dashboard-cycles h2") |> Enum.map(&text/1) == ["Bitcoin-Zyklus"]
+    assert view |> nodes("#dashboard-cycles h3") == []
+
+    assert view |> nodes("#dashboard-cycles [data-role='cycle-card-name']") |> Enum.map(&text/1) ==
+             ["Alpha Cycle Coin"]
+
+    assert nodes(view, "#dashboard-cycles [data-role='cycle-card-open']") == []
+    [link] = nodes(view, "#dashboard-cycles .widget__foot a")
+    assert attr(link, "href") == "/securities/#{coin.id}?tab=chart&cycles=1"
+    assert text(link) == "Ganze Ansicht →"
+  end
+
   test "the dashboard card shows the bands as the API answers them and opens the chart",
        %{conn: conn} do
     beta = recent_coin!(name: "Beta Cycle Coin")
