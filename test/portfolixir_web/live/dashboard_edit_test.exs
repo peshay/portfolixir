@@ -453,6 +453,39 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert Dashboards.get_dashboard(dashboard.id).lock_version == dashboard.lock_version
   end
 
+  # User story (Sprint 31 closing act, DS4; board
+  # ux-design-2026-11-21-sprint31/02 ④):
+  # As the operator editing at a desk narrower than 1400 px,
+  # I want the catalogue to open over the page when I ask for it,
+  # so that the widgets keep their width while I arrange them.
+  #
+  # Acceptance criteria:
+  # - The edit mode draws „Widget hinzufügen“ (aria-expanded false) and
+  #   the catalogue closed; the button opens it (aria-expanded true, the
+  #   focus on its ×).
+  # - × and Esc close it, the focus back on „Widget hinzufügen“.
+  test "„Widget hinzufügen“ opens the catalogue, × and Esc close it", %{conn: conn} do
+    seed()
+    dashboard = dashboard!()
+    view = open_editing(conn, dashboard)
+
+    assert has_element?(view, "#dashboard-catalogue-toggle[aria-expanded='false']")
+    refute has_element?(view, "#dashboard-catalogue.is-open")
+
+    view |> element("#dashboard-catalogue-toggle") |> render_click()
+    assert has_element?(view, "#dashboard-catalogue.is-open")
+    assert has_element?(view, "#dashboard-catalogue-toggle[aria-expanded='true']")
+    assert_push_event(view, "dashboard-edit-focus", %{ids: ["dashboard-catalogue-close"]})
+
+    view |> element("#dashboard-catalogue-close") |> render_click()
+    refute has_element?(view, "#dashboard-catalogue.is-open")
+    assert_push_event(view, "dashboard-edit-focus", %{ids: ["dashboard-catalogue-toggle"]})
+
+    view |> element("#dashboard-catalogue-toggle") |> render_click()
+    view |> element("#dashboard-catalogue") |> render_keydown(%{"key" => "Escape"})
+    refute has_element?(view, "#dashboard-catalogue.is-open")
+  end
+
   # User story (Sprint 31 closing act, the accessibility lens's smaller
   # findings):
   # As the operator who edits with a screen reader,

@@ -95,6 +95,11 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
   #   M 236, T and L 360 px, the board's rows) on the review seed, but
   #   „Gesamtwert“, „Datenqualität“ and „Fällig“ at S, whose S forms are a
   #   later pass (DS1).
+  # - The edit mode at 1200 px (the template copied, „Bearbeiten“): the
+  #   grid as wide as outside the edit, no content past a frame, the
+  #   catalogue closed until „Widget hinzufügen“ opens it as a drawer at
+  #   the window's right edge, the grid still as wide; at 1440 px the
+  #   catalogue beside the grid (Sprint 31 closing act, DS4).
   # - At 844 × 390: the rail at the side, no bar at the foot.
   # - Each class in the page's own Inter and in DejaVu Sans.
   test "the dashboard's compact, medium and wide classes, by the window's width", %{

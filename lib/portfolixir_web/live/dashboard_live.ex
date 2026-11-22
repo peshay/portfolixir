@@ -134,7 +134,8 @@ defmodule PortfolixirWeb.DashboardLive do
         closed_trades: nil,
         customize_error: nil,
         edit: nil,
-        edit_say: nil
+        edit_say: nil,
+        catalogue_open: false
       )
       |> assign_widget_reads()
       # #828 (design pick D3-A): the due dates, read synchronously — the
@@ -951,9 +952,29 @@ defmodule PortfolixirWeb.DashboardLive do
 
     {:noreply,
      socket
-     |> assign(edit: edit, edit_say: gettext("Editing: nothing is stored until “Done”."))
+     |> assign(
+       edit: edit,
+       edit_say: gettext("Editing: nothing is stored until “Done”."),
+       catalogue_open: false
+     )
      |> assign_items()
      |> push_event("dashboard-edit-focus", %{ids: focus})}
+  end
+
+  # The catalogue's drawer (Sprint 31 closing act, DS4; board 02 ④): under
+  # 1400 px it lies over the page, closed until „Widget hinzufügen“ opens
+  # it, so the widgets keep their width; × or Esc closes it, the focus back
+  # on „Widget hinzufügen“. From 1400 px CSS sets it beside the grid and the
+  # two buttons are not drawn.
+  def handle_event("edit_catalogue", params, %{assigns: %{edit: %Edit{}}} = socket) do
+    open = Map.get(params, "open") == "true"
+
+    {:noreply,
+     socket
+     |> assign(:catalogue_open, open)
+     |> push_event("dashboard-edit-focus", %{
+       ids: if(open, do: ["dashboard-catalogue-close"], else: ["dashboard-catalogue-toggle"])
+     })}
   end
 
   # The keyboard path: the keys the handle sends (`phx-keydown`).
@@ -1268,6 +1289,7 @@ defmodule PortfolixirWeb.DashboardLive do
           period_addressed={@period_addressed}
           edit={@edit}
           edit_say={@edit_say}
+          catalogue_open={@catalogue_open}
         />
         <%!-- Sprint 31 D7 („Neues Dashboard“ → „Leer beginnen“): a stored
              dashboard with no widget says so and where widgets come from,
@@ -1313,6 +1335,7 @@ defmodule PortfolixirWeb.DashboardLive do
   attr(:period_addressed, :boolean, default: false)
   attr(:edit, :any, default: nil)
   attr(:edit_say, :string, default: nil)
+  attr(:catalogue_open, :boolean, default: false)
 
   # The bar above the widgets (planning board 01 ①): the dashboard's scope
   # („Gesamt ▾“), the period (board 05 A: 1T … Max, on a narrow window a
@@ -1394,6 +1417,18 @@ defmodule PortfolixirWeb.DashboardLive do
         <div :if={@board.dashboard} class="dashboard-edit-actions">
           <%= if @edit do %>
             <span class="dashboard-edit-actions__label"><%= gettext("editing") %></span>
+            <button
+              type="button"
+              id="dashboard-catalogue-toggle"
+              class="button-secondary dashboard-catalogue-toggle"
+              phx-click="edit_catalogue"
+              phx-value-open={to_string(not @catalogue_open)}
+              aria-expanded={to_string(@catalogue_open)}
+              aria-controls="dashboard-catalogue"
+              data-role="edit-catalogue-toggle"
+            >
+              <%= gettext("Add widget") %>
+            </button>
             <button
               type="button"
               class="button-secondary"
@@ -1514,6 +1549,8 @@ defmodule PortfolixirWeb.DashboardLive do
     """
   end
 
+  attr(:open, :boolean, default: false)
+
   # The catalogue beside the grid (board 03, „Widget hinzufügen“): every
   # registered kind under its group, with its grid sizes; a tap adds it at
   # the first free place in its first size. The compact class has none
@@ -1533,11 +1570,26 @@ defmodule PortfolixirWeb.DashboardLive do
     ~H"""
     <aside
       id="dashboard-catalogue"
-      class="dashboard-catalogue"
+      class={["dashboard-catalogue", @open && "is-open"]}
       data-role="edit-catalogue"
       aria-labelledby="dashboard-catalogue-title"
+      phx-keydown="edit_catalogue"
+      phx-key="Escape"
+      phx-value-open="false"
     >
-      <h2 id="dashboard-catalogue-title"><%= gettext("Add widget") %></h2>
+      <div class="dashboard-catalogue__head">
+        <h2 id="dashboard-catalogue-title"><%= gettext("Add widget") %></h2>
+        <button
+          type="button"
+          id="dashboard-catalogue-close"
+          class="dashboard-catalogue__close"
+          phx-click="edit_catalogue"
+          phx-value-open="false"
+          aria-label={gettext("Close the catalogue")}
+          title={gettext("Close the catalogue")}
+          data-role="edit-catalogue-close"
+        ><span aria-hidden="true">×</span></button>
+      </div>
       <section :for={{group, kinds} <- @groups} class="dashboard-catalogue__group">
         <h3><%= Widgets.group_title(group) %></h3>
         <button
@@ -1652,7 +1704,7 @@ defmodule PortfolixirWeb.DashboardLive do
           {widget_assigns(assigns)}
         />
       </div>
-      <.catalogue :if={@edit} />
+      <.catalogue :if={@edit} open={@catalogue_open} />
     </div>
     """
   end

@@ -15657,9 +15657,80 @@ a.widget-row:hover .widget-row__name {
   }
 }
 
-/* The wide class: the catalogue beside the grid, the grid's columns drawn
-   faintly behind the widgets (board 03). */
-@media (width >= 1000px) {
+/* The catalogue's head: its title and, where it is a drawer, its ×. The
+   drawer's two buttons are drawn only where the catalogue is a drawer
+   (Sprint 31 closing act, DS4; board ux-design-2026-11-21-sprint31/02 ④). */
+.dashboard-catalogue__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.dashboard-catalogue-toggle,
+.dashboard-catalogue__close {
+  display: none;
+}
+
+.dashboard-catalogue__close {
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  box-shadow: none;
+  color: var(--color-text-muted);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.dashboard-catalogue__close:hover {
+  background: var(--color-hover);
+  filter: none;
+}
+
+.dashboard-catalogue__close:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* The wide class under 1400 px: the catalogue is a drawer over the page,
+   closed until „Widget hinzufügen“ opens it, so the grid keeps the width
+   it has outside the edit (beside the grid it shrank 924 → 668 px at
+   1200 px and widgets' content reached past their frames). */
+@media (1000px <= width < 1400px) {
+  .dashboard-catalogue-toggle {
+    display: inline-flex;
+  }
+
+  .dashboard > .dashboard-catalogue {
+    display: none;
+  }
+
+  .dashboard > .dashboard-catalogue.is-open {
+    position: fixed;
+    z-index: 40;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    width: min(20rem, 90vw);
+    overflow-y: auto;
+    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+    box-shadow: var(--shadow-panel);
+  }
+
+  .dashboard-catalogue.is-open .dashboard-catalogue__close {
+    display: inline-grid;
+  }
+}
+
+/* From 1400 px: the catalogue beside the grid; the grid's columns drawn
+   faintly behind the widgets in the whole wide class (board 03). */
+@media (width >= 1400px) {
   .dashboard:has(> .dashboard-catalogue) {
     grid-template-columns: minmax(0, 1fr) 15rem;
     align-items: start;
@@ -15673,7 +15744,9 @@ a.widget-row:hover .widget-row__name {
     position: sticky;
     top: var(--space-4);
   }
+}
 
+@media (width >= 1000px) {
   .dashboard-grid[data-editing="true"] {
     background-image: linear-gradient(
       to right,
