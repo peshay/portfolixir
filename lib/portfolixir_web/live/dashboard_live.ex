@@ -1910,12 +1910,12 @@ defmodule PortfolixirWeb.DashboardLive do
             ) %> · </span><%= if @report && @report.basis && @report.basis.several_portfolios,
             do:
               gettext(
-                "Categories whose drift is ±%{pp} pp or more from their target weight, at every level of the tree, in every portfolio.",
+                "Categories ±%{pp} pp or more off their target weight, at every tree level, in every portfolio.",
                 pp: threshold_pp()
               ),
             else:
               gettext(
-                "Categories whose drift is ±%{pp} pp or more from their target weight, at every level of the tree.",
+                "Categories ±%{pp} pp or more off their target weight, at every tree level.",
                 pp: threshold_pp()
               ) %>
         </p>
