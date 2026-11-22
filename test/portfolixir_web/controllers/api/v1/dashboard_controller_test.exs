@@ -210,7 +210,9 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
   # - GET /api/v1/dashboards/template:overview answers the template the same
   #   way, type template, read_only, its layout the one in code.
   # - An unknown id, a template key that names none, and an id that is
-  #   neither answer 404; a parameter answers 422 naming it.
+  #   neither answer 404; a template key that names none names the keys
+  #   offered, as POST's 422 does (Sprint 31 closing act, A4); a parameter
+  #   answers 422 naming it.
   test "one dashboard or one template, each item with its source", %{conn: conn} do
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Synthetic short term"})
 
@@ -266,10 +268,14 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
 
     assert Enum.all?(template["layout"], &match?(%{"source" => %{"routes" => [_ | _]}}, &1))
 
+    for path <- ["/api/v1/dashboards/template:nope", "/api/v1/dashboards/template:"] do
+      assert conn |> authed() |> get(path) |> json_response(404) ==
+               %{"errors" => %{"detail" => "not found: names no template; overview is offered"}},
+             path
+    end
+
     for path <- [
           "/api/v1/dashboards/#{stored.id + 1_000}",
-          "/api/v1/dashboards/template:nope",
-          "/api/v1/dashboards/template:",
           "/api/v1/dashboards/overview",
           "/api/v1/dashboards/0",
           "/api/v1/dashboards/99999999999999999999"

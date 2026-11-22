@@ -85,7 +85,8 @@ describe("the dashboard tools", () => {
   //   with id and template; a template copy carrying a layout, a position or
   //   a lock_version; a put with neither id, template nor dashboard; an item
   //   key or a setting the layout does not take (a route among them); a size
-  //   outside S, W, M, T and L; a col outside 1 to 12; 41 items; a name over
+  //   outside S, W, M, T and L; a kind over 40 characters (SE2: every other
+  //   text field is capped); a col outside 1 to 12; 41 items; a name over
   //   60 characters; a misspelt dry_run; a field a tool does not take.
   it("refuses what the API would refuse by its shape, before any request", async () => {
     const { client, requests } = createRecordingClient();
@@ -103,6 +104,7 @@ describe("the dashboard tools", () => {
       [PUT, { dashboard: { name: "N", layout: [{ ...item, route: "GET /api/v1/journal" }] } }],
       [PUT, { dashboard: { name: "N", layout: [{ ...item, settings: { route: "/api/v1/journal" } }] } }],
       [PUT, { dashboard: { name: "N", layout: [{ ...item, size: "full" }] } }],
+      [PUT, { dashboard: { name: "N", layout: [{ ...item, kind: "k".repeat(41) }] } }],
       [PUT, { dashboard: { name: "N", layout: [{ ...item, col: 13 }] } }],
       [PUT, { dashboard: { name: "N", layout: Array.from({ length: 41 }, (_, row) => ({ ...item, row: row + 1 })) } }],
       [PUT, { dashboard: { name: "x".repeat(61) } }],
@@ -167,7 +169,9 @@ describe("the dashboard tools", () => {
   // - put is hinted destructive and not idempotent (it overwrites with an
   //   id, adds without one); delete destructive.
   // - list's description says its answer carries the catalogue (kinds,
-  //   sizes, source routes, period rules) and the grid; put's names
+  //   sizes, source routes, period rules) and the grid, says get takes a
+  //   template's bare key and that data.widgets is the catalogue object,
+  //   its kinds under widgets (A4); put's names
   //   lock_version, the 409 with the stored dashboard, the template copy,
   //   the rename and move without a layout, the 422 naming the first bad
   //   item and that the token's actor is journaled; delete's names dry_run
@@ -199,9 +203,17 @@ describe("the dashboard tools", () => {
 
     const description = (name: string) => tool(name)?.description ?? "";
 
-    for (const part of ["widgets", "sizes", "source", "period", "grid", "template:", "in_menu"]) {
+    for (const part of ["widgets", "sizes", "source", "period", "grid", "in_menu"]) {
       assert.match(description(LIST), new RegExp(part), `list names ${part}`);
     }
+
+    // A4: get takes a template's bare key (template), and data.widgets is
+    // the catalogue object, its kinds under widgets beside groups, grid and
+    // periods.
+    assert.match(description(LIST), /get takes a template's key as template/);
+    assert.doesNotMatch(description(LIST), /template:</);
+    assert.match(description(LIST), /data\.widgets, the catalogue: widgets, each kind's key/);
+    assert.match(description(LIST), /groups; grid \(.*\); periods; limits/);
 
     for (const part of ["lock_version", "409", "template", "position", "422", "token", "period"]) {
       assert.match(description(PUT), new RegExp(part), `put names ${part}`);
@@ -222,6 +234,7 @@ describe("the dashboard tools", () => {
     assert.equal(item.additionalProperties, false);
     assert.deepEqual(item.required, ["kind", "size", "col", "row"]);
     assert.deepEqual(item.properties.size.enum, ["S", "W", "M", "T", "L"]);
+    assert.equal(item.properties.kind.maxLength, 40);
     assert.equal(item.properties.settings.additionalProperties, false);
     assert.deepEqual(Object.keys(item.properties.settings.properties).sort(), ["period", "view_id"]);
     assert.equal(putSchema.properties.dashboard.properties.layout.maxItems, 40);
