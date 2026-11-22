@@ -14549,6 +14549,94 @@ dialog.merge-dialog {
 }
 /* --- S30 T3 end --- */
 
+/* „Tops und Flops“ in the dashboard's wide form (Sprint 31 closing act,
+   DS1; board ux-design-2026-11-21-sprint31/02 ②): one ranking at a time,
+   the switch „Kursrendite · Beitrag“ the browser holds; under it the
+   ranking's highest and lowest side by side, four rows each (the rest
+   behind „In Vermögen →“), its count line under both. The ranking's own
+   heading is the switch's label, kept for a screen reader. */
+.movers-switch {
+  display: none;
+  justify-self: start;
+}
+
+.movers-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.movers-switch .segmented-control__option:has(input:checked) {
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.movers-switch .segmented-control__option:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+@media (width >= 1000px) {
+  .dashboard-widget .movers-switch {
+    display: inline-flex;
+  }
+
+  .dashboard-widget.movers:has(.movers-switch input[value="return"]:checked) [data-role="movers-contribution"],
+  .dashboard-widget.movers:has(.movers-switch input[value="contribution"]:checked) [data-role="movers-return"] {
+    display: none;
+  }
+
+  .dashboard-widget .movers__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-widget .movers__col {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-4);
+    align-items: start;
+  }
+
+  .dashboard-widget .movers__col > h3 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .dashboard-widget .movers__col > p {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-widget .movers__half {
+    margin-top: 0;
+  }
+
+  .dashboard-widget .movers__col .attention-list > li:nth-child(n + 5) {
+    display: none;
+  }
+
+  .dashboard-widget .movers__figure .drift-bar {
+    display: none;
+  }
+
+  /* One line a name, cut with an ellipsis; the link names the whole. */
+  .dashboard-widget.movers .attention-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-widget.movers .attention-item {
+    align-items: center;
+    padding-block: var(--space-1);
+  }
+}
+
 /* --- S31 D3 begin --- */
 /* ===== The dashboard page (ADR-0062 §4, §6; Sprint 31 D3; idea board
    ux-design-2026-11-21-idea-i56 01, 03, 06; planning board 01 ①) ===== */

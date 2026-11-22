@@ -150,6 +150,23 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
             <p :if={@f.wealth_view} class="hint" data-role="movers-wealth-view"><%= @f.wealth_view %></p>
         <% end %>
       </:shared>
+      <%!-- Sprint 31 closing act, DS1 (board
+           ux-design-2026-11-21-sprint31/02 ②): one ranking at a time, a
+           two-way switch the browser holds, as the compact form holds its
+           halves; both rankings stay whole in the markup, and the drawing
+           shows four rows a half, the rest behind „In Vermögen →“. --%>
+      <div
+        :if={@f && not @f.empty?}
+        class="movers-switch segmented-control"
+        role="radiogroup"
+        aria-label={gettext("Ranking")}
+        data-role="movers-switch"
+      >
+        <label :for={side <- ~w(return contribution)} class="segmented-control__option">
+          <input type="radio" name={"movers-side" <> @uid} value={side} checked={side == "return"} />
+          <%= side_label(side) %>
+        </label>
+      </div>
       <div :if={@f && not @f.empty?} class="movers__grid">
         <div class="movers__col" data-role="movers-return">
           <h3><%= pgettext("movers", "Price return") %></h3>
@@ -452,6 +469,9 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
       nil -> nil
     end
   end
+
+  defp side_label("return"), do: pgettext("movers", "Price return")
+  defp side_label("contribution"), do: gettext("Contribution")
 
   defp half_label(:highest), do: gettext("Highest")
   defp half_label(:lowest), do: gettext("Lowest")
