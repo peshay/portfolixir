@@ -464,9 +464,10 @@ defmodule PortfolixirWeb.DashboardEditTest do
   #   the dashboard was changed elsewhere and draws the stored layout,
   #   with „Gespeicherte Fassung laden“ and „Weiter bearbeiten“.
   # - „Gespeicherte Fassung laden“ ends the edit and draws the stored
-  #   dashboard.
-  # - „Weiter bearbeiten“ keeps the edit; the next „Fertig“ replaces the
-  #   stored version knowingly, under its name: one more journal entry.
+  #   dashboard; the focus goes to „Bearbeiten“.
+  # - „Weiter bearbeiten“ keeps the edit, the focus on „Fertig“; the next
+  #   „Fertig“ replaces the stored version knowingly, under its name: one
+  #   more journal entry.
   test "a stale save shows the stored layout and offers to load it", %{conn: conn} do
     seed()
     dashboard = dashboard!()
@@ -512,6 +513,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
            ]
 
     view |> element("[data-role='edit-load-stored']") |> render_click()
+    assert_push_event(view, "dashboard-edit-focus", %{ids: ["dashboard-edit-start"]})
     refute has_element?(view, "[data-role='edit-handle']")
     refute has_element?(view, "[data-role='edit-stale']")
     assert place(view, "movers") == {1, 7, "M"}
@@ -525,6 +527,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert has_element?(view, "[data-role='edit-stale']")
 
     view |> element("[data-role='edit-keep']") |> render_click()
+    assert_push_event(view, "dashboard-edit-focus", %{ids: ["dashboard-edit-done"]})
     refute has_element?(view, "[data-role='edit-stale']")
     assert has_element?(view, "[data-role='edit-handle']")
     view |> element("[data-role='edit-done']") |> render_click()

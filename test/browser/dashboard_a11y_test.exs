@@ -94,6 +94,16 @@ defmodule PortfolixirWeb.Browser.DashboardA11yTest do
   #   on screen; the closed sidebar is hidden (no shadow at the edge).
   # - Where the tab bar or the rail is the menu, the sidebar's toggle is
   #   hidden too.
+  #
+  # User story (ADR-0062 §7; Y3):
+  # As the operator who opens and closes the edit mode with a keyboard,
+  # I want the focus on the next thing I will press,
+  # so that the button I pressed vanishing does not drop me at the top.
+  #
+  # Acceptance criteria:
+  # - After „Bearbeiten“ the focus is on the first widget's handle.
+  # - After a stale save's „Weiter bearbeiten“ it is on „Fertig“.
+  # - After „Fertig“ (a save, or nothing to save) it is on „Bearbeiten“.
   test "the focus, the tab stops and the targets of the dashboard", %{
     base_url: base_url,
     dashboard: dashboard

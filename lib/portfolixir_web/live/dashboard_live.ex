@@ -939,13 +939,21 @@ defmodule PortfolixirWeb.DashboardLive do
         %{assigns: %{board: %{dashboard: %Dashboards.Dashboard{} = dashboard}, edit: nil}} =
           socket
       ) do
+    edit = Edit.start(dashboard)
+
+    # The focus goes to the first widget's handle, else „Fertig“ (Sprint 31
+    # closing act, Y3: the button pressed is gone from the page).
+    focus =
+      case Edit.reading_keys(edit) do
+        [first | _rest] -> ["dashboard-edit-handle-#{first}", "dashboard-edit-done"]
+        [] -> ["dashboard-edit-done"]
+      end
+
     {:noreply,
      socket
-     |> assign(
-       edit: Edit.start(dashboard),
-       edit_say: gettext("Editing: nothing is stored until “Done”.")
-     )
-     |> assign_items()}
+     |> assign(edit: edit, edit_say: gettext("Editing: nothing is stored until “Done”."))
+     |> assign_items()
+     |> push_event("dashboard-edit-focus", %{ids: focus})}
   end
 
   # The keyboard path: the keys the handle sends (`phx-keydown`).
@@ -1058,15 +1066,18 @@ defmodule PortfolixirWeb.DashboardLive do
     {:noreply,
      socket
      |> assign(edit: nil, edit_say: gettext("The stored version is shown."))
-     |> show(stored(stored), socket.assigns.scope_id)}
+     |> show(stored(stored), socket.assigns.scope_id)
+     |> push_event("dashboard-edit-focus", %{ids: ["dashboard-edit-start"]})}
   end
 
   def handle_event("edit_keep", _params, %{assigns: %{edit: %Edit{stale: %{}} = edit}} = socket) do
     {:noreply,
-     assign(socket,
+     socket
+     |> assign(
        edit: Edit.rebase(edit),
        edit_say: gettext("Editing continues; “Done” replaces the stored version shown before.")
-     )}
+     )
+     |> push_event("dashboard-edit-focus", %{ids: ["dashboard-edit-done"]})}
   end
 
   # --- S31 D6 end ---
@@ -1141,10 +1152,12 @@ defmodule PortfolixirWeb.DashboardLive do
 
   # The edit saved, or closed with nothing to save: the dashboard drawn as
   # stored, with its ⋯ menus, the reads it holds kept.
+  # The focus goes back to „Bearbeiten“ (Y3).
   defp saved(socket, dashboard, say) do
     socket
     |> assign(edit: nil, edit_say: say)
     |> then(&pinned_board({:ok, dashboard}, &1))
+    |> push_event("dashboard-edit-focus", %{ids: ["dashboard-edit-start"]})
   end
 
   defp stale_sentence,
@@ -1385,6 +1398,7 @@ defmodule PortfolixirWeb.DashboardLive do
           <% else %>
             <button
               type="button"
+              id="dashboard-edit-start"
               class="button-secondary"
               phx-click="edit_start"
               data-role="edit-start"
