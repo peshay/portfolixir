@@ -11273,3 +11273,183 @@ Step 25 of `priv/demo/finding_surfaces_seed.exs` carries the two cases
 the board drew by hand: „Demo Cash“ overdrawn by 11.865 EUR on two days
 45 days back, and „Vanguard FTSE All-World UCITS ETF USD Acc“ as the crash
 benchmark, whose seeded closes detect a window.
+
+## Amendment 2026-11-21 — The widget, its sizes, the compact type floor and the width classes *(Sprint 31 D8, FR-60, idea I56; ADR-0062 §1, §4, §6; idea boards `mockups/ux-design-2026-11-21-idea-i56` 01 (the widget), 03 (the grid), 05 (the period tag) and 06 (the compact forms and the width classes), as the owner answered them; planning board `mockups/ux-design-2026-11-21-sprint31/01` ① and ④; plan D-4)*
+
+The dashboard's look as Sprint 31 built it (D3 the page and the frame, D4
+the four widgets, D5 the period, D7 the menu), read from
+`PortfolixirWeb.Dashboard.Widget.frame/1` and the `app.css` blocks
+between `S31 D3 begin` and `S31 D7 end`. EXPERIENCE.md's amendment of the
+same day says how the period and the edit mode behave; ADR-0062 says why.
+Where the build and the boards differ, the difference is named below
+rather than absorbed.
+
+### The widget's frame, top to bottom *(board 01's five parts; inside `section.dashboard-widget`)*
+
+- **The frame**: `section.dashboard-widget.widget--{s|w|m|t|l}`, named by
+  its title (`aria-labelledby`), carrying `data-widget-kind`, `data-size`,
+  `data-col`, `data-row` and its place as CSS custom properties
+  (`--widget-col`, `--widget-row`, `--widget-w`, `--widget-h`). A card:
+  1 px {colors.border}, {rounded.lg}, {colors.bg-elevated}, the small
+  shadow, padding {spacing.3} {spacing.4}, its parts {spacing.3} apart.
+  The frame draws no figure of its own; every figure is the kind's body's,
+  from its source read.
+- **The head** (`div.section-head.widget__head`, one row, never wrapping
+  as a whole): the title block (`.section-title`, which wraps) and the ⋯
+  at its right.
+  - **The title**: `h2`, 17 px, the h3 weight, line height 1.2, the kind's
+    translated title („Gesamtwert“, „Allokation und Drift“ …).
+  - **The ⓘ** beside it: the section ⓘ of the 2026-11-02 amendment
+    (`AppShell.section_info`), holding the source's computation basis,
+    never a figure.
+  - **The period tag** (`span.widget__period`, `data-period-state`): a
+    quiet pill at the title block's end, 12 px, weight 600, padding 1 px
+    {spacing.2}, never wrapping inside itself; where the title and the tag
+    do not fit on one line the tag goes under the title, never past the
+    frame. Three states, each its own look so a pinned figure is never read
+    as the dashboard's (board 05 A):
+    - **follows** (`--follows`): outlined in {colors.border}, muted text:
+      „folgt · 3M“; where the kind answers the period with its own nearest
+      window, the window follows an arrow: „folgt · 3M → Quartal“;
+    - **pinned** (`--pinned`): no border, {colors.accent-soft} behind
+      {colors.accent} text, weight 700, the pin as a glyph the screen reader
+      skips: „📌 eigener: Max“ (and „… → 1J“ where translated);
+    - **none** (`--none`): a dashed {colors.border-strong} outline:
+      „ohne Zeitraum“.
+  - **The ⋯ menu** (`details.widget__menu`, „Widget-Menü“): a 30 × 30
+    square, 44 × 44 under a coarse pointer, muted until hovered or open;
+    its panel opens under it at the widget's right edge, at most
+    min(18 rem, the window less 2 rem) wide, 14 px. On a stored dashboard
+    it holds „Folgt dem Dashboard (1J)“ (a ● in the accent while it does),
+    the head „Zeitraum festlegen“ (12 px, uppercase, a rule above it) and
+    the kind's periods in four columns (13 px, 32 px tall, 44 px under a
+    coarse pointer; the pinned one filled in the accent). On a template it
+    holds the dashboard's period, „Anpassen“ and the note that a template
+    is read-only; a kind without a period says „Dieses Widget hat keinen
+    Zeitraum.“ The edit mode's actions (D6) join this menu.
+- **The controls** a kind keeps of its own, shared by both forms: today
+  the switch „Im Depot · Katalog“ of „Crashes im Vergleich“
+  (`.widget-switch`, the active option filled in the accent).
+- **A shared part**: a data note or a status region both forms show, drawn
+  once so no id is drawn twice; a kind of one form (the cycle card of
+  „Bitcoin-Zyklus“, `.widget--single-form`) draws its whole body here.
+- **The body, in two forms**: the wide form (`div.widget__wide`,
+  `data-form="wide"`), drawn at the item's size on the grid, and the
+  compact form (`div.widget__compact`, `data-form="compact"`), the kind's
+  own narrow layout at phone type (below). The width class picks which one
+  shows; the page never draws both.
+- **The footer** (`footer.widget__foot`): a rule above it, 13 px muted,
+  pushed to the frame's foot (`margin-top: auto`); the scope on the left
+  (`data-role="widget-scope"`: the view the widget reads, „Alle Depots,
+  unabhängig von der Ansicht“, the crash benchmark), the way on to the
+  right, in the accent, weight 600, underlined on hover: „Ganze Ansicht →“
+  (the full size), or the source screen („In Vermögen ansehen →“, „Ziele
+  bearbeiten →“, „Alle Fenster →“, „Vergleichen →“, „Alle Trades →“,
+  „Prüfen →“).
+
+### The sizes, on the 12-column grid *(ADR-0062 §1, §4; `Portfolixir.Dashboards.Widgets.dimensions/1`)*
+
+| Size | Columns × rows | On the grid at 1200 px, the sidebar open |
+|---|---|---|
+| **S** | 3 × 1 | 222 px wide |
+| **W** | 6 × 1 | 456 px wide |
+| **M** | 6 × 2 | 456 px wide |
+| **T** | 4 × 3 | 300 px wide |
+| **L** | 8 × 3 | 612 px wide |
+| **full** | its own page | reached through „Ganze Ansicht →“; never an item on the grid |
+
+A kind lists the sizes it supports (the catalogue, „Alle Widgets“, shows
+them as chips); a layout item names one of the grid sizes. The width is
+the span's: `w` columns and the `w − 1` gaps between them
+(`grid-template-columns: repeat(12, minmax(0, 1fr))`, gap {spacing.3}).
+At S, „Gesamtwert“ stacks its four strip figures one under the other, a
+list row's figure goes under its name where both do not fit, and the
+decorative drift bar gives way (its sign and words stay); at T the drift
+table's bar gives way the same way.
+
+**The row is not a fixed height.** The grid's rows are
+`minmax(7rem, auto)`: a row is at least 7 rem and grows to its tallest
+widget, so a size's row count says where a widget starts and how many rows
+it spans, not how tall it is. Board 03 drew a fixed row unit (112 px);
+the build lets the content set it. Measured on the review seed at 1200 px
+(the width walk): row 1 is 619 px tall, set by „Abseits des Ziels“ at S,
+and „Tops und Flops“ at M is 1056 px tall beside „Crashes im Vergleich“,
+whose own content is 357 px. Named here as the built state, not settled;
+the D8 report carries it to the orchestrator.
+
+### The compact type floor *(ADR-0062 §6; board 06)*
+
+The compact form is drawn at phone type, the same in the compact and the
+medium class:
+
+- **text 15 to 17 px**: a row's name and the compact form's base 16 px
+  (`.widget__compact`, `.widget-row`), a total's label and sub-line 15 px,
+  the compact switch's options 15 px, the title 17 px;
+- **figures 22 to 30 px**: a total's figure 28 px (`.widget-total__figure`,
+  its currency suffix 15 px), a widget figure 28 px in the compact form
+  (26 px in the wide one); a list row's figure 17 px, as a row figure, not
+  a key figure;
+- **nothing under 12 px**: the quiet parts sit between 12 and 13 px — the
+  period tag 12 px, a row's second line, the footer and a compact form's
+  group heading (uppercase) 13 px, the tab bar's labels 12 px;
+- **tap rows at least 44 px**: a compact row (`.widget-row`), the compact
+  switch, the period strip's chips, the tabs, the rows of „Mehr“ and of
+  the dashboard switcher.
+
+The width walk (`test/browser/dashboard_widths.js`) holds the floor on
+every visible text of the grid, the dashboard's bar and the tab bar at 375,
+393 and 440 px, and on the compact forms of the medium class, in Inter and
+in DejaVu Sans; an SVG text counts at the size it is drawn. One text breaks
+it on the review seed and is reported, not hidden: the data note's word
+„Achtung“ (`.data-note__word`, 11 px on every screen), in the compact form
+of „Verkaufsrückblick“ (`[data-role='trades-card-excluded']`).
+
+### The three width classes *(ADR-0062 §6; board 06; CSS px stand for the ADR's pt)*
+
+The class is the window's, chosen in CSS by its width (and, for the short
+wide window, its height); nothing of the device is read.
+
+| Class | Window | The widgets | The menu |
+|---|---|---|---|
+| **compact** | under 600 px | one column of compact forms in reading order (`.dashboard-grid` a one-column grid, {spacing.3} apart) | the tab bar at the foot |
+| **medium** | 600 to 999 px | two columns of compact forms, filled column by column in reading order (`columns: 2`, each widget whole in its column, {spacing.3} under it) | the burger and the off-canvas sidebar below 901 px, the sidebar from 901 px |
+| **wide** | from 1000 px | the 12-column grid, each widget at its `col` and `row` with its size's span, the wide form | the sidebar |
+
+- **Reading order** is the layout's by `row`, then `col` (§4); the page
+  draws the widgets in it, so the columns and a screen reader meet them in
+  the order the grid shows.
+- **The page around the widgets**: padding {spacing.4} clamp(16 px,
+  2.4 vw, 28 px) {spacing.6}; above them the dashboard's bar: the scope
+  („Gesamt ▾“, a disclosure), the period (1T … Max, a segmented control at
+  the row's end) and, on a template, the banner „Vorlage · mitgeliefert, nur
+  lesend“ with „Anpassen“. Under 600 px the period takes a row of its own,
+  a strip that scrolls sideways under the thumb (snap, no scrollbar), its
+  chips 15 px and 44 px tall; the page itself never scrolls sideways.
+- **The compact menu** (under 600 px; planning board ④): a bar of four
+  tabs fixed at the foot, 56 px plus the safe area, a rule above it; each
+  tab at least 44 px, its icon 20 px over a 12 px label, the active one in
+  the accent. „Mehr“ opens a sheet (a native popover) above the bar, its
+  rows 44 px and 16 px; the title in the top bar becomes the dashboard
+  switcher; the burger gives way. The page ends above the bar.
+- **The short wide window** (a phone turned sideways, an unfolded folding
+  phone, a split screen: at most 900 px wide, at most 540 px tall, in
+  landscape): the bar becomes a **rail at the side**, 72 px
+  (`--sidebar-rail`) plus the safe area, its tabs one under the other, the
+  page beside it; „Mehr“ opens beside the rail, the full height,
+  min(360 px, 70 vw) wide. Its widgets fall into the class their width
+  gives (at 844 × 390, the medium class's two columns). The period stays
+  in the dashboard's bar, at the row's end as in every window from 600 px.
+
+### Measured *(the width walk, review seed, the template „Überblick“)*
+
+- 375 × 667, 393 × 852, 440 × 956: eleven widgets in one column at 16 px
+  from the edge, the page as wide as the window, 234 texts measured, the
+  smallest 12 px apart from „Achtung“ at 11 px.
+- 760 × 580 and 834 × 1112: two columns (at 18 and 386 px, at 20 and
+  423 px), filled column by column; 844 × 390: the rail, two columns
+  beside it.
+- 1200 × 900, the sidebar open: the 12-column grid at the template's
+  places, every width the span's within a pixel, no overlap. In DejaVu
+  Sans the drift table of „Allokation und Drift“ at T reaches 10 px past
+  its frame (its drift cell, `.widget-drift-table__drift`); in Inter it
+  fits. Reported with the D8 walk, not settled here.
