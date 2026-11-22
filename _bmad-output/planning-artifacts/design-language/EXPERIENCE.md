@@ -1241,13 +1241,13 @@ where they differ.
   four short ones as a trailing range ending today), so it translates
   none.
 - **A widget with no period says so**: „ohne Zeitraum“, and its menu:
-  „Dieses Widget hat keinen Zeitraum.“ In the slice only
-  „Wertentwicklung“ and „Tops und Flops“ take a period; the other nine
-  kinds take none (the registry's `period: :none`). „Gesamtwert“ is
-  among them, yet its S form's line under the total follows the
-  dashboard's period („TTWROR · 3M“) under a head that says „ohne
-  Zeitraum“, and its menu cannot pin it: a mismatch the D8 report names,
-  not a rule.
+  „Dieses Widget hat keinen Zeitraum.“ In the slice
+  „Wertentwicklung“, „Tops und Flops“ and „Gesamtwert“ take a period; the
+  other eight kinds take none (the registry's `period: :none`).
+  „Gesamtwert“ takes performance's rule, because its S form's line under
+  the total is the performance read's change for its period („folgt ·
+  3M“ over „TTWROR · 3M“; pinned, „📌 eigener: Max“ over „TTWROR ·
+  Max“).
 - **Under 600 px** the selector is a strip of its own row that the thumb
   swipes sideways, its chips 44 px tall; „Max“ is always reachable, and
   the page itself never scrolls sideways.

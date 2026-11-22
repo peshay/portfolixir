@@ -2373,9 +2373,10 @@ nennt und zum ganzen Screen führt.
   Zeiträume eine eigene Leiste, die Sie seitwärts wischen.
 - **Jedes Widget sagt, welchen Zeitraum es zeigt**, leise neben seinem ⋯:
   **folgt · 3M**, solange es der Leiste folgt; **ohne Zeitraum** für ein
-  Widget, dessen Lesezugriff keinen hat (Gesamtwert, Datenqualität,
-  Fällig, Abseits des Ziels, Crashes im Vergleich, Bitcoin-Zyklus,
-  Verkaufsrückblick, Snapshots); und wo das Widget stattdessen sein
+  Widget, dessen Lesezugriff keinen hat (Datenqualität, Fällig, Abseits
+  des Ziels, Crashes im Vergleich, Bitcoin-Zyklus, Verkaufsrückblick,
+  Snapshots); auch **Gesamtwert** folgt ihr, die Zeile unter dem Wert der
+  kleinen Größe gilt dem Zeitraum; und wo das Widget stattdessen sein
   nächstes eigenes Fenster liest, beides: **Tops und Flops** liest 1T als
   Tag, 1W als Woche, 1M als Monat, 3M als Quartal, YTD als YTD und 1J, 3J
   und Max als 1J, bei 3M steht also **folgt · 3M → Quartal**.

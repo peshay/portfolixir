@@ -2149,8 +2149,9 @@ screen.
   you swipe sideways.
 - **Each widget says which period it shows**, quietly beside its ⋯:
   **follows · 3M** while it follows the bar; **no period** for a widget
-  whose read has none (Total value, Data quality, Due, Off target, Crashes
-  compared, Bitcoin cycle, Sale review, Snapshots); and where the widget
+  whose read has none (Data quality, Due, Off target, Crashes compared,
+  Bitcoin cycle, Sale review, Snapshots); **Total value** follows it too,
+  its small size's change line being the period's; and where the widget
   reads its nearest own window instead, both: **Tops and flops** reads
   1D as Day, 1W as Week, 1M as Month, 3M as Quarter, YTD as YTD, and 1Y,
   3Y and Max as 1Y, so at 3M it says **follows · 3M → Quarter**.
