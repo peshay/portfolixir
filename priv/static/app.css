@@ -14905,6 +14905,66 @@ a.widget-row:hover .widget-row__name {
   text-transform: uppercase;
 }
 
+/* „Fällig“ at S (Sprint 31 closing act; board 02 ⑨). */
+.widget-due__basis {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.widget-due {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.widget-due > li {
+  min-width: 0;
+}
+
+.widget-due__line {
+  display: flex;
+  max-width: 100%;
+  gap: var(--space-2);
+  align-items: baseline;
+  min-width: 0;
+  padding: 2px 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.widget-due__line .num {
+  flex: none;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.widget-due__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.widget-due__unheld {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+.widget-due__line:hover .widget-due__name {
+  text-decoration: underline;
+}
+
+.widget-due__more > summary {
+  width: max-content;
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 /* „Abseits des Ziels“ at S says its rule beside the count in the wide
    form only (DS1); the compact form's explainer says it whole. */
 .attention-beyond {
@@ -15014,6 +15074,31 @@ a.widget-row:hover .widget-row__name {
     font-size: 24px;
   }
 
+  /* Its figure and its sparkline close together, its footer one line, the
+     scope cut with an ellipsis where it must (board 02 ⑨). */
+  .widget--s[data-widget-kind="total_value"] .widget__wide {
+    gap: var(--space-1);
+  }
+
+  .widget--s[data-widget-kind="total_value"] .widget-spark {
+    height: 24px;
+  }
+
+  .widget--s[data-widget-kind="total_value"] > .widget__foot {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+
+  .widget--s[data-widget-kind="total_value"] > .widget__foot > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .widget--s[data-widget-kind="total_value"] > .widget__foot > a {
+    flex: none;
+  }
+
   .widget--s .widget-total small[data-role="card-period-change"] {
     color: var(--color-text-muted);
     font-size: 13px;
@@ -15036,6 +15121,31 @@ a.widget-row:hover .widget-row__name {
   .widget--s .widget-offtarget__list,
   .widget--s[data-widget-kind="off_target"] .attention-rule {
     display: none;
+  }
+
+  /* „Fällig“ at S: the short basis, two dated lines, the rest behind
+     „+n more“ (Sprint 31 closing act; board 02 ⑨). The long basis is
+     the compact form's and the ⓘ's. */
+  .widget--s[data-widget-kind="due"] > [data-role="upcoming-basis"] {
+    display: none;
+  }
+
+  /* „Datenqualität“ at S: a counted line each, cut with an ellipsis
+     (Sprint 31 closing act; board 02 ⑨). */
+  .widget--s .widget-findings {
+    font-size: 13px;
+  }
+
+  .widget--s .widget-findings__item {
+    align-items: center;
+    min-width: 0;
+  }
+
+  .widget--s .widget-findings__item a {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   /* An S widget's parts stand closer, as the board's one-row S frames. */
@@ -15878,6 +15988,30 @@ a.widget-row:hover .widget-row__name {
   margin: 0;
   color: var(--color-warning);
   font-size: 13px;
+}
+
+/* „Gesamtwert“ at S: the note on one line, cut with an ellipsis (Sprint 31
+   closing act; board 02 ⑨). */
+.widget-warning--line {
+  flex-wrap: nowrap;
+  align-items: center;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* The text takes the room left and gives none of its length to the
+   frame's intrinsic width (a nowrap line would widen the medium class's
+   columns past the window). */
+.widget-warning--line .widget-warning__text {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.widget-warning--line a {
+  flex: none;
 }
 
 .widget-warning a {

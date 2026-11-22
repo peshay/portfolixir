@@ -413,13 +413,9 @@ const TITLE = 15;
 // ux-design-2026-11-21-sprint31/02 ①, the board's rows: one row 112 px,
 // rows 12 px apart), and the margin a template widget may take over it on
 // the review seed, whose names, notes and lists are long: twice the
-// budget. „Datenqualität“, „Fällig“ and „Gesamtwert“ at S keep the
-// Overview card's lists and sentences; their S forms are a later pass
-// (the closing act's report names it), so they are held to the foot rule
-// only.
+// budget. Every template widget holds it, none excepted.
 const BUDGET = { S: 112, W: 112, M: 236, T: 360, L: 360 };
 const MARGIN = 2;
-const BUDGET_LATER = ["total_value S", "data_quality S", "due S"];
 
 function wideRules(m, at) {
   const errors = pageRules(m, at);
@@ -460,7 +456,7 @@ function wideRules(m, at) {
     // DS1: the footer at the frame's foot; the widget within its budget.
     if (w.footGap !== null && Math.abs(w.footGap) > SLACK) errors.push(at + ": " + name(w) + "'s footer stands " + w.footGap + " px above the frame's foot");
     const budget = BUDGET[w.size];
-    if (budget && !BUDGET_LATER.includes(w.kind + " " + w.size) && w.natural > budget * MARGIN) {
+    if (budget && w.natural > budget * MARGIN) {
       errors.push(at + ": " + name(w) + " is " + w.natural + " px tall, over " + MARGIN + " × its size's budget of " + budget + " px");
     }
   }

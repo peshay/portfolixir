@@ -100,6 +100,10 @@ defmodule PortfolixirWeb.DashboardLive do
   # steering basis, every level of the tree (ADR-0022 dashboard; drift per
   # ADR-0023: actual − target; Sprint 31 closing act, money lens MO4).
   @max_alerts 5
+  # Sprint 31 closing act (board 02 ⑨): „Datenqualität“ at S names three
+  # findings, „Fällig“ at S two dates.
+  @dq_shown_at_s 3
+  @due_shown_at_s 2
   # #984 (pick G1-A): the Overview's closed-trades card lists the newest five.
   @closed_trades_shown 5
 
@@ -1833,7 +1837,7 @@ defmodule PortfolixirWeb.DashboardLive do
       title={Widgets.title("total_value")}
       scope_label={scope_label(@item, @views)}
       full_href={@wealth_href}
-      full_label={gettext("View in Wealth →")}
+      full_label={if @item.size == "S", do: gettext("In Wealth →"), else: gettext("View in Wealth →")}
     >
       <:info>
         <%= gettext("TTWROR — time-weighted return for the selected period (not annualized). Deposits and withdrawals are neutralised so only investment performance counts.") %>
@@ -1903,13 +1907,37 @@ defmodule PortfolixirWeb.DashboardLive do
   # while the read runs, one quiet line when nothing is found; at S each
   # finding as a short counted line (board ①), at M the full sentences.
   defp widget(%{item: %{kind: "data_quality"}} = assigns) do
-    assigns = assign(assigns, :findings, dq_findings(assigns.data_quality))
+    findings = dq_findings(assigns.data_quality)
+
+    # Sprint 31 closing act, DS1's follow-up (board 02 ⑨): at S the three
+    # most severe findings, problems first, and how many more; M keeps every
+    # finding in its sentences.
+    {shown, more} =
+      if assigns.item.size == "S" do
+        findings
+        |> Enum.sort_by(&dq_rank(dq_severity_of(&1)))
+        |> Enum.split(@dq_shown_at_s)
+      else
+        {findings, []}
+      end
+
+    assigns =
+      assign(assigns,
+        findings: findings,
+        shown: shown,
+        more:
+          if(more == [],
+            do: nil,
+            else: pngettext("dashboard widget", "+%{count} more", "+%{count} more", length(more))
+          )
+      )
 
     ~H"""
     <Widget.frame
       id={"dashboard-data-quality" <> @item.uid}
       item={@item}
       title={Widgets.title("data_quality")}
+      scope_label={@more}
       full_href="/securities?holding=held"
       full_label={if @item.size == "S", do: gettext("Check →"), else: gettext("To the securities →")}
     >
@@ -1925,7 +1953,7 @@ defmodule PortfolixirWeb.DashboardLive do
       <%= if @findings != [] do %>
         <%= if @item.size == "S" do %>
           <ul class="widget-findings" data-role="data-quality-short">
-            <li :for={finding <- @findings} class={"widget-findings__item is-" <> Atom.to_string(dq_severity_of(finding))}>
+            <li :for={finding <- @shown} class={"widget-findings__item is-" <> Atom.to_string(dq_severity_of(finding))}>
               <a href={finding.href} data-role={finding.role}><%= finding.short %></a>
             </li>
           </ul>
@@ -1948,6 +1976,9 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   defp widget(%{item: %{kind: "due"}} = assigns) do
+    {shown, rest} = Enum.split(assigns.upcoming_events, @due_shown_at_s)
+    assigns = assign(assigns, shown: shown, rest: rest)
+
     ~H"""
     <%!-- #828 (ADR-0048, design pick D3-A): what is due. THE DEFAULT SCOPE
          IS THE WHOLE CATALOG, not the holdings — a row for a security with
@@ -1980,7 +2011,23 @@ defmodule PortfolixirWeb.DashboardLive do
           <%= gettext("Nothing due in the next %{days} days.", days: upcoming_days()) %>
         </p>
       </:shared>
-      <ul :if={@upcoming_events != []} class="attention-list">
+      <%!-- Sprint 31 closing act, DS1's follow-up (board 02 ⑨): at S a
+           short basis, the next two dates on a line each (the date, the
+           name cut), the rest behind „+n more“, which unfolds in the
+           widget: no screen lists the upcoming dates as a page. --%>
+      <p :if={@item.size == "S"} class="widget-due__basis" data-role="upcoming-basis-short">
+        <%= gettext("Whole catalogue · next %{days} days", days: upcoming_days()) %>
+      </p>
+      <ul :if={@item.size == "S" && @shown != []} class="widget-due widget-due--next">
+        <li :for={row <- @shown}><.due_line row={row} /></li>
+      </ul>
+      <details :if={@item.size == "S" && @rest != []} class="widget-due__more" data-role="upcoming-more">
+        <summary><%= pngettext("dashboard widget", "+%{count} more", "+%{count} more", length(@rest)) %></summary>
+        <ul class="widget-due">
+          <li :for={row <- @rest}><.due_line row={row} /></li>
+        </ul>
+      </details>
+      <ul :if={@item.size != "S" && @upcoming_events != []} class="attention-list">
         <li :for={row <- @upcoming_events}>
           <a
             href={"/securities/#{row.event.security_id}?tab=events"}
@@ -2267,6 +2314,43 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   # --- S31 D4 end ---
+
+  attr(:row, :map, required: true)
+
+  # One upcoming date at S: the date, then the security's name, cut with an
+  # ellipsis; the kind and whether it is held name the link for a screen
+  # reader and in its tooltip.
+  defp due_line(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :about,
+        Enum.join(
+          [assigns.row.security_name, SecurityEventLabel.kind(assigns.row.event.kind)] ++
+            if(assigns.row.held, do: [], else: [gettext("no position")]),
+          " · "
+        )
+      )
+
+    ~H"""
+    <a
+      href={"/securities/#{@row.event.security_id}?tab=events"}
+      data-role="upcoming-event"
+      class="widget-due__line"
+      title={@about}
+      aria-label={Format.date(@row.event.date) <> " · " <> @about}
+    >
+      <span class="num"><%= Format.date(@row.event.date) %></span>
+      <span class="widget-due__name"><%= @row.security_name %></span>
+      <span
+        :if={not @row.held}
+        class="widget-due__unheld"
+        data-role="upcoming-unheld"
+        title={gettext("no position")}
+      ><span aria-hidden="true">○</span></span>
+    </a>
+    """
+  end
 
   attr(:card, :any, required: true)
   attr(:stale, :any, required: true)
@@ -2998,13 +3082,27 @@ defmodule PortfolixirWeb.DashboardLive do
   # total leaves out in one line, each group's count and the link to
   # Wealth's notes; the names stay in the full note at M and on Wealth.
   defp wealth_card_excluded_short(assigns) do
-    assigns = assign(assigns, :counts, ValuationNotes.excluded_counts(assigns.valuation))
+    counts = ValuationNotes.excluded_counts(assigns.valuation)
+
+    assigns =
+      assign(assigns,
+        counts: counts,
+        sentence: gettext("Not in the total: %{counts}.", counts: Enum.join(counts, ", "))
+      )
 
     ~H"""
-    <p :if={@counts != []} class="widget-warning" data-role="wealth-card-excluded-short">
+    <%!-- One line (Sprint 31 closing act, DS1's follow-up; board 02 ⑨):
+         the sentence cut with an ellipsis where it does not fit, whole for
+         a screen reader and in the tooltip, its link at the line's end. --%>
+    <p
+      :if={@counts != []}
+      class="widget-warning widget-warning--line"
+      data-role="wealth-card-excluded-short"
+      title={@sentence}
+    >
       <AppShell.icon name={:alert_triangle} size={12} />
-      <span><%= gettext("Not in the total: %{counts}.", counts: Enum.join(@counts, ", ")) %></span>
-      <a href={@wealth_href}><%= gettext("Details in Wealth →") %></a>
+      <span class="widget-warning__text"><%= @sentence %></span>
+      <a href={@wealth_href} aria-label={gettext("Details in Wealth →")}><%= gettext("Details →") %></a>
     </p>
     """
   end
@@ -3416,6 +3514,10 @@ defmodule PortfolixirWeb.DashboardLive do
     do: ngettext("%{count} incomplete split", "%{count} incomplete splits", n)
 
   # A short line's mark: the full line's severity for that finding alone.
+  defp dq_rank(:problem), do: 0
+  defp dq_rank(:attention), do: 1
+  defp dq_rank(_note), do: 2
+
   defp dq_severity_of(%{finding: :quotes}), do: :attention
   defp dq_severity_of(%{finding: finding}) when finding in [:class, :logo], do: :note
   defp dq_severity_of(_finding), do: :problem
