@@ -15017,6 +15017,29 @@ a.widget-row:hover .widget-row__name {
   border-color: var(--color-border-strong);
 }
 
+/* The wide form's head (Sprint 31 closing act, DS3; board
+   ux-design-2026-11-21-sprint31/02 ①): the title at 15 px with its ⓘ on
+   its line, the period tag under them at the left. The compact form keeps
+   its type and its tag at the title's end. */
+@media (width >= 1000px) {
+  .dashboard-widget > .widget__head h2 {
+    font-size: 15px;
+  }
+
+  .dashboard-widget > .widget__head > .section-title {
+    display: grid;
+    grid-template-columns: minmax(0, max-content) auto 1fr;
+    align-items: center;
+    column-gap: var(--space-1);
+  }
+
+  .dashboard-widget > .widget__head > .section-title > .widget__period {
+    grid-column: 1 / -1;
+    justify-self: start;
+    margin-left: 0;
+  }
+}
+
 /* The ⋯ menu: a disclosure the browser holds, its panel under the ⋯ at the
    widget's right edge. */
 .widget__menu {

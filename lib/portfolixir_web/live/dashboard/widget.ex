@@ -254,10 +254,12 @@ defmodule PortfolixirWeb.Dashboard.Widget do
           <AppShell.section_info :if={@info != []} label={@info_label}>
             <:line :for={line <- @info}><%= render_slot(line) %></:line>
           </AppShell.section_info>
-          <%!-- The period tag (ADR-0062 §5): at the title's end, beside
-               the ⋯, and under the title where both do not fit. --%>
+          <%!-- The period tag (ADR-0062 §5): under the title in the wide
+               form, at its end in the compact one. „ohne Zeitraum“ only in
+               the edit mode, where it helps placing; on the grid the ⋯ menu
+               says it (Sprint 31 closing act, DS3; board 02 ①). --%>
           <span
-            :if={period_tag(@item)}
+            :if={period_tag(@item) && (@item.period_state != :none or editing?(@item))}
             class={["widget__period", "widget__period--#{@item.period_state}"]}
             data-role="widget-period"
             data-period-state={@item.period_state}

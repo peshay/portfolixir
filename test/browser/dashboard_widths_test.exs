@@ -88,7 +88,9 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
   #   its size's span (one row's widgets share a top, a later col stands to
   #   the right, the width is the span's), no two overlapping; no blank
   #   band between the bar and the grid, 20 px at most (Sprint 31 closing
-  #   act, DS2).
+  #   act, DS2); each widget's title at 15 px with its ⓘ on the title's
+  #   line, its period tag under the title at its left, and no „ohne
+  #   Zeitraum“ on the grid (DS3).
   # - At 844 × 390: the rail at the side, no bar at the foot.
   # - Each class in the page's own Inter and in DejaVu Sans.
   test "the dashboard's compact, medium and wide classes, by the window's width", %{
