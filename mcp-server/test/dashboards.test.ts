@@ -100,7 +100,7 @@ describe("the dashboard tools", () => {
       [PUT, { template: "overview", dashboard: { layout: [item] } }],
       [PUT, { template: "overview", dashboard: { lock_version: 1 } }],
       [PUT, { template: "overview", dashboard: { position: 1 } }],
-      [PUT, { dashboard: { name: "N", layout: [{ ...item, source: "GET /api/v1/journal" }] } }],
+      [PUT, { dashboard: { name: "N", layout: [{ ...item, route: "GET /api/v1/journal" }] } }],
       [PUT, { dashboard: { name: "N", layout: [{ ...item, settings: { route: "/api/v1/journal" } }] } }],
       [PUT, { dashboard: { name: "N", layout: [{ ...item, size: "full" }] } }],
       [PUT, { dashboard: { name: "N", layout: [{ ...item, col: 13 }] } }],
@@ -114,6 +114,49 @@ describe("the dashboard tools", () => {
       const before = requests.length;
       await assert.rejects(callTool(client, name, { ...args } as any), `${name} ${JSON.stringify(args)}`);
       assert.equal(requests.length, before, `${name} ${JSON.stringify(args)}`);
+    }
+  });
+
+  // User story (ADR-0062 §8, §11; Sprint 31 closing act, C3 and A2):
+  // As the agent the operator runs,
+  // I want to put back a layout as get (or a 409's stored dashboard)
+  // answered it, with only my change made,
+  // so that get, modify and put is one round trip.
+  //
+  // Acceptance criteria:
+  // - put takes an item's title and source as get answers them (a string
+  //   or null, an object or null) and does not send them: both are
+  //   read-only, the registry's, ignored on write.
+  // - get's and put's descriptions say so; the schema names both.
+  it("takes a layout as get answered it, its title and source not sent", async () => {
+    const { client, requests } = createRecordingClient();
+    const source = { routes: ["GET /api/v1/movers"], function: "M.read/3", note: null };
+    const read = [
+      { kind: "movers", size: "M", col: 1, row: 2, settings: {}, title: "Tops and flops", source },
+      { kind: "gone_kind", size: "S", col: 7, row: 1, settings: {}, title: null, source: null }
+    ];
+
+    await callTool(client, PUT, { id: 4, dashboard: { name: "Kurz", layout: read, lock_version: 3 } });
+    await callTool(client, PUT, { dashboard: { name: "Kopie", layout: read } });
+
+    const sent = [
+      { kind: "movers", size: "M", col: 1, row: 2, settings: {} },
+      { kind: "gone_kind", size: "S", col: 7, row: 1, settings: {} }
+    ];
+
+    assert.deepEqual(
+      requests.map((request) => [request.method, request.path, request.body]),
+      [
+        ["PUT", "/api/v1/dashboards/4", { dashboard: { name: "Kurz", layout: sent, lock_version: 3 } }],
+        ["POST", "/api/v1/dashboards", { dashboard: { name: "Kopie", layout: sent } }]
+      ]
+    );
+
+    const item = (tool(PUT)?.inputSchema as any).properties.dashboard.properties.layout.items;
+    assert.ok("title" in item.properties && "source" in item.properties);
+
+    for (const name of [GET, PUT]) {
+      assert.match(tool(name)?.description ?? "", /title and source .*read-only/, name);
     }
   });
 

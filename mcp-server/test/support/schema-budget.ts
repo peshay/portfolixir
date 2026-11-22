@@ -789,8 +789,23 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
       book: 3_247,
       full: 3_863
     }
-  }
+  },
   // --- S31 D2 end ---
+  // --- S31 fix C3 begin ---
+  {
+    since: "2026-11-22",
+    why:
+      "Sprint 31 closing act, C3 and A2: dashboards.put takes an item's title and source as " +
+      "dashboards.get answers them, read-only and not sent, and both descriptions say so; " +
+      "paid for by trimming the four dashboard tools' own descriptions (put's grid and " +
+      "dashboard cap, both in list's catalogue; list's and get's source wording), and each " +
+      "ceiling is lowered to the figure measured: read 124,484, book 205,503 and full " +
+      "242,160; no other tool's bytes change",
+    read: 124_484,
+    book: 205_503,
+    full: 242_160
+  }
+  // --- S31 fix C3 end ---
 ];
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];
