@@ -13,7 +13,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
   # test/browser/dashboard_edit_test.exs.
   #
   # group: :dashboards -- a create takes the advisory lock that counts the
-  # dashboards (`Portfolixir.LockTable` row 28); every module that creates
+  # dashboards (`Portfolixir.LockTable` row 30); every module that creates
   # one joins this group.
   use PortfolixirWeb.ConnCase, async: true, group: :dashboards
 

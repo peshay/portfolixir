@@ -8,7 +8,7 @@ defmodule PortfolixirWeb.DashboardTwinNotesTest do
   # group: :dashboards -- the note test stores „Überblick“ at M (Sprint 31
   # D4: at S the total's note is one line of counts), and a create takes
   # the advisory lock that counts the dashboards (`Portfolixir.LockTable`
-  # row 28).
+  # row 30).
   use PortfolixirWeb.ConnCase, async: true, group: :dashboards
 
   import Phoenix.LiveViewTest
