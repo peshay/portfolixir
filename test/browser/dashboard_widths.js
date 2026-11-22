@@ -72,14 +72,6 @@ const SLACK = 1.5;
 // Nothing else breaks a rule unnoticed.
 const KNOWN = [
   {
-    // The data note's word („Achtung“) is 11 px on every screen
-    // (app.css `.data-note__word`); in the compact form of
-    // „Verkaufsrückblick“ it is the one text under the floor.
-    rule: "floor",
-    selector: "[data-role='trades-card-excluded'] .data-note__word",
-    finding: "D8 finding 1"
-  },
-  {
     // At 1200 px, the sidebar open, in DejaVu Sans: the drift table of
     // „Allokation und Drift“ at T reaches 10 px past the widget's frame
     // (its drift cell, `.widget-drift-table__drift`); in Inter it fits.

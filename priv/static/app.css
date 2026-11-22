@@ -16134,3 +16134,13 @@ a.widget-row:hover .widget-row__name {
   }
 }
 /* --- S31 D7 end --- */
+
+/* --- S31 D8 begin --- */
+/* The compact type floor inside a widget (ADR-0062 §6: nothing under
+   12 px; DESIGN.md, amendment of 2026-11-21): a data note's severity word
+   is 11 px elsewhere, 12 px in a widget. Found by the width walk
+   (test/browser/dashboard_widths.js) in „Verkaufsrückblick“. */
+.dashboard-widget .data-note__word {
+  font-size: 12px;
+}
+/* --- S31 D8 end --- */
