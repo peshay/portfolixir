@@ -31,7 +31,8 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
   as it was read (Sprint 31 closing act, C3); neither is ever stored, and
   the registry is read again for every answer (§11). A layout refused answers 422 with `errors.layout`
   and `errors.layout_item` naming the first bad item (`index`, `field`,
-  `reason`, and `other` for an overlap). A template is never written: a
+  `reason`, and `other` for an overlap). A template key that names none
+  answers 404 naming the keys offered. A template is never written: a
   write to `template:<key>` answers 422 naming `id`. Every write is
   journaled under the request's token (ADR-0017).
   """
@@ -90,8 +91,14 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
          {:ok, found} <- find(id) do
       json(conn, %{data: payload(found)})
     else
-      {:error, :not_found} -> not_found(conn)
-      {:error, errors} -> ClosedBody.refuse(conn, errors)
+      {:error, :no_template} ->
+        not_found(conn, "names no template; #{offered_templates()} is offered")
+
+      {:error, :not_found} ->
+        not_found(conn)
+
+      {:error, errors} ->
+        ClosedBody.refuse(conn, errors)
     end
   end
 
@@ -163,8 +170,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
            Map.delete(attrs, "template")
          ) do
       {:error, :not_found} ->
-        offered = Enum.map_join(Dashboards.templates(), ", ", & &1.key)
-        {:error, %{template: ["names no template: #{offered} is offered"]}}
+        {:error, %{template: ["names no template: #{offered_templates()} is offered"]}}
 
       result ->
         result
@@ -173,6 +179,8 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
 
   defp create_or_copy(actor, attrs, false), do: Dashboards.create_dashboard(actor, attrs)
 
+  defp offered_templates, do: Enum.map_join(Dashboards.templates(), ", ", & &1.key)
+
   # --- the id ---
 
   # A template is read as template:<key>, its key matched as a string; any
@@ -180,7 +188,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
   defp find("template:" <> key) do
     case Dashboards.fetch_template(key) do
       {:ok, template} -> {:ok, {:template, template}}
-      :error -> {:error, :not_found}
+      :error -> {:error, :no_template}
     end
   end
 
@@ -299,9 +307,9 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
     end
   end
 
-  defp not_found(conn) do
+  defp not_found(conn, why \\ nil) do
     conn
     |> put_status(:not_found)
-    |> json(%{errors: %{detail: "not found"}})
+    |> json(%{errors: %{detail: if(why, do: "not found: " <> why, else: "not found")}})
   end
 end

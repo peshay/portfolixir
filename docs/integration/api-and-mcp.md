@@ -5251,8 +5251,9 @@ widget; `period`, a pinned period), and, from the registry, `title` and
 shows. The source is always the registry's for the kind, never anything a
 layout says. Both are read-only: a write ignores an item's `title` and
 `source` and stores neither, so a layout is sent back as it was read. An
-unknown id, a key that names no template and an id that is
-neither answer `404`.
+unknown id, a key that names no template and an id that is neither answer
+`404`; a key that names no template says which keys are offered (`"not
+found: names no template; overview is offered"`).
 
 **`POST /api/v1/dashboards`** creates one from `{"dashboard": {"name",
 "layout"}}` (the layout defaults to empty) or copies a template from

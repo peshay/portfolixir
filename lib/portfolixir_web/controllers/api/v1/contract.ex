@@ -62,7 +62,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "the menu's order and then the templates, each marked by type (in_menu, " <>
               "read_only); GET /api/v1/dashboards/:id answers one, or a template as " <>
               "template:<key>, its layout's items each with the registry's title and source, " <>
-              "read-only (a write ignores them, so a layout goes back as read); POST " <>
+              "read-only (a write ignores them, so a layout goes back as read), a template " <>
+              "key that names none answering 404 with the keys offered; POST " <>
               "creates ({dashboard: {name, layout}}) or copies a template ({dashboard: " <>
               "{template, name?}}), 201; PUT replaces name and layout with lock_version, and " <>
               "PATCH renames and/or moves with an optional lock_version, a stale one " <>

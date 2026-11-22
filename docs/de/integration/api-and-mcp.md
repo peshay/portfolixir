@@ -5729,8 +5729,10 @@ die Route, unter der sich lesen lässt, was das Widget zeigt. Die Quelle ist
 immer die der Registry für die Art, nie etwas, das ein Layout sagt. Beide
 sind nur lesbar: Ein Schreibzugriff übergeht `title` und `source` eines
 Elements und speichert keines von beiden, damit ein Layout so
-zurückgeschickt werden kann, wie es gelesen wurde. Eine unbekannte id, ein Schlüssel ohne Vorlage und eine id, die keines von
-beiden ist, liefern `404`.
+zurückgeschickt werden kann, wie es gelesen wurde. Eine unbekannte id, ein
+Schlüssel ohne Vorlage und eine id, die keines von beiden ist, liefern
+`404`; ein Schlüssel ohne Vorlage nennt die angebotenen Schlüssel (`"not
+found: names no template; overview is offered"`).
 
 **`POST /api/v1/dashboards`** legt eines aus `{"dashboard": {"name",
 "layout"}}` an (das Layout ist ohne Angabe leer) oder kopiert eine Vorlage

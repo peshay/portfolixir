@@ -804,8 +804,23 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 124_484,
     book: 205_503,
     full: 242_160
-  }
+  },
   // --- S31 fix C3 end ---
+  // --- S31 fix SE2 A4 begin ---
+  {
+    since: "2026-11-22",
+    why:
+      "Sprint 31 closing act, SE2 and A4: dashboards.put caps an item's kind at 40 " +
+      "characters as every other text field is capped, and dashboards.list says get takes a " +
+      "template's bare key and that data.widgets is the catalogue object, its kinds under " +
+      "widgets beside groups, grid and periods; paid for by trimming the same two tools' " +
+      "wording, and each ceiling is lowered to the figure measured: read 124,482, book " +
+      "205,498 and full 242,155; no other tool's bytes change",
+    read: 124_482,
+    book: 205_498,
+    full: 242_155
+  }
+  // --- S31 fix SE2 A4 end ---
 ];
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];
