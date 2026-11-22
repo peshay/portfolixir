@@ -2170,6 +2170,126 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // Sprint 31 D6 (ADR-0062 §7; idea board I56 03): the dashboard's
+            // edit mode in the browser. The layout being edited lives in the
+            // LiveView, which validates every step; this hook only turns a
+            // pointer's drag of a widget's handle on the wide grid (from
+            // 1000 px) into the grid cell under the widget's top-left corner
+            // (`edit_place`), keeps the arrow keys and Delete on a handle from
+            // scrolling or navigating (the handle's own `phx-keydown` sends
+            // them), and puts the focus where the page says after a step
+            // (`dashboard-edit-focus`), since a widget that moved in the
+            // reading order is a moved element.
+            Hooks.DashboardEdit = {
+              mounted: function () {
+                var self = this;
+                var el = this.el;
+                var drag = null;
+                var keys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Delete", "Backspace"];
+
+                function handleOf(target) {
+                  return target && target.closest ? target.closest("[data-role='edit-handle']") : null;
+                }
+                // The start of each track and its size, from the grid's
+                // resolved columns or rows.
+                function tracks(value, gap) {
+                  var starts = [];
+                  var at = 0;
+                  String(value || "").split(" ").forEach(function (part) {
+                    var size = parseFloat(part);
+                    if (!isNaN(size)) { starts.push({ start: at, size: size }); at += size + gap; }
+                  });
+                  return starts;
+                }
+                // The 1-based track whose start is nearest `offset`; past the
+                // last track, the rows go on at the last track's size.
+                function nearest(list, offset, gap) {
+                  if (!list.length) return 1;
+                  var best = 1;
+                  var bestDistance = Infinity;
+                  for (var i = 0; i < list.length; i++) {
+                    var distance = Math.abs(list[i].start - offset);
+                    if (distance < bestDistance) { best = i + 1; bestDistance = distance; }
+                  }
+                  var last = list[list.length - 1];
+                  var end = last.start + last.size + gap;
+                  if (offset > end) best = list.length + 1 + Math.round((offset - end) / (last.size + gap));
+                  return best;
+                }
+
+                this.handleEvent("dashboard-edit-focus", function (payload) {
+                  var target = payload && payload.id ? document.getElementById(payload.id) : null;
+                  if (target) target.focus();
+                });
+
+                this._onKeydown = function (event) {
+                  if (handleOf(event.target) && keys.indexOf(event.key) !== -1) event.preventDefault();
+                };
+                this._onPointerDown = function (event) {
+                  var handle = handleOf(event.target);
+                  if (!handle || el.dataset.editing !== "true" || event.button !== 0) return;
+                  if (!window.matchMedia("(width >= 1000px)").matches) return;
+                  var widget = handle.closest("[data-widget-kind]");
+                  var rect = widget.getBoundingClientRect();
+                  drag = {
+                    handle: handle,
+                    widget: widget,
+                    x: event.clientX,
+                    y: event.clientY,
+                    dx: event.clientX - rect.left,
+                    dy: event.clientY - rect.top,
+                    moved: false
+                  };
+                  try { handle.setPointerCapture(event.pointerId); } catch (_) {}
+                };
+                this._onPointerMove = function (event) {
+                  if (!drag) return;
+                  var mx = event.clientX - drag.x;
+                  var my = event.clientY - drag.y;
+                  if (Math.abs(mx) + Math.abs(my) > 4) drag.moved = true;
+                  if (!drag.moved) return;
+                  drag.widget.classList.add("is-dragging");
+                  drag.widget.style.transform = "translate(" + mx + "px, " + my + "px)";
+                };
+                this._onPointerUp = function (event) {
+                  if (!drag) return;
+                  var d = drag;
+                  drag = null;
+                  d.widget.classList.remove("is-dragging");
+                  d.widget.style.transform = "";
+                  if (!d.moved || event.type === "pointercancel") return;
+                  var grid = el.getBoundingClientRect();
+                  var style = getComputedStyle(el);
+                  var colGap = parseFloat(style.columnGap) || 0;
+                  var rowGap = parseFloat(style.rowGap) || 0;
+                  var width = parseInt(getComputedStyle(d.widget).getPropertyValue("--widget-w"), 10) || 1;
+                  var col = nearest(tracks(style.gridTemplateColumns, colGap), event.clientX - d.dx - grid.left, colGap);
+                  var row = nearest(tracks(style.gridTemplateRows, rowGap), event.clientY - d.dy - grid.top, rowGap);
+                  col = Math.max(1, Math.min(col, 13 - width));
+                  self.pushEvent("edit_place", {
+                    item: d.handle.dataset.item,
+                    col: col,
+                    row: Math.max(1, row)
+                  });
+                  d.handle.focus();
+                };
+
+                el.addEventListener("keydown", this._onKeydown);
+                el.addEventListener("pointerdown", this._onPointerDown);
+                el.addEventListener("pointermove", this._onPointerMove);
+                el.addEventListener("pointerup", this._onPointerUp);
+                el.addEventListener("pointercancel", this._onPointerUp);
+              },
+              destroyed: function () {
+                var el = this.el;
+                el.removeEventListener("keydown", this._onKeydown);
+                el.removeEventListener("pointerdown", this._onPointerDown);
+                el.removeEventListener("pointermove", this._onPointerMove);
+                el.removeEventListener("pointerup", this._onPointerUp);
+                el.removeEventListener("pointercancel", this._onPointerUp);
+              }
+            };
+
             Hooks.ClassificationDnD = {
               mounted: function () {
                 var self = this;
