@@ -532,6 +532,67 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
   # - S: one link per finding, its count and a short noun, the same list
   #   behind it as at M; the footer „Check →“.
   # - M: the line's full sentences, as the Overview drew them.
+  # User story (Sprint 31 closing act, DS1's follow-up; board
+  # ux-design-2026-11-21-sprint31/02 ⑨):
+  # As the operator reading „Datenqualität“ at S,
+  # I want the most severe points first, three at most, and how many more,
+  # so that the small widget fits its row and still says what is open.
+  #
+  # Acceptance criteria:
+  # - At S at most three counted lines, problems before attention before
+  #   notes; the footer says „+n more“ beside „Check →“.
+  # - At M every finding, in the full sentences, no count of more.
+  test "„Datenqualität“ at S shows the three most severe and how many more", %{conn: conn} do
+    world = seed()
+
+    # A held bond on two price scales (a problem) whose last quote is ten
+    # days old (attention), and one without an asset class, beside the
+    # securities without a logo (notes): four findings.
+    {:ok, bond} =
+      Portfolixir.Catalog.create_security(Actor.owner_ui(), %{
+        name: "Kestrel Anleihe 2030 2,75%",
+        currency_code: "EUR",
+        asset_class: "bond"
+      })
+
+    buy!(world, bond, quantity: "100", price: "0.985", date: Date.add(world.today, -40))
+    put_quote!(bond, Date.add(world.today, -10), "97.25")
+
+    {:ok, plain} =
+      Portfolixir.Catalog.create_security(Actor.owner_ui(), %{
+        name: "Nordwind Holz",
+        currency_code: "EUR"
+      })
+
+    buy!(world, plain, quantity: "5", price: "20", date: Date.add(world.today, -40))
+    put_quote!(plain, world.today, "21")
+
+    store!([{"data_quality", "S", 1, 1}, {"data_quality", "M", 4, 1}])
+    doc = loaded(conn)
+
+    small = wide(doc, "dashboard-data-quality")
+    lines = Floki.find(small, ".widget-findings__item")
+    assert length(lines) <= 3
+
+    severities =
+      Enum.map(lines, fn line ->
+        line |> Floki.attribute("class") |> hd() |> String.split() |> List.last()
+      end)
+
+    rank = %{"is-problem" => 0, "is-attention" => 1, "is-note" => 2}
+    assert severities == Enum.sort_by(severities, &rank[&1])
+
+    all = doc |> compact("dashboard-data-quality") |> Floki.find("[data-compact-role^='dq-']")
+    more = length(all) - length(lines)
+    assert more > 0
+
+    assert text(Floki.find(doc, "#dashboard-data-quality [data-role='widget-scope']")) ==
+             "+#{more} more"
+
+    assert text(Floki.find(doc, "#dashboard-data-quality .widget__foot a")) == "Check →"
+    assert text(Floki.find(doc, "#dashboard-data-quality-2 [data-role='widget-scope']")) == ""
+  end
+
   test "„Datenqualität“ is short at S and in full sentences at M", %{conn: conn} do
     world = seed()
     put_quote!(world.beta, Date.add(world.today, -20), "51")

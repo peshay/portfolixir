@@ -91,10 +91,9 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
   #   act, DS2); each widget's title at 15 px with its ⓘ on the title's
   #   line, its period tag under the title at its left, and no „ohne
   #   Zeitraum“ on the grid (DS3); each footer at its frame's foot, and
-  #   each template widget at most twice its size's height budget (S 112,
-  #   M 236, T and L 360 px, the board's rows) on the review seed, but
-  #   „Gesamtwert“, „Datenqualität“ and „Fällig“ at S, whose S forms are a
-  #   later pass (DS1); no figure of „Crashes im Vergleich“ broken over
+  #   each template widget, none excepted, at most twice its size's height
+  #   budget (S 112, M 236, T and L 360 px, the board's rows) on the review
+  #   seed (DS1); no figure of „Crashes im Vergleich“ broken over
   #   two lines (DS5).
   # - The edit mode at 1200 px (the template copied, „Bearbeiten“): the
   #   grid as wide as outside the edit, no content past a frame, the

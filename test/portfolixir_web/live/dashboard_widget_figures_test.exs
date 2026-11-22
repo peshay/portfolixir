@@ -188,6 +188,50 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
 
     assert wide == expected
     assert compact == expected
+
+    # At S (the template's) the wide form draws two dated lines and the
+    # rest behind „+n more“, in the same order, and a short basis line
+    # (Sprint 31 closing act, DS1's follow-up; board 02 ⑨).
+    shown =
+      doc
+      |> wide("dashboard-upcoming")
+      |> Floki.find(".widget-due--next > li [data-role='upcoming-event']")
+
+    assert length(shown) == min(length(expected), 2)
+
+    assert text(Floki.find(doc, "#dashboard-upcoming [data-role='upcoming-basis-short']")) ==
+             "Whole catalogue · next 30 days"
+  end
+
+  # User story (Sprint 31 closing act, DS1's follow-up; board 02 ⑨):
+  # As the operator reading „Fällig“ at S,
+  # I want the next two dates on a line each and the rest one tap away,
+  # so that the small widget fits its row and nothing due is lost.
+  #
+  # Acceptance criteria:
+  # - Three upcoming dates: two on a line each (the date, the name), the
+  #   third behind „+1 more“, a disclosure in the widget (no screen lists
+  #   the upcoming dates as a page); each line the security's events.
+  test "„Fällig“ at S shows two dates and the rest behind „+n more“", %{conn: conn} do
+    world = seed()
+
+    for {security, days} <- [{world.fresh, 3}, {world.stale, 12}, {world.fresh, 20}] do
+      {:ok, _event} =
+        Events.create_event(Actor.owner_ui(), %{
+          security_id: security.id,
+          kind: "earnings",
+          timing: "exact",
+          source_quality: "primary",
+          date: Date.add(world.today, days)
+        })
+    end
+
+    doc = loaded(conn)
+    wide = wide(doc, "dashboard-upcoming")
+    assert length(Floki.find(wide, ".widget-due--next > li [data-role='upcoming-event']")) == 2
+    [more] = Floki.find(wide, "details[data-role='upcoming-more']")
+    assert text(Floki.find(more, "summary")) == "+1 more"
+    assert length(Floki.find(more, "[data-role='upcoming-event']")) == 1
   end
 
   # User story:
