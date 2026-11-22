@@ -273,11 +273,24 @@ function measure(page, roots, targets = TAP_TARGETS) {
           return { text: el.textContent.replace(/\s+/g, " ").trim(), lines: tops.size };
         })
         .filter((f) => f.lines > 1);
+      // Each tab's label against its tab: how close it comes to an edge.
+      const tabLabels = [...document.querySelectorAll("#app-tabbar .app-tab")]
+        .filter((t) => t.getClientRects().length > 0)
+        .map((t) => {
+          const tr = t.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(t);
+          const rects = [...range.getClientRects()].filter((r) => r.width > 0.5);
+          const left = Math.min(...rects.map((r) => r.left));
+          const right = Math.max(...rects.map((r) => r.right));
+          return { text: t.textContent.replace(/\s+/g, " ").trim(), inset: Math.round(Math.min(left - tr.left, tr.right - right) * 10) / 10 };
+        });
       const dashBar = document.getElementById("dashboard-bar");
       const lastInBar = dashBar
         ? [...dashBar.children].filter((c) => c.getBoundingClientRect().height > 0 && getComputedStyle(c).position !== "absolute").pop()
         : null;
       return {
+        tabLabels,
         broken,
         // The space between the dashboard's bar and its grid: from the
         // bar's last drawn part to the grid's top.
@@ -390,6 +403,10 @@ function mediumRules(m, at) {
 // dashboard's own padding (Sprint 31 closing act, DS2: two empty status
 // regions each took a gap, 44 px).
 const BAND = 20;
+// A rail label's least distance from its tab's edge.
+const RAIL_INSET = 3;
+// The space between the top bar and „Alle Widgets“' search field.
+const SEARCH_GAP = 12;
 // The wide form's title (DS3).
 const TITLE = 15;
 // The wide form's height budget by size (DS1; board
@@ -510,6 +527,11 @@ function shortWideRules(m, at) {
   for (const w of m.widgets) {
     if (m.bar && m.bar.shown && w.left < m.bar.right - 0.5) errors.push(at + ": #" + w.id + " is under the rail");
   }
+  // The rail's labels keep a margin inside its 72 px (Sprint 31 closing
+  // act: „Wertpapiere“ and „Nachrichten“ ran edge to edge).
+  for (const t of m.tabLabels) {
+    if (t.inset < RAIL_INSET) errors.push(at + ": the rail's label " + JSON.stringify(t.text) + " comes " + t.inset + " px from its tab's edge, under " + RAIL_INSET);
+  }
   return errors;
 }
 
@@ -536,6 +558,10 @@ async function walk(browser) {
     await resize(page, size);
     const m = await measure(page, [], WIDGETS_TAP_TARGETS);
     errors.push(...tapRule(m, "/widgets " + size.width + " x " + size.height));
+    const gap = await page.evaluate(() =>
+      Math.round(document.querySelector(".widget-catalogue__search").getBoundingClientRect().top - document.querySelector(".topbar").getBoundingClientRect().bottom)
+    );
+    if (gap < SEARCH_GAP) errors.push("/widgets " + size.width + " x " + size.height + ": the search field stands " + gap + " px under the top bar, under " + SEARCH_GAP);
     measured.widgets_taps.push(m.taps.length);
   }
   await leave(phone);
