@@ -70,6 +70,16 @@ defmodule PortfolixirWeb.MenuTest do
     assert has_element?(view, "#app-sidebar .nav-group--quiet #nav-journal")
     refute has_element?(view, "#app-sidebar .nav-group--quiet #nav-securities")
     assert active(view) == ["nav-dashboard"]
+
+    # Each group is a group named by its title, so a screen reader says
+    # which group a link is in (Sprint 31 closing act, the a11y lens).
+    doc = view |> render() |> Floki.parse_document!()
+
+    for group <- Floki.find(doc, "#app-sidebar .nav-group") do
+      assert Floki.attribute(group, "role") == ["group"]
+      [labelled_by] = Floki.attribute(group, "aria-labelledby")
+      assert [_head] = Floki.find(group, ".nav-group-head ##{labelled_by}")
+    end
   end
 
   # User story:

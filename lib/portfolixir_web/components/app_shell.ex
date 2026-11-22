@@ -52,8 +52,14 @@ defmodule PortfolixirWeb.AppShell do
 
         <nav class="primary-nav" aria-label={gettext("Primary navigation")}>
           <%= for group <- @groups do %>
-            <div class={["nav-group", "nav-group--#{group.key}", group[:quiet] && "nav-group--quiet"]}>
-              <div class="nav-group-head"><span><%= group.title %></span></div>
+            <%!-- A group named by its title, so a screen reader says which
+                 group a link is in (Sprint 31 closing act, the a11y lens). --%>
+            <div
+              class={["nav-group", "nav-group--#{group.key}", group[:quiet] && "nav-group--quiet"]}
+              role="group"
+              aria-labelledby={"nav-group-#{group.key}-title"}
+            >
+              <div class="nav-group-head"><span id={"nav-group-#{group.key}-title"}><%= group.title %></span></div>
 
               <%= for item <- group.items do %>
                 <a

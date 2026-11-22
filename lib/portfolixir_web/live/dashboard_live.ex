@@ -1112,7 +1112,16 @@ defmodule PortfolixirWeb.DashboardLive do
     |> start_added_reads()
   end
 
-  defp stepped(socket, {:refused, say}, _focus), do: assign(socket, :edit_say, say)
+  # A refusal said again is said with a no-break space more or less at its
+  # end, so the live region's text changes and a screen reader announces it
+  # again; the words stay the same (Sprint 31 closing act, the a11y lens).
+  defp stepped(socket, {:refused, say}, _focus) do
+    case socket.assigns.edit_say do
+      ^say -> assign(socket, :edit_say, say <> "\u00A0")
+      _other -> assign(socket, :edit_say, say)
+    end
+  end
+
   defp stepped(socket, :error, _focus), do: socket
 
   defp focus_ids(_focus, nil), do: ["dashboard-edit-done"]

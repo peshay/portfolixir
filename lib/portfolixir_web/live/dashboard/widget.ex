@@ -220,7 +220,15 @@ defmodule PortfolixirWeb.Dashboard.Widget do
 
   @doc "The frame of one widget on the dashboard (board 01's five parts)."
   def frame(assigns) do
-    assigns = assign(assigns, :title_id, assigns.title_id || assigns.id <> "-title")
+    assigns =
+      assigns
+      |> assign(:title_id, assigns.title_id || assigns.id <> "-title")
+      # The ⓘ names its widget (Sprint 31 closing act, the a11y lens):
+      # „Zu „Wertentwicklung““, not one more „Zu diesem Abschnitt“.
+      |> assign(
+        :info_label,
+        assigns.info_label || gettext("About “%{widget}”", widget: assigns.title)
+      )
 
     ~H"""
     <section
@@ -257,7 +265,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
         </div>
         <%!-- ADR-0062 §5: the ⋯ menu holds the pin (D5); in the edit
              mode (§7, D6) it gives way to the widget's edit controls. --%>
-        <.menu :if={not editing?(@item)} item={@item} />
+        <.menu :if={not editing?(@item)} item={@item} title={@title} />
       </div>
       <%= render_slot(@controls) %>
       <%= render_slot(@shared) %>
@@ -377,6 +385,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   end
 
   attr(:item, :map, required: true)
+  attr(:title, :string, required: true)
 
   # The ⋯ menu (board 05 A): whether the widget follows the dashboard, and
   # „Zeitraum festlegen“ with the kind's periods, each a pin stored in the
@@ -387,7 +396,10 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   defp menu(assigns) do
     ~H"""
     <details class="widget__menu" data-role="widget-menu">
-      <summary aria-label={gettext("Widget menu")} title={gettext("Widget menu")}>
+      <summary
+        aria-label={gettext("Menu for “%{widget}”", widget: @title)}
+        title={gettext("Menu for “%{widget}”", widget: @title)}
+      >
         <span aria-hidden="true">⋯</span>
       </summary>
       <div class="widget__menu-panel">
