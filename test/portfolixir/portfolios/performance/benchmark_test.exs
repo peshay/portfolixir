@@ -437,6 +437,10 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
     assert before.window.rebase_day == ~D[2026-01-01]
     assert before.excluded_flows == []
 
+    # Worded as every other basis (Sprint 31 closing act, A3): the rule is
+    # a close of 0 or below, not of 0 alone.
+    assert before.computation_basis.gaps =~ "(a stored close of 0 or below is not a price)"
+
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
     {1, _rows} =

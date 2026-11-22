@@ -3736,8 +3736,8 @@ Example account payloads:
   benchmark is rebased to (the close before the window, or the window's
   first day when it opens with no value): a flow dated before the
   benchmark's first *priced* day (a close and a rate path to the base
-  currency; a stored close of 0 is not a price) is not replayed on its own
-  day — it enters through the window's opening value and is listed in
+  currency; a stored close of 0 or below is not a price) is not replayed on
+  its own day — it enters through the window's opening value and is listed in
   `excluded_flows` (`date`, `flow`) — and both sides are chained over the
   covered window — then the two comparisons Portfolio Performance shows.
   `bought_once` is flow-neutral: `benchmark_return`, the benchmark rebased
@@ -4229,9 +4229,11 @@ church tax withheld at a zero church-tax rate.
   daily `series` (`snapshot_value`, `snapshot_indexed`, `real_indexed`), a
   `gaps.unvalued_securities` list of securities excluded for missing quotes or
   FX at the as-of date, and a self-describing `basis` (gross, price-return only
-  in v1; it carries the `window`, the `base_currency`, and `costs_removed` /
-  `costs_kept` naming which cost kinds left the return). All financial values
-  are Decimal strings.
+  in v1; it carries the `window`, the `base_currency`, `costs_removed` /
+  `costs_kept` naming which cost kinds left the return, and `gaps`: closes
+  carry forward, a stored close of 0 or below is not a price, and a security
+  without a usable close or rate at the as-of date is a gap, never a 0). All
+  financial values are Decimal strings.
 
   **The two sides are not on one basis, and the payload says so** (#708,
   ADR-0027 amendment): the frozen side pays nothing ever, while the real

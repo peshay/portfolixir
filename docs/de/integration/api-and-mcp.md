@@ -4089,9 +4089,10 @@ Beispiel-Payloads für Konten:
   auf den die Benchmark rebasiert wird (der Schlusskurs vor dem Fenster oder
   der erste Tag des Fensters, wenn es ohne Wert beginnt): ein Fluss vor dem
   ersten *bepreisten* Tag der Benchmark (ein Schlusskurs und ein Kurspfad
-  zur Basiswährung; ein gespeicherter Schlusskurs von 0 ist kein Preis) wird
-  nicht an seinem eigenen Tag nachgebucht — er geht über den Anfangswert des
-  Fensters ein und wird in `excluded_flows` (`date`, `flow`) benannt — und
+  zur Basiswährung; ein gespeicherter Schlusskurs von 0 oder darunter ist
+  kein Preis) wird nicht an seinem eigenen Tag nachgebucht — er geht über
+  den Anfangswert des Fensters ein und wird in `excluded_flows` (`date`,
+  `flow`) benannt — und
   beide Seiten werden über das abgedeckte Fenster verkettet — und dann die
   beiden Vergleiche, die Portfolio Performance zeigt. `bought_once` ist
   flussneutral: `benchmark_return`, die Benchmark auf `rebase_day`
@@ -4878,9 +4879,12 @@ Beispiel-Payloads für Konten:
   `snapshot_indexed`, `real_indexed`), eine Liste `gaps.unvalued_securities`
   der Wertpapiere, die mangels Kurs oder Wechselkurs zum Stichtag
   ausgeschlossen sind, und eine selbstbeschreibende `basis` (brutto, in v1 nur
-  Kursentwicklung; sie trägt das `window`, die `base_currency` sowie
+  Kursentwicklung; sie trägt das `window`, die `base_currency`,
   `costs_removed` / `costs_kept`, die nennen, welche Kostenarten aus der
-  Rendite genommen wurden). Alle Finanzwerte sind Decimal-Strings.
+  Rendite genommen wurden, und `gaps`: Schlusskurse werden fortgeschrieben,
+  ein gespeicherter Schlusskurs von 0 oder darunter ist kein Preis, und ein
+  Wertpapier ohne verwendbaren Kurs oder Wechselkurs zum Stichtag ist eine
+  Lücke, nie eine 0). Alle Finanzwerte sind Decimal-Strings.
 
   **Die beiden Seiten stehen nicht auf derselben Basis, und der Payload sagt
   das** (#708, Ergänzung zu ADR-0027): Die eingefrorene Seite zahlt nie

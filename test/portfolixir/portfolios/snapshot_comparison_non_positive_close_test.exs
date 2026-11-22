@@ -102,4 +102,27 @@ defmodule Portfolixir.Portfolios.SnapshotComparisonNonPositiveCloseTest do
     assert [%{security_id: ^fund_id, reason: :no_quote_at_as_of}] =
              comparison.gaps.unvalued_securities
   end
+
+  # User story (AGENTS.md, "Every metric … must state its computation basis",
+  # the treatment of gaps, review-blocking; Sprint 31 closing act, A3):
+  # As the agent checking the comparison,
+  # I want its basis to say how a day without a price is treated, a stored
+  # close of 0 or below among them,
+  # so that I can tell why such a day carries the close before it and why a
+  # position is a gap.
+  #
+  # Acceptance criteria:
+  # - basis.gaps says prices carry the most recent close forward, that a
+  #   stored close of 0 or below is not a price, and that a position with no
+  #   usable close or rate path at the as-of date is excluded and listed in
+  #   gaps.unvalued_securities, never valued at 0.
+  test "the basis states the treatment of gaps, a close of 0 or below among them" do
+    {world, _fund, snapshot} = world!("Basis", [{~D[2026-02-14], "12"}, {@today, "15"}])
+    gaps = compare!(world, snapshot).basis.gaps
+
+    assert gaps =~ "(a stored close of 0 or below is not a price)"
+    assert gaps =~ "carried forward"
+    assert gaps =~ "gaps.unvalued_securities"
+    assert gaps =~ "never valued at 0"
+  end
 end

@@ -102,6 +102,16 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert ("live valuation and quote change reads: the latest close is the last positive " <>
               "one (#1473)") in newest["parameters"]
 
+    # The closing act's A3: every read the rule moved is named, not only
+    # the walk's three (git log 01542f7..f9b1607e on portfolios, catalog).
+    for read <- [
+          "benchmark comparison, movers, risk metrics and policy findings reads",
+          "snapshot comparison read",
+          "sale review (hindsight) read"
+        ] do
+      assert Enum.any?(newest["parameters"], &String.starts_with?(&1, read <> ": ")), read
+    end
+
     # --- S31 Z end ---
 
     # Sprint 30's sprint PR (version 30), found by version from Sprint 31

@@ -492,7 +492,17 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
         # Named rather than described, so a reader never has to infer which
         # side of the line a cost fell on (§1's two boundaries).
         costs_removed: ["trade_fees", "trade_taxes"],
-        costs_kept: ["standalone_fees", "standalone_taxes", "dividend_withholding"]
+        costs_kept: ["standalone_fees", "standalone_taxes", "dividend_withholding"],
+        # AGENTS.md: the treatment of gaps is part of every basis
+        # (review-blocking), the #1473 rule among it.
+        gaps:
+          "the frozen positions are priced by the most recent stored close on or before " <>
+            "each day, carried forward (a stored close of 0 or below is not a price), and " <>
+            "converted at the most recent stored EUR-hub rate on or before the day; a " <>
+            "security with no positive close or no rate path to the base currency on or " <>
+            "before the as-of date is excluded and listed in gaps.unvalued_securities " <>
+            "(no_quote_at_as_of, no_fx_rate), never valued at 0. The real side is the " <>
+            "performance walk's TTWROR, whose own basis names its gaps"
       }
     }
   end
