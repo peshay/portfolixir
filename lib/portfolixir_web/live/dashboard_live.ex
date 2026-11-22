@@ -534,7 +534,7 @@ defmodule PortfolixirWeb.DashboardLive do
           for(
             item <- items,
             item.kind == "total_value" and item.size == "S",
-            do: {item.scope, period}
+            do: {item.scope, Widget.with_period(item, period, false).period}
           )
 
     Enum.uniq(own ++ changes)
@@ -1601,7 +1601,7 @@ defmodule PortfolixirWeb.DashboardLive do
       # the year-to-date change and the strip.
       |> assign(
         :change,
-        Map.get(assigns.performance, {assigns.item.scope, assigns.item.dashboard_period})
+        Map.get(assigns.performance, {assigns.item.scope, assigns.item.period})
       )
 
     ~H"""
@@ -1644,7 +1644,7 @@ defmodule PortfolixirWeb.DashboardLive do
         stale={@stale}
         error={@error}
         uid={@uid}
-        change={if @item.size == "S", do: {@change, @item.dashboard_period}}
+        change={if @item.size == "S", do: {@change, @item.period}}
       />
       <Line.sparkline
         :if={@item.size == "S" && is_map(@change)}

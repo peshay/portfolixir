@@ -183,7 +183,11 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
     assert has_element?(view, "#dashboard-movers[data-window='quarter']")
     refute has_element?(view, "[data-role='movers-period']")
 
-    for kind <- ~w(total_value crashes snapshots) do
+    # „Gesamtwert“ at S draws the period's change, so it follows too.
+    assert tag_text(view, "total_value") == "folgt · 3M"
+    assert tag_state(view, "total_value") == "follows"
+
+    for kind <- ~w(crashes snapshots) do
       assert tag_text(view, kind) == "ohne Zeitraum", kind
       assert tag_state(view, kind) == "none", kind
     end
@@ -258,6 +262,48 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
     assert stored_settings(dashboard.id, "performance") == %{}
     assert tag_text(view, "performance") == "folgt · 1W"
     assert tag_state(view, "performance") == "follows"
+  end
+
+  # User story (Sprint 31 D8, the width walk's finding 3):
+  # As the operator reading „Gesamtwert“ at S,
+  # I want its head to name the period its change line is for, and its ⋯
+  # menu to pin one,
+  # so that the head never says „ohne Zeitraum“ above a figure for a span.
+  #
+  # Acceptance criteria:
+  # - It follows the top bar: „folgt · 3M“ over „TTWROR · 3M“.
+  # - Its ⋯ menu offers the eight periods; a pin is stored in its settings,
+  #   the head says „📌 eigener: Max“ and the line „TTWROR · Max“, and a
+  #   change of the top bar leaves both.
+  test "„Gesamtwert“ at S follows the period, and a pin moves its change line", %{conn: conn} do
+    seed()
+    layout = [%{"kind" => "total_value", "size" => "S", "col" => 1, "row" => 1}]
+    dashboard = dashboard!("Total", layout)
+    {:ok, view, _html} = conn |> german() |> live("/dashboards/#{dashboard.id}?period=3m")
+    render_async(view)
+
+    line = fn ->
+      view |> document() |> Floki.find("[data-role='card-period-change']") |> text()
+    end
+
+    assert tag_text(view, "total_value") == "folgt · 3M"
+    assert line.() =~ "TTWROR · 3M"
+
+    assert view
+           |> document()
+           |> Floki.find("[data-widget-kind='total_value'] [data-role='pin-period']")
+           |> Enum.map(&text/1) == ~w(1T 1W 1M 3M YTD 1J 3J Max)
+
+    pin(view, "total_value", "max")
+    render_async(view)
+    assert stored_settings(dashboard.id, "total_value") == %{"period" => "max"}
+    assert tag_text(view, "total_value") == "📌 eigener: Max"
+    assert line.() =~ "TTWROR · Max"
+
+    pick(view, "1w")
+    render_async(view)
+    assert tag_text(view, "total_value") == "📌 eigener: Max"
+    assert line.() =~ "TTWROR · Max"
   end
 
   # User story:

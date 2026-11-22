@@ -226,7 +226,13 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     for {_period, value} <- performance.period.values,
         do: assert(value in Performance.periods())
 
-    for key <- Widgets.keys() -- ~w(movers performance) do
+    # „Gesamtwert“ draws, at S, the change the performance read gives for
+    # its period (Sprint 31 D8, the width walk's finding 3): it takes the
+    # dashboard periods by the same rule.
+    {:ok, total_value} = Widgets.fetch("total_value")
+    assert total_value.period == performance.period
+
+    for key <- Widgets.keys() -- ~w(movers performance total_value) do
       {:ok, kind} = Widgets.fetch(key)
       assert kind.period == :none, key
     end
@@ -238,6 +244,9 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     assert Widgets.source_params("movers", "3m", today) == {:ok, %{"window" => "quarter"}}
     assert Widgets.source_params("movers", "max", today) == {:ok, %{"window" => "1y"}}
     assert Widgets.source_params("performance", "ytd", today) == {:ok, %{"period" => "ytd"}}
+
+    assert Widgets.source_params("total_value", "1m", today) ==
+             Widgets.source_params("performance", "1m", today)
 
     assert Widgets.source_params("performance", "1d", today) ==
              {:ok, %{"from" => "2026-11-20", "to" => "2026-11-21"}}
@@ -260,6 +269,7 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   test "takes_period?/2 answers by string, for the kinds with a period only" do
     assert Widgets.takes_period?("movers", "3y")
     assert Widgets.takes_period?("performance", "1d")
+    assert Widgets.takes_period?("total_value", "max")
     refute Widgets.takes_period?("movers", "5y")
     refute Widgets.takes_period?("crashes", "1y")
     refute Widgets.takes_period?("nope", "1y")

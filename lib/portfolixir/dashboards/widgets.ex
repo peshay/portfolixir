@@ -90,7 +90,10 @@ defmodule Portfolixir.Dashboards.Widgets do
         function: {Portfolixir.Portfolios.Valuation, :for_view, 2},
         note: nil
       },
-      period: :none,
+      # At S it draws the change the performance read gives for its
+      # period, so it takes the dashboard periods by performance's rule
+      # (Sprint 31 D8): its head names the period, its menu pins one.
+      period: @performance_period,
       scope: :view,
       compact: true
     },

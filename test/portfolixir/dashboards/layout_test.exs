@@ -235,6 +235,7 @@ defmodule Portfolixir.Dashboards.LayoutTest do
 
     assert {:ok, _} = Layout.validate([pin.("movers", "M", "max")])
     assert {:ok, _} = Layout.validate([pin.("performance", "L", "1d")])
+    assert {:ok, _} = Layout.validate([pin.("total_value", "S", "max")])
 
     assert refusal([pin.("crashes", "M", "1y")]) ==
              %{index: 0, field: "settings.period", reason: :no_period}
