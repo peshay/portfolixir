@@ -9,6 +9,10 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   (the pin, Sprint 31 D5; the edit actions are D6's) —, the **controls**
   the kind keeps of its own, the **body** in two forms, and the **footer**
   with its scope and the way into the full view or the source screen.
+  In the edit mode (ADR-0062 §7; Sprint 31 D6) the ⋯ menu gives way to the
+  widget's edit controls: the handle, ×, „nach oben“ and „nach unten“ for
+  the compact class, and the size switch at its foot
+  (`PortfolixirWeb.Dashboard.Edit` holds the edit).
 
   The two forms are the wide form, drawn at the item's size on the
   12-column grid, and the compact form, the kind's own narrow layout at
@@ -221,7 +225,12 @@ defmodule PortfolixirWeb.Dashboard.Widget do
     ~H"""
     <section
       id={@id}
-      class={["dashboard-widget", "widget--" <> String.downcase(@item.size), @class]}
+      class={[
+        "dashboard-widget",
+        "widget--" <> String.downcase(@item.size),
+        editing?(@item) && "is-editing",
+        @class
+      ]}
       data-widget-kind={@item.kind}
       data-size={@item.size}
       data-col={@item.col}
@@ -230,6 +239,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
       aria-labelledby={@title_id}
       {@rest}
     >
+      <.edit_bar :if={editing?(@item)} item={@item} title={@title} />
       <div class="section-head widget__head">
         <div class="section-title">
           <h2 id={@title_id}><%= @title %></h2>
@@ -245,9 +255,9 @@ defmodule PortfolixirWeb.Dashboard.Widget do
             data-period-state={@item.period_state}
           ><span :if={@item.period_state == :pinned} aria-hidden="true">📌 </span><%= period_tag(@item) %></span>
         </div>
-        <%!-- ADR-0062 §5, §7: the ⋯ menu holds the pin (D5); the edit
-             actions (D6) join it. --%>
-        <.menu item={@item} />
+        <%!-- ADR-0062 §5: the ⋯ menu holds the pin (D5); in the edit
+             mode (§7, D6) it gives way to the widget's edit controls. --%>
+        <.menu :if={not editing?(@item)} item={@item} />
       </div>
       <%= render_slot(@controls) %>
       <%= render_slot(@shared) %>
@@ -265,7 +275,97 @@ defmodule PortfolixirWeb.Dashboard.Widget do
         <span data-role="widget-scope"><%= @scope_label %></span>
         <a :if={@full_href} href={@full_href} data-role={@full_role}><%= @full_label %></a>
       </footer>
+      <.size_switch :if={editing?(@item)} item={@item} title={@title} />
     </section>
+    """
+  end
+
+  defp editing?(item), do: Map.get(item, :editing, false)
+
+  attr(:item, :map, required: true)
+  attr(:title, :string, required: true)
+
+  # The edit mode's controls at the widget's top (ADR-0062 §7; board 03):
+  # the handle, which a pointer drags on the wide grid (the DashboardEdit
+  # hook) and on which the arrow keys move the widget one grid step and
+  # Delete removes it (`edit_key`); in the compact class, where no grid is
+  # shown, „nach oben“ and „nach unten“ in its place (CSS's choice); and ×.
+  # Each names its widget, so a screen reader hears whose control it is.
+  defp edit_bar(assigns) do
+    ~H"""
+    <div class="widget__edit" data-role="widget-edit">
+      <span class="widget__reorder">
+        <button
+          type="button"
+          class="widget__edit-button"
+          phx-click="edit_reorder"
+          phx-value-item={@item.edit_key}
+          phx-value-direction="up"
+          aria-label={gettext("Move %{widget} up", widget: @title)}
+          title={gettext("Move %{widget} up", widget: @title)}
+          data-role="edit-up"
+        ><span aria-hidden="true">↑</span></button>
+        <button
+          type="button"
+          class="widget__edit-button"
+          phx-click="edit_reorder"
+          phx-value-item={@item.edit_key}
+          phx-value-direction="down"
+          aria-label={gettext("Move %{widget} down", widget: @title)}
+          title={gettext("Move %{widget} down", widget: @title)}
+          data-role="edit-down"
+        ><span aria-hidden="true">↓</span></button>
+      </span>
+      <button
+        type="button"
+        id={"dashboard-edit-handle-#{@item.edit_key}"}
+        class="widget__handle"
+        phx-keydown="edit_key"
+        phx-value-item={@item.edit_key}
+        aria-label={gettext("Move %{widget}", widget: @title)}
+        aria-describedby="dashboard-edit-hint"
+        title={gettext("Move %{widget}", widget: @title)}
+        data-role="edit-handle"
+        data-item={@item.edit_key}
+      ></button>
+      <button
+        type="button"
+        class="widget__edit-button widget__remove"
+        phx-click="edit_remove"
+        phx-value-item={@item.edit_key}
+        aria-label={gettext("Remove %{widget}", widget: @title)}
+        title={gettext("Remove %{widget}", widget: @title)}
+        data-role="edit-remove"
+      ><span aria-hidden="true">×</span></button>
+    </div>
+    """
+  end
+
+  attr(:item, :map, required: true)
+  attr(:title, :string, required: true)
+
+  # The size switch (board 03, at the widget's foot): the grid sizes its
+  # kind takes, its own pressed; none where the kind takes one size.
+  defp size_switch(assigns) do
+    ~H"""
+    <div
+      :if={length(@item.edit_sizes) > 1}
+      class="widget__sizes"
+      role="group"
+      aria-label={gettext("Size of %{widget}", widget: @title)}
+    >
+      <button
+        :for={size <- @item.edit_sizes}
+        type="button"
+        class={["widget__size", size == @item.size && "is-active"]}
+        phx-click="edit_resize"
+        phx-value-item={@item.edit_key}
+        phx-value-size={size}
+        aria-pressed={to_string(size == @item.size)}
+        data-role="edit-size"
+        data-size={size}
+      ><%= size %></button>
+    </div>
     """
   end
 

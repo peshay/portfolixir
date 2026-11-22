@@ -56,6 +56,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias Portfolixir.Catalog.SecurityCycles
   alias Portfolixir.Classifications
   alias Portfolixir.Dashboards
+  alias Portfolixir.Dashboards.Layout
   alias Portfolixir.Dashboards.Templates
   alias Portfolixir.Dashboards.Widgets
   alias Portfolixir.Knowledge.Events
@@ -73,6 +74,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Components.CycleChart
+  alias PortfolixirWeb.Dashboard.Edit
   alias PortfolixirWeb.Dashboard.MoversCard
   alias PortfolixirWeb.Dashboard.Widget
   alias PortfolixirWeb.Dashboard.Widgets.AllocationDrift, as: AllocationDriftWidget
@@ -124,7 +126,9 @@ defmodule PortfolixirWeb.DashboardLive do
         period_addressed: false,
         pin_error: nil,
         closed_trades: nil,
-        customize_error: nil
+        customize_error: nil,
+        edit: nil,
+        edit_say: nil
       )
       |> assign_widget_reads()
       # #828 (design pick D3-A): the due dates, read synchronously — the
@@ -276,12 +280,13 @@ defmodule PortfolixirWeb.DashboardLive do
         board: board,
         scope_id: scope_id,
         load_key: key,
-        items: Widget.items(board.layout, scope_id, socket.assigns.views),
+        edit: kept_edit(socket.assigns.edit, board),
         cards: %{},
         attention: %{},
         movers: %{},
         error: nil
       )
+      |> assign_items()
       |> assign_widget_reads()
       |> assign_stale_ttwror()
       |> start_loading()
@@ -290,6 +295,34 @@ defmodule PortfolixirWeb.DashboardLive do
       |> start_widget_reads()
     end
   end
+
+  # The items the page draws: the layout being edited while the edit mode
+  # is open (Sprint 31 D6), each with its edit key and its kind's grid
+  # sizes, else the board's.
+  defp assign_items(%{assigns: %{board: board, edit: edit} = assigns} = socket) do
+    layout = if edit, do: edit.layout, else: board.layout
+    items = Widget.items(layout, assigns.scope_id, assigns.views)
+
+    items =
+      if edit,
+        do:
+          Enum.map(
+            items,
+            &Map.merge(&1, %{
+              editing: true,
+              edit_key: Edit.key_at(edit, &1.index),
+              edit_sizes: Edit.grid_sizes(&1.kind)
+            })
+          ),
+        else: items
+
+    assign(socket, :items, items)
+  end
+
+  # An open edit stays while the page shows its dashboard (another scope,
+  # another period); another dashboard ends it unsaved.
+  defp kept_edit(%Edit{dashboard: %{id: id}} = edit, %{dashboard: %{id: id}}), do: edit
+  defp kept_edit(_edit, _board), do: nil
 
   # The scopes the items read the value and drift under, the dashboard's
   # first.
@@ -828,9 +861,212 @@ defmodule PortfolixirWeb.DashboardLive do
     {:noreply, start_widget_reads(socket)}
   end
 
+  # --- S31 D6 begin ---
+  # The edit mode (ADR-0062 §7; board 03; Sprint 31 D6). „Bearbeiten“ on a
+  # stored dashboard opens it; a template has none („Anpassen“ copies it
+  # first). Each step is `PortfolixirWeb.Dashboard.Edit`'s, validated on
+  # the server and said in the polite live region `#dashboard-edit-status`;
+  # a refused step is said, not applied. Nothing is written until
+  # „Fertig“, which replaces the dashboard once with the lock_version the
+  # edit read: one journal entry per save.
+  def handle_event(
+        "edit_start",
+        _params,
+        %{assigns: %{board: %{dashboard: %Dashboards.Dashboard{} = dashboard}, edit: nil}} =
+          socket
+      ) do
+    {:noreply,
+     socket
+     |> assign(
+       edit: Edit.start(dashboard),
+       edit_say: gettext("Editing: nothing is stored until “Done”.")
+     )
+     |> assign_items()}
+  end
+
+  # The keyboard path: the keys the handle sends (`phx-keydown`).
+  def handle_event(
+        "edit_key",
+        %{"item" => raw, "key" => key},
+        %{assigns: %{edit: %Edit{}}} = socket
+      )
+      when is_binary(key) do
+    edit_step(socket, raw, fn edit, item ->
+      case key do
+        "ArrowLeft" -> Edit.move(edit, item, :left)
+        "ArrowRight" -> Edit.move(edit, item, :right)
+        "ArrowUp" -> Edit.move(edit, item, :up)
+        "ArrowDown" -> Edit.move(edit, item, :down)
+        delete when delete in ["Delete", "Backspace"] -> Edit.remove(edit, item)
+        _other -> :error
+      end
+    end)
+  end
+
+  # The pointer path: the DashboardEdit hook's drop on the wide grid.
+  def handle_event(
+        "edit_place",
+        %{"item" => raw, "col" => col, "row" => row},
+        %{assigns: %{edit: %Edit{}}} = socket
+      ) do
+    places = 1..Layout.max_row()
+
+    edit_step(socket, raw, fn edit, item ->
+      Edit.place(edit, item, LiveParam.integer(col, places), LiveParam.integer(row, places))
+    end)
+  end
+
+  def handle_event(
+        "edit_resize",
+        %{"item" => raw, "size" => size},
+        %{assigns: %{edit: %Edit{}}} = socket
+      ),
+      do: edit_step(socket, raw, &Edit.resize(&1, &2, size))
+
+  def handle_event("edit_remove", %{"item" => raw}, %{assigns: %{edit: %Edit{}}} = socket),
+    do: edit_step(socket, raw, &Edit.remove/2)
+
+  def handle_event(
+        "edit_reorder",
+        %{"item" => raw, "direction" => direction},
+        %{assigns: %{edit: %Edit{}}} = socket
+      ) do
+    edit_step(socket, raw, fn edit, item ->
+      case direction do
+        "up" -> Edit.reorder(edit, item, :up)
+        "down" -> Edit.reorder(edit, item, :down)
+        _other -> :error
+      end
+    end)
+  end
+
+  def handle_event("edit_add", %{"kind" => kind}, %{assigns: %{edit: %Edit{} = edit}} = socket),
+    do: {:noreply, stepped(socket, Edit.add(edit, kind))}
+
+  def handle_event("edit_reset", _params, %{assigns: %{edit: %Edit{} = edit}} = socket) do
+    {:noreply,
+     socket
+     |> assign(edit: Edit.reset(edit), edit_say: gettext("Unsaved changes discarded."))
+     |> assign_items()
+     |> start_added_reads()}
+  end
+
+  def handle_event("edit_done", _params, %{assigns: %{edit: %Edit{} = edit}} = socket) do
+    if Edit.changed?(edit) do
+      case replace_layout(edit.dashboard, edit.layout) do
+        {:ok, dashboard} ->
+          {:noreply, saved(socket, dashboard, gettext("Dashboard saved."))}
+
+        {:error, :stale, stored} ->
+          {:noreply,
+           assign(socket,
+             edit: Edit.stale(edit, stored),
+             edit_say: stale_sentence()
+           )}
+
+        {:error, :not_found} ->
+          {:noreply, push_navigate(socket, to: "/")}
+
+        {:error, _refusal} ->
+          {:noreply, assign(socket, :edit_say, gettext("Couldn't save the dashboard."))}
+      end
+    else
+      case Dashboards.get_dashboard(edit.dashboard.id) do
+        %Dashboards.Dashboard{} = dashboard ->
+          {:noreply, saved(socket, dashboard, gettext("No changes to save."))}
+
+        nil ->
+          {:noreply, push_navigate(socket, to: "/")}
+      end
+    end
+  end
+
+  # After a stale save: „Gespeicherte Fassung laden“ ends the edit and
+  # draws the dashboard as stored; „Weiter bearbeiten“ keeps the edit on
+  # the stored version, so the next „Fertig“ replaces what was shown.
+  def handle_event(
+        "edit_load_stored",
+        _params,
+        %{assigns: %{edit: %Edit{stale: %Dashboards.Dashboard{} = stored}}} = socket
+      ) do
+    {:noreply,
+     socket
+     |> assign(edit: nil, edit_say: gettext("The stored version is shown."))
+     |> show(stored(stored), socket.assigns.scope_id)}
+  end
+
+  def handle_event("edit_keep", _params, %{assigns: %{edit: %Edit{stale: %{}} = edit}} = socket) do
+    {:noreply,
+     assign(socket,
+       edit: Edit.rebase(edit),
+       edit_say: gettext("Editing continues; “Done” replaces the stored version shown before.")
+     )}
+  end
+
+  # --- S31 D6 end ---
+
   # The overview handles no other events; one pushed to it changes nothing
   # (E25 S4, F17).
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  # --- S31 D6 begin ---
+  defp edit_step(%{assigns: %{edit: edit}} = socket, raw, step) do
+    case Edit.key(edit, raw) do
+      nil -> {:noreply, socket}
+      item -> {:noreply, stepped(socket, step.(edit, item))}
+    end
+  end
+
+  # A step applied: the edit drawn, its sentence said, the focus on the
+  # handle it names (the „Fertig“ button when none is left), and a read
+  # started for a widget the page has not read yet. A refused step is
+  # said and changes nothing else.
+  defp stepped(socket, {:ok, edit, say, focus}) do
+    socket
+    |> assign(edit: edit, edit_say: say)
+    |> assign_items()
+    |> push_event("dashboard-edit-focus", %{id: focus_id(focus)})
+    |> start_added_reads()
+  end
+
+  defp stepped(socket, {:refused, say}), do: assign(socket, :edit_say, say)
+  defp stepped(socket, :error), do: socket
+
+  defp focus_id(nil), do: "dashboard-edit-done"
+  defp focus_id(key), do: "dashboard-edit-handle-#{key}"
+
+  defp start_added_reads(socket) do
+    socket
+    |> start_movers()
+    |> start_widget_reads()
+    |> start_added_closed_trades()
+  end
+
+  defp start_added_closed_trades(%{assigns: %{closed_trades: nil, reads: reads}} = socket) do
+    if MapSet.member?(reads, :closed_trades), do: socket, else: start_closed_trades(socket)
+  end
+
+  defp start_added_closed_trades(socket), do: socket
+
+  # The edit saved, or closed with nothing to save: the dashboard drawn as
+  # stored, with its ⋯ menus, the reads it holds kept.
+  defp saved(socket, dashboard, say) do
+    socket
+    |> assign(edit: nil, edit_say: say)
+    |> then(&pinned_board({:ok, dashboard}, &1))
+  end
+
+  defp stale_sentence,
+    do:
+      gettext(
+        "This dashboard was changed elsewhere since the edit began. Nothing was saved; the stored version is shown with the edit."
+      )
+
+  # --- S31 D6 end ---
+
+  # The edit mode hides the ⋯ menu; a pin sent meanwhile would write under
+  # the edit's lock_version, so it changes nothing.
+  defp pin(%{assigns: %{edit: %Edit{}}} = socket, _index, _change), do: socket
 
   defp pin(
          %{assigns: %{board: %{dashboard: %Dashboards.Dashboard{} = dashboard}}} = socket,
@@ -874,9 +1110,9 @@ defmodule PortfolixirWeb.DashboardLive do
     |> assign(
       board: board,
       load_key: {board.key, socket.assigns.scope_id, dashboard.lock_version},
-      items: Widget.items(board.layout, socket.assigns.scope_id, socket.assigns.views),
       pin_error: nil
     )
+    |> assign_items()
     |> start_movers()
     |> start_widget_reads()
   end
@@ -917,12 +1153,14 @@ defmodule PortfolixirWeb.DashboardLive do
           pin_error={@pin_error}
           period={@period}
           period_addressed={@period_addressed}
+          edit={@edit}
+          edit_say={@edit_say}
         />
         <%!-- Sprint 31 D7 („Neues Dashboard“ → „Leer beginnen“): a stored
              dashboard with no widget says so and where widgets come from,
              until the edit mode opens the catalogue itself. --%>
         <p
-          :if={@board && @board.dashboard && @board.layout == []}
+          :if={@board && @board.dashboard && @board.layout == [] && is_nil(@edit)}
           class="hint dashboard-empty"
           data-role="dashboard-empty"
         >
@@ -960,6 +1198,8 @@ defmodule PortfolixirWeb.DashboardLive do
   attr(:pin_error, :string, default: nil)
   attr(:period, :string, required: true)
   attr(:period_addressed, :boolean, default: false)
+  attr(:edit, :any, default: nil)
+  attr(:edit_say, :string, default: nil)
 
   # The bar above the widgets (planning board 01 ①): the dashboard's scope
   # („Gesamt ▾“), the period (board 05 A: 1T … Max, on a narrow window a
@@ -1029,7 +1269,53 @@ defmodule PortfolixirWeb.DashboardLive do
           hidden
         >
         </div>
+        <%!-- Sprint 31 D6 (ADR-0062 §7; board 03): „Bearbeiten“ on a stored
+             dashboard; in the edit mode „Zurücksetzen“ and „Fertig“. --%>
+        <div :if={@board.dashboard} class="dashboard-edit-actions">
+          <%= if @edit do %>
+            <span class="dashboard-edit-actions__label"><%= gettext("editing") %></span>
+            <button
+              type="button"
+              class="button-secondary"
+              phx-click="edit_reset"
+              data-role="edit-reset"
+            >
+              <%= gettext("Reset") %>
+            </button>
+            <button
+              type="button"
+              id="dashboard-edit-done"
+              class="button-primary"
+              phx-click="edit_done"
+              data-role="edit-done"
+            >
+              <%= gettext("Done") %>
+            </button>
+          <% else %>
+            <button
+              type="button"
+              class="button-secondary"
+              phx-click="edit_start"
+              data-role="edit-start"
+            >
+              <%= gettext("Edit") %>
+            </button>
+          <% end %>
+        </div>
       </div>
+      <%!-- Every edit step is said here, a refusal too (ADR-0062 §7); the
+           region exists before the first step, so the first is heard. No
+           whitespace inside, so `:empty` holds. --%>
+      <p
+        id="dashboard-edit-status"
+        class="dashboard-edit-status"
+        role="status"
+        aria-live="polite"
+      ><%= @edit_say %></p>
+      <p :if={@edit} id="dashboard-edit-hint" class="visually-hidden">
+        <%= gettext("The arrow keys move the widget one grid step; Delete removes it.") %>
+      </p>
+      <.stale_edit :if={@edit && @edit.stale} stored={@edit.stale} />
       <div :if={@board.template} class="dashboard-banner" data-role="template-banner">
         <span>
           <strong><%= gettext("Template") %></strong> · <%= gettext("shipped, read-only") %>
@@ -1052,6 +1338,104 @@ defmodule PortfolixirWeb.DashboardLive do
           data-role="period-pin-status"
         ><%= @pin_error %></AppShell.data_note></div>
     </section>
+    """
+  end
+
+  attr(:stored, :map, required: true)
+
+  # A stale save (ADR-0062 §2, §7): the dashboard as stored now, in its
+  # reading order, each widget with its size and place on a small grid,
+  # beside the edit, and the two ways on; nothing is lost unseen.
+  defp stale_edit(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :items,
+        Enum.map(
+          Widget.items(assigns.stored.layout, nil, []),
+          &Map.put(&1, :title, Widgets.title(&1.kind))
+        )
+      )
+
+    ~H"""
+    <div class="dashboard-edit-stale" data-role="edit-stale">
+      <AppShell.data_note severity={:problem}>
+        <%= stale_sentence() %>
+      </AppShell.data_note>
+      <ol class="dashboard-edit-stale__grid" aria-label={gettext("Stored version")}>
+        <li
+          :for={item <- @items}
+          data-role="stored-item"
+          style={"--widget-col: #{item.col}; --widget-row: #{item.row}; --widget-w: #{item.w}; --widget-h: #{item.h};"}
+        >
+          <strong><%= item.title %></strong>
+          <span><%= gettext("%{size} · column %{col}, row %{row}",
+            size: item.size,
+            col: item.col,
+            row: item.row
+          ) %></span>
+        </li>
+      </ol>
+      <div class="dashboard-edit-stale__actions">
+        <button
+          type="button"
+          class="button-primary"
+          phx-click="edit_load_stored"
+          data-role="edit-load-stored"
+        >
+          <%= gettext("Load the stored version") %>
+        </button>
+        <button type="button" class="button-secondary" phx-click="edit_keep" data-role="edit-keep">
+          <%= gettext("Keep editing") %>
+        </button>
+      </div>
+    </div>
+    """
+  end
+
+  # The catalogue beside the grid (board 03, „Widget hinzufügen“): every
+  # registered kind under its group, with its grid sizes; a tap adds it at
+  # the first free place in its first size. The compact class has none
+  # (ADR-0062 §7: no placement there).
+  defp catalogue(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :groups,
+        Widgets.groups()
+        |> Enum.map(fn group ->
+          {group, Enum.filter(Dashboards.widgets(), &(&1.group == group))}
+        end)
+        |> Enum.reject(fn {_group, kinds} -> kinds == [] end)
+      )
+
+    ~H"""
+    <aside
+      id="dashboard-catalogue"
+      class="dashboard-catalogue"
+      data-role="edit-catalogue"
+      aria-labelledby="dashboard-catalogue-title"
+    >
+      <h2 id="dashboard-catalogue-title"><%= gettext("Add widget") %></h2>
+      <section :for={{group, kinds} <- @groups} class="dashboard-catalogue__group">
+        <h3><%= Widgets.group_title(group) %></h3>
+        <button
+          :for={kind <- kinds}
+          type="button"
+          class="dashboard-catalogue__item"
+          phx-click="edit_add"
+          phx-value-kind={kind.key}
+          data-role="edit-add"
+          data-kind={kind.key}
+        >
+          <span><%= Widgets.title(kind.key) %></span>
+          <span class="dashboard-catalogue__sizes"><%= Enum.join(Edit.grid_sizes(kind.key), " ") %></span>
+        </button>
+      </section>
+      <p class="dashboard-catalogue__note">
+        <%= gettext("A tap adds a widget at the first free place. An agent can do the same over the API and MCP.") %>
+      </p>
+    </aside>
     """
   end
 
@@ -1132,8 +1516,11 @@ defmodule PortfolixirWeb.DashboardLive do
         <% end %>
       </div>
       <div
+        id="dashboard-grid"
         class="dashboard-grid"
         data-role="dashboard-grid"
+        phx-hook="DashboardEdit"
+        data-editing={to_string(not is_nil(@edit))}
         aria-busy={if MapSet.size(@reads) > 0, do: "true"}
       >
         <.widget
@@ -1143,6 +1530,7 @@ defmodule PortfolixirWeb.DashboardLive do
           {widget_assigns(assigns)}
         />
       </div>
+      <.catalogue :if={@edit} />
     </div>
     """
   end

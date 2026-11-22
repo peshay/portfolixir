@@ -78,11 +78,15 @@ defmodule Portfolixir.Dashboards do
   def fetch_template(key), do: Templates.fetch(key)
 
   @doc """
-  Validates a layout without storing it (`Portfolixir.Dashboards.Layout.validate/1`):
+  Validates a layout without storing it (`Portfolixir.Dashboards.Layout.validate/2`):
   `{:ok, normalized}` or `{:error, refusal}` naming the first bad item.
+  Option `stored:` is the layout the dashboard stores, whose view ids that
+  went stale are dropped rather than refused, as a replace drops them (the
+  edit mode validates each step of an edit against it, Sprint 31 D6).
   """
-  @spec validate_layout(term()) :: {:ok, [Layout.item()]} | {:error, Layout.refusal()}
-  def validate_layout(layout), do: Layout.validate(layout)
+  @spec validate_layout(term(), keyword()) ::
+          {:ok, [Layout.item()]} | {:error, Layout.refusal()}
+  def validate_layout(layout, opts \\ []), do: Layout.validate(layout, opts)
 
   @doc "The most dashboards an instance stores (ADR-0062 §2)."
   @spec max_dashboards() :: pos_integer()
