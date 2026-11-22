@@ -19,6 +19,7 @@ defmodule Portfolixir.Dashboards.WritesTest do
   alias Portfolixir.Dashboards.Templates
   alias Portfolixir.Derived.BlastRadius
   alias Portfolixir.Journal
+  alias Portfolixir.Repo
 
   defp agent, do: Actor.api_token_rw("mcp")
 
@@ -399,6 +400,87 @@ defmodule Portfolixir.Dashboards.WritesTest do
 
     assert {:error, %Ecto.Changeset{errors: [layout: {"names no view", _meta}]}} =
              Dashboards.create_dashboard(agent(), %{"name" => "New", "layout" => [pinned]})
+  end
+
+  # Writes a layout past the validation, as a later release whose registry
+  # no longer has a kind finds a layout this one stored.
+  defp force_layout!(dashboard, layout) do
+    Repo.transaction(fn ->
+      Repo.query!("SELECT set_config('portfolixir.journal_actor', 'test', true)")
+
+      Repo.query!("UPDATE dashboards SET layout = $1::jsonb WHERE id = $2", [layout, dashboard.id])
+    end)
+  end
+
+  # User story (ADR-0062 §2; Sprint 31 closing act, C4):
+  # As the operator whose dashboard holds a widget a later release no
+  # longer registers,
+  # I want my next pin, catalogue add or save to go through and drop that
+  # widget, as a deleted view's id is dropped, while a kind I send that was
+  # never stored is still refused,
+  # so that one retired kind does not lock the dashboard against every
+  # edit.
+  #
+  # Acceptance criteria:
+  # - A replace resending the stored layout with one item changed (a pin)
+  #   stores it without the unregistered item.
+  # - The catalogue's add (the stored layout plus one item, placed where
+  #   the dropped item stood) goes through: the dropped item meets no
+  #   overlap.
+  # - A later bad item's refusal still names its place in the list sent.
+  # - A replace naming an unregistered kind the stored layout does not hold
+  #   is refused (unknown_kind, its index); a create naming one is refused.
+  test "a stored item whose kind is no longer registered is dropped on the next save" do
+    movers = %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 1, "settings" => %{}}
+    gone = %{"kind" => "gone_kind", "size" => "S", "col" => 7, "row" => 1, "settings" => %{}}
+    dashboard = create!("Retired", [movers])
+    force_layout!(dashboard, [movers, gone])
+
+    pinned = put_in(movers, ["settings", "period"], "1w")
+
+    assert {:ok, %Dashboard{layout: [^pinned], lock_version: 2}} =
+             Dashboards.replace_dashboard(Actor.owner_ui(), dashboard.id, %{
+               "name" => "Retired",
+               "layout" => [pinned, gone],
+               "lock_version" => 1
+             })
+
+    force_layout!(dashboard, [movers, gone])
+    added = %{"kind" => "due", "size" => "S", "col" => 7, "row" => 1, "settings" => %{}}
+
+    assert {:ok, %Dashboard{layout: [^movers, ^added], lock_version: 3}} =
+             Dashboards.replace_dashboard(Actor.owner_ui(), dashboard.id, %{
+               "name" => "Retired",
+               "layout" => [movers, gone, added],
+               "lock_version" => 2
+             })
+
+    force_layout!(dashboard, [movers, gone])
+
+    assert {:error, %Ecto.Changeset{errors: [layout: {_message, meta}]}} =
+             Dashboards.replace_dashboard(Actor.owner_ui(), dashboard.id, %{
+               "name" => "Retired",
+               "layout" => [movers, gone, Map.put(added, "size", "L")],
+               "lock_version" => 3
+             })
+
+    assert {meta[:index], meta[:reason]} == {2, :unsupported_size}
+
+    never = Map.put(gone, "kind", "never_kind")
+
+    assert {:error, %Ecto.Changeset{errors: [layout: {_message, meta}]}} =
+             Dashboards.replace_dashboard(Actor.owner_ui(), dashboard.id, %{
+               "name" => "Retired",
+               "layout" => [movers, never],
+               "lock_version" => 3
+             })
+
+    assert {meta[:index], meta[:reason]} == {1, :unknown_kind}
+
+    assert {:error, %Ecto.Changeset{errors: [layout: {_message, meta}]}} =
+             Dashboards.create_dashboard(agent(), %{"name" => "New", "layout" => [gone]})
+
+    assert {meta[:index], meta[:reason]} == {0, :unknown_kind}
   end
 
   # User story:

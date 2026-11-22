@@ -10,8 +10,8 @@ defmodule Portfolixir.Dashboards.Layout do
   and `period` (a pin, one of the dashboard periods the kind answers).
 
   `validate/2` refuses the **first** bad item, naming its index (0-based,
-  the item's place in the list), the field and the reason; nothing is
-  repaired, moved or dropped. A layout of more than `max_items/0` items is
+  the item's place in the list sent), the field and the reason; nothing is
+  repaired, moved or dropped, save the two exceptions below. A layout of more than `max_items/0` items is
   refused as a whole, before any item is read, with the index of the first
   item past the cap (40): no item there is bad in itself.
 
@@ -21,7 +21,16 @@ defmodule Portfolixir.Dashboards.Layout do
   refused, when the same id is already stored in the dashboard's current
   layout (`stored:`), since it went stale when its view was deleted. Any
   other `view_id` that names no view is refused, and a create, which has
-  no stored layout, refuses every one. It is strict: a key the item or its settings
+  no stored layout, refuses every one.
+
+  **The second, a retired kind** (Sprint 31 closing act, C4): an item
+  whose `kind` is not registered is dropped from the layout, not refused,
+  when the dashboard's current layout (`stored:`) already holds an item of
+  that kind, since a later release retired it after it was stored; a
+  pin, a catalogue add or a save that resends the stored layout then goes
+  through instead of being refused for an item the operator cannot change.
+  Any other unregistered kind is refused, and a create refuses every one.
+  The dropped item meets no overlap and keeps no place. It is strict: a key the item or its settings
   do not take is refused too, so a layout carries nothing the server does
   not read. Keys are strings (an atom key written in code is read as its
   string; no atom is ever made from a key), values are matched as strings
@@ -145,7 +154,8 @@ defmodule Portfolixir.Dashboards.Layout do
 
   Option `stored:` is the dashboard's layout as stored, when the write
   replaces one: a view id it already holds that names no view any more is
-  dropped from the item that sends it (see the moduledoc).
+  dropped from the item that sends it, and an item of a kind it already
+  holds that is no longer registered is dropped (see the moduledoc).
   """
   @spec validate(term(), keyword()) :: {:ok, [item()]} | {:error, refusal()}
   def validate(layout, opts \\ [])
@@ -154,9 +164,12 @@ defmodule Portfolixir.Dashboards.Layout do
     if length(layout) > @max_items do
       refuse(@max_items, nil, :too_many_items)
     else
+      stored = Keyword.get(opts, :stored, [])
+
       views = %{
         existing: existing_views(layout),
-        stored: stored_views(Keyword.get(opts, :stored, []))
+        stored: stored_views(stored),
+        retired: retired_kinds(stored)
       }
 
       layout
@@ -164,6 +177,7 @@ defmodule Portfolixir.Dashboards.Layout do
       |> Enum.reduce_while({:ok, []}, fn {raw, index}, {:ok, placed} ->
         case validate_item(raw, index, views, placed) do
           {:ok, item} -> {:cont, {:ok, [{item, index} | placed]}}
+          :retired -> {:cont, {:ok, placed}}
           {:error, _refusal} = refused -> {:halt, refused}
         end
       end)
@@ -206,7 +220,7 @@ defmodule Portfolixir.Dashboards.Layout do
 
   defp validate_item(raw, index, views, placed) when is_map(raw) do
     with {:ok, fields} <- string_keys(raw, @item_keys, index, &item_key_refusal/2),
-         {:ok, kind} <- kind(fields, index),
+         {:ok, kind} <- kind(fields, views.retired, index),
          {:ok, {width, height}} <- size(fields, kind, index),
          {:ok, col} <- whole(fields, "col", index),
          {:ok, row} <- whole(fields, "row", index),
@@ -254,14 +268,18 @@ defmodule Portfolixir.Dashboards.Layout do
   defp setting_key_refusal(index, nil), do: refuse(index, "settings", :unknown_setting)
   defp setting_key_refusal(index, name), do: refuse(index, "settings." <> name, :unknown_setting)
 
-  defp kind(%{"kind" => key}, index) do
+  defp kind(%{"kind" => key}, retired, index) do
     case Widgets.fetch(key) do
-      {:ok, kind} -> {:ok, kind}
-      :error -> refuse(index, "kind", :unknown_kind)
+      {:ok, kind} ->
+        {:ok, kind}
+
+      # Retired: stored before a release dropped its kind; the save drops it.
+      :error ->
+        if MapSet.member?(retired, key), do: :retired, else: refuse(index, "kind", :unknown_kind)
     end
   end
 
-  defp kind(_fields, index), do: refuse(index, "kind", :missing)
+  defp kind(_fields, _retired, index), do: refuse(index, "kind", :missing)
 
   defp size(%{"size" => size}, kind, index) do
     with true <- is_binary(size) and size in kind.sizes,
@@ -360,6 +378,13 @@ defmodule Portfolixir.Dashboards.Layout do
   end
 
   defp stored_views(_stored), do: MapSet.new()
+
+  # The kinds a stored (normalized) layout holds that are registered no more.
+  defp retired_kinds(stored) when is_list(stored) do
+    for %{"kind" => kind} <- stored, Widgets.fetch(kind) == :error, into: MapSet.new(), do: kind
+  end
+
+  defp retired_kinds(_stored), do: MapSet.new()
 
   # --- the grid -------------------------------------------------------------
 
