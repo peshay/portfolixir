@@ -516,8 +516,9 @@ defmodule PortfolixirWeb.DashboardLive do
 
   # The performance reads the items need, `{scope, period}` each: a
   # „Wertentwicklung“ item's own period (its pin, else the dashboard's,
-  # Sprint 31 D5), and „Gesamtwert“ at S the dashboard's, whose change it
-  # draws. `large: true` keeps the L items alone (their bands).
+  # Sprint 31 D5), and „Gesamtwert“'s, whose change it draws at every
+  # size and whose strip it fills at M (Sprint 31 closing act, F1).
+  # `large: true` keeps the L items alone (their bands).
   defp performance_keys(items, period, opts \\ []) do
     large? = Keyword.get(opts, :large, false)
 
@@ -533,7 +534,7 @@ defmodule PortfolixirWeb.DashboardLive do
         else:
           for(
             item <- items,
-            item.kind == "total_value" and item.size == "S",
+            item.kind == "total_value",
             do: {item.scope, Widget.with_period(item, period, false).period}
           )
 
@@ -653,8 +654,8 @@ defmodule PortfolixirWeb.DashboardLive do
     # round): degrade to the Everything scope instead of crashing the async.
     view_id = view && view.id
 
-    # One daily walk serves both periods (#798): the card's YTD change signal
-    # and the strip's 1Y return chain the same series.
+    # The daily walk behind the card's YTD signal (#798), which also keeps
+    # the memo the stale figure is read from (ADR-0032 §6).
     analysis = view_analysis(view_id, base_currency)
     valuation = everything_or_view_valuation(view_id, base_currency, context)
 
@@ -671,8 +672,9 @@ defmodule PortfolixirWeb.DashboardLive do
       # #1320 (Sprint 31 D3): the twins among the positions the total
       # leaves out, so the note names each apart.
       unvalued_twin_ids: ValuationNotes.unvalued_twin_ids(valuation),
-      ttwror: ttwror_of(summarise(analysis, "ytd")),
-      one_year: summarise(analysis, "1y")
+      # The YTD signal the card shows while no period read has landed;
+      # the strip's return is the item's period's performance read (F1).
+      ttwror: ttwror_of(summarise(analysis, "ytd"))
     }
   end
 
@@ -1597,8 +1599,9 @@ defmodule PortfolixirWeb.DashboardLive do
       |> assign(:stale, assigns.item.scope == assigns.scope_id && assigns.stale_ttwror)
       |> assign(:uid, assigns.item.uid)
       # Sprint 31 D4 (board ①): at S the total, its change over the
-      # dashboard's period and the period's value line; at M today's card,
-      # the year-to-date change and the strip.
+      # item's period and the period's value line; at M the total, the
+      # same change and the strip, whose return is the item's period's
+      # too, as its head says (Sprint 31 closing act, F1).
       |> assign(
         :change,
         Map.get(assigns.performance, {assigns.item.scope, assigns.item.period})
@@ -1649,7 +1652,7 @@ defmodule PortfolixirWeb.DashboardLive do
         stale={@stale}
         error={@error}
         uid={@uid}
-        change={if @item.size == "S", do: {@change, @item.period}}
+        change={{@change, @item.period}}
         wealth_href={@wealth_href}
       />
       <Line.sparkline
@@ -1663,6 +1666,8 @@ defmodule PortfolixirWeb.DashboardLive do
         data_quality={@data_quality}
         last_booking={@last_booking}
         uid={@uid}
+        change={{@change, @item.period}}
+        wealth_href={@wealth_href}
       />
       <:compact>
         <.total_value_compact
@@ -1670,6 +1675,7 @@ defmodule PortfolixirWeb.DashboardLive do
           data_quality={@data_quality}
           last_booking={@last_booking}
           wealth_href={@wealth_href}
+          change={{@change, @item.period}}
         />
       </:compact>
     </Widget.frame>
@@ -2004,7 +2010,7 @@ defmodule PortfolixirWeb.DashboardLive do
 
   attr(:change, :any,
     default: nil,
-    doc: "at S: `{read, period}`, the period's performance read (Sprint 31 D4)"
+    doc: "`{read, period}`, the item's period's performance read (Sprint 31 D4, F1)"
   )
 
   attr(:wealth_href, :string, required: true)
@@ -2096,14 +2102,24 @@ defmodule PortfolixirWeb.DashboardLive do
 
     ~H"""
     <small data-role="card-period-change">
-      <%= if is_map(@read) do %>
-        <span class={sign_class(@read.result.ttwror)}><%= signed_percent(@read.result.ttwror) %>%</span>
-      <% else %>
-        <span :if={is_nil(@read)} class="value-skeleton" aria-hidden="true"></span>
-        <span :if={@read == :error}>—</span>
-      <% end %>
+      <.change_figure read={@read} />
       <%= gettext("TTWROR · %{period}", period: @label) %>
     </small>
+    """
+  end
+
+  attr(:read, :any, required: true)
+
+  # The period's TTWROR, signed and coloured; its slot held while the read
+  # runs, a dash when it failed.
+  defp change_figure(assigns) do
+    ~H"""
+    <%= if is_map(@read) do %>
+      <span class={sign_class(@read.result.ttwror)}><%= signed_percent(@read.result.ttwror) %>%</span>
+    <% else %>
+      <span :if={is_nil(@read)} class="value-skeleton" aria-hidden="true"></span>
+      <span :if={@read == :error}>—</span>
+    <% end %>
     """
   end
 
@@ -2112,28 +2128,38 @@ defmodule PortfolixirWeb.DashboardLive do
   attr(:last_booking, :any, required: true)
   attr(:uid, :string, required: true)
 
+  attr(:change, :any,
+    required: true,
+    doc: "`{read, period}`, the item's period's performance read"
+  )
+
+  attr(:wealth_href, :string, required: true)
+
   # #798 (UX-DR2 as amended 2026-09-14): the four questions of the morning
   # on one strip — return, cash quote, last booking, quote freshness — each
   # cell stating its basis and linking to the surface that owns the figure.
   # In the widget „Gesamtwert“ under the value it explains (ADR-0062 §12:
-  # the Overview's value block is one widget).
-  defp kpi_strip(assigns) do
+  # the Overview's value block is one widget). The return is the item's
+  # period's, labelled with it (Sprint 31 closing act, F1).
+  defp kpi_strip(%{change: {read, period}} = assigns) do
+    assigns = assign(assigns, read: read, label: Widget.period_label(period))
+
     ~H"""
     <div id={"dashboard-kpi-strip" <> @uid} class="kpi-strip" aria-label={gettext("Key figures")} role="group">
       <div class="kpi-strip__cells">
-        <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-ttwror">
-          <span class="kpi-strip__label"><%= gettext("TTWROR") %> <%= gettext("1Y") %></span>
-          <%= if @card do %>
-            <strong
-              :if={one_year_ttwror(@card)}
-              class={sign_class(one_year_ttwror(@card))}
-            >
-              <%= signed_percent(one_year_ttwror(@card)) %>%
-            </strong>
-            <strong :if={is_nil(one_year_ttwror(@card))} class="kpi-strip__na">—</strong>
-            <small class="kpi-strip__sub"><%= money_weighted_line(@card.one_year) %></small>
-          <% else %>
-            <.strip_pending />
+        <a href={@wealth_href} class="kpi-strip__cell" data-role="kpi-ttwror">
+          <span class="kpi-strip__label"><%= gettext("TTWROR · %{period}", period: @label) %></span>
+          <%= cond do %>
+            <% is_map(@read) -> %>
+              <strong class={sign_class(@read.result.ttwror)}>
+                <%= signed_percent(@read.result.ttwror) %>%
+              </strong>
+              <small class="kpi-strip__sub"><%= money_weighted_line(@read.result) %></small>
+            <% @read == :error -> %>
+              <strong class="kpi-strip__na">—</strong>
+              <small class="kpi-strip__sub"><%= money_weighted_line(nil) %></small>
+            <% true -> %>
+              <.strip_pending />
           <% end %>
         </a>
         <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-cash-quote">
@@ -2208,8 +2234,8 @@ defmodule PortfolixirWeb.DashboardLive do
       <div :if={@card} class="summary-basis kpi-strip__basis" data-role="kpi-strip-basis">
         <%= gettext("View %{view} · return over %{period} to %{date} · in %{currency} · quotes: the newest across held positions",
           view: @card.name || gettext("Everything"),
-          period: strip_period(@card),
-          date: Format.date(strip_as_of(@card)),
+          period: @label,
+          date: Format.date(strip_as_of(@read)),
           currency: @card.valuation.base_currency
         ) %>
       </div>
@@ -2222,10 +2248,17 @@ defmodule PortfolixirWeb.DashboardLive do
   attr(:last_booking, :any, required: true)
   attr(:wealth_href, :string, required: true)
 
+  attr(:change, :any,
+    required: true,
+    doc: "`{read, period}`, the item's period's performance read"
+  )
+
   # The compact form of „Gesamtwert“ (board 06): the view, the total at
-  # figure size, the year-to-date change under it, then the strip's four
-  # figures one per row.
-  defp total_value_compact(assigns) do
+  # figure size, the item's period's change under it, then the strip's
+  # four figures one per row, the return the same period's (F1).
+  defp total_value_compact(%{change: {read, period}} = assigns) do
+    assigns = assign(assigns, read: read, label: Widget.period_label(period))
+
     ~H"""
     <%= if @card do %>
       <a class="widget-total" href={@wealth_href} data-compact-role="total">
@@ -2235,16 +2268,14 @@ defmodule PortfolixirWeb.DashboardLive do
           <small class="value-suffix"><%= @card.valuation.base_currency %></small>
         </strong>
         <small class="widget-total__sub">
-          <span :if={@card.ttwror} class={sign_class(@card.ttwror)}><%= signed_percent(@card.ttwror) %>%</span><span :if={is_nil(@card.ttwror)}>—</span>
-          <%= gettext("year to date") %>
+          <.change_figure read={@read} />
+          <%= gettext("TTWROR · %{period}", period: @label) %>
         </small>
       </a>
-      <Widget.row href="/portfolio" data-compact-role="kpi-ttwror">
-        <:name><%= gettext("TTWROR") %> <%= gettext("1Y") %></:name>
-        <:sub><%= money_weighted_line(@card.one_year) %></:sub>
-        <:figure>
-          <span :if={one_year_ttwror(@card)} class={sign_class(one_year_ttwror(@card))}><%= signed_percent(one_year_ttwror(@card)) %>%</span><span :if={is_nil(one_year_ttwror(@card))}>—</span>
-        </:figure>
+      <Widget.row href={@wealth_href} data-compact-role="kpi-ttwror">
+        <:name><%= gettext("TTWROR · %{period}", period: @label) %></:name>
+        <:sub><%= money_weighted_line(if is_map(@read), do: @read.result) %></:sub>
+        <:figure><.change_figure read={@read} /></:figure>
       </Widget.row>
       <Widget.row href="/portfolio" data-compact-role="kpi-cash-quote">
         <:name><%= gettext("Cash quote") %></:name>
@@ -2753,8 +2784,6 @@ defmodule PortfolixirWeb.DashboardLive do
   defp ttwror_of(%{ttwror: %Decimal{} = ttwror}), do: ttwror
   defp ttwror_of(_summary), do: nil
 
-  defp one_year_ttwror(%{one_year: summary}), do: ttwror_of(summary)
-
   # The strip's money-weighted sub-line follows the Wealth band's rule
   # (ADR-0034 §2): the annualized IRR for a full year of history, the period
   # MWR for a shorter window — labelled as what it is.
@@ -2777,21 +2806,10 @@ defmodule PortfolixirWeb.DashboardLive do
 
   defp short_window?(_summary), do: false
 
-  # The strip's as-of date: the walk's end, else the read date.
-  # The window the one-year figure actually walked. A ledger younger than a
-  # year gives a shorter window, and the basis line names its start instead of
-  # asserting a year the figure does not cover — the sentence then reads
-  # "return over <start> to <as-of>".
-  defp strip_period(%{one_year: %{start_date: %Date{} = start, end_date: %Date{} = stop}}) do
-    if Date.diff(stop, start) + 1 < 365,
-      do: Format.date(start),
-      else: gettext("1Y")
-  end
-
-  defp strip_period(_card), do: gettext("1Y")
-
-  defp strip_as_of(%{one_year: %{end_date: %Date{} = end_date}}), do: end_date
-  defp strip_as_of(_card), do: Portfolixir.Clock.today()
+  # The date the strip's return runs to: its read's end, today while it
+  # runs.
+  defp strip_as_of(%{result: %{end_date: %Date{} = end_date}}), do: end_date
+  defp strip_as_of(_read), do: Portfolixir.Clock.today()
 
   # The ledger's newest booking (#798): newest date, newest id — the order
   # the history opens on. Raw record; the kind label is localized at render

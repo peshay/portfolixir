@@ -456,10 +456,11 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
   # so that the larger size answers the morning's four questions.
   #
   # Acceptance criteria:
-  # - M: the year-to-date TTWROR equals GET /api/v1/performance?period=ytd,
-  #   the strip's 1Y TTWROR and IRR ?period=1y, its cash quote and cash
-  #   GET /api/v1/valuation, its quote date the valuation's
-  #   newest_quote_date.
+  # - M follows the item's period as its head says (Sprint 31 closing act,
+  #   F1): the change under the total and the strip's TTWROR and IRR equal
+  #   GET /api/v1/performance for that period, each labelled with it — 1J
+  #   by default, 3M on ?period=3m; its cash quote and cash GET
+  #   /api/v1/valuation, its quote date the valuation's newest_quote_date.
   # - S (the template's) draws no strip: dashboard_widget_figures_test.exs.
   test "„Gesamtwert“ at M draws the strip from the valuation and performance", %{conn: conn} do
     seed()
@@ -467,13 +468,17 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
     doc = loaded(conn)
 
     valuation = api("/api/v1/valuation?include_positions=false")
-    ytd = api("/api/v1/performance?period=ytd")
     one_year = api("/api/v1/performance?period=1y")
 
     wide = wide(doc, "dashboard-wealth")
     assert text(Floki.find(wide, "[data-count-digits]")) == money(valuation["total_with_cash"])
-    assert text(Floki.find(wide, "[data-role='card-ttwror']")) =~ percent(ytd["ttwror"])
-    assert Floki.find(wide, "[data-role='card-period-change']") == []
+
+    assert text(Floki.find(wide, "[data-role='card-period-change']")) ==
+             percent(one_year["ttwror"]) <> " TTWROR · 1Y"
+
+    assert Floki.find(wide, "[data-role='card-ttwror']") == []
+
+    assert text(Floki.find(wide, "[data-role='kpi-ttwror'] .kpi-strip__label")) == "TTWROR · 1Y"
 
     assert text(Floki.find(wide, "[data-role='kpi-ttwror'] strong")) ==
              percent(one_year["ttwror"])
@@ -489,6 +494,31 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
 
     assert text(Floki.find(wide, "[data-role='kpi-freshness'] strong")) ==
              Format.date(Date.from_iso8601!(valuation["newest_quote_date"]))
+
+    today = Clock.today()
+    from = today |> Date.shift(month: -3) |> Date.add(1) |> Date.to_iso8601()
+    quarter = api("/api/v1/performance?from=#{from}&to=#{Date.to_iso8601(today)}")
+    doc = loaded(conn, "/?period=3m")
+    wide = wide(doc, "dashboard-wealth")
+    compact = compact(doc, "dashboard-wealth")
+
+    assert text(Floki.find(wide, "[data-role='card-period-change']")) ==
+             percent(quarter["ttwror"]) <> " TTWROR · 3M"
+
+    assert text(Floki.find(wide, "[data-role='kpi-ttwror'] .kpi-strip__label")) == "TTWROR · 3M"
+
+    assert text(Floki.find(wide, "[data-role='kpi-ttwror'] strong")) ==
+             percent(quarter["ttwror"])
+
+    assert text(Floki.find(wide, "[data-role='kpi-ttwror'] small")) ==
+             "MWR " <> percent(quarter["mwr"])
+
+    assert text(Floki.find(wide, "[data-role='kpi-strip-basis']")) =~ "return over 3M"
+
+    assert text(Floki.find(compact, "[data-compact-role='total'] .widget-total__sub")) ==
+             percent(quarter["ttwror"]) <> " TTWROR · 3M"
+
+    assert text(Floki.find(compact, "[data-compact-role='kpi-ttwror']")) =~ "TTWROR · 3M"
   end
 
   # User story (Sprint 31 D4, the orchestrator's follow-up 2; board ①):

@@ -77,7 +77,9 @@ defmodule PortfolixirWeb.DashboardKpiStripTest do
 
     ttwror = cell(doc, "kpi-ttwror")
     assert Floki.attribute(ttwror, "href") == ["/portfolio"]
-    assert text(ttwror) =~ "TTWROR 1Y"
+    # The widget's period, 1J by default, labelled (Sprint 31 closing act,
+    # F1).
+    assert text(ttwror) =~ "TTWROR · 1Y"
     assert text(Floki.find(ttwror, "strong")) == "+10.0%"
     assert text(Floki.find(ttwror, ".kpi-strip__sub")) =~ ~r/^(IRR|MWR) [+-]?\d/
 
@@ -98,15 +100,14 @@ defmodule PortfolixirWeb.DashboardKpiStripTest do
 
     basis = text(Floki.find(doc, ~s([data-role="kpi-strip-basis"])))
     assert basis =~ "Everything"
-    # The window the figure walked: a ledger younger than a year names its
-    # start date instead of claiming a full year.
-    assert basis =~ "2026-01-05" or basis =~ "1Y"
+    # The period the figure is for, the widget's (Sprint 31 closing act, F1).
+    assert basis =~ "return over 1Y"
     assert basis =~ "EUR"
 
-    # The value card keeps its change since the start of the year, said in
+    # The value card keeps its change over the widget's period, said in
     # words since #1090 (board 08 ③), and drops the cash quote.
-    card = text(Floki.find(doc, ~s([data-role="card-ttwror"])))
-    assert card =~ "year to date"
+    card = text(Floki.find(doc, ~s([data-role="card-period-change"])))
+    assert card =~ "TTWROR · 1Y"
     refute card =~ "Cash"
   end
 
@@ -143,7 +144,7 @@ defmodule PortfolixirWeb.DashboardKpiStripTest do
     assert text(booking) =~ "Letzte Buchung"
     assert text(Floki.find(booking, "strong")) == "10.01.2026"
     assert text(Floki.find(booking, ".kpi-strip__sub")) == "Kauf · ACME"
-    assert text(cell(doc, "kpi-ttwror")) =~ "TTWROR 1J"
+    assert text(cell(doc, "kpi-ttwror")) =~ "TTWROR · 1J"
     assert text(cell(doc, "kpi-freshness")) =~ "Kurse"
     assert text(Floki.find(doc, ~s([data-role="kpi-strip-basis"]))) =~ "Alles"
   end
