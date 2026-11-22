@@ -11366,8 +11366,15 @@ compact targets below say what the closing act built.
 - **The widgets the closing act reshaped for their row** (DS1, DS2, DS5):
   „Gesamtwert“ at S draws its figure itself, no `.stat` card inside the
   card — the total and its currency (24 px), the change over the item's
-  period, the sparkline, then the short note on what the total leaves
-  out; „Abseits des Ziels“ at S leads with the count of the categories
+  period, the sparkline (24 px), then the note on what the total leaves
+  out as **one line** with „Details →“, cut with an ellipsis (the whole
+  sentence its tooltip), its footer one line („In Vermögen →“);
+  „Datenqualität“ at S names at most three findings, the most severe
+  first, a line each, and its footer „+n weitere“ beside „Prüfen →“;
+  „Fällig“ at S says its set and window short („Ganzer Katalog · nächste
+  30 Tage“), the next two dates on a line each (date, then the name cut,
+  ○ for a security without a position) and the rest behind „+n weitere“,
+  a disclosure in the widget, since no screen lists the upcoming dates; „Abseits des Ziels“ at S leads with the count of the categories
   off target („5 Kategorien“), then „außerhalb ±5 pp“ and its basis at
   13 px, and its list is the new size M's; „Tops und Flops“ in the wide
   form shows one ranking at a time behind a switch „Kursrendite ·
@@ -11406,15 +11413,15 @@ many rows it spans, not how tall it is. Board 03 drew a fixed row unit
 (112 px); the build lets the content set it, and holds each size to a
 **height budget** taken from the board's rows: **S and W ≈ 112 px, M ≈
 236 px, T and L ≈ 360 px** (DS1). The width walk asserts at 1200 px, in
-both fonts, that no template widget on the review seed is taller on its
-own than twice its budget, and that every footer stands at its frame's
-foot. „Gesamtwert“, „Datenqualität“ and „Fällig“ at S keep the Overview
-card's lists and sentences and are held to the foot rule only; their S
-forms are a later pass. Measured after the closing act (review seed,
-1200 px, Inter): „Abseits des Ziels“ S about 214 px (was 654), „Tops und
-Flops“ M 409 px (was 1055), „Allokation und Drift“ T 414 px, „Crashes im
-Vergleich“ M 357 px, „Verkaufsrückblick“ M 452 px, „Wertentwicklung“ L
-570 px; row 1 is 463 px, set by „Fällig“.
+both fonts, that no template widget on the review seed, none excepted,
+is taller on its own than twice its budget, and that every footer stands
+at its frame's foot. Measured after the closing act (review seed,
+1200 px, Inter): „Gesamtwert“ S 217 px (was 367), „Datenqualität“ S
+about 178 px (was 324), „Fällig“ S 194 px (was 460), „Abseits des
+Ziels“ S about 214 px (was 654), „Tops und Flops“ M 409 px (was 1055),
+„Allokation und Drift“ T 414 px, „Crashes im Vergleich“ M 357 px,
+„Verkaufsrückblick“ M 452 px, „Wertentwicklung“ L 570 px; row 1 is
+218 px.
 
 ### The compact type floor *(ADR-0062 §6; board 06)*
 
