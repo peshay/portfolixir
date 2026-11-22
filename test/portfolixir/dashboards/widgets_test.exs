@@ -178,10 +178,11 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   # - The dashboard's periods are 1d 1w 1m 3m ytd 1y 3y max, Wealth's keys,
   #   with 1y the default.
   # - Tops and flops map 1d→day, 1w→week, 1m→month, 3m→quarter, ytd→ytd and
-  #   1y, 3y, max→1y (their own window keys); 3m, 3y and max are marked as
-  #   translated.
+  #   1y, 3y, max→1y (their own window keys); 1d, 1w, 1m, 3m, 3y and max
+  #   are marked as translated (Tag, Woche and Monat are calendar windows
+  #   to date, not the trailing spans performance reads).
   # - Performance takes ytd, 1y, 3y and max as its period and the four short
-  #   periods as the trailing range ending today.
+  #   periods as the span ending today, ADR-0061 §3's money window.
   # - A kind without a period takes none.
   test "period rules: none, the movers' windows, performance's periods and ranges" do
     assert Widgets.periods() == ~w(1d 1w 1m 3m ytd 1y 3y max)
@@ -203,7 +204,7 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
                "max" => "1y"
              },
              ranges: [],
-             translated: ~w(3m 3y max)
+             translated: ~w(1d 1w 1m 3m 3y max)
            }
 
     for {_period, window} <- movers.period.values,
@@ -248,17 +249,22 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     assert Widgets.source_params("total_value", "1m", today) ==
              Widgets.source_params("performance", "1m", today)
 
+    # ADR-0061 §3's money window `S + 1` to `T` (the range's baseline is
+    # the close of the day before `from`): 1T is today alone, from the
+    # close before it; 1W the seven days after T − 7; 1M and 3M the days
+    # after the date one and three months back (Sprint 31 closing act,
+    # correctness lens C1, money lens MO1).
     assert Widgets.source_params("performance", "1d", today) ==
-             {:ok, %{"from" => "2026-11-20", "to" => "2026-11-21"}}
+             {:ok, %{"from" => "2026-11-21", "to" => "2026-11-21"}}
 
     assert Widgets.source_params("performance", "1w", today) ==
-             {:ok, %{"from" => "2026-11-14", "to" => "2026-11-21"}}
+             {:ok, %{"from" => "2026-11-15", "to" => "2026-11-21"}}
 
     assert Widgets.source_params("performance", "1m", today) ==
-             {:ok, %{"from" => "2026-10-21", "to" => "2026-11-21"}}
+             {:ok, %{"from" => "2026-10-22", "to" => "2026-11-21"}}
 
     assert Widgets.source_params("performance", "3m", ~D[2026-05-31]) ==
-             {:ok, %{"from" => "2026-02-28", "to" => "2026-05-31"}}
+             {:ok, %{"from" => "2026-03-01", "to" => "2026-05-31"}}
 
     assert Widgets.source_params("crashes", "1y", today) == {:error, :no_period}
     assert Widgets.source_params("movers", "5y", today) == {:error, :unknown_period}

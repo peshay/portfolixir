@@ -508,7 +508,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     assert Floki.find(doc, "[data-role='movers-wealth-link']") == []
 
     assert doc |> Floki.find("#dashboard-movers [data-role='widget-period']") |> text() ==
-             "follows · 1W"
+             "follows · 1W → Week"
   end
 
   # User story (board 04, the German labels):
@@ -531,7 +531,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     assert doc |> Floki.find("#movers-title") |> text() == "Tops und Flops"
 
     assert doc |> Floki.find("#dashboard-movers [data-role='widget-period']") |> text() ==
-             "folgt · 1W"
+             "folgt · 1W → Woche"
 
     assert doc |> Floki.find("[data-role='movers-return'] h3") |> text() == "Kursrendite"
     assert doc |> Floki.find("[data-role='movers-contribution'] h3") |> text() == "Beitrag"

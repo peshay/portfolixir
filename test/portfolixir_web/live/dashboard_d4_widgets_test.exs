@@ -234,7 +234,10 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
   test "„Wertentwicklung“ reads each period as its route does" do
     seed()
     today = Clock.today()
-    from = today |> Date.shift(month: -3) |> Date.to_iso8601()
+    # The span ADR-0061 §3 gives a money window, written out here rather
+    # than asked of the registry: the days after the date three months
+    # back, the range's baseline that date's close.
+    from = today |> Date.shift(month: -3) |> Date.add(1) |> Date.to_iso8601()
 
     quarter = api("/api/v1/performance?from=#{from}&to=#{Date.to_iso8601(today)}")
     assert %{result: result} = PerformanceWidget.read(nil, "3m", "EUR")
@@ -250,6 +253,47 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
 
     assert PerformanceWidget.wealth_href("ytd", "L") == "/portfolio?level=category&period=ytd"
     assert PerformanceWidget.wealth_href("1y", "S") == "/portfolio"
+  end
+
+  # User story:
+  # As the operator reading the dashboard on 1T,
+  # I want „Wertentwicklung“ and „Gesamtwert“ to show today's change alone,
+  # so that one day reads as one day, as „Tops und Flops“ reads it.
+  #
+  # Acceptance criteria (Sprint 31 closing act, correctness lens C1, money
+  # lens MO1):
+  # - 1T reads today's close against the one before: closes 100, 110 and
+  #   121 on T − 2, T − 1 and T read +10 % (Python decimal, prec 34:
+  #   121 / 110 − 1 = 0.1), not the two days' +21 % (121 / 100 − 1).
+  # - „Gesamtwert“ at S says the same change for 1T, and its links to
+  #   Wealth carry the item's period, as „Wertentwicklung“'s link does.
+  test "1T is one day: today's close against the one before", %{conn: conn} do
+    world = base_world()
+    today = Clock.today()
+    fund = create_security!(name: "Day Fund", ticker: nil)
+    deliver_untraded!(world, fund, "1", date: Date.add(today, -30))
+
+    put_quotes!(fund, [
+      {Date.add(today, -30), "100"},
+      {Date.add(today, -2), "100"},
+      {Date.add(today, -1), "110"},
+      {today, "121"}
+    ])
+
+    assert %{result: result} = PerformanceWidget.read(nil, "1d", "EUR")
+    assert result.start_date == today
+    assert Decimal.equal?(result.ttwror, Decimal.new("0.1"))
+
+    store!([{"total_value", "S", 1, 1}, {"performance", "S", 4, 1}])
+    doc = loaded(conn, "/?period=1d")
+
+    assert text(Floki.find(wide(doc, "dashboard-wealth"), "[data-role='card-period-change']")) ==
+             percent("0.1") <> " TTWROR · 1D"
+
+    day = "/portfolio?from=#{Date.to_iso8601(today)}&to=#{Date.to_iso8601(today)}"
+    assert PerformanceWidget.wealth_href("1d", "S") == day
+    assert Floki.attribute(Floki.find(doc, "#dashboard-wealth-card"), "href") == [day]
+    assert Floki.attribute(Floki.find(doc, "#dashboard-wealth .widget__foot a"), "href") == [day]
   end
 
   # User story:
@@ -582,7 +626,9 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
     doc = loaded(conn)
     short = Floki.find(doc, "#dashboard-wealth [data-role='wealth-card-excluded-short']")
     assert text(short) =~ "Not in the total: 1 cash account."
-    assert ["/portfolio?period=ytd"] == short |> Floki.find("a") |> Floki.attribute("href")
+    # Wealth on the item's period, 1J here, the dashboard's default
+    # (Sprint 31 closing act, C2/MO1).
+    assert ["/portfolio"] == short |> Floki.find("a") |> Floki.attribute("href")
     assert Floki.find(doc, "#dashboard-wealth [data-role='wealth-card-excluded']") == []
     refute text(Floki.find(doc, "#dashboard-wealth")) =~ "USD Settlement"
 
@@ -645,7 +691,7 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
     view |> element("[data-role='dashboard-period'] [data-period='3m']") |> render_click()
     render_async(view)
 
-    from = today |> Date.shift(month: -3) |> Date.to_iso8601()
+    from = today |> Date.shift(month: -3) |> Date.add(1) |> Date.to_iso8601()
     quarter = api("/api/v1/performance?from=#{from}&to=#{Date.to_iso8601(today)}")
     max = api("/api/v1/performance?period=max")
     assert quarter["ttwror"] != max["ttwror"]
