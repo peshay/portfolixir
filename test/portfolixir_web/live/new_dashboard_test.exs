@@ -12,6 +12,7 @@ defmodule PortfolixirWeb.NewDashboardTest do
   use PortfolixirWeb.ConnCase, async: true, group: :dashboards
 
   import Phoenix.LiveViewTest
+  import Portfolixir.WorldFixtures, only: [base_world: 0, deposit!: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Dashboards
@@ -33,8 +34,10 @@ defmodule PortfolixirWeb.NewDashboardTest do
   #   „Anlegen“. Opening it writes nothing.
   # - „Leer beginnen“ stores a dashboard with an empty layout under the
   #   name, at the end of the menu, one journaled create under the UI's
-  #   actor, and opens it.
-  # - The empty dashboard says it is empty and links „Alle Widgets“.
+  #   actor, and opens it in the edit mode with the catalogue open, the
+  #   focus in the catalogue.
+  # - Outside the edit the empty dashboard says it is empty and links
+  #   „Alle Widgets“.
   test "„Leer beginnen“ stores an empty dashboard and opens it", %{conn: conn} do
     {:ok, older} = Dashboards.create_dashboard(Actor.owner_ui(), %{"name" => "Alt"})
     before = length(journal())
@@ -66,9 +69,23 @@ defmodule PortfolixirWeb.NewDashboardTest do
     assert created.position > older.position
     assert [%{operation: :create, actor_type: :owner_ui}] = Enum.drop(journal(), before)
 
+    # It opens in the edit mode with the catalogue open (planning board 01
+    # ③'s caption; Sprint 31 closing act).
+    # A booking first: an instance without one shows the first steps, not
+    # the grid.
     path = "/dashboards/#{created.id}"
-    assert {^path, _flash} = assert_redirect(view)
+    asked = path <> "?edit=catalogue"
+    assert {^asked, _flash} = assert_redirect(view)
+    deposit!(base_world(), "100", Portfolixir.Clock.today())
 
+    {:ok, editing, _html} = live(conn, asked)
+    assert has_element?(editing, "[data-role='dashboard-grid'][data-editing='true']")
+    assert has_element?(editing, "#dashboard-catalogue.is-open")
+    assert has_element?(editing, "#dashboard-catalogue-toggle[aria-expanded='true']")
+    assert_push_event(editing, "dashboard-edit-focus", %{ids: ["dashboard-catalogue-close" | _]})
+
+    # Outside the edit the empty dashboard says so and where widgets come
+    # from.
     {:ok, opened, _html} = live(conn, path <> "?locale=de")
     assert has_element?(opened, "[data-role='dashboard-empty']", "leer")
 

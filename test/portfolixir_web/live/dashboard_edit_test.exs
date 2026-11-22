@@ -124,6 +124,13 @@ defmodule PortfolixirWeb.DashboardEditTest do
 
     view |> element("[data-role='edit-start']") |> render_click()
 
+    # The catalogue draws each kind's sizes as chips, as „Alle Widgets“
+    # does (Sprint 31 closing act).
+    assert view
+           |> document()
+           |> Floki.find("[data-role='edit-add'][data-kind='performance'] .widget-size")
+           |> Enum.map(&text/1) == ~w(S M L)
+
     refute has_element?(view, "[data-role='edit-start']")
     assert has_element?(view, "[data-role='edit-reset']", "Zurücksetzen")
     assert has_element?(view, "[data-role='edit-done']", "Fertig")

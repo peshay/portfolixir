@@ -15586,10 +15586,11 @@ a.widget-row:hover .widget-row__name {
   filter: none;
 }
 
+/* The sizes as chips, as „Alle Widgets“ draws them (`.widget-size`). */
 .dashboard-catalogue__sizes {
-  color: var(--color-text-muted);
-  font-size: 12px;
-  font-weight: 700;
+  display: inline-flex;
+  flex: none;
+  gap: 3px;
   white-space: nowrap;
 }
 
