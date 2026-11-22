@@ -192,6 +192,31 @@ async function periodStrip(browser) {
   }
 }
 
+// Y5: on a stored dashboard at 393 px, „Bearbeiten“ and, in the edit
+// mode, „Zurücksetzen“ and „Fertig“ are 44 px targets (the template's
+// controls are the width walk's, test/browser/dashboard_widths.js).
+async function editTargets(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true });
+  const page = await ctx.newPage();
+  await open(page, board);
+  const small = (selector) =>
+    page.evaluate(
+      (selector) =>
+        [...document.querySelectorAll(selector)]
+          .map((e) => e.getBoundingClientRect())
+          .filter((r) => r.height > 0 && (r.height < 43.5 || r.width < 43.5))
+          .map((r) => Math.round(r.width) + "x" + Math.round(r.height)),
+      selector
+    );
+  let s = await small("[data-role='edit-start']");
+  check("Y5 Bearbeiten", s.length === 0, "„Bearbeiten“ is 44 px each way: " + JSON.stringify(s));
+  await page.click("[data-role='edit-start']");
+  await answered(page);
+  s = await small("[data-role='edit-reset'], [data-role='edit-done']");
+  check("Y5 Zurücksetzen", s.length === 0, "„Zurücksetzen“ and „Fertig“ are 44 px each way: " + JSON.stringify(s));
+  await leave(ctx);
+}
+
 (async () => {
   const browser = await launchChromium();
   try {
@@ -199,6 +224,7 @@ async function periodStrip(browser) {
     await tabStops(browser);
     await editFocus(browser);
     await periodStrip(browser);
+    await editTargets(browser);
     process.stdout.write(JSON.stringify({ ok: true, checks }) + "\n");
   } catch (error) {
     process.stdout.write(JSON.stringify({ ok: false, error: String(error && error.stack), checks }) + "\n");
