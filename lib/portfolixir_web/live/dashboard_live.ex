@@ -105,6 +105,10 @@ defmodule PortfolixirWeb.DashboardLive do
   # The kinds whose figures come from the view-scoped value and drift read.
   @scoped_kinds ~w(total_value off_target)
 
+  # A page's background reads at work at once (Sprint 31 closing act,
+  # security lens SE1): the rest wait in the order asked (`read/4`).
+  @max_reads 4
+
   @impl true
   def mount(_params, _session, socket) do
     socket =
@@ -119,6 +123,7 @@ defmodule PortfolixirWeb.DashboardLive do
         attention: %{},
         movers: %{},
         reads: MapSet.new(),
+        asked: %{},
         data_quality: nil,
         last_booking: nil,
         stale_ttwror: nil,
@@ -352,7 +357,7 @@ defmodule PortfolixirWeb.DashboardLive do
       scope_id = socket.assigns.scope_id
 
       socket
-      |> CappedAsync.start_async({:overview, scope_id}, fn ->
+      |> read({:overview, scope_id}, scope_id, fn ->
         # One value card scoped to the dashboard's view — Everything when
         # none is set (ADR-0024: views, not portfolios, are the grouping the
         # dashboard aggregates over). The drift alerts steer against the same
@@ -368,7 +373,6 @@ defmodule PortfolixirWeb.DashboardLive do
         {wealth_card(scope_id, base_currency, context), attention_report(scope_id, context),
          data_quality_report(), last_booking()}
       end)
-      |> reading({:overview, scope_id})
       |> start_scoped(scopes(socket.assigns.items, @scoped_kinds, scope_id))
     else
       socket
@@ -379,15 +383,45 @@ defmodule PortfolixirWeb.DashboardLive do
   # the drift in it, one read per such view (ADR-0062 §2).
   defp start_scoped(socket, scopes) do
     Enum.reduce(scopes, socket, fn scope_id, socket ->
-      CappedAsync.start_async(socket, {:scoped, scope_id}, fn ->
+      read(socket, {:scoped, scope_id}, scope_id, fn ->
         base_currency = base_currency()
         context = PricingContext.for_all_portfolios(base_currency)
 
         {wealth_card(scope_id, base_currency, context), attention_report(scope_id, context)}
       end)
-      |> reading({:scoped, scope_id})
     end)
   end
+
+  # Every background read of the page (Sprint 31 closing act, security
+  # lens SE1): one task per `name` at a time, a later ask waiting as the
+  # latest (`CappedAsync.start_latest/4`), so a burst of period switches
+  # runs only the first and the last read of each name; and at most
+  # `@max_reads` of the page's reads at work, the rest waiting in the
+  # order asked. The task answers `{key, answer}`; `asked` keeps the key
+  # last asked under each name until its read lands. A read per scope is
+  # named by its scope and its slot — `:follows` for an item that follows
+  # the dashboard's period, `{:pinned, period}` for a pin — so the newest
+  # period wins per scope, as Wealth's walk does.
+  defp read(socket, name, key, fun) do
+    if connected?(socket) do
+      socket
+      |> update(:asked, &Map.put(&1, name, key))
+      |> reading(name)
+      |> CappedAsync.start_latest(name, fn -> {key, fun.()} end, max_in_flight: @max_reads)
+    else
+      socket
+    end
+  end
+
+  # Whether `key` is loaded in `field` or the read last asked under `name`.
+  defp held?(socket, field, name, key),
+    do:
+      Map.has_key?(Map.fetch!(socket.assigns, field), key) or
+        Map.get(socket.assigns.asked, name, :none) == key
+
+  # An item's slot for the reads it names (`read/4`).
+  defp read_slot(%{period_state: :pinned, period: period}), do: {:pinned, period}
+  defp read_slot(_item), do: :follows
 
   # --- S30 T3 begin ---
   # Sprint 30 T3 (FR-59, ADR-0061 §9; board 04, A): the card „Tops und
@@ -409,16 +443,14 @@ defmodule PortfolixirWeb.DashboardLive do
   defp start_movers(socket) do
     socket.assigns.items
     |> Enum.filter(&(&1.kind == "movers"))
-    |> Enum.map(&{&1.scope, item_window(&1, socket.assigns.period)})
-    |> Enum.uniq()
-    |> Enum.reject(fn {scope_id, window} ->
-      Map.has_key?(socket.assigns.movers, {scope_id, window}) or
-        MapSet.member?(socket.assigns.reads, {:movers, scope_id, window})
+    |> Enum.map(fn item ->
+      item = Widget.with_period(item, socket.assigns.period, false)
+      {{:movers, item.scope, read_slot(item)}, {item.scope, movers_window(item)}}
     end)
-    |> Enum.reduce(socket, fn {scope_id, window}, socket ->
-      socket
-      |> reading_if_connected({:movers, scope_id, window})
-      |> CappedAsync.start_latest({:movers, scope_id, window}, fn ->
+    |> Enum.uniq_by(fn {_name, key} -> key end)
+    |> Enum.reject(fn {name, key} -> held?(socket, :movers, name, key) end)
+    |> Enum.reduce(socket, fn {name, {scope_id, window} = key}, socket ->
+      read(socket, name, key, fn ->
         view = scope_id && Buckets.get_view(scope_id)
 
         case Movers.read(view && view.id, window) do
@@ -433,10 +465,8 @@ defmodule PortfolixirWeb.DashboardLive do
     end)
   end
 
-  # The window of the movers read for an item: its period (the pin, else
-  # the dashboard's) by the registry's rule.
-  defp item_window(item, period), do: item |> Widget.with_period(period, false) |> movers_window()
-
+  # The window of the movers read for an item `Widget.with_period/3` gave
+  # its period (the pin, else the dashboard's), by the registry's rule.
   defp movers_window(%{period: period}) do
     {:ok, %{"window" => window}} =
       Widgets.source_params("movers", period, Portfolixir.Clock.today())
@@ -460,7 +490,7 @@ defmodule PortfolixirWeb.DashboardLive do
   # the whole report it used to cut down.
   defp start_closed_trades(%{assigns: %{has_sells: true}} = socket) do
     if connected?(socket) and Enum.any?(socket.assigns.items, &(&1.kind == "sale_review")) do
-      CappedAsync.start_async(socket, :closed_trades, fn ->
+      read(socket, :closed_trades, :once, fn ->
         # #1155 (board 08, N14 = A): a twin's identifier on each trade the
         # card lists, decided over the card's trades.
         @closed_trades_shown
@@ -477,7 +507,6 @@ defmodule PortfolixirWeb.DashboardLive do
           end)
         end)
       end)
-      |> reading(:closed_trades)
     else
       socket
     end
@@ -527,29 +556,19 @@ defmodule PortfolixirWeb.DashboardLive do
   defp performance_keys(items, period, opts \\ []) do
     large? = Keyword.get(opts, :large, false)
 
-    own =
-      for item <- items,
-          item.kind == "performance",
-          not large? or item.size == "L",
-          do: {item.scope, Widget.with_period(item, period, false).period}
-
-    changes =
-      if large?,
-        do: [],
-        else:
-          for(
-            item <- items,
-            item.kind == "total_value",
-            do: {item.scope, Widget.with_period(item, period, false).period}
-          )
-
-    Enum.uniq(own ++ changes)
+    for item <- items,
+        (item.kind == "performance" and (not large? or item.size == "L")) or
+          (item.kind == "total_value" and not large?) do
+      item = Widget.with_period(item, period, false)
+      {{item.scope, read_slot(item)}, {item.scope, item.period}}
+    end
+    |> Enum.uniq_by(fn {_slot, key} -> key end)
   end
 
   defp start_bands_from_memo(socket, items, period) do
     items
     |> performance_keys(period, large: true)
-    |> Enum.reduce(socket, fn {scope, item_period} = key, socket ->
+    |> Enum.reduce(socket, fn {_slot, {scope, item_period} = key}, socket ->
       with false <- Map.has_key?(socket.assigns.performance_bands, key),
            {:ok, bands} <- PerformanceWidget.cached_bands(scope, item_period, base_currency()) do
         update(socket, :performance_bands, &Map.put(&1, key, bands))
@@ -563,56 +582,53 @@ defmodule PortfolixirWeb.DashboardLive do
     kinds = Enum.group_by(items, & &1.kind)
     scopes = fn kind -> kinds |> Map.get(kind, []) |> Enum.map(& &1.scope) |> Enum.uniq() end
 
+    per_scope = fn field, keys ->
+      for {{scope, slot}, key} <- keys, do: {{field, scope, slot}, key}
+    end
+
+    once = fn field, keys -> for key <- keys, do: {{field, key}, key} end
+
     socket
-    |> start_each(performance_keys(items, period), :performance, & &1, fn {scope, period} ->
-      PerformanceWidget.read(scope, period, base_currency())
-    end)
     |> start_each(
-      performance_keys(items, period, large: true),
+      per_scope.(:performance, performance_keys(items, period)),
+      :performance,
+      fn {scope, period} -> PerformanceWidget.read(scope, period, base_currency()) end
+    )
+    |> start_each(
+      per_scope.(:performance_bands, performance_keys(items, period, large: true)),
       :performance_bands,
-      & &1,
       fn {scope, period} -> PerformanceWidget.read_bands(scope, period, base_currency()) end
     )
     |> start_each(
-      scopes.("allocation_drift"),
+      once.(:allocation_drift, scopes.("allocation_drift")),
       :allocation_drift,
-      & &1,
       &AllocationDriftWidget.read/1
     )
     |> start_each(
-      if(Map.has_key?(kinds, "crashes"), do: [socket.assigns.crash_universe], else: []),
+      once.(
+        :crashes,
+        if(Map.has_key?(kinds, "crashes"), do: [socket.assigns.crash_universe], else: [])
+      ),
       :crashes,
-      & &1,
       &CrashesWidget.read/1
     )
     |> start_snapshots(Map.has_key?(kinds, "snapshots"))
   end
 
-  # One task per key of `field` that is neither loaded nor running.
-  defp start_each(socket, subjects, field, key_of, read) do
-    Enum.reduce(subjects, socket, fn subject, socket ->
-      key = key_of.(subject)
-      name = {field, key}
-
-      if Map.has_key?(Map.fetch!(socket.assigns, field), key) or
-           MapSet.member?(socket.assigns.reads, name) do
-        socket
-      else
-        socket
-        |> CappedAsync.start_async(name, fn -> read.(key) end)
-        |> reading(name)
-      end
+  # One read per `{name, key}` whose key `field` neither holds nor has
+  # last asked under its name (`read/4`).
+  defp start_each(socket, subjects, field, fetch) do
+    Enum.reduce(subjects, socket, fn {name, key}, socket ->
+      if held?(socket, field, name, key),
+        do: socket,
+        else: read(socket, name, key, fn -> fetch.(key) end)
     end)
   end
 
   defp start_snapshots(%{assigns: %{snapshots: nil, reads: reads}} = socket, true) do
-    if MapSet.member?(reads, :snapshots) do
-      socket
-    else
-      socket
-      |> CappedAsync.start_async(:snapshots, fn -> SnapshotsWidget.read() end)
-      |> reading(:snapshots)
-    end
+    if MapSet.member?(reads, :snapshots),
+      do: socket,
+      else: read(socket, :snapshots, :once, fn -> SnapshotsWidget.read() end)
   end
 
   defp start_snapshots(socket, _shown), do: socket
@@ -706,65 +722,75 @@ defmodule PortfolixirWeb.DashboardLive do
   # (test/browser/settle.js), and a read whose widget draws no skeleton —
   # data quality, absent until its finding lands — would otherwise run past
   # the walk's wait and log from a page already gone.
+  #
+  # A read a later ask superseded (`read/4`) still lands its answer under
+  # its own key, which is a true answer for that key, and stays busy: the
+  # latest ask runs now. A superseded read that failed lands nothing.
   @impl true
   def handle_async(name, result, socket) do
-    case land(name, result, socket) do
-      {:running, socket} -> {:noreply, socket}
-      {:landed, socket} -> {:noreply, update(socket, :reads, &MapSet.delete(&1, name))}
+    {state, socket} = CappedAsync.landed(socket, name)
+
+    socket =
+      case {state, result} do
+        {_state, {:ok, {key, answer}}} ->
+          land(name, key, {:ok, answer}, socket)
+
+        {:current, {:exit, reason}} ->
+          land(name, socket.assigns.asked[name], {:exit, reason}, socket)
+
+        {:superseded, {:exit, _reason}} ->
+          socket
+      end
+
+    case state do
+      :superseded ->
+        {:noreply, socket}
+
+      :current ->
+        {:noreply,
+         socket
+         |> update(:reads, &MapSet.delete(&1, name))
+         |> update(:asked, &Map.delete(&1, name))}
     end
   end
 
   defp land(
-         {:overview, scope_id},
+         {:overview, _name},
+         scope_id,
          {:ok, {wealth_card, attention, data_quality, last_booking}},
          socket
        ) do
-    {:landed,
-     socket
-     |> update(:cards, &Map.put(&1, scope_id, wealth_card))
-     |> update(:attention, &Map.put(&1, scope_id, attention))
-     |> assign(data_quality: data_quality, last_booking: last_booking)}
+    socket
+    |> update(:cards, &Map.put(&1, scope_id, wealth_card))
+    |> update(:attention, &Map.put(&1, scope_id, attention))
+    |> assign(data_quality: data_quality, last_booking: last_booking)
   end
 
-  defp land({:overview, _scope_id}, {:exit, _reason}, socket) do
-    {:landed, assign(socket, :error, gettext("Couldn't load the dashboard figures."))}
+  defp land({:scoped, _name}, scope_id, {:ok, {wealth_card, attention}}, socket) do
+    socket
+    |> update(:cards, &Map.put(&1, scope_id, wealth_card))
+    |> update(:attention, &Map.put(&1, scope_id, attention))
   end
 
-  defp land({:scoped, scope_id}, {:ok, {wealth_card, attention}}, socket) do
-    {:landed,
-     socket
-     |> update(:cards, &Map.put(&1, scope_id, wealth_card))
-     |> update(:attention, &Map.put(&1, scope_id, attention))}
-  end
-
-  defp land({:scoped, _scope_id}, {:exit, _reason}, socket) do
-    {:landed, assign(socket, :error, gettext("Couldn't load the dashboard figures."))}
-  end
+  defp land({read, _name}, _scope_id, {:exit, _reason}, socket) when read in [:overview, :scoped],
+    do: assign(socket, :error, gettext("Couldn't load the dashboard figures."))
 
   # --- S30 T3 begin ---
-  # A read a later chip superseded starts the latest and lands nothing; the
-  # read stays running.
-  defp land({:movers, scope_id, window} = name, result, socket) do
+  defp land({:movers, _scope, _slot}, key, result, socket) do
     card =
       case result do
         {:ok, card} -> card
         {:exit, _reason} -> :error
       end
 
-    case CappedAsync.landed(socket, name) do
-      {:superseded, socket} ->
-        {:running, socket}
-
-      {:current, socket} ->
-        {:landed, update(socket, :movers, &Map.put(&1, {scope_id, window}, card))}
-    end
+    update(socket, :movers, &Map.put(&1, key, card))
   end
 
   # --- S30 T3 end ---
 
   # --- S31 D4 begin ---
-  defp land({field, key}, result, socket)
-       when field in [:performance, :performance_bands, :allocation_drift, :crashes] do
+  defp land(name, key, result, socket)
+       when elem(name, 0) in [:performance, :performance_bands, :allocation_drift, :crashes] do
     answer =
       case result do
         {:ok, {:ok, bands}} -> bands
@@ -772,26 +798,20 @@ defmodule PortfolixirWeb.DashboardLive do
         {:exit, _reason} -> :error
       end
 
-    {:landed, update(socket, field, &Map.put(&1, key, answer))}
+    update(socket, elem(name, 0), &Map.put(&1, key, answer))
   end
 
-  defp land(:snapshots, {:ok, card}, socket), do: {:landed, assign(socket, :snapshots, card)}
-
-  defp land(:snapshots, {:exit, _reason}, socket),
-    do: {:landed, assign(socket, :snapshots, :error)}
+  defp land(:snapshots, _key, {:ok, card}, socket), do: assign(socket, :snapshots, card)
+  defp land(:snapshots, _key, {:exit, _reason}, socket), do: assign(socket, :snapshots, :error)
 
   # --- S31 D4 end ---
 
-  defp land(:closed_trades, {:ok, card}, socket),
-    do: {:landed, assign(socket, :closed_trades, card)}
+  defp land(:closed_trades, _key, {:ok, card}, socket), do: assign(socket, :closed_trades, card)
 
-  defp land(:closed_trades, {:exit, _reason}, socket),
-    do: {:landed, assign(socket, :closed_trades, :error)}
+  defp land(:closed_trades, _key, {:exit, _reason}, socket),
+    do: assign(socket, :closed_trades, :error)
 
   defp reading(socket, name), do: update(socket, :reads, &MapSet.put(&1, name))
-
-  defp reading_if_connected(socket, name),
-    do: if(connected?(socket), do: reading(socket, name), else: socket)
 
   # „Anpassen“ (ADR-0062 §3): the template copied into a stored dashboard
   # under the UI's actor — the first write — and the copy opened. Only a

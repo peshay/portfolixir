@@ -20,6 +20,15 @@ defmodule PortfolixirWeb.CappedAsync do
   the test's own), so a superseded walk still ends, but only the first and
   the latest of a burst of asks ever run.
 
+  `max_in_flight: n` (Sprint 31 closing act, security lens SE1) caps how
+  many of a page's `start_latest/4` loads under that option do their work
+  at once. Each load's task starts at the ask, as before, so the page and
+  `Phoenix.LiveViewTest.render_async/1` see it; past the cap it waits for
+  a free slot before it starts its worker, and the page grants the slots
+  in the order asked, one more each time a load's task ends (a monitor, so
+  a task that dies frees its slot too). The cap is the page's: the first
+  ask that names one attaches the gate (a `handle_info` hook).
+
   A page's load runs in two processes (#1204). LiveView links the task it
   starts to the page; that task is a wrapper that stays uncapped and only
   watches: the load itself runs in a worker it monitors, and the worker caps
@@ -36,8 +45,10 @@ defmodule PortfolixirWeb.CappedAsync do
 
   require Phoenix.LiveView
 
-  # `socket.private` key: `%{name => :running | {:pending, fun}}`.
+  # `socket.private` key: `%{name => :running | {:pending, fun, opts}}`.
   @flights :portfolixir_capped_async
+  # `socket.private` key: the page's gate, `%{limit, running, waiting}`.
+  @gate :portfolixir_capped_async_gate
 
   @doc """
   `Phoenix.LiveView.start_async/3`, its load running in a worker that caps
@@ -61,13 +72,18 @@ defmodule PortfolixirWeb.CappedAsync do
   The page's `handle_async/3` for `name` calls `landed/2` first. The name
   is any term, as `Phoenix.LiveView.start_async/3`'s is: a page that reads
   one load per scope names each `{:movers, scope}` (Sprint 31 D3).
+
+  Options: `max_in_flight` — at most that many of the page's loads under
+  the option do their work at once, the rest waiting in the order asked
+  (see the module doc).
   """
-  @spec start_latest(Socket.t(), term(), (-> term())) :: Socket.t()
-  def start_latest(%Socket{} = socket, name, fun) when is_function(fun, 0) do
+  @spec start_latest(Socket.t(), term(), (-> term()), keyword()) :: Socket.t()
+  def start_latest(%Socket{} = socket, name, fun, opts \\ [])
+      when is_function(fun, 0) and is_list(opts) do
     cond do
       not Phoenix.LiveView.connected?(socket) -> socket
-      Map.has_key?(flights(socket), name) -> put_flight(socket, name, {:pending, fun})
-      true -> run(socket, name, fun)
+      Map.has_key?(flights(socket), name) -> put_flight(socket, name, {:pending, fun, opts})
+      true -> run(socket, name, fun, opts)
     end
   end
 
@@ -79,8 +95,8 @@ defmodule PortfolixirWeb.CappedAsync do
   @spec landed(Socket.t(), term()) :: {:superseded | :current, Socket.t()}
   def landed(%Socket{} = socket, name) do
     case Map.get(flights(socket), name) do
-      {:pending, fun} ->
-        {:superseded, run(socket, name, fun)}
+      {:pending, fun, opts} ->
+        {:superseded, run(socket, name, fun, opts)}
 
       _running ->
         {:current,
@@ -97,13 +113,103 @@ defmodule PortfolixirWeb.CappedAsync do
   def start_child(supervisor, fun) when is_function(fun, 0),
     do: Task.Supervisor.start_child(supervisor, capped(fun))
 
-  defp run(socket, name, fun) do
+  defp run(socket, name, fun, opts) do
     privacy_mode = PrivacyMode.on?()
+    socket = put_flight(socket, name, :running)
 
-    socket
-    |> put_flight(name, :running)
-    |> Phoenix.LiveView.start_async(name, fn -> __watch__(fun, privacy_mode) end)
+    case Keyword.get(opts, :max_in_flight) do
+      limit when is_integer(limit) and limit > 0 ->
+        page = self()
+
+        socket
+        |> gate(limit)
+        |> Phoenix.LiveView.start_async(name, fn ->
+          __wait_for_slot__(page)
+          __watch__(fun, privacy_mode)
+        end)
+
+      nil ->
+        Phoenix.LiveView.start_async(socket, name, fn -> __watch__(fun, privacy_mode) end)
+    end
   end
+
+  # -- the page's gate (Sprint 31 closing act, SE1) ---------------------------
+
+  defp gate(socket, limit) do
+    case socket.private do
+      %{@gate => _gate} ->
+        socket
+
+      _none ->
+        socket
+        |> Phoenix.LiveView.put_private(@gate, %{
+          limit: limit,
+          running: MapSet.new(),
+          waiting: :queue.new()
+        })
+        |> Phoenix.LiveView.attach_hook(:capped_async_gate, :handle_info, &gate_info/2)
+    end
+  end
+
+  @doc false
+  # The first act of a load's task under `max_in_flight`: ask the page for
+  # a slot and wait for it. Before it, the task runs nothing; it is linked
+  # to the page, so a page that goes away takes the waiting task with it.
+  @spec __wait_for_slot__(pid()) :: :ok
+  def __wait_for_slot__(page) do
+    tag = make_ref()
+    send(page, {:capped_async_slot, self(), tag})
+
+    receive do
+      {:capped_async_go, ^tag} -> :ok
+    end
+  end
+
+  defp gate_info({:capped_async_slot, task, tag}, socket) do
+    gate = socket.private[@gate]
+    ref = Process.monitor(task)
+
+    gate =
+      if MapSet.size(gate.running) < gate.limit,
+        do: grant(gate, {task, tag, ref}),
+        else: %{gate | waiting: :queue.in({task, tag, ref}, gate.waiting)}
+
+    {:halt, Phoenix.LiveView.put_private(socket, @gate, gate)}
+  end
+
+  defp gate_info({:DOWN, ref, :process, _task, _reason}, socket) do
+    gate = socket.private[@gate]
+
+    cond do
+      MapSet.member?(gate.running, ref) ->
+        gate = next(%{gate | running: MapSet.delete(gate.running, ref)})
+        {:halt, Phoenix.LiveView.put_private(socket, @gate, gate)}
+
+      waiting?(gate, ref) ->
+        waiting = :queue.filter(fn {_task, _tag, waiter} -> waiter != ref end, gate.waiting)
+        {:halt, Phoenix.LiveView.put_private(socket, @gate, %{gate | waiting: waiting})}
+
+      true ->
+        {:cont, socket}
+    end
+  end
+
+  defp gate_info(_message, socket), do: {:cont, socket}
+
+  defp grant(gate, {task, tag, ref}) do
+    send(task, {:capped_async_go, tag})
+    %{gate | running: MapSet.put(gate.running, ref)}
+  end
+
+  defp next(gate) do
+    case :queue.out(gate.waiting) do
+      {{:value, waiter}, waiting} -> grant(%{gate | waiting: waiting}, waiter)
+      {:empty, _waiting} -> gate
+    end
+  end
+
+  defp waiting?(gate, ref),
+    do: Enum.any?(:queue.to_list(gate.waiting), fn {_task, _tag, waiter} -> waiter == ref end)
 
   @doc false
   # The body of a page's load task (#1204): runs `fun` in a capped worker it
