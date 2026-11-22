@@ -15974,9 +15974,12 @@ a.widget-row:hover .widget-row__name {
 /* --- S31 D7 begin --- */
 /* ===== „Alle Widgets“ and „Neues Dashboard“ (ADR-0062 §1, §3; Sprint 31
    D7; planning board ux-design-2026-11-21-sprint31/01 ② ③) ===== */
+/* Its own space under the top bar, as the dashboard's bar has (Sprint 31
+   closing act: the field stood against the top bar). */
 .widget-catalogue__bar {
   display: grid;
   gap: var(--space-3);
+  padding-top: var(--space-4);
 }
 
 .widget-catalogue__search {
@@ -16454,6 +16457,21 @@ a.widget-row:hover .widget-row__name {
     width: min(360px, 70vw);
     max-height: none;
     border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  }
+
+  /* The rail's labels stay inside its 72 px: a long one („Wertpapiere“,
+     „Nachrichten“) breaks within a 64 px line, hyphenated where the
+     browser knows the language, never under the 12 px floor (Sprint 31
+     closing act; board ux-design-2026-11-21-sprint31/02 ⑦). */
+  .app-tab {
+    padding-inline: var(--space-1);
+  }
+
+  .app-tab__label {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+    text-align: center;
   }
 }
 

@@ -101,7 +101,10 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
   #   catalogue closed until „Widget hinzufügen“ opens it as a drawer at
   #   the window's right edge, the grid still as wide; at 1440 px the
   #   catalogue beside the grid (Sprint 31 closing act, DS4).
-  # - At 844 × 390: the rail at the side, no bar at the foot.
+  # - At 844 × 390: the rail at the side, no bar at the foot, each label
+  #   3 px or more inside its tab (Sprint 31 closing act).
+  # - On „Alle Widgets“ the search field stands 12 px or more under the
+  #   top bar.
   # - Each class in the page's own Inter and in DejaVu Sans.
   test "the dashboard's compact, medium and wide classes, by the window's width", %{
     base_url: base_url
