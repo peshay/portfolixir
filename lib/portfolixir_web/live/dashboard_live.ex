@@ -1342,7 +1342,14 @@ defmodule PortfolixirWeb.DashboardLive do
             ><%= name %></.link>
           </nav>
         </details>
-        <div class="dashboard-period" data-role="dashboard-period-strip">
+        <%!-- The compact strip scrolls a chip the keyboard focuses whole
+             into view (Sprint 31 closing act, Y4). --%>
+        <div
+          id="dashboard-period-strip"
+          class="dashboard-period"
+          data-role="dashboard-period-strip"
+          phx-hook="ScrollFocused"
+        >
           <div
             class="segmented-control dashboard-period__control"
             data-role="dashboard-period"

@@ -172,12 +172,33 @@ async function editFocus(browser) {
   await leave(ctx);
 }
 
+// Y4: in the compact class the period is a strip that scrolls sideways;
+// a chip the keyboard focuses is scrolled whole into it.
+async function periodStrip(browser) {
+  for (const width of [375, 393]) {
+    const ctx = await browser.newContext({ viewport: { width, height: 852 } });
+    const page = await ctx.newPage();
+    await open(page, board);
+    await page.focus("[data-period='3y']");
+    await page.keyboard.press("Tab");
+    await page.waitForTimeout(400);
+    const r = await page.evaluate(() => {
+      const s = document.querySelector("[data-role='dashboard-period-strip']").getBoundingClientRect();
+      const b = document.activeElement.getBoundingClientRect();
+      return { chip: document.activeElement.dataset.period, left: Math.round(b.left), right: Math.round(b.right), stripLeft: Math.round(s.left), stripRight: Math.round(s.right) };
+    });
+    check("Y4 " + width, r.chip === "max" && r.right <= r.stripRight && r.left >= r.stripLeft, "the focused chip is whole inside the strip: " + JSON.stringify(r));
+    await leave(ctx);
+  }
+}
+
 (async () => {
   const browser = await launchChromium();
   try {
     await compactEdit(browser);
     await tabStops(browser);
     await editFocus(browser);
+    await periodStrip(browser);
     process.stdout.write(JSON.stringify({ ok: true, checks }) + "\n");
   } catch (error) {
     process.stdout.write(JSON.stringify({ ok: false, error: String(error && error.stack), checks }) + "\n");

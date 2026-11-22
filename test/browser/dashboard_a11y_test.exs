@@ -104,6 +104,15 @@ defmodule PortfolixirWeb.Browser.DashboardA11yTest do
   # - After „Bearbeiten“ the focus is on the first widget's handle.
   # - After a stale save's „Weiter bearbeiten“ it is on „Fertig“.
   # - After „Fertig“ (a save, or nothing to save) it is on „Bearbeiten“.
+  #
+  # User story (ADR-0062 §6; Y4):
+  # As the operator who picks a period on a phone with a keyboard,
+  # I want the chip I tab to scrolled into the strip,
+  # so that I see which period I am on before I press it.
+  #
+  # Acceptance criteria:
+  # - At 375 and 393 px, Tab from „3J“ to „Max“ shows „Max“ whole inside
+  #   the strip.
   test "the focus, the tab stops and the targets of the dashboard", %{
     base_url: base_url,
     dashboard: dashboard

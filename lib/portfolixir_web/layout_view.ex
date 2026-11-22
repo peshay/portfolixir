@@ -2180,6 +2180,24 @@ defmodule PortfolixirWeb.LayoutView do
             // them), and puts the focus where the page says after a step
             // (`dashboard-edit-focus`), since a widget that moved in the
             // reading order is a moved element.
+            // A strip that scrolls sideways (the dashboard's period in the
+            // compact class): a control the keyboard focuses is scrolled
+            // whole into it, as far as it needs and no further (Sprint 31
+            // closing act, Y4).
+            Hooks.ScrollFocused = {
+              mounted: function () {
+                this._onFocusIn = function (event) {
+                  if (event.target && event.target.scrollIntoView) {
+                    event.target.scrollIntoView({ block: "nearest", inline: "nearest" });
+                  }
+                };
+                this.el.addEventListener("focusin", this._onFocusIn);
+              },
+              destroyed: function () {
+                this.el.removeEventListener("focusin", this._onFocusIn);
+              }
+            };
+
             Hooks.DashboardEdit = {
               mounted: function () {
                 var self = this;
