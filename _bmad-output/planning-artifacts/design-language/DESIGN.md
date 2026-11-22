@@ -11399,10 +11399,11 @@ medium class:
 The width walk (`test/browser/dashboard_widths.js`) holds the floor on
 every visible text of the grid, the dashboard's bar and the tab bar at 375,
 393 and 440 px, and on the compact forms of the medium class, in Inter and
-in DejaVu Sans; an SVG text counts at the size it is drawn. One text breaks
-it on the review seed and is reported, not hidden: the data note's word
-„Achtung“ (`.data-note__word`, 11 px on every screen), in the compact form
-of „Verkaufsrückblick“ (`[data-role='trades-card-excluded']`).
+in DejaVu Sans; an SVG text counts at the size it is drawn. **A data note's
+severity word is 12 px inside a widget** (`.dashboard-widget
+.data-note__word`, the `S31 D8` block); it stays 11 px on the other
+screens. The walk found „Achtung“ at 11 px in the compact form of
+„Verkaufsrückblick“ (`[data-role='trades-card-excluded']`) and fails it.
 
 ### The three width classes *(ADR-0062 §6; board 06; CSS px stand for the ADR's pt)*
 
@@ -11444,7 +11445,7 @@ wide window, its height); nothing of the device is read.
 
 - 375 × 667, 393 × 852, 440 × 956: eleven widgets in one column at 16 px
   from the edge, the page as wide as the window, 234 texts measured, the
-  smallest 12 px apart from „Achtung“ at 11 px.
+  smallest 12 px.
 - 760 × 580 and 834 × 1112: two columns (at 18 and 386 px, at 20 and
   423 px), filled column by column; 844 × 390: the rail, two columns
   beside it.
