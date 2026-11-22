@@ -554,6 +554,63 @@ async function walk(browser) {
   }));
   await leave(desk);
 
+  const edit = await editMode(browser);
+  errors.push(...edit.errors);
+  Object.assign(measured, edit.measured);
+
+  return { errors, measured };
+}
+
+// The edit mode at 1200 px and at 1440 px (Sprint 31 closing act, DS4;
+// board ux-design-2026-11-21-sprint31/02 ④): „Anpassen“ copies the
+// template, „Bearbeiten“ opens the edit. Under 1400 px the catalogue is a
+// drawer over the page, closed until „Widget hinzufügen“ opens it, so the
+// grid keeps the width it has outside the edit and no widget's content
+// reaches past its frame; from 1400 px it stands beside the grid.
+async function editMode(browser) {
+  const errors = [];
+  const measured = {};
+  const desk = await browser.newContext({ viewport: WIDE });
+  const page = await desk.newPage();
+  await open(page, "/");
+  await page.click("[data-role='customize']");
+  await page.waitForURL(/\/dashboards\/\d+/, { timeout: 15000 });
+  const state = await settle(page);
+  check(state.connected && state.settled, "the copy did not settle: " + JSON.stringify(state));
+  const gridWidth = () => page.evaluate(() => Math.round(document.querySelector("[data-role='dashboard-grid']").getBoundingClientRect().width));
+  const reading = await gridWidth();
+  await page.click("[data-role='edit-start']");
+  await page.waitForSelector("[data-role='dashboard-grid'][data-editing='true']");
+  await resize(page, WIDE);
+  const at = WIDE.width + " x " + WIDE.height + " (edit)";
+  let m = await measure(page, []);
+  errors.push(...pageRules(m, at));
+  const editing = await gridWidth();
+  if (Math.abs(editing - reading) > SLACK) errors.push(at + ": the grid is " + editing + " px wide in the edit, " + reading + " px outside it");
+  const drawer = () =>
+    page.evaluate(() => {
+      const c = document.getElementById("dashboard-catalogue");
+      const cs = getComputedStyle(c);
+      const r = c.getBoundingClientRect();
+      return { display: cs.display, position: cs.position, left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width) };
+    });
+  let d = await drawer();
+  if (d.display !== "none") errors.push(at + ": the catalogue is drawn before „Widget hinzufügen“ opens it: " + JSON.stringify(d));
+  await page.click("[data-role='edit-catalogue-toggle']");
+  await page.waitForSelector("#dashboard-catalogue.is-open");
+  d = await drawer();
+  if (d.position !== "fixed" || Math.abs(d.right - WIDE.width) > SLACK) errors.push(at + ": the open catalogue is no drawer at the window's right edge: " + JSON.stringify(d));
+  if (Math.abs((await gridWidth()) - reading) > SLACK) errors.push(at + ": the open drawer narrows the grid");
+  measured.edit = { reading, editing, drawer: d };
+  const beside = { width: 1440, height: 900 };
+  await resize(page, beside);
+  d = await drawer();
+  const grid = await page.evaluate(() => document.querySelector("[data-role='dashboard-grid']").getBoundingClientRect().right);
+  if (d.position === "fixed" || d.left < grid - SLACK) errors.push("1440 x 900 (edit): the catalogue does not stand beside the grid: " + JSON.stringify(d));
+  m = await measure(page, []);
+  errors.push(...pageRules(m, "1440 x 900 (edit)"));
+  measured.edit.beside = d;
+  await leave(desk);
   return { errors, measured };
 }
 
