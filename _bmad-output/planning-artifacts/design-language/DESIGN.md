@@ -11282,7 +11282,11 @@ the four widgets, D5 the period, D7 the menu), read from
 between `S31 D3 begin` and `S31 D7 end`. EXPERIENCE.md's amendment of the
 same day says how the period and the edit mode behave; ADR-0062 says why.
 Where the build and the boards differ, the difference is named below
-rather than absorbed.
+rather than absorbed. **Updated by Sprint 31's closing act** (the
+accessibility lens Y1 to Y5, the design critic DS1 to DS5; board
+`mockups/ux-design-2026-11-21-sprint31/02`, drawn before the fixes): the
+frame, the head, the height budgets, the edit mode's catalogue and the
+compact targets below say what the closing act built.
 
 ### The widget's frame, top to bottom *(board 01's five parts; inside `section.dashboard-widget`)*
 
@@ -11291,22 +11295,30 @@ rather than absorbed.
   `data-col`, `data-row` and its place as CSS custom properties
   (`--widget-col`, `--widget-row`, `--widget-w`, `--widget-h`). A card:
   1 px {colors.border}, {rounded.lg}, {colors.bg-elevated}, the small
-  shadow, padding {spacing.3} {spacing.4}, its parts {spacing.3} apart.
+  shadow, padding {spacing.3} {spacing.4}, its parts {spacing.3} apart
+  ({spacing.2} at S in the wide form). A **flex column**: the parts one
+  under the other, the footer's auto margin setting it at the frame's foot
+  when the row is taller than the widget (DS1; before, the frame was a
+  grid and the footer floated mid-frame).
   The frame draws no figure of its own; every figure is the kind's body's,
   from its source read.
 - **The head** (`div.section-head.widget__head`, one row, never wrapping
   as a whole): the title block (`.section-title`, which wraps) and the ⋯
   at its right.
-  - **The title**: `h2`, 17 px, the h3 weight, line height 1.2, the kind's
-    translated title („Gesamtwert“, „Allokation und Drift“ …).
+  - **The title**: `h2`, the h3 weight, line height 1.2, the kind's
+    translated title („Gesamtwert“, „Allokation und Drift“ …): **15 px in
+    the wide form**, 17 px in the compact and medium classes (DS3; the
+    compact type stays the owner's call). In the wide form the title block
+    is a small grid: the title and its ⓘ on one line, the period tag under
+    them at the left; the head's gap is {spacing.2}.
   - **The ⓘ** beside it: the section ⓘ of the 2026-11-02 amendment
     (`AppShell.section_info`), holding the source's computation basis,
-    never a figure.
+    never a figure; its label names the widget („Zu „Wertentwicklung““).
   - **The period tag** (`span.widget__period`, `data-period-state`): a
-    quiet pill at the title block's end, 12 px, weight 600, padding 1 px
-    {spacing.2}, never wrapping inside itself; where the title and the tag
-    do not fit on one line the tag goes under the title, never past the
-    frame. Three states, each its own look so a pinned figure is never read
+    quiet pill, 12 px, weight 600, padding 1 px {spacing.2}, never wrapping
+    inside itself; **under the title at the left in the wide form** (DS3),
+    at the title block's end in the compact form, going under the title
+    where both do not fit, never past the frame. Three states, each its own look so a pinned figure is never read
     as the dashboard's (board 05 A):
     - **follows** (`--follows`): outlined in {colors.border}, muted text:
       „folgt · 3M“; where the kind answers the period with its own nearest
@@ -11315,9 +11327,11 @@ rather than absorbed.
       {colors.accent} text, weight 700, the pin as a glyph the screen reader
       skips: „📌 eigener: Max“ (and „… → 1J“ where translated);
     - **none** (`--none`): a dashed {colors.border-strong} outline:
-      „ohne Zeitraum“.
-  - **The ⋯ menu** (`details.widget__menu`, „Widget-Menü“): a 30 × 30
-    square, 44 × 44 under a coarse pointer, muted until hovered or open;
+      „ohne Zeitraum“, **drawn only in the edit mode**, where it helps
+      placing; on the grid the ⋯ menu says it (DS3).
+  - **The ⋯ menu** (`details.widget__menu`, „Menü für „‹Titel›““): a
+    30 × 30 square, 44 × 44 under a coarse pointer and in the compact
+    class, muted until hovered or open;
     its panel opens under it at the widget's right edge, at most
     min(18 rem, the window less 2 rem) wide, 14 px. On a stored dashboard
     it holds „Folgt dem Dashboard (1J)“ (a ● in the accent while it does),
@@ -11332,7 +11346,10 @@ rather than absorbed.
   (`.widget-switch`, the active option filled in the accent).
 - **A shared part**: a data note or a status region both forms show, drawn
   once so no id is drawn twice; a kind of one form (the cycle card of
-  „Bitcoin-Zyklus“, `.widget--single-form`) draws its whole body here.
+  „Bitcoin-Zyklus“, `.widget--single-form`) draws its whole body here —
+  in the widget the card names its security in a 13 px sub-line, no
+  heading of its own, and the frame's footer holds „Ganze Ansicht →“ to
+  its chart (DS5).
 - **The body, in two forms**: the wide form (`div.widget__wide`,
   `data-form="wide"`), drawn at the item's size on the grid, and the
   compact form (`div.widget__compact`, `data-form="compact"`), the kind's
@@ -11345,7 +11362,19 @@ rather than absorbed.
   right, in the accent, weight 600, underlined on hover: „Ganze Ansicht →“
   (the full size), or the source screen („In Vermögen ansehen →“, „Ziele
   bearbeiten →“, „Alle Fenster →“, „Vergleichen →“, „Alle Trades →“,
-  „Prüfen →“).
+  „Prüfen →“). In the compact class each footer link is a 44 px target.
+- **The widgets the closing act reshaped for their row** (DS1, DS2, DS5):
+  „Gesamtwert“ at S draws its figure itself, no `.stat` card inside the
+  card — the total and its currency (24 px), the change over the item's
+  period, the sparkline, then the short note on what the total leaves
+  out; „Abseits des Ziels“ at S leads with the count of the categories
+  off target („5 Kategorien“), then „außerhalb ±5 pp“ and its basis at
+  13 px, and its list is the new size M's; „Tops und Flops“ in the wide
+  form shows one ranking at a time behind a switch „Kursrendite ·
+  Beitrag“ the browser holds, the ranking's highest and lowest side by
+  side, four rows each, a name on one line, the rest behind „In Vermögen
+  →“ (the bars give way); a crash figure never breaks, and every
+  dashboard percentage is written with „%“ attached („−3,1%“).
 
 ### The sizes, on the 12-column grid *(ADR-0062 §1, §4; `Portfolixir.Dashboards.Widgets.dimensions/1`)*
 
@@ -11370,15 +11399,22 @@ table's bar gives way the same way, its cells pad {spacing.1} on each side
 so the table fits its 266 px at 1200 px in Inter and in DejaVu Sans; its
 figures never break.
 
-**The row is not a fixed height.** The grid's rows are
-`minmax(7rem, auto)`: a row is at least 7 rem and grows to its tallest
-widget, so a size's row count says where a widget starts and how many rows
-it spans, not how tall it is. Board 03 drew a fixed row unit (112 px);
-the build lets the content set it. Measured on the review seed at 1200 px
-(the width walk): row 1 is 619 px tall, set by „Abseits des Ziels“ at S,
-and „Tops und Flops“ at M is 1056 px tall beside „Crashes im Vergleich“,
-whose own content is 357 px. Named here as the built state, not settled;
-the D8 report carries it to the orchestrator.
+**The row is not a fixed height; each size has a budget.** The grid's
+rows are `minmax(7rem, auto)`: a row is at least 7 rem and grows to its
+tallest widget, so a size's row count says where a widget starts and how
+many rows it spans, not how tall it is. Board 03 drew a fixed row unit
+(112 px); the build lets the content set it, and holds each size to a
+**height budget** taken from the board's rows: **S and W ≈ 112 px, M ≈
+236 px, T and L ≈ 360 px** (DS1). The width walk asserts at 1200 px, in
+both fonts, that no template widget on the review seed is taller on its
+own than twice its budget, and that every footer stands at its frame's
+foot. „Gesamtwert“, „Datenqualität“ and „Fällig“ at S keep the Overview
+card's lists and sentences and are held to the foot rule only; their S
+forms are a later pass. Measured after the closing act (review seed,
+1200 px, Inter): „Abseits des Ziels“ S about 214 px (was 654), „Tops und
+Flops“ M 409 px (was 1055), „Allokation und Drift“ T 414 px, „Crashes im
+Vergleich“ M 357 px, „Verkaufsrückblick“ M 452 px, „Wertentwicklung“ L
+570 px; row 1 is 463 px, set by „Fällig“.
 
 ### The compact type floor *(ADR-0062 §6; board 06)*
 
@@ -11395,9 +11431,14 @@ medium class:
 - **nothing under 12 px**: the quiet parts sit between 12 and 13 px — the
   period tag 12 px, a row's second line, the footer and a compact form's
   group heading (uppercase) 13 px, the tab bar's labels 12 px;
-- **tap rows at least 44 px**: a compact row (`.widget-row`), the compact
-  switch, the period strip's chips, the tabs, the rows of „Mehr“ and of
-  the dashboard switcher.
+- **tap targets at least 44 px each way**: a compact row (`.widget-row`),
+  the compact switch, the period strip's chips (44 px wide too), the tabs,
+  the rows of „Mehr“ and of the dashboard switcher, and — whatever the
+  pointer, under 600 px (Y5) — „Bearbeiten“, „Zurücksetzen“, „Fertig“,
+  „Anpassen“, the scope „Alles ▾“, a widget's ⓘ (a 44 px box around the
+  glyph, its circle dropped) and ⋯, the footer links, and „hinzufügen ›“
+  on „Alle Widgets“. Only the targets grow; the type stays. The width walk
+  holds them at 375, 393 and 440 px.
 
 The width walk (`test/browser/dashboard_widths.js`) holds the floor on
 every visible text of the grid, the dashboard's bar and the tab bar at 375,
@@ -11443,6 +11484,30 @@ wide window, its height); nothing of the device is read.
   min(360 px, 70 vw) wide. Its widgets fall into the class their width
   gives (at 844 × 390, the medium class's two columns). The period stays
   in the dashboard's bar, at the row's end as in every window from 600 px.
+  A rail tab pads {spacing.1} on each side and a long label breaks within
+  its 64 px line (hyphenated where the browser knows the language), at
+  12 px.
+- **Where the tab bar or the rail is the menu**, the off-canvas sidebar,
+  its toggle and its backdrop are hidden (`visibility`), so no tab stop is
+  off screen; up to 900 px the closed sidebar is hidden once it has slid
+  out, so its shadow no longer bleeds into the page (Y2).
+- **The edit mode's catalogue** (DS4; board 02 ④): from 1400 px it stands
+  beside the grid (15 rem, sticky); **between 1000 and 1400 px it is a
+  drawer over the page**, closed until „Widget hinzufügen“ in the bar
+  opens it, min(20 rem, 90 vw) wide at the window's right edge, the panel
+  shadow, its × at the title (Esc closes it too), so the grid keeps the
+  width it has outside the edit; in the medium class it stays under the
+  grid. Its kinds' sizes are chips, as on „Alle Widgets“. „Leer
+  beginnen“ opens the new dashboard in the edit mode with the catalogue
+  open.
+- **The bar and the grid** stand {spacing.4} apart: an empty status
+  region (`.dashboard-status:empty`) is out of the flow (DS2; it took a
+  44 px band). „Alle Widgets“' search field has the same {spacing.4}
+  under the top bar.
+- **A table's header in a wide widget stays 11 px** (uppercase,
+  letter-spaced), the house table head on every desk screen (F3, decided
+  in the design pass): the 12 px floor is the compact class's, and the
+  compact forms draw rows, not tables.
 
 ### Measured *(the width walk, review seed, the template „Überblick“)*
 
