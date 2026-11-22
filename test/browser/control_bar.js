@@ -523,8 +523,8 @@ const BARS = {
 //
 // Sprint 31 D3 (ADR-0062 §6, §12): the card is the widget „Tops und
 // Flops“. In the wide class (1200 px) its wide form stands at the item's
-// size, so its columns follow the card's own width, the rule of
-// `@container movers`: side by side from 640 px of card, stacked below. In
+// size; since the closing act (DS1) it shows one ranking at a time behind
+// a switch, the ranking's halves side by side, four rows each. In
 // the compact class (390 px) the compact form is drawn instead: the switch
 // of the two halves and its rows, every row a tap row of 44 px inside the
 // card, and the wide form not drawn at all.
@@ -553,15 +553,39 @@ function moversCard(page, width) {
       if (card.querySelector("[data-form='compact']").getBoundingClientRect().height > 0) {
         errors.push("at " + width + " px the compact form is drawn");
       }
-      const sideBySide = near(a.top, b.top) && b.left >= a.right;
-      const stacked = near(a.left, b.left) && b.top >= a.bottom;
-      if (c.width >= 640 && !sideBySide) {
-        errors.push("at " + width + " px a card of " + c.width + " px does not set the rankings side by side: " + JSON.stringify({ a, b }));
+      // Sprint 31 closing act, DS1 (board ux-design-2026-11-21-sprint31/02
+      // ②): one ranking at a time behind the switch „Kursrendite ·
+      // Beitrag“, the price return first; the shown ranking's highest and
+      // lowest side by side, four rows each; the switch shows the other.
+      const halves = (col) => [...col.querySelectorAll("[data-half]")].map((h) => h.getBoundingClientRect());
+      const sideBySide = (col) => {
+        const [h, l] = halves(col);
+        return h && l && near(h.top, l.top) && l.left >= h.right;
+      };
+      const shownRows = (col) => [...col.querySelectorAll("[data-half] li")].filter((li) => li.getBoundingClientRect().height > 0);
+      if (!(a.width > 0 && b.width === 0)) {
+        errors.push("at " + width + " px the price return is not the one ranking drawn: " + JSON.stringify({ a, b }));
       }
-      if (c.width < 640 && !stacked) {
-        errors.push("at " + width + " px a card of " + c.width + " px does not stack the rankings: " + JSON.stringify({ a, b }));
+      if (!sideBySide(price)) errors.push("at " + width + " px the price return's halves are not side by side");
+      for (const half of price.querySelectorAll("[data-half]")) {
+        const n = [...half.querySelectorAll("li")].filter((li) => li.getBoundingClientRect().height > 0).length;
+        if (n > 4) errors.push("at " + width + " px a half shows " + n + " rows, more than four");
       }
-      inside("[data-role='movers-row'], [data-role='movers-figure'], .drift-bar");
+      inside("[data-role='movers-row'], [data-role='movers-figure']");
+      const other = card.querySelector("[data-role='movers-switch'] input[value='contribution']");
+      const first = card.querySelector("[data-role='movers-switch'] input[value='return']");
+      if (!other) {
+        errors.push("at " + width + " px the switch „Kursrendite · Beitrag“ is not drawn");
+      } else {
+        other.checked = true;
+        const a2 = price.getBoundingClientRect();
+        const b2 = money.getBoundingClientRect();
+        if (!(a2.width === 0 && b2.width > 0)) errors.push("at " + width + " px the switch does not show the contribution alone: " + JSON.stringify({ a2, b2 }));
+        if (!sideBySide(money)) errors.push("at " + width + " px the contribution's halves are not side by side");
+        if (shownRows(money).length === 0) errors.push("at " + width + " px the contribution shows no row");
+        inside("[data-role='movers-row'], [data-role='movers-figure']");
+        first.checked = true;
+      }
     } else {
       const wide = card.querySelector("[data-form='wide']").getBoundingClientRect();
       if (wide.height > 0) errors.push("at " + width + " px the wide form is drawn");
