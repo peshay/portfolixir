@@ -65,22 +65,6 @@ const COLUMNS = 12;
 // What a measure may be off by: a subpixel layout, never a column.
 const SLACK = 1.5;
 
-// Breaks the walk found in the built UI and reported to the orchestrator as
-// findings (Sprint 31 D8), NOT exceptions with a reason: each is a defect
-// to fix. The walk still measures each one and lists it under `measured`,
-// and fails once it no longer occurs, so the entry goes with its fix.
-// Nothing else breaks a rule unnoticed.
-const KNOWN = [
-  {
-    // At 1200 px, the sidebar open, in DejaVu Sans: the drift table of
-    // „Allokation und Drift“ at T reaches 10 px past the widget's frame
-    // (its drift cell, `.widget-drift-table__drift`); in Inter it fits.
-    rule: "overflow",
-    selector: "#dashboard-allocation-drift .widget-drift-table",
-    finding: "D8 finding 2"
-  }
-];
-
 function check(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -109,7 +93,7 @@ async function resize(page, size) {
 // selectors whose visible text the floor holds.
 function measure(page, roots) {
   return page.evaluate(
-    ({ roots, floor, known }) => {
+    ({ roots, floor }) => {
       const box = (el) => {
         const r = el.getBoundingClientRect();
         return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
@@ -162,13 +146,11 @@ function measure(page, roots) {
               const m = el.getScreenCTM();
               if (m) scale = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c));
             }
-            const finding = known.find((k) => k.rule === "floor" && el.matches(k.selector));
             texts.push({
               root: selector,
               path: path(el),
               text: text.slice(0, 40),
-              size: Math.round(computed * scale * 100) / 100,
-              known: finding ? finding.finding : null
+              size: Math.round(computed * scale * 100) / 100
             });
           }
         }
@@ -211,10 +193,7 @@ function measure(page, roots) {
                   let found = null;
                   for (const d of el.querySelectorAll("*")) {
                     const r = d.getBoundingClientRect();
-                    if (r.width > 0 && r.right > edge + 1) {
-                      const finding = known.find((k) => k.rule === "overflow" && d.closest(k.selector));
-                      found = { path: path(d), right: Math.round(r.right - edge), width: Math.round(r.width), known: finding ? finding.finding : null };
-                    }
+                    if (r.width > 0 && r.right > edge + 1) found = { path: path(d), right: Math.round(r.right - edge), width: Math.round(r.width) };
                   }
                   return found;
                 })(),
@@ -239,7 +218,7 @@ function measure(page, roots) {
         })()
       };
     },
-    { roots, floor: FLOOR, known: KNOWN }
+    { roots, floor: FLOOR }
   );
 }
 
@@ -255,7 +234,7 @@ function pageRules(m, at) {
     if (w.left < -0.5 || w.right > m.vw + 0.5) {
       errors.push(at + ": #" + w.id + " leaves the window (" + Math.round(w.left) + " to " + Math.round(w.right) + " of " + m.vw + ")");
     }
-    if (w.overflow > 1 && !(w.past && w.past.known)) {
+    if (w.overflow > 1) {
       errors.push(
         at + ": #" + w.id + " holds a line " + w.overflow + " px wider than its frame" +
           (w.past ? " (" + w.past.path + ", " + w.past.width + " px wide, " + w.past.right + " px past the frame's edge)" : "")
@@ -295,7 +274,6 @@ function compactRules(m, at) {
 
 function floorRule(m, at) {
   return m.small
-    .filter((t) => !t.known)
     .map((t) => at + ": a text under " + FLOOR + " px, " + t.size + " px: " + JSON.stringify(t.text) + " in " + t.path);
 }
 
@@ -377,8 +355,7 @@ async function walkClass(page, sizes, rules, roots) {
         widgets: r.m.widgets.length,
         lefts: [...new Set(r.m.widgets.map((w) => Math.round(w.left)))],
         minText: r.m.minText,
-        minUnflagged: Math.min(...r.m.texts.filter((t) => !t.known).map((t) => t.size)),
-        below_floor: r.m.small.map((t) => ({ size: t.size, text: t.text, path: t.path, known: t.known })),
+        below_floor: r.m.small.map((t) => ({ size: t.size, text: t.text, path: t.path })),
         overflowing: r.m.widgets
           .filter((w) => w.overflow > 1)
           .map((w) => ({ id: w.id, by: w.overflow, past: w.past })),
@@ -448,17 +425,6 @@ async function walk(browser) {
     content: w.content
   }));
   await leave(desk);
-
-  // A finding the walk no longer meets is fixed: its entry goes.
-  const all = [].concat(...Object.values(measured).filter(Array.isArray));
-  for (const k of KNOWN) {
-    const met = all.some(
-      (x) =>
-        (x.below_floor || []).some((t) => t.known === k.finding) ||
-        (x.overflowing || []).some((o) => o.past && o.past.known === k.finding)
-    );
-    if (!met) errors.push(k.finding + " (" + k.selector + ") no longer breaks its rule: remove it from KNOWN");
-  }
 
   return { errors, measured };
 }

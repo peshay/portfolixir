@@ -11365,7 +11365,10 @@ the span's: `w` columns and the `w − 1` gaps between them
 At S, „Gesamtwert“ stacks its four strip figures one under the other, a
 list row's figure goes under its name where both do not fit, and the
 decorative drift bar gives way (its sign and words stay); at T the drift
-table's bar gives way the same way.
+table's bar gives way the same way, its cells pad {spacing.1} on each side
+(else {spacing.1} {spacing.2}) and a category's name may break anywhere,
+so the table fits its 266 px at 1200 px in Inter and in DejaVu Sans; its
+figures never break.
 
 **The row is not a fixed height.** The grid's rows are
 `minmax(7rem, auto)`: a row is at least 7 rem and grows to its tallest
@@ -11450,7 +11453,7 @@ wide window, its height); nothing of the device is read.
   423 px), filled column by column; 844 × 390: the rail, two columns
   beside it.
 - 1200 × 900, the sidebar open: the 12-column grid at the template's
-  places, every width the span's within a pixel, no overlap. In DejaVu
-  Sans the drift table of „Allokation und Drift“ at T reaches 10 px past
-  its frame (its drift cell, `.widget-drift-table__drift`); in Inter it
-  fits. Reported with the D8 walk, not settled here.
+  places, every width the span's within a pixel, no overlap, nothing in
+  a frame wider than it. (Before the `S31 D8` block, the drift table of
+  „Allokation und Drift“ at T reached 10 px past its frame in DejaVu
+  Sans.)
