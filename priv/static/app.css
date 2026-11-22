@@ -15019,7 +15019,9 @@ a.widget-row:hover .widget-row__name {
     font-size: 13px;
   }
 
-  .dashboard-widget.widget--s > .wealth-card-status {
+  /* The total's status region (named by its id: the invariant
+     css_status_region_test.exs keeps its class to its one :empty rule). */
+  .dashboard-widget.widget--s > [id^="dashboard-wealth-card-status"] {
     order: 1;
   }
 
