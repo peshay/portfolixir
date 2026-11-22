@@ -5249,7 +5249,9 @@ of items, each with `kind`, `size`, `col` (1 to 12), `row` (from 1),
 widget; `period`, a pinned period), and, from the registry, `title` and
 `source` (`routes`, `function`, `note`): the route to read what the widget
 shows. The source is always the registry's for the kind, never anything a
-layout says. An unknown id, a key that names no template and an id that is
+layout says. Both are read-only: a write ignores an item's `title` and
+`source` and stores neither, so a layout is sent back as it was read. An
+unknown id, a key that names no template and an id that is
 neither answer `404`.
 
 **`POST /api/v1/dashboards`** creates one from `{"dashboard": {"name",
@@ -5270,7 +5272,8 @@ as stored. A `lock_version` that is not the stored one, on either write,
 answers **`409`** `{"errors": {"code": "stale", "detail", "stored"}}`, with
 `stored` the dashboard as the read answers it, and writes nothing, so a
 change racing the screen's save is never lost unseen: build on `stored`
-and send its `lock_version`.
+and send its `lock_version` (its items' `title` and `source` are ignored,
+as on every write).
 
 **`DELETE /api/v1/dashboards/:id`** answers `204`. With `dry_run=true` it
 deletes nothing and answers `200` `{"data": {"dry_run": true,
@@ -5316,7 +5319,9 @@ the previous name, layout or place back restores them.
 `portfolixir.dashboards.delete` takes `id` and `dry_run`; it is admin.
 The companion checks a layout's shape before any request (an item's keys,
 a size among `S`, `W`, `M`, `T` and `L`, `col` 1 to 12, at most 40 items, a
-name of at most 60 characters); the API checks the rest and its refusals
+name of at most 60 characters) and takes an item's `title` and `source` as
+`get` answers them without sending them, so `get`, a change and `put` is
+one round trip; the API checks the rest and its refusals
 reach the agent as the tool's error, a stale `lock_version`'s `409` with
 the stored dashboard among them. An agent asked for „a dashboard for
 short-term movements“ reads `list`, picks the kinds whose period rule

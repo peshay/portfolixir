@@ -394,8 +394,10 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
        %{"index" => 0, "field" => "settings.period", "reason" => "no_period"}},
       {[Map.put(movers, "settings", %{"period" => "5y"})],
        %{"index" => 0, "field" => "settings.period", "reason" => "unsupported_period"}},
-      {[Map.put(movers, "source", "GET /api/v1/journal")],
-       %{"index" => 0, "field" => "source", "reason" => "unknown_key"}},
+      # source is read-only and ignored on write (C3), so route stands for
+      # the key that names what a widget reads.
+      {[Map.put(movers, "route", "GET /api/v1/journal")],
+       %{"index" => 0, "field" => "route", "reason" => "unknown_key"}},
       {[Map.put(movers, "settings", %{"route" => "/api/v1/journal"})],
        %{"index" => 0, "field" => "settings.route", "reason" => "unknown_setting"}},
       {for(row <- 1..41, do: due(1, row)),
@@ -563,6 +565,91 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
 
     assert read_only =~ "template"
     assert length(entries()) == journaled
+  end
+
+  # User story (ADR-0062 §2, §8, §11; Sprint 31 closing act, C3 and A2):
+  # As the agent the operator runs,
+  # I want to send a layout back as GET, a 409's errors.stored or a
+  # template's read answered it, with only my change made,
+  # so that get, modify and put is one round trip and not a rebuild of
+  # every item.
+  #
+  # Acceptance criteria:
+  # - A layout read and sent back with its items' title and source answers
+  #   200; neither is stored, and the answer's are the registry's, whatever
+  #   the item sent (they are read-only and ignored on write).
+  # - The 409's errors.stored, changed and sent with its lock_version,
+  #   answers 200; its detail says title and source are ignored on write.
+  # - A template's layout as read creates a dashboard (201).
+  test "a layout as read is written back as read; title and source are ignored", %{conn: conn} do
+    stored =
+      create!("Kurzfristig", [
+        %{
+          "kind" => "movers",
+          "size" => "M",
+          "col" => 1,
+          "row" => 1,
+          "settings" => %{"period" => "1w"}
+        },
+        due(7, 1)
+      ])
+
+    path = "/api/v1/dashboards/#{stored.id}"
+    %{"data" => read} = conn |> authed() |> get(path) |> json_response(200)
+    assert Enum.all?(read["layout"], &(Map.has_key?(&1, "title") and Map.has_key?(&1, "source")))
+
+    moved =
+      read["layout"]
+      |> Enum.map(&Map.put(&1, "row", 2))
+      |> List.update_at(
+        1,
+        &Map.merge(&1, %{"title" => "X", "source" => %{"routes" => ["GET /x"]}})
+      )
+
+    put_back = fn layout, lock_version ->
+      %{
+        "dashboard" => %{
+          "name" => read["name"],
+          "layout" => layout,
+          "lock_version" => lock_version
+        }
+      }
+    end
+
+    %{"data" => written} =
+      conn |> authed() |> put(path, put_back.(moved, read["lock_version"])) |> json_response(200)
+
+    {:ok, due_kind} = Widgets.fetch("due")
+    assert [%{"row" => 2}, %{"row" => 2, "title" => "Due"} = due_item] = written["layout"]
+    assert due_item["source"]["routes"] == due_kind.source.routes
+
+    assert Enum.map(Dashboards.get_dashboard(stored.id).layout, &Map.keys/1) ==
+             List.duplicate(~w(col kind row settings size), 2)
+
+    %{"errors" => errors} =
+      conn |> authed() |> put(path, put_back.(moved, read["lock_version"])) |> json_response(409)
+
+    assert errors["detail"] =~ "title and source are read-only and ignored on write"
+    rebuilt = List.update_at(errors["stored"]["layout"], 0, &Map.put(&1, "row", 3))
+
+    assert %{"data" => %{"lock_version" => 3, "layout" => [%{"row" => 3}, _]}} =
+             conn
+             |> authed()
+             |> put(path, put_back.(rebuilt, errors["stored"]["lock_version"]))
+             |> json_response(200)
+
+    %{"data" => template} =
+      conn |> authed() |> get("/api/v1/dashboards/template:overview") |> json_response(200)
+
+    assert %{"data" => %{"layout" => copied}} =
+             conn
+             |> authed()
+             |> post("/api/v1/dashboards", %{
+               "dashboard" => %{"name" => "Kopie", "layout" => template["layout"]}
+             })
+             |> json_response(201)
+
+    assert copied == template["layout"]
   end
 
   # User story (ADR-0062 §8; the orchestrator's decision for D2):
