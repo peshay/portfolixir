@@ -657,10 +657,14 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       ])
 
       guard = refused_guard!(ctx, :position_buckets_mismatch)
+      # The sentence lists the ids ascending (`MergeFlow.bucket_list/1`); a
+      # printable id another running test holds is skipped, so `one` may get
+      # the larger id.
+      [low, high] = Enum.sort([one.id, two.id])
 
       assert guard.detail =~
                ~s[In depot ##{d4.id} the source's position carries an override with more ] <>
-                 ~s[than one scope bucket, ##{one.id}, ##{two.id}, ] <>
+                 ~s[than one scope bucket, ##{low}, ##{high}, ] <>
                  ~s[stored before a position could hold only one]
 
       refute guard.detail =~ "~c"
