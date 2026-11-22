@@ -16133,6 +16133,37 @@ a.widget-row:hover .widget-row__name {
     border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
   }
 }
+
+/* Where the tab bar or the rail is the menu, the off-canvas sidebar, its
+   toggle and its backdrop are hidden: nothing opens them there, and a
+   sidebar only moved off screen kept 13 tab stops before the page's first
+   one and cast its shadow into the page (Sprint 31 closing act, Y2; board
+   ux-design-2026-11-21-sprint31/02 ⑥). Hidden, not undrawn: the sidebar
+   keeps its box, so widening the window back draws the rail as before. */
+@media (width < 600px), (width <= 900px) and (height <= 540px) and (orientation: landscape) {
+  #app-sidebar-toggle,
+  .app-sidebar,
+  #app-sidebar-toggle:not(:checked) ~ .app-sidebar {
+    visibility: hidden;
+  }
+
+  .sidebar-backdrop,
+  #app-sidebar-toggle:checked ~ .sidebar-backdrop {
+    display: none;
+  }
+}
+
+/* Where the burger opens it (up to 900 px), the closed sidebar is hidden
+   once it has slid out: no tab stop, no shadow at the window's edge. */
+@media (max-width: 900px) {
+  #app-sidebar-toggle:not(:checked) ~ .app-sidebar {
+    visibility: hidden;
+    transition:
+      width 180ms ease,
+      transform 180ms ease,
+      visibility 0s linear 180ms;
+  }
+}
 /* --- S31 D7 end --- */
 
 /* --- S31 D8 begin --- */
