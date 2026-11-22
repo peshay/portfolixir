@@ -59,8 +59,33 @@ defmodule PortfolixirWeb.CappedAsyncTest do
        end)}
     end
 
+    # Sprint 31 closing act (security lens SE1): loads under names of their
+    # own, at most two of the page's in flight.
+    def handle_event("capped", %{"n" => n}, socket) do
+      test = socket.assigns.test
+
+      {:noreply,
+       CappedAsync.start_latest(
+         socket,
+         {:capped, n},
+         fn ->
+           send(test, {:walking, n, self()})
+
+           receive do
+             :go -> n
+           end
+         end,
+         max_in_flight: 2
+       )}
+    end
+
     @impl true
     def handle_async(:once, _result, socket), do: {:noreply, socket}
+
+    def handle_async({:capped, _n} = name, result, socket) do
+      {:current, socket} = CappedAsync.landed(socket, name)
+      {:noreply, update(socket, :landed, &(&1 ++ [result]))}
+    end
 
     def handle_async(:walk, result, socket) do
       case CappedAsync.landed(socket, :walk) do
@@ -145,5 +170,36 @@ defmodule PortfolixirWeb.CappedAsyncTest do
 
     assert view |> element("#landed") |> render() ==
              ~s(<p id="landed">[ok: &quot;3&quot;, ok: &quot;4&quot;]</p>)
+  end
+
+  # User story (Sprint 31 closing act, security lens SE1):
+  # As the operator whose dashboard holds many widgets on many views,
+  # I want the page to run only a few of its loads at once,
+  # so that one layout cannot start hundreds of walks beside each other.
+  #
+  # Acceptance criteria:
+  # - With `max_in_flight: 2`, three loads under three names start only
+  #   two workers; the third waits, and starts once one of the two ends.
+  # - Every load lands, and `render_async/1` waits for the waiting one
+  #   too: its task exists from the ask, only its work waits.
+  test "a page's loads beyond max_in_flight wait for a free slot", %{conn: conn} do
+    view = probe(conn)
+
+    for n <- ~w(1 2 3), do: render_click(view, "capped", %{"n" => n})
+
+    assert_receive {:walking, "1", first}, 2_000
+    assert_receive {:walking, "2", second}, 2_000
+    refute_receive {:walking, "3", _pid}, 150
+
+    send(first, :go)
+    assert_receive {:walking, "3", third}, 2_000
+
+    send(second, :go)
+    send(third, :go)
+    render_async(view)
+
+    # Two and three end in either order; each lands.
+    landed = view |> element("#landed") |> render()
+    for n <- ~w(1 2 3), do: assert(landed =~ "ok: &quot;#{n}&quot;", landed)
   end
 end
