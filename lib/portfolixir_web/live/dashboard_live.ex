@@ -172,6 +172,7 @@ defmodule PortfolixirWeb.DashboardLive do
           |> say_dropped_edit(board)
           |> first_arrival(Map.has_key?(params, "period"))
           |> show(board, scope_id)
+          |> open_requested_edit(params, uri)
 
         # A switch from one dashboard to another on this page keeps the
         # period, and the new address names it (ADR-0062 §5).
@@ -940,25 +941,7 @@ defmodule PortfolixirWeb.DashboardLive do
         %{assigns: %{board: %{dashboard: %Dashboards.Dashboard{} = dashboard}, edit: nil}} =
           socket
       ) do
-    edit = Edit.start(dashboard)
-
-    # The focus goes to the first widget's handle, else „Fertig“ (Sprint 31
-    # closing act, Y3: the button pressed is gone from the page).
-    focus =
-      case Edit.reading_keys(edit) do
-        [first | _rest] -> ["dashboard-edit-handle-#{first}", "dashboard-edit-done"]
-        [] -> ["dashboard-edit-done"]
-      end
-
-    {:noreply,
-     socket
-     |> assign(
-       edit: edit,
-       edit_say: gettext("Editing: nothing is stored until “Done”."),
-       catalogue_open: false
-     )
-     |> assign_items()
-     |> push_event("dashboard-edit-focus", %{ids: focus})}
+    {:noreply, start_edit(socket, dashboard, false)}
   end
 
   # The catalogue's drawer (Sprint 31 closing act, DS4; board 02 ④): under
@@ -1108,6 +1091,54 @@ defmodule PortfolixirWeb.DashboardLive do
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   # --- S31 D6 begin ---
+  # The edit opened (ADR-0062 §7). The focus goes to the first widget's
+  # handle, else „Fertig“ (Sprint 31 closing act, Y3: the button pressed is
+  # gone from the page); with the catalogue open, to its first entry.
+  defp start_edit(socket, dashboard, catalogue_open) do
+    edit = Edit.start(dashboard)
+
+    focus =
+      case {catalogue_open, Edit.reading_keys(edit)} do
+        {true, _keys} -> ["dashboard-catalogue-close", "dashboard-catalogue-first"]
+        {false, [first | _rest]} -> ["dashboard-edit-handle-#{first}", "dashboard-edit-done"]
+        {false, []} -> ["dashboard-edit-done"]
+      end
+
+    socket
+    |> assign(
+      edit: edit,
+      edit_say: gettext("Editing: nothing is stored until “Done”."),
+      catalogue_open: catalogue_open
+    )
+    |> assign_items()
+    |> push_event("dashboard-edit-focus", %{ids: focus})
+  end
+
+  # „Leer beginnen“ on „Neues Dashboard“ opens the new dashboard with
+  # `?edit=catalogue`: the edit mode with the catalogue open (planning board
+  # 01 ③; Sprint 31 closing act). The address then drops the request, so a
+  # reload shows the dashboard.
+  defp open_requested_edit(socket, %{"edit" => "catalogue"}, uri) do
+    case {connected?(socket), socket.assigns} do
+      {true, %{board: %{dashboard: %Dashboards.Dashboard{} = dashboard}, edit: nil}} ->
+        %URI{query: query} = parsed = URI.parse(uri)
+        rest = (query || "") |> URI.decode_query() |> Map.delete("edit")
+        to = %{parsed | query: if(rest == %{}, do: nil, else: URI.encode_query(rest))}
+
+        socket
+        |> start_edit(dashboard, true)
+        |> push_patch(
+          to: URI.to_string(%{to | scheme: nil, host: nil, port: nil, authority: nil}),
+          replace: true
+        )
+
+      _other ->
+        socket
+    end
+  end
+
+  defp open_requested_edit(socket, _params, _uri), do: socket
+
   defp edit_step(%{assigns: %{edit: edit}} = socket, raw, focus, step) do
     case Edit.key(edit, raw) do
       nil -> {:noreply, socket}
@@ -1567,6 +1598,13 @@ defmodule PortfolixirWeb.DashboardLive do
         |> Enum.reject(fn {_group, kinds} -> kinds == [] end)
       )
 
+    assigns =
+      assign(
+        assigns,
+        :first,
+        assigns.groups |> List.first() |> elem(1) |> List.first() |> Map.get(:key)
+      )
+
     ~H"""
     <aside
       id="dashboard-catalogue"
@@ -1595,6 +1633,7 @@ defmodule PortfolixirWeb.DashboardLive do
         <button
           :for={kind <- kinds}
           type="button"
+          id={if kind.key == @first, do: "dashboard-catalogue-first"}
           class="dashboard-catalogue__item"
           phx-click="edit_add"
           phx-value-kind={kind.key}
@@ -1602,7 +1641,13 @@ defmodule PortfolixirWeb.DashboardLive do
           data-kind={kind.key}
         >
           <span><%= Widgets.title(kind.key) %></span>
-          <span class="dashboard-catalogue__sizes"><%= Enum.join(Edit.grid_sizes(kind.key), " ") %></span>
+          <%!-- The sizes as chips, as „Alle Widgets“ draws them (Sprint 31
+               closing act; board 02 ④). --%>
+          <span class="dashboard-catalogue__sizes"><span
+              :for={size <- Edit.grid_sizes(kind.key)}
+              class="widget-size"
+              data-role="edit-add-size"
+            ><%= size %></span></span>
         </button>
       </section>
       <p class="dashboard-catalogue__note">

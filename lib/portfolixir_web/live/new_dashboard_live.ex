@@ -9,8 +9,9 @@ defmodule PortfolixirWeb.NewDashboardLive do
   this release offers; the others come with their widgets, ADR-0062 §3).
   „Anlegen“ stores it under the UI's actor as one journaled create
   (`Dashboards.create_dashboard/2`, `Dashboards.copy_template/3`) and opens
-  it. An empty dashboard says so and links „Alle Widgets“ until the edit
-  mode opens the catalogue itself (D6). A refused name is said at the
+  it: „Leer beginnen“ in the edit mode with the catalogue open (board 01
+  ③'s caption; Sprint 31 closing act), the copy as it reads. An empty
+  dashboard outside the edit says so and links „Alle Widgets“. A refused name is said at the
   field; the 51st dashboard is refused with the reason.
   """
   use PortfolixirWeb, :live_view
@@ -36,7 +37,14 @@ defmodule PortfolixirWeb.NewDashboardLive do
 
     case create(start, name) do
       {:ok, dashboard} ->
-        {:noreply, push_navigate(socket, to: "/dashboards/#{dashboard.id}")}
+        # „Leer beginnen“ opens the edit mode with the catalogue (board 01
+        # ③'s caption; Sprint 31 closing act).
+        to =
+          if start == "empty",
+            do: "/dashboards/#{dashboard.id}?edit=catalogue",
+            else: "/dashboards/#{dashboard.id}"
+
+        {:noreply, push_navigate(socket, to: to)}
 
       {:error, :too_many_dashboards} ->
         {:noreply,
