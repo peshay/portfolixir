@@ -11,8 +11,10 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Line do
       for a screen reader by its first and last point.
 
   Both draw the values they are handed and nothing else: the points are
-  the source read's, in its order, thinned to at most `@max_points` with
-  the first and the last always kept. The geometry is computed from the
+  the source read's, in its order, thinned to about `@max_points` with
+  the first, the last, the lowest and the highest always kept, so the
+  line reaches the two values the axis names (Sprint 31 closing act,
+  money lens MO5). The geometry is computed from the
   `Decimal` values; floats exist only as coordinates and are never stored
   (as `PortfolixirWeb.Portfolio.StackedChart` does).
   """
@@ -174,8 +176,10 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Line do
   end
 
   @doc """
-  At most `@max_points` of `items`, evenly spaced, the first and the last
-  always kept; fewer are returned as they are.
+  `@max_points` of `items`, evenly spaced, the first and the last always
+  kept, and beside them the lowest and the highest value (a `Decimal`, or
+  a point's `value`), in their order: at most two more. Fewer are
+  returned as they are.
   """
   @spec thin(list()) :: list()
   def thin(items) when length(items) <= @max_points, do: items
@@ -183,10 +187,35 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Line do
   def thin(items) do
     count = length(items)
     step = (count - 1) / (@max_points - 1)
-    indexes = for i <- 0..(@max_points - 1), uniq: true, do: round(i * step)
+    even = for i <- 0..(@max_points - 1), into: MapSet.new(), do: round(i * step)
     tuple = List.to_tuple(items)
-    Enum.map(indexes, &elem(tuple, &1))
+
+    even
+    |> MapSet.union(extremes(items))
+    |> Enum.sort()
+    |> Enum.map(&elem(tuple, &1))
   end
+
+  # The indexes of the lowest and the highest value among `items`.
+  defp extremes(items) do
+    numbered =
+      items
+      |> Enum.with_index()
+      |> Enum.filter(fn {item, _index} -> match?(%Decimal{}, value_of(item)) end)
+
+    case numbered do
+      [] ->
+        MapSet.new()
+
+      _some ->
+        {_low, low} = Enum.min_by(numbered, &value_of(elem(&1, 0)), Decimal)
+        {_high, high} = Enum.max_by(numbered, &value_of(elem(&1, 0)), Decimal)
+        MapSet.new([low, high])
+    end
+  end
+
+  defp value_of(%{value: value}), do: value
+  defp value_of(value), do: value
 
   # The SVG path through `values` (Decimal) across `{x0, x1}` and, top to
   # bottom, `{y0, y1}`; nil with fewer than two values or none a number.
