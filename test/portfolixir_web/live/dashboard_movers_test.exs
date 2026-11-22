@@ -511,6 +511,41 @@ defmodule PortfolixirWeb.DashboardMoversTest do
              "follows · 1W → Week"
   end
 
+  # User story (Sprint 31 closing act, DS1; board
+  # ux-design-2026-11-21-sprint31/02 ②):
+  # As the operator reading „Tops und Flops“ at M on the desk,
+  # I want one ranking at a time, its highest and its lowest side by side,
+  # so that the widget fits its row and I switch to the other ranking in
+  # place.
+  #
+  # Acceptance criteria:
+  # - The wide form has a two-way switch „Kursrendite · Beitrag“, the
+  #   price return checked; the browser holds it (two radio buttons, no
+  #   event reaches the server), the widget's id in their name.
+  # - The rankings stay whole in the markup (the figures the API reads);
+  #   the drawing shows four rows a half, the rest behind „In Vermögen →“
+  #   (the browser walk measures it).
+  test "the wide form switches between the two rankings", %{conn: conn} do
+    seed!()
+
+    {:ok, view, _html} =
+      conn |> put_preference_cookie("portfolixir_locale", "de") |> live("/?period=1w")
+
+    doc = loaded(view, "week")
+    switch = Floki.find(doc, "#dashboard-movers [data-form='wide'] [data-role='movers-switch']")
+    assert text(switch) == "Kursrendite Beitrag"
+
+    assert switch |> Floki.find("input[type='radio']") |> Enum.map(&attribute(&1, "value")) ==
+             ~w(return contribution)
+
+    assert switch |> Floki.find("input[checked]") |> Enum.map(&attribute(&1, "value")) ==
+             ~w(return)
+
+    assert switch |> Floki.find("input") |> Enum.map(&attribute(&1, "name")) |> Enum.uniq() == [
+             "movers-side"
+           ]
+  end
+
   # User story (board 04, the German labels):
   # As the operator reading the app in German,
   # I want the card in German, its period as board 05 names it,
