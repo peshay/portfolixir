@@ -95,9 +95,10 @@ defmodule PortfolixirWeb.DashboardLive do
 
   require CappedAsync
 
-  # A category counts as "needs attention" when its drift exceeds ±5 pp of the
-  # steering basis (ADR-0022 dashboard; drift per ADR-0023: actual − target).
-  @drift_threshold Decimal.new("0.05")
+  # A category counts as off target by the one rule both drift widgets
+  # apply, `AllocationDriftWidget.off_target/1`: ±5 pp or more of the
+  # steering basis, every level of the tree (ADR-0022 dashboard; drift per
+  # ADR-0023: actual − target; Sprint 31 closing act, money lens MO4).
   @max_alerts 5
   # #984 (pick G1-A): the Overview's closed-trades card lists the newest five.
   @closed_trades_shown 5
@@ -1862,7 +1863,7 @@ defmodule PortfolixirWeb.DashboardLive do
       </:info>
       <:shared>
         <%!-- Say WHY these items surface (UAT fix round): the threshold rule,
-             derived from the same @drift_threshold the filter uses — and
+             derived from the same threshold the filter uses — and
              WHAT they are computed against (#673, {components.needs-
              attention-card}.basis-line): the view, the plan and the tree.
              Names come raw from the async read; gettext runs here, at
@@ -1870,10 +1871,17 @@ defmodule PortfolixirWeb.DashboardLive do
         <p class="hint" data-role="attention-explainer">
           <span :if={@report && @report.basis} data-role="attention-basis"><%= basis_phrase(
               @report.basis
-            ) %> · </span><%= gettext(
-            "Categories drifting more than ±%{pp} pp from their target weight.",
-            pp: threshold_pp()
-          ) %>
+            ) %> · </span><%= if @report && @report.basis && @report.basis.several_portfolios,
+            do:
+              gettext(
+                "Categories whose drift is ±%{pp} pp or more from their target weight, at every level of the tree, in every portfolio.",
+                pp: threshold_pp()
+              ),
+            else:
+              gettext(
+                "Categories whose drift is ±%{pp} pp or more from their target weight, at every level of the tree.",
+                pp: threshold_pp()
+              ) %>
         </p>
         <%!-- #723: the drift report is a sub-second figure — the block
              skeleton (UX-DR20) carries the wait without the cue, which at
@@ -2930,7 +2938,10 @@ defmodule PortfolixirWeb.DashboardLive do
     %{
       view_name: view && view.name,
       tree: %{key: classification.key, name: classification.name},
-      plan_names: plan_names
+      plan_names: plan_names,
+      # The card reads every portfolio, and says so where there are
+      # several (MO4).
+      several_portfolios: length(Portfolios.list_portfolios()) > 1
     }
   end
 
@@ -2964,15 +2975,13 @@ defmodule PortfolixirWeb.DashboardLive do
 
     case Allocation.for_portfolio(portfolio.id, classification.id, opts) do
       {:ok, %{has_plan: true} = allocation} ->
-        rows = allocation.categories ++ [Map.put(allocation.cash, :name, gettext("Cash"))]
-
-        rows
-        |> Enum.filter(&targeted_beyond_threshold?/1)
+        allocation
+        |> AllocationDriftWidget.off_target()
         |> Enum.map(fn row ->
           # ADR-0024: the portfolio is the iteration mechanism only — its name
           # is not surfaced as a grouping label.
           %{
-            name: row.name,
+            name: if(row.name == :cash, do: gettext("Cash"), else: row.name),
             drift_weight: row.drift_weight,
             drift_value: row.drift_value,
             base_currency: allocation.base_currency
@@ -2982,11 +2991,6 @@ defmodule PortfolixirWeb.DashboardLive do
       _ ->
         []
     end
-  end
-
-  defp targeted_beyond_threshold?(row) do
-    Decimal.compare(row.target_weight, 0) == :gt and
-      Decimal.compare(Decimal.abs(row.drift_weight), @drift_threshold) == :gt
   end
 
   # Decided on the drift as displayed, one-decimal percentage points
@@ -3045,12 +3049,7 @@ defmodule PortfolixirWeb.DashboardLive do
     end
   end
 
-  defp threshold_pp do
-    @drift_threshold
-    |> Decimal.mult(100)
-    |> Decimal.normalize()
-    |> Decimal.to_string(:normal)
-  end
+  defp threshold_pp, do: AllocationDriftWidget.threshold_pp()
 
   defp signed_percent(value), do: Format.signed_percent(value)
 

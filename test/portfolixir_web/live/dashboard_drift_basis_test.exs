@@ -114,4 +114,136 @@ defmodule PortfolixirWeb.DashboardDriftBasisTest do
     assert text(Floki.find(doc, "#{widget} [data-role='section-info']")) =~
              "divided by that sum"
   end
+
+  defp off_target(doc),
+    do: Floki.find(doc, "#dashboard-attention [data-form='wide'] [data-role='drift-alert']")
+
+  defp arithmetic(doc),
+    do: Floki.find(doc, "#dashboard-allocation-drift [data-role='drift-arithmetic']")
+
+  defp foot(doc), do: text(Floki.find(doc, "#dashboard-allocation-drift .widget__foot"))
+
+  # User story:
+  # As the operator reading the template's two drift widgets side by side,
+  # I want „Abseits des Ziels“ and „Allokation und Drift“ to count the
+  # same rows as off target, by the rule the API's min_drift= applies,
+  # so that the two widgets of one dashboard never disagree.
+  #
+  # Acceptance criteria (money lens MO4):
+  # - One predicate, `Allocation.drift_at_least?/2` at 5 pp, inclusive as
+  #   the API is, over every level of the tree and cash in both widgets:
+  #   a subcategory beyond its target is counted by both, and a drift of
+  #   exactly 5.0 pp too (Python decimal: 1000 / 2000 − 0.45 = 0.05).
+  # - Both say the rule: „±5 pp or more“, every level of the tree.
+  test "both drift widgets count the same rows: every level, inclusive at 5 pp",
+       %{conn: conn} do
+    world = two_thirds_invested()
+    equity = category!(world.tree, "Equity")
+    core = category!(world.tree, "Core", equity)
+    satellite = category!(world.tree, "Satellite", equity)
+
+    {:ok, _} =
+      Classifications.assign_security(Actor.owner_ui(), world.alpha.id, world.tree.id, core.id)
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Actor.owner_ui(),
+        world.beta.id,
+        world.tree.id,
+        satellite.id
+      )
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, world.tree.id, [
+        %{"category_id" => core.id, "target_weight" => "0.5"},
+        %{"category_id" => satellite.id, "target_weight" => "0.1"}
+      ])
+
+    {:ok, _} =
+      Portfolixir.Portfolios.set_cash_target(
+        Actor.owner_ui(),
+        world.portfolio,
+        Decimal.new("0.4")
+      )
+
+    doc = loaded(conn)
+    names = fn nodes -> nodes |> Enum.map(&text/1) |> Enum.map(&hd(String.split(&1))) end
+
+    assert Enum.sort(names.(off_target(doc))) == Enum.sort(names.(arithmetic(doc)))
+    assert length(arithmetic(doc)) == 3
+    assert foot(doc) =~ "3 at ±5 pp or more"
+
+    assert text(Floki.find(doc, "#dashboard-attention [data-role='attention-explainer']")) =~
+             "±5 pp or more from their target weight, at every level of the tree"
+  end
+
+  test "a drift of exactly 5 pp is off target in both widgets, as min_drift=0.05 reads it",
+       %{conn: conn} do
+    world = base_world()
+    today = Clock.today()
+    alpha = create_security!(name: "Alpha Works", ticker: "ALW")
+    deposit!(world, "2000", Date.add(today, -40))
+    buy!(world, alpha, quantity: "10", price: "100", date: Date.add(today, -30))
+    put_quotes!(alpha, [{today, "100"}])
+    {:ok, tree} = Classifications.create_classification(Actor.owner_ui(), %{name: "Steering"})
+    core = category!(tree, "Core")
+    {:ok, _} = Classifications.assign_security(Actor.owner_ui(), alpha.id, tree.id, core.id)
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, tree.id, [
+        %{"category_id" => core.id, "target_weight" => "0.45"}
+      ])
+
+    {:ok, _} =
+      Portfolixir.Portfolios.set_cash_target(
+        Actor.owner_ui(),
+        world.portfolio,
+        Decimal.new("0.55")
+      )
+
+    api =
+      build_conn()
+      |> put_req_header("accept", "application/json")
+      |> put_req_header("authorization", "Bearer test-api-token")
+      |> get(
+        "/api/v1/portfolios/#{world.portfolio.id}/allocation" <>
+          "?classification_id=#{tree.id}&min_drift=0.05"
+      )
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert Enum.map(api["categories"], & &1["name"]) == ["Core"]
+
+    doc = loaded(conn)
+    assert length(off_target(doc)) == 2
+    assert length(arithmetic(doc)) == 2
+  end
+
+  # User story:
+  # As the operator with two portfolios,
+  # I want each drift widget to say which portfolios it reads,
+  # so that two counts of two scopes are read as two scopes.
+  #
+  # Acceptance criteria (money lens MO4):
+  # - „Allokation und Drift“ names the portfolio whose allocation it
+  #   draws; „Abseits des Ziels“ says it reads every portfolio.
+  # - With one portfolio neither names it.
+  test "with two portfolios each drift widget says which it reads", %{conn: conn} do
+    first = base_world(name: "First Synthetic")
+
+    _second =
+      base_world(name: "Second Synthetic", cash_name: "Second Cash", depot_name: "Second Depot")
+
+    deposit!(first, "1000", Date.add(Clock.today(), -40))
+    {:ok, _tree} = Classifications.create_classification(Actor.owner_ui(), %{name: "Steering"})
+    doc = loaded(conn)
+
+    assert text(
+             Floki.find(doc, "#dashboard-allocation-drift [data-role='allocation-drift-basis']")
+           ) =~
+             "Portfolio First Synthetic"
+
+    assert text(Floki.find(doc, "#dashboard-attention [data-role='attention-explainer']")) =~
+             "in every portfolio"
+  end
 end
