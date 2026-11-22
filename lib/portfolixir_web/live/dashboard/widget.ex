@@ -290,13 +290,17 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   # hook) and on which the arrow keys move the widget one grid step and
   # Delete removes it (`edit_key`); in the compact class, where no grid is
   # shown, „nach oben“ and „nach unten“ in its place (CSS's choice); and ×.
-  # Each names its widget, so a screen reader hears whose control it is.
+  # Each names its widget, so a screen reader hears whose control it is,
+  # and has an id by the item's key, so the focus can come back to it after
+  # a step redraws the grid (`PortfolixirWeb.DashboardLive`, Sprint 31
+  # closing act, Y1).
   defp edit_bar(assigns) do
     ~H"""
     <div class="widget__edit" data-role="widget-edit">
       <span class="widget__reorder">
         <button
           type="button"
+          id={"dashboard-edit-up-#{@item.edit_key}"}
           class="widget__edit-button"
           phx-click="edit_reorder"
           phx-value-item={@item.edit_key}
@@ -307,6 +311,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
         ><span aria-hidden="true">↑</span></button>
         <button
           type="button"
+          id={"dashboard-edit-down-#{@item.edit_key}"}
           class="widget__edit-button"
           phx-click="edit_reorder"
           phx-value-item={@item.edit_key}
@@ -330,6 +335,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
       ></button>
       <button
         type="button"
+        id={"dashboard-edit-remove-#{@item.edit_key}"}
         class="widget__edit-button widget__remove"
         phx-click="edit_remove"
         phx-value-item={@item.edit_key}
@@ -357,6 +363,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
       <button
         :for={size <- @item.edit_sizes}
         type="button"
+        id={"dashboard-edit-size-#{@item.edit_key}-#{size}"}
         class={["widget__size", size == @item.size && "is-active"]}
         phx-click="edit_resize"
         phx-value-item={@item.edit_key}

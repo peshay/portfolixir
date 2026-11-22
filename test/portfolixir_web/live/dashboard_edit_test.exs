@@ -191,7 +191,10 @@ defmodule PortfolixirWeb.DashboardEditTest do
     key(view, "performance", "ArrowRight")
     assert place(view, "performance") == {2, 1, "L"}
     assert announced(view) == "Wertentwicklung nach rechts verschoben, Spalte 2, Zeile 1"
-    assert_push_event(view, "dashboard-edit-focus", %{id: "dashboard-edit-handle-" <> ^perf})
+
+    assert_push_event(view, "dashboard-edit-focus", %{
+      ids: ["dashboard-edit-handle-" <> ^perf | _]
+    })
 
     key(view, "performance", "ArrowLeft")
     assert place(view, "performance") == {1, 1, "L"}
@@ -264,7 +267,10 @@ defmodule PortfolixirWeb.DashboardEditTest do
     key(view, "movers", "Delete")
     refute has_element?(view, "[data-widget-kind='movers']")
     assert announced(view) == "Tops und Flops entfernt"
-    assert_push_event(view, "dashboard-edit-focus", %{id: "dashboard-edit-handle-" <> ^crashes})
+
+    assert_push_event(view, "dashboard-edit-focus", %{
+      ids: ["dashboard-edit-handle-" <> ^crashes | _]
+    })
 
     key(view, "crashes", "Backspace")
     refute has_element?(view, "[data-widget-kind='crashes']")
@@ -342,7 +348,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
     view |> element("[data-role='edit-add'][data-kind='snapshots']") |> render_click()
     assert place(view, "snapshots") == {9, 1, "S"}
     assert announced(view) == "Snapshots hinzugefügt, Spalte 9, Zeile 1, Größe S"
-    assert_push_event(view, "dashboard-edit-focus", %{id: "dashboard-edit-handle-" <> _})
+    assert_push_event(view, "dashboard-edit-focus", %{ids: ["dashboard-edit-handle-" <> _ | _]})
 
     view |> element("[data-role='edit-add'][data-kind='allocation_drift']") |> render_click()
     # M is 6 wide: no room beside Wertentwicklung, the first free place is
@@ -546,6 +552,8 @@ defmodule PortfolixirWeb.DashboardEditTest do
   #   the layout is laid out again in the new reading order (each widget
   #   at the first free place after the one before it).
   # - The first cannot go up and the last cannot go down; both are said.
+  # - The focus stays on the button used, on the widget it moved (the
+  #   compact class hides the handle; Sprint 31 closing act, Y1).
   test "the compact reorder swaps in reading order and maps back onto the grid",
        %{conn: conn} do
     seed()
@@ -558,10 +566,15 @@ defmodule PortfolixirWeb.DashboardEditTest do
       |> render_click()
     end
 
+    crashes = item_key(view, "crashes")
     reorder.("crashes", "up")
     assert place(view, "crashes") == {1, 4, "M"}
     assert place(view, "movers") == {7, 4, "M"}
     assert announced(view) == "Crashes im Vergleich nach oben verschoben, Position 2 von 3"
+
+    assert_push_event(view, "dashboard-edit-focus", %{
+      ids: ["dashboard-edit-up-" <> ^crashes, "dashboard-edit-handle-" <> ^crashes | _]
+    })
 
     reorder.("crashes", "up")
     assert place(view, "crashes") == {1, 1, "M"}
