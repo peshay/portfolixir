@@ -231,7 +231,14 @@ function measure(page, roots, targets = TAP_TARGETS) {
           });
         }
       }
+      const dashBar = document.getElementById("dashboard-bar");
+      const lastInBar = dashBar
+        ? [...dashBar.children].filter((c) => c.getBoundingClientRect().height > 0 && getComputedStyle(c).position !== "absolute").pop()
+        : null;
       return {
+        // The space between the dashboard's bar and its grid: from the
+        // bar's last drawn part to the grid's top.
+        band: dashBar && grid && lastInBar ? Math.round(grid.getBoundingClientRect().top - lastInBar.getBoundingClientRect().bottom) : null,
         taps,
         vw: window.innerWidth,
         vh: window.innerHeight,
@@ -336,8 +343,14 @@ function mediumRules(m, at) {
   return errors;
 }
 
+// The bar and the grid: no blank band between them, the space is the
+// dashboard's own padding (Sprint 31 closing act, DS2: two empty status
+// regions each took a gap, 44 px).
+const BAND = 20;
+
 function wideRules(m, at) {
   const errors = pageRules(m, at);
+  if (m.band !== null && m.band > BAND) errors.push(at + ": " + m.band + " px between the bar and the grid, more than " + BAND);
   if (!m.grid || m.grid.display !== "grid") return errors.concat([at + ": the dashboard is no grid"]);
   const tracks = m.grid.columns.split(/\s+/).map(parseFloat);
   if (tracks.length !== COLUMNS) errors.push(at + ": the grid has " + tracks.length + " columns, not " + COLUMNS);
