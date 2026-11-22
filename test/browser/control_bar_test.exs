@@ -201,10 +201,11 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
   #
   # Sprint 30 T3 (board ux-design-2026-11-15-sprint30/04-tops-flops, A and
   # A1): the Overview's card „Tops und Flops“; the case measures the card,
-  # its two rankings side by side at 1200 px and stacked, the price return
-  # first, at 390 px, every row inside it, in both fonts. Since Sprint 31
-  # D5 the card's window is the dashboard's period (ADR-0062 §5), whose
-  # control the case measures in its place.
+  # at 1200 px one ranking at a time behind the switch „Kursrendite ·
+  # Beitrag“, its halves side by side, four rows each (Sprint 31 closing
+  # act, DS1), at 390 px the compact form, every row inside it, in both
+  # fonts. Since Sprint 31 D5 the card's window is the dashboard's period
+  # (ADR-0062 §5), whose control the case measures in its place.
   for bar <-
         ~w(journal sale_comparison securities_chips transaction_chips prediction_filters drift_filter movers) do
     test "the #{bar} bar starts its labelled controls on one edge", %{base_url: base_url} do
