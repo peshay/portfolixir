@@ -125,11 +125,59 @@ async function tabStops(browser) {
   }
 }
 
+// Y3: the focus after „Bearbeiten“, „Weiter bearbeiten“ and the closing
+// steps lands on a control, never on <body>. A second page saves first, so
+// this page's save is refused as stale and offers „Weiter bearbeiten“.
+async function editFocus(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+  const page = await ctx.newPage();
+  const other = await ctx.newPage();
+  await open(page, board);
+  await page.focus("[data-role='edit-start']");
+  await page.keyboard.press("Enter");
+  await answered(page);
+  let f = await focused(page);
+  check("Y3 edit", f.role === "edit-handle" && f.widget === "performance", "after „Bearbeiten“ the focus is on the first widget's handle: " + JSON.stringify(f));
+  await open(other, board);
+  await other.click("[data-role='edit-start']");
+  await answered(other);
+  await other.focus("[data-widget-kind='performance'] [data-role='edit-handle']");
+  await other.keyboard.press("ArrowRight");
+  await answered(other);
+  await other.click("[data-role='edit-done']");
+  await answered(other);
+  await page.focus("[data-widget-kind='movers'] [data-role='edit-handle']");
+  await page.keyboard.press("Delete");
+  await answered(page);
+  await page.focus("[data-role='edit-done']");
+  await page.keyboard.press("Enter");
+  await answered(page);
+  await page.focus("[data-role='edit-keep']");
+  await page.keyboard.press("Enter");
+  await answered(page);
+  f = await focused(page);
+  check("Y3 keep", f.role === "edit-done", "after „Weiter bearbeiten“ the focus is on „Fertig“: " + JSON.stringify(f));
+  await page.focus("[data-role='edit-done']");
+  await page.keyboard.press("Enter");
+  await answered(page);
+  f = await focused(page);
+  check("Y3 done", f.role === "edit-start", "after „Fertig“ the focus is on „Bearbeiten“: " + JSON.stringify(f));
+  await page.click("[data-role='edit-start']");
+  await answered(page);
+  await page.focus("[data-role='edit-done']");
+  await page.keyboard.press("Enter");
+  await answered(page);
+  f = await focused(page);
+  check("Y3 no changes", f.role === "edit-start", "after „Fertig“ with nothing to save the focus is on „Bearbeiten“: " + JSON.stringify(f));
+  await leave(ctx);
+}
+
 (async () => {
   const browser = await launchChromium();
   try {
     await compactEdit(browser);
     await tabStops(browser);
+    await editFocus(browser);
     process.stdout.write(JSON.stringify({ ok: true, checks }) + "\n");
   } catch (error) {
     process.stdout.write(JSON.stringify({ ok: false, error: String(error && error.stack), checks }) + "\n");
