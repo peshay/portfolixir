@@ -174,7 +174,7 @@ defmodule PortfolixirWeb.DashboardDriftBasisTest do
     assert foot(doc) =~ "3 at ±5 pp or more"
 
     assert text(Floki.find(doc, "#dashboard-attention [data-role='attention-explainer']")) =~
-             "±5 pp or more from their target weight, at every level of the tree"
+             "±5 pp or more off their target weight, at every tree level"
   end
 
   test "a drift of exactly 5 pp is off target in both widgets, as min_drift=0.05 reads it",

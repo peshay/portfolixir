@@ -19478,16 +19478,6 @@ msgstr[1] ""
 msgid "A drift of ±%{pp} pp or more counts as off target"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1912
-#, elixir-autogen, elixir-format
-msgid "Categories whose drift is ±%{pp} pp or more from their target weight, at every level of the tree, in every portfolio."
-msgstr ""
-
-#: lib/portfolixir_web/live/dashboard_live.ex:1917
-#, elixir-autogen, elixir-format
-msgid "Categories whose drift is ±%{pp} pp or more from their target weight, at every level of the tree."
-msgstr ""
-
 #: lib/portfolixir_web/live/dashboard/widgets/allocation_drift.ex:325
 #, elixir-autogen, elixir-format
 msgid "Portfolio %{name}"
@@ -19506,4 +19496,14 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard/widgets/allocation_drift.ex:335
 #, elixir-autogen, elixir-format
 msgid "Σ target top level %{sum}: target and drift against the allocated portion"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex:1912
+#, elixir-autogen, elixir-format
+msgid "Categories ±%{pp} pp or more off their target weight, at every tree level, in every portfolio."
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex:1917
+#, elixir-autogen, elixir-format
+msgid "Categories ±%{pp} pp or more off their target weight, at every tree level."
 msgstr ""
