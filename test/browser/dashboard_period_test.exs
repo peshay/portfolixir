@@ -20,7 +20,7 @@ defmodule PortfolixirWeb.Browser.DashboardPeriodTest do
   # only, no external network: the browser talks to 127.0.0.1.
   #
   # group: :dashboards -- a create takes the advisory lock that counts the
-  # dashboards (`Portfolixir.LockTable` row 28).
+  # dashboards (`Portfolixir.LockTable` row 30).
   use PortfolixirWeb.ConnCase, async: false, group: :dashboards
 
   import Portfolixir.WorldFixtures,
