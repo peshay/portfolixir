@@ -14953,6 +14953,20 @@ a.widget-row:hover .widget-row__name {
 }
 
 /* A kind with one form (the cycle card, already one event per line). */
+/* Inside the widget the card names its security in a sub-line (Sprint 31
+   closing act, DS5): the frame's title is the heading. */
+.cycle-card__name {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cycle-card__name a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
 .widget--single-form .cycle-card {
   padding: 0;
   border: 0;

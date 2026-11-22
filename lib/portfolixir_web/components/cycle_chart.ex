@@ -1816,6 +1816,14 @@ defmodule PortfolixirWeb.Components.CycleChart do
   attr(:payload, :map, required: true, doc: "the cycles read of a security with the view")
   attr(:href, :string, required: true)
 
+  attr(:in_widget, :boolean,
+    default: false,
+    doc:
+      "inside the widget „Bitcoin-Zyklus“: the name a sub-line (a link when `linked`), no heading and no link of its own"
+  )
+
+  attr(:linked, :boolean, default: false)
+
   @doc """
   The dashboard card „‹Name›-Zyklus“ (ADR-0060 §11; idea board 01, A's
   shortcut): the next low's and the next top's windows, price ranges and
@@ -1823,20 +1831,26 @@ defmodule PortfolixirWeb.Components.CycleChart do
   forecast, and the link that opens the security's chart with cycles on
   and the range „Zyklus“. The prices are hidden in the privacy mode, as in
   the disclosure; an event without a band says why.
+
+  Inside the widget „Bitcoin-Zyklus“ (`in_widget`; Sprint 31 closing act,
+  DS5) the frame's title is the heading: the card names its security in a
+  sub-line, and the way to the chart is the frame's footer („Ganze
+  Ansicht →“); with several securities each name links to its chart.
   """
   def card(assigns) do
     ~H"""
     <section
-      class="workspace-section cycle-card"
+      class={["cycle-card", not @in_widget && "workspace-section"]}
       data-role="cycle-card"
       data-security-id={@payload.security_id}
     >
-      <div class="section-head">
+      <div :if={not @in_widget} class="section-head">
         <h2><%= gettext("%{name} cycle", name: @payload.security_name) %></h2>
         <a class="kpi-summary__link" href={@href} data-role="cycle-card-open">
           <%= gettext("Open in chart →") %>
         </a>
       </div>
+      <p :if={@in_widget} class="cycle-card__name" data-role="cycle-card-name"><%= if @linked do %><a href={@href}><%= @payload.security_name %></a><% else %><%= @payload.security_name %><% end %></p>
       <dl class="cycle-card__events">
         <div :for={event <- events(@payload)} class="cycle-card__event" data-event={event.event}>
           <dt><%= event_label(event.event) %></dt>
