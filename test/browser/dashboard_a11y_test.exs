@@ -81,6 +81,19 @@ defmodule PortfolixirWeb.Browser.DashboardA11yTest do
   # - At 393 px, after ↑ on a widget the focus is on that widget's ↑, shown.
   # - After × the focus is on a shown control of the next widget, and the
   #   next Tab stays in the dashboard.
+  #
+  # User story (ADR-0022, amendment of 2026-11-21; Y2):
+  # As the operator who tabs through a page on a phone, a phone turned
+  # sideways or a tablet,
+  # I want every tab stop to be one I can see,
+  # so that I never press Tab thirteen times through a menu that is not
+  # on the screen.
+  #
+  # Acceptance criteria:
+  # - At 393 × 852, 852 × 393 and 834 × 1112 the first 16 Tab stops are
+  #   on screen; the closed sidebar is hidden (no shadow at the edge).
+  # - Where the tab bar or the rail is the menu, the sidebar's toggle is
+  #   hidden too.
   test "the focus, the tab stops and the targets of the dashboard", %{
     base_url: base_url,
     dashboard: dashboard

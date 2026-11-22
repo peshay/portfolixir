@@ -89,10 +89,47 @@ async function compactEdit(browser) {
   await leave(ctx);
 }
 
+// Y2: where the tab bar (compact) or the rail (short-wide) is the menu,
+// and where the burger opens the sidebar (600 to 900 px), no tab stop is
+// off screen: the closed sidebar and its toggle take no focus, and the
+// closed sidebar casts no shadow into the page.
+async function tabStops(browser) {
+  for (const vp of [{ width: 393, height: 852 }, { width: 852, height: 393 }, { width: 834, height: 1112 }]) {
+    const ctx = await browser.newContext({ viewport: vp });
+    const page = await ctx.newPage();
+    await open(page, board);
+    const off = [];
+    for (let i = 0; i < 16; i++) {
+      await page.keyboard.press("Tab");
+      const f = await focused(page);
+      if (!f.shown) off.push(f.id || f.label);
+    }
+    const at = vp.width + "x" + vp.height;
+    check("Y2 " + at, off.length === 0, "the first 16 Tab stops are on screen; off screen: " + JSON.stringify(off));
+    const sidebar = await page.evaluate(() => {
+      const s = document.getElementById("app-sidebar");
+      const cs = getComputedStyle(s);
+      const t = getComputedStyle(document.getElementById("app-sidebar-toggle"));
+      const toggle = { display: t.display, visibility: t.visibility };
+      return { visibility: cs.visibility, display: cs.display, right: Math.round(s.getBoundingClientRect().right), toggle };
+    });
+    if (vp.width < 600 || vp.height < 540) {
+      check("Y2 toggle " + at, sidebar.toggle.visibility === "hidden", "the sidebar's toggle is hidden where the tab bar or the rail is the menu: " + JSON.stringify(sidebar));
+    }
+    check(
+      "Y2 shadow " + at,
+      sidebar.display === "none" || sidebar.visibility === "hidden",
+      "the closed sidebar is not drawn (its shadow bled into the page): " + JSON.stringify(sidebar)
+    );
+    await leave(ctx);
+  }
+}
+
 (async () => {
   const browser = await launchChromium();
   try {
     await compactEdit(browser);
+    await tabStops(browser);
     process.stdout.write(JSON.stringify({ ok: true, checks }) + "\n");
   } catch (error) {
     process.stdout.write(JSON.stringify({ ok: false, error: String(error && error.stack), checks }) + "\n");
