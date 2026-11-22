@@ -9,7 +9,7 @@ defmodule Portfolixir.DashboardFixtures do
   full sentences read them at M, the size that draws them, from
   `overview_at_m!/0`: the template's widgets with those two at M, stored
   as the first dashboard, so `/` opens it. A module that calls it from an
-  async test joins `group: :dashboards` (`Portfolixir.LockTable` row 28).
+  async test joins `group: :dashboards` (`Portfolixir.LockTable` row 30).
   """
 
   alias Portfolixir.Actor

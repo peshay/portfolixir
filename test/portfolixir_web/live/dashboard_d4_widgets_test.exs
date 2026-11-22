@@ -10,7 +10,7 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
   # through the conn with the API's bearer token. Synthetic data only.
   #
   # group: :dashboards -- a create takes the advisory lock that counts the
-  # dashboards (`Portfolixir.LockTable` row 28).
+  # dashboards (`Portfolixir.LockTable` row 30).
   use PortfolixirWeb.ConnCase, async: true, group: :dashboards
 
   import Phoenix.LiveViewTest

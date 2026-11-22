@@ -1,7 +1,7 @@
 defmodule PortfolixirWeb.LiveUrlParamsTest do
   @moduledoc false
   # group: :dashboards -- the setup stores a dashboard, whose create takes
-  # the advisory lock that counts them (`Portfolixir.LockTable` row 28).
+  # the advisory lock that counts them (`Portfolixir.LockTable` row 30).
   use PortfolixirWeb.ConnCase, async: true, group: :dashboards
   @moduletag :sweep
 
