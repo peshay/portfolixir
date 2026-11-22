@@ -157,7 +157,7 @@ defmodule PortfolixirWeb.DashboardLive do
 
       board ->
         scope_id = scope_id(params, socket.assigns.views)
-        {period, kept?} = address_period(params, socket)
+        {period, kept?} = address_period(params, socket, board)
 
         socket =
           socket
@@ -175,16 +175,21 @@ defmodule PortfolixirWeb.DashboardLive do
 
   # The period an address names: one of the registry's, else 1J for a
   # value that is no period. An address that names none keeps the period
-  # this page already shows (a switch between dashboards) or opens 1J, the
-  # default, which the browser's memory may then replace.
-  defp address_period(%{"period" => period}, _socket) do
+  # this page already shows only on a switch to another dashboard; the
+  # same dashboard's address without one — Back from `?period=3m` — opens
+  # 1J, as it says (Sprint 31 closing act, correctness lens C5). A fresh
+  # page opens 1J, which the browser's memory may then replace.
+  defp address_period(%{"period" => period}, _socket, _board) do
     if period in Widgets.periods(),
       do: {period, false},
       else: {Widgets.default_period(), false}
   end
 
-  defp address_period(_params, %{assigns: %{board: %{}, period: period}}), do: {period, true}
-  defp address_period(_params, _socket), do: {Widgets.default_period(), false}
+  defp address_period(_params, %{assigns: %{board: %{key: shown}, period: period}}, %{key: key})
+       when shown != key,
+       do: {period, true}
+
+  defp address_period(_params, _socket, _board), do: {Widgets.default_period(), false}
 
   # Whether the page's first address named a period: the browser's memory
   # then asks for none (`#dashboard-period-memory`, `data-addressed`).

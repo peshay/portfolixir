@@ -384,7 +384,8 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
   #
   # Acceptance criteria:
   # - On one LiveView, a switch to another dashboard keeps the period and
-  #   the address names it.
+  #   the address names it; the same dashboard's address without a period
+  #   (Back from ?period=3m) opens 1J.
   # - On a fresh page, the browser's memory asks for its kept period
   #   (`restore_period`) and the page opens on it; an address that names a
   #   period wins, and a kept value that is no period changes nothing.
@@ -402,6 +403,14 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
     assert has_element?(view, "#app-topbar-title", "Beta")
     assert selected(view) == ["3m"]
     assert tag_text(view, "performance") == "folgt · 3M"
+
+    # Back to the same dashboard's address without a period (the
+    # browser's history, a patch on this page) opens 1J, as the address
+    # says: only a switch to another dashboard keeps the period (Sprint 31
+    # closing act, correctness lens C5).
+    render_patch(view, "/dashboards/#{b.id}")
+    assert selected(view) == ["1y"]
+    assert tag_text(view, "performance") == "folgt · 1J"
 
     {:ok, fresh, _html} = conn |> german() |> live("/dashboards/#{b.id}")
 
