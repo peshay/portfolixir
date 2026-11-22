@@ -1963,20 +1963,24 @@ defmodule PortfolixirWeb.DashboardLive do
              attention-card}.basis-line): the view, the plan and the tree.
              Names come raw from the async read; gettext runs here, at
              render time, where the user's locale is set. --%>
+        <%!-- At S in the wide form the count's line says the rule, so the
+             explainer keeps its basis and leaves the rule's sentence out of
+             the drawing (Sprint 31 closing act, DS1). --%>
         <p class="hint" data-role="attention-explainer">
           <span :if={@report && @report.basis} data-role="attention-basis"><%= basis_phrase(
               @report.basis
-            ) %> · </span><%= if @report && @report.basis && @report.basis.several_portfolios,
-            do:
-              gettext(
-                "Categories ±%{pp} pp or more off their target weight, at every tree level, in every portfolio.",
-                pp: threshold_pp()
-              ),
-            else:
-              gettext(
-                "Categories ±%{pp} pp or more off their target weight, at every tree level.",
-                pp: threshold_pp()
-              ) %>
+            ) %></span><span class="attention-rule"><%= if @report && @report.basis,
+              do: " · " %><%= if @report && @report.basis && @report.basis.several_portfolios,
+              do:
+                gettext(
+                  "Categories ±%{pp} pp or more off their target weight, at every tree level, in every portfolio.",
+                  pp: threshold_pp()
+                ),
+              else:
+                gettext(
+                  "Categories ±%{pp} pp or more off their target weight, at every tree level.",
+                  pp: threshold_pp()
+                ) %></span>
         </p>
         <%!-- #723: the drift report is a sub-second figure — the block
              skeleton (UX-DR20) carries the wait without the cue, which at
@@ -1992,7 +1996,28 @@ defmodule PortfolixirWeb.DashboardLive do
           <%= gettext("All targets within ±5 pp — nothing needs rebalancing.") %>
         </p>
       </:shared>
-      <ul :if={@report && @report.alerts != []} class="attention-list">
+      <%!-- Sprint 31 closing act, DS1 (board 02 ①): at S the count of the
+           categories off target and the rule, within the S row's height;
+           the list is the M size's (drawn from M; at S it stays in the
+           markup only, out of the drawing, and the footer leads to
+           Wealth's allocation). --%>
+      <div
+        :if={@item.size == "S" && @report && @report.alerts != []}
+        class="widget-figure"
+        data-role="off-target-count"
+      >
+        <strong class="widget-figure__value"><%= @report.count %></strong>
+        <span class="widget-figure__sub"><%= ngettext(
+            "category beyond ±%{pp} pp",
+            "categories beyond ±%{pp} pp",
+            @report.count,
+            pp: threshold_pp()
+          ) %></span>
+      </div>
+      <ul
+        :if={@report && @report.alerts != []}
+        class={["attention-list", @item.size == "S" && "widget-offtarget__list"]}
+      >
         <li :for={alert <- @report.alerts}>
           <a href="/portfolio?tab=allocation" data-role="drift-alert" class="attention-item">
             <span class="attention-name">
@@ -3017,16 +3042,21 @@ defmodule PortfolixirWeb.DashboardLive do
   defp attention_report(view_id, context) do
     case Classifications.default_classification() do
       nil ->
-        %{alerts: [], basis: nil}
+        %{alerts: [], count: 0, basis: nil}
 
       classification ->
         alerts =
           Portfolios.list_portfolios()
           |> Enum.flat_map(&alerts_for(&1, classification, view_id, context))
           |> Enum.sort_by(&Decimal.abs(&1.drift_value), {:desc, Decimal})
-          |> Enum.take(@max_alerts)
 
-        %{alerts: alerts, basis: attention_basis(classification, view_id)}
+        # The count is of every category off target, the list the worst
+        # five (Sprint 31 closing act, DS1: at S the widget says the count).
+        %{
+          alerts: Enum.take(alerts, @max_alerts),
+          count: length(alerts),
+          basis: attention_basis(classification, view_id)
+        }
     end
   end
 

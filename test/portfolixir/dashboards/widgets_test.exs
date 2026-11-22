@@ -16,7 +16,8 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     "total_value" => {~w(S M), "overview", "Gesamtwert"},
     "data_quality" => {~w(S M), "overview", "Datenqualität"},
     "due" => {~w(S), "overview", "Fällig"},
-    "off_target" => {~w(S), "overview", "Abseits des Ziels"},
+    # M since the closing act (DS1): the list, S the count.
+    "off_target" => {~w(S M), "overview", "Abseits des Ziels"},
     "performance" => {~w(S M L full), "performance", "Wertentwicklung"},
     "movers" => {~w(S M), "performance", "Tops und Flops"},
     "snapshots" => {~w(S W), "performance", "Snapshots"},
