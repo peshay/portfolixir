@@ -74,13 +74,7 @@ defmodule PortfolixirWeb.Dashboard.Edit do
   @doc "Begins an edit of the stored `dashboard`."
   @spec start(Dashboard.t()) :: t()
   def start(%Dashboard{} = dashboard) do
-    registered = Enum.filter(dashboard.layout, &match?({:ok, _}, Widgets.fetch(&1["kind"])))
-
-    layout =
-      case Dashboards.validate_layout(registered, stored: dashboard.layout) do
-        {:ok, normalized} -> normalized
-        {:error, _refusal} -> registered
-      end
+    layout = read_layout(dashboard)
 
     keys = Enum.to_list(1..length(layout)//1)
 
@@ -91,6 +85,17 @@ defmodule PortfolixirWeb.Dashboard.Edit do
       keys: keys,
       next_key: length(layout) + 1
     }
+  end
+
+  # The stored layout as an edit reads it: the kinds the registry holds,
+  # normalised as the next save would store it.
+  defp read_layout(%Dashboard{} = dashboard) do
+    registered = Enum.filter(dashboard.layout, &match?({:ok, _}, Widgets.fetch(&1["kind"])))
+
+    case Dashboards.validate_layout(registered, stored: dashboard.layout) do
+      {:ok, normalized} -> normalized
+      {:error, _refusal} -> registered
+    end
   end
 
   @doc "The edited layout discarded: the layout as read, the edit still open."
@@ -114,11 +119,14 @@ defmodule PortfolixirWeb.Dashboard.Edit do
   @doc """
   „Weiter bearbeiten“ after a stale save: the edit continues on the stored
   dashboard (its name and lock_version), so the next „Fertig“ replaces the
-  stored version, which the operator has seen.
+  stored version, which the operator has seen. Its layout becomes the
+  layout as read, normalised as `start/1` reads one, so „Zurücksetzen“
+  goes back to the stored version and „Fertig“ compares with it (Sprint
+  31 closing act, order lens O1).
   """
   @spec rebase(t()) :: t()
   def rebase(%__MODULE__{stale: %Dashboard{} = stored} = edit),
-    do: %{edit | dashboard: stored, stale: nil}
+    do: %{edit | dashboard: stored, read: read_layout(stored), stale: nil}
 
   def rebase(%__MODULE__{} = edit), do: edit
 
