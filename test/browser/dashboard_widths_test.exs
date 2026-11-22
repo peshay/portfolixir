@@ -94,9 +94,7 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
     measured = result["measured"]
 
     assert length(measured["compact"]) == 6
-    # Every text under the floor is a reported finding (the walk's
-    # KNOWN_BELOW_FLOOR), none other.
-    assert Enum.all?(measured["compact"], &(&1["minUnflagged"] >= 12))
+    assert Enum.all?(measured["compact"], &(&1["minText"] >= 12))
     assert Enum.all?(measured["medium"], &(length(&1["lefts"]) == 2))
     assert length(measured["wide_items"]) == 11
   end

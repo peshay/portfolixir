@@ -16143,4 +16143,23 @@ a.widget-row:hover .widget-row__name {
 .dashboard-widget .data-note__word {
   font-size: 12px;
 }
+/* The drift table in a widget keeps the widget's own cell padding (D4's
+   `.widget-drift-table td` lost to `.data-table tbody td`), and at T,
+   four columns wide, its cells pad 4 px on each side and a category's
+   name may break anywhere, so the table fits its frame in every font: in
+   DejaVu Sans at 1200 px it reached 10 px past the frame. The figures
+   never break and are never clipped. */
+.dashboard-widget .widget-drift-table th,
+.dashboard-widget .widget-drift-table td {
+  padding: var(--space-1) var(--space-2);
+}
+
+.dashboard-widget.widget--t .widget-drift-table th,
+.dashboard-widget.widget--t .widget-drift-table td {
+  padding-inline: var(--space-1);
+}
+
+.dashboard-widget .widget-drift-table tbody th {
+  overflow-wrap: anywhere;
+}
 /* --- S31 D8 end --- */
