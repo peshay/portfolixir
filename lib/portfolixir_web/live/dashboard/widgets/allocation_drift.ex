@@ -20,16 +20,21 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
       basis line says so, so a row's Ist − Soll is its drift (Sprint 31
       closing act, money lens MO2);
     * „Rechnerisch zum Soll“ — the display-only arithmetic of ADR-0023 for
-      the rows beyond the Overview's ±5 pp threshold (the threshold
-      „Abseits des Ziels“ uses): the amount that would close each gap, the
-      row's `drift_value` with its sign turned, in the base currency,
-      stated as arithmetic, never as an order;
+      the rows off target (`off_target/1`, the one rule „Abseits des
+      Ziels“ applies too: every level of the tree and cash, a drift of
+      ±5 pp or more by `Allocation.drift_at_least?/2`, inclusive as the
+      API's `min_drift=`; Sprint 31 closing act, money lens MO4): the
+      amount that would close each gap, the row's `drift_value` with its
+      sign turned, in the base currency, stated as arithmetic, never as
+      an order;
     * **compact** (board 06) — one row per targeted line, the largest
       drift first: its name, „Ist · Soll“ under it, the drift as the figure.
 
-  The footer counts the rows beyond the threshold and leads to where the
-  targets are edited, Wealth's „Allokation & Ziele“. Without a tree, a
-  portfolio or an active plan the widget says so in one quiet line.
+  The footer counts the rows off target and leads to where the targets
+  are edited, Wealth's „Allokation & Ziele“. With several portfolios the
+  basis line names the one it reads, the first, as Wealth opens on it.
+  Without a tree, a portfolio or an active plan the widget says so in
+  one quiet line.
   """
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
@@ -69,6 +74,8 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
             state: :ok,
             allocation: allocation,
             portfolio_id: portfolio.id,
+            # Named on the widget only where another portfolio exists (MO4).
+            portfolio_name: if(length(Portfolios.list_portfolios()) > 1, do: portfolio.name),
             view_id: view_id,
             tree: %{key: tree.key, name: tree.name},
             plan_names: plan_names(portfolio.id, tree.id, view_id)
@@ -129,14 +136,34 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
 
   def drift_target(row), do: Map.get(row, :target_weight)
 
-  @doc "The rows beyond the threshold, each targeted: the arithmetic's rows."
-  @spec beyond([map()]) :: [map()]
-  def beyond(rows), do: Enum.filter(rows, &beyond?/1)
+  @doc """
+  The rows of an allocation read that count as off target — the one rule
+  both of the dashboard's drift widgets apply, „Abseits des Ziels“ per
+  portfolio and „Allokation und Drift“ for its own (Sprint 31 closing act,
+  money lens MO4): every category at every level of the tree, in the
+  read's order, then cash unless the tree distributes it; each with a
+  target, its drift meeting `threshold/0` by
+  `Portfolixir.Portfolios.Allocation.drift_at_least?/2`, inclusive, as the
+  API's `min_drift=` selects. Cash carries the name `:cash`.
+  """
+  @spec off_target(map()) :: [map()]
+  def off_target(%{categories: categories, cash: cash}) do
+    cash_rows = if Map.get(cash, :distributed, false), do: [], else: [Map.put(cash, :name, :cash)]
 
-  defp beyond?(row),
-    do:
-      targeted?(row) and
-        Decimal.compare(Decimal.abs(row.drift_weight), @threshold) == :gt
+    Enum.filter(
+      categories ++ cash_rows,
+      &(targeted?(&1) and Allocation.drift_at_least?(&1, @threshold))
+    )
+  end
+
+  @doc "The drift that counts as off target: 5 pp, as a weight."
+  @spec threshold() :: Decimal.t()
+  def threshold, do: @threshold
+
+  @doc "The threshold in percentage points, as the screens say it: `\"5\"`."
+  @spec threshold_pp() :: String.t()
+  def threshold_pp,
+    do: @threshold |> Decimal.mult(100) |> Decimal.normalize() |> Decimal.to_string(:normal)
 
   defp targeted?(%{target_weight: %Decimal{} = target}), do: Decimal.compare(target, 0) == :gt
   defp targeted?(_row), do: false
@@ -159,7 +186,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
 
           assign(assigns,
             rows: rows,
-            beyond: beyond(rows),
+            beyond: off_target(assigns.card.allocation),
             plan?: assigns.card.allocation.has_plan
           )
         else
@@ -238,7 +265,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
       </p>
       <:compact>
         <p :if={@ready} class="widget-compact-note" data-compact-role="allocation-drift-threshold">
-          <%= gettext("Drift beyond ±%{pp} pp counts as off target", pp: threshold_pp()) %>
+          <%= gettext("A drift of ±%{pp} pp or more counts as off target", pp: threshold_pp()) %>
         </p>
         <Widget.row
           :for={row <- compact_rows(@rows)}
@@ -261,7 +288,10 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
 
   defp foot_label(true, true, beyond, scope_label) do
     count =
-      ngettext("%{count} beyond ±%{pp} pp", "%{count} beyond ±%{pp} pp", length(beyond),
+      ngettext(
+        "%{count} at ±%{pp} pp or more",
+        "%{count} at ±%{pp} pp or more",
+        length(beyond),
         pp: threshold_pp()
       )
 
@@ -280,14 +310,21 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
         _several -> gettext("Several active plans on %{tree}", tree: tree)
       end
 
-    plan <> portion(card.allocation)
+    portfolio(card) <> plan <> portion(card.allocation)
   end
 
   defp basis_line(card, false),
     do:
-      gettext("No active plan on %{tree}: the actual weights alone.",
-        tree: ClassificationName.display(card.tree)
-      )
+      portfolio(card) <>
+        gettext("No active plan on %{tree}: the actual weights alone.",
+          tree: ClassificationName.display(card.tree)
+        )
+
+  # With several portfolios, the one the widget reads (MO4).
+  defp portfolio(%{portfolio_name: name}) when is_binary(name),
+    do: gettext("Portfolio %{name}", name: name) <> " · "
+
+  defp portfolio(_card), do: ""
 
   # ADR-0040 §2, as Wealth's basis line says it: a plan whose top level
   # allocates less than 100 % measures target and drift against that
@@ -336,9 +373,6 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
   """
   @spec corrective(map()) :: String.t() | struct()
   def corrective(row), do: Format.signed_decimal(Decimal.negate(row.drift_value), 2)
-
-  defp threshold_pp,
-    do: @threshold |> Decimal.mult(100) |> Decimal.normalize() |> Decimal.to_string(:normal)
 
   defp side(drift_weight),
     do: if(Decimal.compare(drift_weight, 0) == :lt, do: "is-under", else: "is-over")
