@@ -157,7 +157,7 @@ defmodule PortfolixirWeb.DashboardLive do
 
   @impl true
   def handle_params(params, uri, socket) do
-    case board(socket.assigns.live_action, params) do
+    case board(socket.assigns.live_action, params, socket.assigns.edit) do
       :not_found ->
         {:noreply, push_navigate(socket, to: "/")}
 
@@ -168,6 +168,7 @@ defmodule PortfolixirWeb.DashboardLive do
         socket =
           socket
           |> assign(period: period, pin_error: nil)
+          |> say_dropped_edit(board)
           |> first_arrival(Map.has_key?(params, "period"))
           |> show(board, scope_id)
 
@@ -223,6 +224,41 @@ defmodule PortfolixirWeb.DashboardLive do
   defp period_pairs(period) do
     if period == Widgets.default_period(), do: [], else: [{"period", period}]
   end
+
+  # While an edit is open on `/`, an address change (a period or a scope
+  # pick) keeps the dashboard it edits, read again by its id, though
+  # another may have become the menu's first meanwhile; a deleted one
+  # ends the edit (Sprint 31 closing act, order lens O3).
+  defp board(:index, params, %Edit{dashboard: %{id: id}}) do
+    case Dashboards.get_dashboard(id) do
+      %Dashboards.Dashboard{} = dashboard -> stored(dashboard)
+      nil -> board(:index, params)
+    end
+  end
+
+  defp board(action, params, _edit), do: board(action, params)
+
+  # An open edit the new address ends: where its dashboard was deleted
+  # elsewhere the status line says so; else it says nothing of the last
+  # step, which no longer stands.
+  defp say_dropped_edit(%{assigns: %{edit: %Edit{dashboard: %{id: id}}}} = socket, board) do
+    cond do
+      match?(%{dashboard: %{id: ^id}}, board) ->
+        socket
+
+      Dashboards.get_dashboard(id) == nil ->
+        assign(
+          socket,
+          :edit_say,
+          gettext("The dashboard being edited was deleted elsewhere; the edit ended unsaved.")
+        )
+
+      true ->
+        assign(socket, :edit_say, nil)
+    end
+  end
+
+  defp say_dropped_edit(socket, _board), do: socket
 
   # The stored dashboards in the menu's order, else the template; an id
   # that names none is not found (as one past the bigint range is, which
