@@ -453,6 +453,67 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert Dashboards.get_dashboard(dashboard.id).lock_version == dashboard.lock_version
   end
 
+  # User story (Sprint 31 closing act, the accessibility lens's smaller
+  # findings):
+  # As the operator who edits with a screen reader,
+  # I want each control to name its widget in the words the announcement
+  # uses, and a refusal said again when I repeat the step,
+  # so that I know whose control I am on and that my second press was
+  # heard.
+  #
+  # Acceptance criteria:
+  # - A widget's ⓘ is „Zu „Crashes im Vergleich““, its ⋯ „Menü für
+  #   „Crashes im Vergleich““.
+  # - „nach oben“ and „nach unten“ read „… nach oben verschieben“, as the
+  #   announcement „… nach oben verschoben“.
+  # - The same refusal twice changes the live region's text, so it is
+  #   announced again; the words stay the same.
+  test "the edit controls name their widget and a repeated refusal is said again",
+       %{conn: conn} do
+    seed()
+    dashboard = dashboard!()
+    {:ok, view, _html} = conn |> german() |> live("/dashboards/#{dashboard.id}")
+
+    assert has_element?(
+             view,
+             "[data-widget-kind='crashes'] [data-role='section-info'] > summary[aria-label='Zu „Crashes im Vergleich“']"
+           )
+
+    assert has_element?(
+             view,
+             "[data-widget-kind='crashes'] [data-role='widget-menu'] > summary[aria-label='Menü für „Crashes im Vergleich“']"
+           )
+
+    view |> element("[data-role='edit-start']") |> render_click()
+
+    assert has_element?(
+             view,
+             "[data-widget-kind='crashes'] [data-role='edit-up'][aria-label='Crashes im Vergleich nach oben verschieben']"
+           )
+
+    assert has_element?(
+             view,
+             "[data-widget-kind='crashes'] [data-role='edit-down'][aria-label='Crashes im Vergleich nach unten verschieben']"
+           )
+
+    raw = fn ->
+      view
+      |> render()
+      |> Floki.parse_document!()
+      |> Floki.find("#dashboard-edit-status")
+      |> Floki.text()
+    end
+
+    key(view, "performance", "ArrowLeft")
+    first = raw.()
+    key(view, "performance", "ArrowLeft")
+    second = raw.()
+
+    assert first != second
+    assert String.trim(first, "\u00A0") == String.trim(second, "\u00A0")
+    assert String.trim(first, "\u00A0") =~ "kann nicht"
+  end
+
   # User story:
   # As the operator saving while my agent changed the same dashboard,
   # I want to see the stored layout and choose,
