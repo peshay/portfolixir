@@ -113,6 +113,15 @@ defmodule PortfolixirWeb.Browser.DashboardA11yTest do
   # Acceptance criteria:
   # - At 375 and 393 px, Tab from „3J“ to „Max“ shows „Max“ whole inside
   #   the strip.
+  #
+  # User story (ADR-0062 §6; Y5):
+  # As the operator who edits a dashboard with a thumb,
+  # I want „Bearbeiten“, „Zurücksetzen“ and „Fertig“ large enough to hit,
+  # so that I do not press the one beside it.
+  #
+  # Acceptance criteria:
+  # - At 393 px each is at least 44 px each way (the template's targets
+  #   are the width walk's).
   test "the focus, the tab stops and the targets of the dashboard", %{
     base_url: base_url,
     dashboard: dashboard

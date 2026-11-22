@@ -64,6 +64,21 @@ const FLOOR = 12;
 const COLUMNS = 12;
 // What a measure may be off by: a subpixel layout, never a column.
 const SLACK = 1.5;
+// A target a thumb presses in the compact class: 44 px each way (ADR-0062
+// §6; DESIGN.md's compact floor; Sprint 31 closing act, Y5). The controls
+// the page draws on `/` and, on „Alle Widgets“, „hinzufügen ›“.
+const TAP = 44;
+const TAP_TARGETS = [
+  "[data-role='dashboard-scope'] > summary",
+  "[data-role='dashboard-period'] button",
+  "[data-role='customize']",
+  "[data-role='edit-start']",
+  "[data-role='edit-reset']",
+  ".dashboard-widget [data-role='section-info'] > summary",
+  ".dashboard-widget [data-role='widget-menu'] > summary",
+  ".widget__foot a"
+];
+const WIDGETS_TAP_TARGETS = ["[data-role='add-widget']"];
 
 function check(condition, message) {
   if (!condition) throw new Error(message);
@@ -90,10 +105,11 @@ async function resize(page, size) {
 }
 
 // One read of everything a class's rules look at. `roots` are the
-// selectors whose visible text the floor holds.
-function measure(page, roots) {
+// selectors whose visible text the floor holds; `targets` those whose
+// drawn controls the tap rule measures.
+function measure(page, roots, targets = TAP_TARGETS) {
   return page.evaluate(
-    ({ roots, floor }) => {
+    ({ roots, floor, targets }) => {
       const box = (el) => {
         const r = el.getBoundingClientRect();
         return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
@@ -202,7 +218,21 @@ function measure(page, roots) {
             })
         : [];
       const bar = document.getElementById("app-tabbar");
+      const taps = [];
+      for (const selector of targets) {
+        for (const el of document.querySelectorAll(selector)) {
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0 || !el.checkVisibility({ visibilityProperty: true })) continue;
+          taps.push({
+            selector,
+            text: (el.getAttribute("aria-label") || el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 30),
+            width: Math.round(r.width * 10) / 10,
+            height: Math.round(r.height * 10) / 10
+          });
+        }
+      }
       return {
+        taps,
         vw: window.innerWidth,
         vh: window.innerHeight,
         scrollWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
@@ -218,7 +248,7 @@ function measure(page, roots) {
         })()
       };
     },
-    { roots, floor: FLOOR }
+    { roots, floor: FLOOR, targets }
   );
 }
 
@@ -269,7 +299,14 @@ function compactRules(m, at) {
     if (w.compact === false) errors.push(at + ": #" + w.id + " does not show its compact form");
     if (w.wide === true) errors.push(at + ": #" + w.id + " shows its wide form");
   }
-  return errors.concat(floorRule(m, at));
+  return errors.concat(floorRule(m, at), tapRule(m, at));
+}
+
+// Every drawn control the tap rule names is at least 44 px each way.
+function tapRule(m, at) {
+  return m.taps
+    .filter((t) => t.width < TAP - 0.5 || t.height < TAP - 0.5)
+    .map((t) => at + ": a target under " + TAP + " px, " + t.width + " x " + t.height + ": " + JSON.stringify(t.text) + " (" + t.selector + ")");
 }
 
 function floorRule(m, at) {
@@ -360,6 +397,7 @@ async function walkClass(page, sizes, rules, roots) {
           .filter((w) => w.overflow > 1)
           .map((w) => ({ id: w.id, by: w.overflow, past: w.past })),
         texts: r.m.texts.length,
+        taps: r.m.taps.length,
         scrollWidth: r.m.scrollWidth
       });
     }
@@ -398,6 +436,17 @@ async function walk(browser) {
   r = await walkClass(page, [SHORT_WIDE], shortWideRules, COMPACT_ROOTS);
   errors.push(...r.errors);
   measured.short_wide = r.measured;
+
+  // „Alle Widgets“: its „hinzufügen ›“ is a target too (Y5).
+  await resize(page, COMPACT[0]);
+  await open(page, "/widgets");
+  measured.widgets_taps = [];
+  for (const size of COMPACT) {
+    await resize(page, size);
+    const m = await measure(page, [], WIDGETS_TAP_TARGETS);
+    errors.push(...tapRule(m, "/widgets " + size.width + " x " + size.height));
+    measured.widgets_taps.push(m.taps.length);
+  }
   await leave(phone);
 
   const desk = await browser.newContext({ viewport: MEDIUM[0] });
@@ -462,6 +511,23 @@ async function attack(browser) {
       document.getElementById("walk-attack").remove();
     });
   }
+
+  // One target drawn 30 px tall.
+  const shrunk = await page.evaluate(() => {
+    const el = [...document.querySelectorAll(".widget__foot a")].find((e) => e.getClientRects().length > 0);
+    el.setAttribute("data-walk-attack", "");
+    const style = document.createElement("style");
+    style.id = "walk-attack";
+    style.textContent = "[data-walk-attack] { display: inline-block !important; min-height: 0 !important; height: 30px !important; }";
+    document.head.appendChild(style);
+    return el.textContent.replace(/\s+/g, " ").trim().slice(0, 30);
+  });
+  let mt = await measure(page, COMPACT_ROOTS);
+  caught.small_target = { shrunk, errors: compactRules(mt, at).filter((e) => e.includes("a target under")) };
+  await page.evaluate(() => {
+    document.querySelectorAll("[data-walk-attack]").forEach((e) => e.removeAttribute("data-walk-attack"));
+    document.getElementById("walk-attack").remove();
+  });
 
   // A line wider than the window.
   await page.evaluate(() => {

@@ -78,7 +78,10 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
   #   each in its compact form, no sideways page scroll, every widget's
   #   frame inside the window and nothing in a frame wider than it (every
   #   class holds these two), and every visible text of the grid, the
-  #   dashboard's bar and the tab bar at 12 px or more.
+  #   dashboard's bar and the tab bar at 12 px or more; every target a
+  #   thumb presses there — the scope, the period chips, „Anpassen“, each
+  #   widget's ⓘ and ⋯, the footer links, and „hinzufügen ›“ on „Alle
+  #   Widgets“ — at least 44 px each way (Sprint 31 closing act, Y5).
   # - At 760 × 580 and 834 px: two columns of compact forms, the reading
   #   order filled column by column.
   # - At 1200 px: the 12-column grid, each widget at its col and row with
@@ -95,6 +98,8 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
 
     assert length(measured["compact"]) == 6
     assert Enum.all?(measured["compact"], &(&1["minText"] >= 12))
+    assert Enum.all?(measured["compact"], &(&1["taps"] > 0))
+    assert Enum.all?(measured["widgets_taps"], &(&1 > 0))
     assert Enum.all?(measured["medium"], &(length(&1["lefts"]) == 2))
     assert length(measured["wide_items"]) == 11
   end
@@ -111,6 +116,7 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
   # - A line wider than the window inside a widget: the widget holds a
   #   line wider than its frame, named (the page clips what overflows
   #   sideways, so the page's own scroll width never shows it).
+  # - A footer link drawn 30 px tall: the tap rule names it.
   # - A widget moved onto its neighbour's col at 1200 px: the overlap and
   #   the wrong col named.
   # - The medium class drawn as one column: "1 columns of widgets, not 2".
@@ -130,6 +136,14 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
 
     assert Enum.any?(caught["sideways"]["errors"], &(&1 =~ "wider than its frame")),
            inspect(caught["sideways"])
+
+    shrunk = Jason.encode!(caught["small_target"]["shrunk"])
+
+    assert Enum.any?(
+             caught["small_target"]["errors"],
+             &(&1 =~ "a target under 44 px" and &1 =~ " x 30: #{shrunk}")
+           ),
+           inspect(caught["small_target"])
 
     assert Enum.any?(caught["overlap"]["errors"], &(&1 =~ "overlap")), inspect(caught["overlap"])
 

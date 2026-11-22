@@ -15410,6 +15410,50 @@ a.widget-row:hover .widget-row__name {
   }
 }
 
+/* The compact class's targets (ADR-0062 §6; Sprint 31 closing act, Y5;
+   board ux-design-2026-11-21-sprint31/02 ⑥): every control a thumb
+   presses on the dashboard is at least 44 px each way, whatever the
+   pointer. Only the targets grow; the type stays the compact class's. */
+@media (width < 600px) {
+  .dashboard-edit-actions .button-secondary,
+  .dashboard-edit-actions .button-primary,
+  .dashboard-banner .button-primary,
+  .dashboard-scope > summary {
+    min-height: 44px;
+  }
+
+  .dashboard-period .segmented-control__option {
+    min-width: 44px;
+    justify-content: center;
+  }
+
+  .dashboard-widget .metric-tooltip--section > summary,
+  .widget__menu > summary {
+    width: 44px;
+    height: 44px;
+    margin-block: -8px;
+  }
+
+  .dashboard-widget .metric-tooltip--section > summary {
+    border-color: transparent;
+    background: none;
+    font-size: 1rem;
+  }
+
+  .widget__foot a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  /* „hinzufügen ›“ on „Alle Widgets“ (its own rule comes later in the
+     file). */
+  .widget-card .widget-card__add {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 /* The compact class: reorder, size and remove only (ADR-0062 §7). */
 @media (width < 600px) {
   .widget__handle,
