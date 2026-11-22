@@ -111,6 +111,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "price for the walk; the last positive close carries (#1473; computation versions " <>
           "moved)",
         "live valuation and quote change reads: the latest close is the last positive one " <>
+          "(#1473)",
+        "benchmark comparison, movers, risk metrics and policy findings reads: built from " <>
+          "the walk, which reads a stored close of 0 or below as no price (#1473; the " <>
+          "benchmark_comparison, portfolio_metrics and policy_findings versions moved); the " <>
+          "benchmark's seed is its last positive close before the window",
+        "snapshot comparison read: a stored close of 0 or below is no price on the snapshot " <>
+          "side, and a position whose only close by the as-of date is one is a " <>
+          "no_quote_at_as_of gap; its basis gains gaps, which says so (#1473)",
+        "sale review (hindsight) read: the latest span ends on the last positive close " <>
           "(#1473)"
         # --- S31 Z end ---
       ],

@@ -496,7 +496,7 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
       reference: reference_text(benchmark),
       gaps:
         "the benchmark carries the most recent positive close on or before each day forward " <>
-          "(a stored close of 0 is not a price), converted at the most recent stored EUR-hub " <>
+          "(a stored close of 0 or below is not a price), converted at the most recent stored EUR-hub " <>
           "rate on or before the day; a day without a close or without a rate path to the base " <>
           "currency is unpriced. The benchmark is rebased at window.rebase_day — the close " <>
           "before the window, or the window's first day when it opens with no value — and a " <>
