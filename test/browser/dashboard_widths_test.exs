@@ -90,7 +90,11 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
   #   band between the bar and the grid, 20 px at most (Sprint 31 closing
   #   act, DS2); each widget's title at 15 px with its ⓘ on the title's
   #   line, its period tag under the title at its left, and no „ohne
-  #   Zeitraum“ on the grid (DS3).
+  #   Zeitraum“ on the grid (DS3); each footer at its frame's foot, and
+  #   each template widget at most twice its size's height budget (S 112,
+  #   M 236, T and L 360 px, the board's rows) on the review seed, but
+  #   „Gesamtwert“, „Datenqualität“ and „Fällig“ at S, whose S forms are a
+  #   later pass (DS1).
   # - At 844 × 390: the rail at the side, no bar at the foot.
   # - Each class in the page's own Inter and in DejaVu Sans.
   test "the dashboard's compact, medium and wide classes, by the window's width", %{

@@ -265,8 +265,10 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
       )
 
     count = doc |> wide("dashboard-attention") |> Floki.find("[data-role='off-target-count']")
-    assert text(Floki.find(count, ".widget-figure__value")) == "#{beyond}"
-    assert text(count) =~ "beyond ±5 pp"
+    assert count |> Floki.find(".widget-figure__value") |> text() =~ ~r/^#{beyond} categor/
+
+    assert text(Floki.find(doc, "#dashboard-attention [data-role='off-target-beyond']")) =~
+             "beyond ±5 pp"
   end
 
   # User story:

@@ -196,6 +196,29 @@ function measure(page, roots, targets = TAP_TARGETS) {
                 // What the frame holds past its own width (the page clips
                 // sideways overflow, so a line too wide shows nowhere else).
                 overflow: el.scrollWidth - el.clientWidth,
+                // How tall it would be on its own: its drawn parts one under
+                // the other with the frame's gaps, padding and border, the
+                // footer's auto margin left out (DS1's height budget).
+                natural: (() => {
+                  const parts = [...el.children].filter((c) => {
+                    const cs = getComputedStyle(c);
+                    return cs.display !== "none" && cs.position !== "absolute" && c.getBoundingClientRect().height > 0;
+                  });
+                  const gap = parseFloat(style.rowGap) || 0;
+                  const sum = parts.reduce((t, c) => t + c.getBoundingClientRect().height, 0);
+                  const edges = ["paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"].reduce((t, k) => t + parseFloat(style[k]), 0);
+                  return Math.round(sum + Math.max(parts.length - 1, 0) * gap + edges);
+                })(),
+                // The footer's distance from the frame's foot (inside its
+                // padding and border): the footer stands at the foot (DS1).
+                footGap: (() => {
+                  const foot = el.querySelector(":scope > .widget__foot");
+                  if (!foot || !foot.getClientRects().length) return null;
+                  const r = el.getBoundingClientRect();
+                  const after = [...el.children].filter((c) => c !== foot && getComputedStyle(c).display !== "none" && c.getBoundingClientRect().top >= foot.getBoundingClientRect().bottom - 0.5);
+                  const below = after.reduce((t, c) => t + c.getBoundingClientRect().height + (parseFloat(style.rowGap) || 0), 0);
+                  return Math.round(r.bottom - parseFloat(style.paddingBottom) - parseFloat(style.borderBottomWidth) - below - foot.getBoundingClientRect().bottom);
+                })(),
                 // How tall its content is, apart from the row it stretches to.
                 content: Math.round(
                   Math.max(...[...el.children].map((c) => c.getBoundingClientRect().bottom), el.getBoundingClientRect().top) -
@@ -357,6 +380,17 @@ function mediumRules(m, at) {
 const BAND = 20;
 // The wide form's title (DS3).
 const TITLE = 15;
+// The wide form's height budget by size (DS1; board
+// ux-design-2026-11-21-sprint31/02 ①, the board's rows: one row 112 px,
+// rows 12 px apart), and the margin a template widget may take over it on
+// the review seed, whose names, notes and lists are long: twice the
+// budget. „Datenqualität“, „Fällig“ and „Gesamtwert“ at S keep the
+// Overview card's lists and sentences; their S forms are a later pass
+// (the closing act's report names it), so they are held to the foot rule
+// only.
+const BUDGET = { S: 112, W: 112, M: 236, T: 360, L: 360 };
+const MARGIN = 2;
+const BUDGET_LATER = ["total_value S", "data_quality S", "due S"];
 
 function wideRules(m, at) {
   const errors = pageRules(m, at);
@@ -393,6 +427,12 @@ function wideRules(m, at) {
       if (Math.abs(h.tag.left - h.title.left) > SLACK) errors.push(at + ": " + name(w) + "'s period tag is not at its title's left");
     }
     if (h.tagText === "ohne Zeitraum") errors.push(at + ": " + name(w) + " says „ohne Zeitraum“ on the grid");
+    // DS1: the footer at the frame's foot; the widget within its budget.
+    if (w.footGap !== null && Math.abs(w.footGap) > SLACK) errors.push(at + ": " + name(w) + "'s footer stands " + w.footGap + " px above the frame's foot");
+    const budget = BUDGET[w.size];
+    if (budget && !BUDGET_LATER.includes(w.kind + " " + w.size) && w.natural > budget * MARGIN) {
+      errors.push(at + ": " + name(w) + " is " + w.natural + " px tall, over " + MARGIN + " × its size's budget of " + budget + " px");
+    }
   }
   for (let i = 0; i < m.widgets.length; i++) {
     for (let j = i + 1; j < m.widgets.length; j++) {
@@ -509,7 +549,8 @@ async function walk(browser) {
     top: Math.round(w.top - m.grid.top),
     width: Math.round(w.width),
     height: Math.round(w.height),
-    content: w.content
+    content: w.content,
+    natural: w.natural
   }));
   await leave(desk);
 

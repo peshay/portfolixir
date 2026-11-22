@@ -14749,9 +14749,12 @@ dialog.merge-dialog {
   gap: var(--space-3);
 }
 
+/* A flex column (Sprint 31 closing act, DS1; board 02 ①): the parts one
+   under the other, the footer's auto margin setting it at the frame's
+   foot when the row is taller than the widget. */
 .dashboard-widget {
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
   min-width: 0;
   padding: var(--space-3) var(--space-4);
@@ -14902,6 +14905,18 @@ a.widget-row:hover .widget-row__name {
   text-transform: uppercase;
 }
 
+/* „Abseits des Ziels“ at S says its rule beside the count in the wide
+   form only (DS1); the compact form's explainer says it whole. */
+.attention-beyond {
+  display: none;
+}
+
+@media (width >= 1000px) {
+  .widget--s .attention-beyond {
+    display: inline;
+  }
+}
+
 /* „Tops und Flops“ compact: „Höchste“ and „Niedrigste“ as a two-way
    switch the browser holds (board 06). */
 .movers-compact__switch {
@@ -15005,6 +15020,24 @@ a.widget-row:hover .widget-row__name {
   .widget--s .widget-offtarget__list,
   .widget--s[data-widget-kind="off_target"] .attention-rule {
     display: none;
+  }
+
+  /* An S widget's parts stand closer, as the board's one-row S frames. */
+  .dashboard-widget.widget--s {
+    gap: var(--space-2);
+  }
+
+  .dashboard-widget.widget--s > [data-role="attention-explainer"] {
+    order: 1;
+    margin-top: calc(-1 * var(--space-1));
+    font-size: 13px;
+  }
+
+  [data-role="off-target-count"] .value-suffix {
+    margin-left: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: 15px;
+    font-weight: 600;
   }
 
   /* „Gesamtwert“ at S: the strip's four figures one under the other. */
@@ -15118,13 +15151,18 @@ a.widget-row:hover .widget-row__name {
    its line, the period tag under them at the left. The compact form keeps
    its type and its tag at the title's end. */
 @media (width >= 1000px) {
+  .dashboard-widget > .widget__head {
+    gap: var(--space-2);
+  }
+
   .dashboard-widget > .widget__head h2 {
     font-size: 15px;
   }
 
   .dashboard-widget > .widget__head > .section-title {
     display: grid;
-    grid-template-columns: minmax(0, max-content) auto 1fr;
+    grid-template-columns: minmax(0, max-content) auto;
+    justify-content: start;
     align-items: center;
     column-gap: var(--space-1);
   }

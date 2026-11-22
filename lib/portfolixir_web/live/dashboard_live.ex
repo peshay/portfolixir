@@ -1967,7 +1967,14 @@ defmodule PortfolixirWeb.DashboardLive do
              explainer keeps its basis and leaves the rule's sentence out of
              the drawing (Sprint 31 closing act, DS1). --%>
         <p class="hint" data-role="attention-explainer">
-          <span :if={@report && @report.basis} data-role="attention-basis"><%= basis_phrase(
+          <span
+            :if={@item.size == "S" && @report && @report.alerts != []}
+            class="attention-beyond"
+            data-role="off-target-beyond"
+          ><%= gettext("beyond ±%{pp} pp", pp: threshold_pp()) %> · </span><span
+            :if={@report && @report.basis}
+            data-role="attention-basis"
+          ><%= basis_phrase(
               @report.basis
             ) %></span><span class="attention-rule"><%= if @report && @report.basis,
               do: " · " %><%= if @report && @report.basis && @report.basis.several_portfolios,
@@ -2006,13 +2013,11 @@ defmodule PortfolixirWeb.DashboardLive do
         class="widget-figure"
         data-role="off-target-count"
       >
-        <strong class="widget-figure__value"><%= @report.count %></strong>
-        <span class="widget-figure__sub"><%= ngettext(
-            "category beyond ±%{pp} pp",
-            "categories beyond ±%{pp} pp",
-            @report.count,
-            pp: threshold_pp()
-          ) %></span>
+        <strong class="widget-figure__value"><%= @report.count %><small class="value-suffix"><%= ngettext(
+              "category",
+              "categories",
+              @report.count
+            ) %></small></strong>
       </div>
       <ul
         :if={@report && @report.alerts != []}
