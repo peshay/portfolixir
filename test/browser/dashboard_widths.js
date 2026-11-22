@@ -262,11 +262,23 @@ function measure(page, roots, targets = TAP_TARGETS) {
           });
         }
       }
+      // A figure drawn on more than one line (DS5: a crash percentage broke
+      // as „−3,1“ over „%“): the distinct line tops of its text.
+      const broken = [...document.querySelectorAll(".widget-crash-table .num")]
+        .filter((el) => el.getClientRects().length > 0)
+        .map((el) => {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          const tops = new Set([...range.getClientRects()].filter((r) => r.width > 0.5).map((r) => Math.round(r.top)));
+          return { text: el.textContent.replace(/\s+/g, " ").trim(), lines: tops.size };
+        })
+        .filter((f) => f.lines > 1);
       const dashBar = document.getElementById("dashboard-bar");
       const lastInBar = dashBar
         ? [...dashBar.children].filter((c) => c.getBoundingClientRect().height > 0 && getComputedStyle(c).position !== "absolute").pop()
         : null;
       return {
+        broken,
         // The space between the dashboard's bar and its grid: from the
         // bar's last drawn part to the grid's top.
         band: dashBar && grid && lastInBar ? Math.round(grid.getBoundingClientRect().top - lastInBar.getBoundingClientRect().bottom) : null,
@@ -395,6 +407,7 @@ const BUDGET_LATER = ["total_value S", "data_quality S", "due S"];
 function wideRules(m, at) {
   const errors = pageRules(m, at);
   if (m.band !== null && m.band > BAND) errors.push(at + ": " + m.band + " px between the bar and the grid, more than " + BAND);
+  for (const f of m.broken) errors.push(at + ": the figure " + JSON.stringify(f.text) + " breaks over " + f.lines + " lines");
   if (!m.grid || m.grid.display !== "grid") return errors.concat([at + ": the dashboard is no grid"]);
   const tracks = m.grid.columns.split(/\s+/).map(parseFloat);
   if (tracks.length !== COLUMNS) errors.push(at + ": the grid has " + tracks.length + " columns, not " + COLUMNS);

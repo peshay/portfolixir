@@ -15876,6 +15876,12 @@ a.widget-row:hover .widget-row__name {
   font-weight: 400;
 }
 
+/* A crash figure never breaks across lines (Sprint 31 closing act, DS5:
+   „−3,1“ stood over „%“ in a narrow cell). */
+.widget-crash-table .num {
+  white-space: nowrap;
+}
+
 .widget-crash-table td[data-role="crash-lowest"] .num {
   margin-left: var(--space-1);
 }

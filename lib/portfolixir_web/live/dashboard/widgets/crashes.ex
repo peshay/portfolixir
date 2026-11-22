@@ -244,7 +244,9 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
         low: Format.date(window.trough)
       )
 
-  defp percent(%Decimal{} = value), do: Format.signed_percent(value) <> " %"
+  # One percent format across the dashboard, as the other widgets write it
+  # (Sprint 31 closing act, DS5).
+  defp percent(%Decimal{} = value), do: Format.signed_percent(value) <> "%"
   defp percent(_none), do: "—"
 
   defp sign_class(value) do
