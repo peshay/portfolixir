@@ -150,7 +150,8 @@ defmodule Portfolixir.Dashboards.Widgets do
       key: "off_target",
       title: "Off target",
       group: "overview",
-      sizes: ~w(S),
+      # S the count, M the list (Sprint 31 closing act, DS1).
+      sizes: ~w(S M),
       source: %{
         routes: ["GET /api/v1/portfolios/:portfolio_id/allocation"],
         function: {Portfolixir.Portfolios.Allocation, :for_portfolio, 3},

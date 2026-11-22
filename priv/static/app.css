@@ -14911,6 +14911,14 @@ a.widget-row:hover .widget-row__name {
     order: 2;
   }
 
+  /* „Abseits des Ziels“ at S: the count and its basis; the list is M's
+     (Sprint 31 closing act, DS1; board 02 ①). The count's line says the
+     rule, so the explainer keeps only its basis. */
+  .widget--s .widget-offtarget__list,
+  .widget--s[data-widget-kind="off_target"] .attention-rule {
+    display: none;
+  }
+
   /* „Gesamtwert“ at S: the strip's four figures one under the other. */
   .widget--s .kpi-strip__cells {
     grid-template-columns: minmax(0, 1fr);

@@ -199,6 +199,7 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
   # - Wide and compact: each listed category is one the allocation route
   #   answers beyond ±5 pp, its drift in points and in money equal to the
   #   route's drift_weight and drift_value.
+  # - At S the wide form leads with how many categories that is.
   test "„Abseits des Ziels“ draws the allocation read's drift", %{conn: conn} do
     world = seed()
 
@@ -250,6 +251,22 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
              sign <> Format.percent(Decimal.abs(drift)) <> " pp"
 
     assert text(Floki.find(compact, ".widget-row__sub")) =~ money(category["drift_value"])
+
+    # At S (the template's) the wide form leads with the count of the
+    # categories the route answers beyond the rule (Sprint 31 closing act,
+    # DS1; board ux-design-2026-11-21-sprint31/02 ①); at M only the list.
+    # The categories and the cash row, as the rule counts them.
+    beyond =
+      Enum.count(
+        answer["categories"] ++ List.wrap(answer["cash"]),
+        &(&1["drift_weight"] &&
+            Decimal.compare(Decimal.abs(Decimal.new(&1["drift_weight"])), Decimal.new("0.05")) !=
+              :lt)
+      )
+
+    count = doc |> wide("dashboard-attention") |> Floki.find("[data-role='off-target-count']")
+    assert text(Floki.find(count, ".widget-figure__value")) == "#{beyond}"
+    assert text(count) =~ "beyond ±5 pp"
   end
 
   # User story:
