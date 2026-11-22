@@ -1,4 +1,5 @@
-// Renders the Sprint 31 planning board to PNG at 1x, in the light and the dark
+// Renders the Sprint 31 boards (01, the planning board; 02, the closing
+// act's findings before and after) to PNG at 1x, in the light and the dark
 // theme, then reduces each to a 256-colour palette when python3 with Pillow
 // is available.
 // Usage: node render.js (after node build.js)
@@ -7,7 +8,7 @@ const { execFileSync } = require('child_process');
 const path = require('path');
 
 const QUANTIZE = 'import sys\nfrom PIL import Image\nfor f in sys.argv[1:]:\n    Image.open(f).convert("RGB").quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).save(f, optimize=True)\n';
-const BOARDS = ['01-first-slice'];
+const BOARDS = ['01-first-slice', '02-closing-act'];
 
 (async () => {
   const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {});

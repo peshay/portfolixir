@@ -75,3 +75,5 @@ ${phoneTab}</section>`);
 
 fs.writeFileSync(path.join(__dirname, '01-first-slice.html'), board01());
 console.log('wrote 01-first-slice.html');
+fs.writeFileSync(path.join(__dirname, '02-closing-act.html'), require('./board02.js').board02(I));
+console.log('wrote 02-closing-act.html');
