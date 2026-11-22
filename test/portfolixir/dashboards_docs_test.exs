@@ -103,10 +103,22 @@ defmodule Portfolixir.DashboardsDocsTest do
       assert text =~ expected, "#{lang} dashboards section lacks #{expected}"
     end
 
-    for expected <- ["a dashboard deletes nothing else", "never written", "in every profile"],
+    # An item's title and source are read-only and ignored on write, so a
+    # layout goes back as read (Sprint 31 closing act, C3/A2).
+    for expected <- [
+          "a dashboard deletes nothing else",
+          "never written",
+          "in every profile",
+          "a write ignores an item's `title` and `source`"
+        ],
         do: assert(en =~ expected, expected)
 
-    for expected <- ["Ein Dashboard löscht nichts anderes", "nie geschrieben", "in jedem Profil"],
+    for expected <- [
+          "Ein Dashboard löscht nichts anderes",
+          "nie geschrieben",
+          "in jedem Profil",
+          "Ein Schreibzugriff übergeht `title` und `source`"
+        ],
         do: assert(de =~ expected, expected)
   end
 

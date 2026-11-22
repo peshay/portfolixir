@@ -12,7 +12,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
       only while no dashboard is stored (§3).
     * `GET /api/v1/dashboards/:id` — a stored dashboard, or a template as
       `template:<key>`, with its layout, each item with the registry's
-      source for its kind.
+      title and source for its kind.
     * `POST /api/v1/dashboards` — `{"dashboard": {name, layout}}` creates;
       `{"dashboard": {template, name?}}` copies a template (201).
     * `PUT /api/v1/dashboards/:id` — `{"dashboard": {name, layout,
@@ -25,7 +25,11 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
       would remove (`PortfolixirWeb.Api.V1.DryRunParam`): the one dashboard.
 
   Every read and write is closed: a parameter or field it does not take
-  answers 422 naming it. A layout refused answers 422 with `errors.layout`
+  answers 422 naming it. One exception: an item's `title` and `source`,
+  which the read adds from the registry, are read-only and ignored on
+  write, dropped before the layout is validated, so a layout is sent back
+  as it was read (Sprint 31 closing act, C3); neither is ever stored, and
+  the registry is read again for every answer (§11). A layout refused answers 422 with `errors.layout`
   and `errors.layout_item` naming the first bad item (`index`, `field`,
   `reason`, and `other` for an overlap). A template is never written: a
   write to `template:<key>` answers 422 naming `id`. Every write is
@@ -50,6 +54,10 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
   @copy_fields ~w(template name)
   @replace_fields ~w(name layout lock_version)
   @update_fields ~w(name position lock_version)
+
+  # What a read adds to an item from the registry (`DashboardJSON`): read-only,
+  # dropped from a sent item before validation, never stored (§11).
+  @read_only_item_keys ~w(title source)
 
   # --- the reads ---
 
@@ -202,10 +210,20 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
 
   defp wrapped(conn) do
     case conn.body_params do
-      %{"dashboard" => %{} = attrs} when not is_struct(attrs) -> attrs
+      %{"dashboard" => %{} = attrs} when not is_struct(attrs) -> without_read_only(attrs)
       _absent -> %{}
     end
   end
+
+  defp without_read_only(%{"layout" => layout} = attrs) when is_list(layout),
+    do: %{attrs | "layout" => Enum.map(layout, &without_read_only_keys/1)}
+
+  defp without_read_only(attrs), do: attrs
+
+  defp without_read_only_keys(item) when is_map(item) and not is_struct(item),
+    do: Map.drop(item, @read_only_item_keys)
+
+  defp without_read_only_keys(item), do: item
 
   # --- the refusals ---
 
@@ -229,7 +247,8 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
         detail:
           "the dashboard changed since it was read and nothing was written: it is stored " <>
             "with lock_version #{stored.lock_version}, as errors.stored shows; build on it " <>
-            "and send that lock_version",
+            "and send that lock_version (an item's title and source are read-only and " <>
+            "ignored on write)",
         stored: DashboardJSON.dashboard(stored)
       }
     })

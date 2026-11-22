@@ -5726,8 +5726,10 @@ gespeicherte Liste der Elemente, jedes mit `kind`, `size`, `col` (1 bis 12),
 Dashboards für dieses Widget ersetzt; `period`, ein angehefteter Zeitraum)
 und, aus der Registry, `title` und `source` (`routes`, `function`, `note`):
 die Route, unter der sich lesen lässt, was das Widget zeigt. Die Quelle ist
-immer die der Registry für die Art, nie etwas, das ein Layout sagt. Eine
-unbekannte id, ein Schlüssel ohne Vorlage und eine id, die keines von
+immer die der Registry für die Art, nie etwas, das ein Layout sagt. Beide
+sind nur lesbar: Ein Schreibzugriff übergeht `title` und `source` eines
+Elements und speichert keines von beiden, damit ein Layout so
+zurückgeschickt werden kann, wie es gelesen wurde. Eine unbekannte id, ein Schlüssel ohne Vorlage und eine id, die keines von
 beiden ist, liefern `404`.
 
 **`POST /api/v1/dashboards`** legt eines aus `{"dashboard": {"name",
@@ -5750,7 +5752,8 @@ Schreibzugriffen **`409`** `{"errors": {"code": "stale", "detail",
 "stored"}}`, `stored` das Dashboard, wie die Lesung es liefert, und schreibt
 nichts, damit eine Änderung, die mit dem Speichern am Bildschirm
 zusammenfällt, nie ungesehen verloren geht: auf `stored` aufbauen und seine
-`lock_version` senden.
+`lock_version` senden (`title` und `source` seiner Elemente werden, wie bei
+jedem Schreibzugriff, übergangen).
 
 **`DELETE /api/v1/dashboards/:id`** liefert `204`. Mit `dry_run=true` löscht
 es nichts und liefert `200` `{"data": {"dry_run": true, "would_remove":
@@ -5799,8 +5802,10 @@ vorige Platz, wieder gesendet, sie wiederherstellt.
 `portfolixir.dashboards.delete` nimmt `id` und `dry_run`; es ist Admin. Der
 Begleiter prüft die Form eines Layouts vor jeder Anfrage (die Schlüssel
 eines Elements, eine Größe aus `S`, `W`, `M`, `T` und `L`, `col` 1 bis 12,
-höchstens 40 Elemente, ein Name von höchstens 60 Zeichen); den Rest prüft
-die API, und ihre Ablehnungen erreichen den Agenten als Fehler des Tools,
+höchstens 40 Elemente, ein Name von höchstens 60 Zeichen) und nimmt
+`title` und `source` eines Elements, wie `get` sie liefert, ohne sie zu
+senden, damit `get`, eine Änderung und `put` ein Durchgang sind; den Rest
+prüft die API, und ihre Ablehnungen erreichen den Agenten als Fehler des Tools,
 darunter die `409` einer veralteten `lock_version` mit dem gespeicherten
 Dashboard. Ein Agent, der um „ein Dashboard für kurzfristige Bewegungen“
 gebeten wird, liest `list`, wählt die Arten, deren Zeitraumregel die kurzen

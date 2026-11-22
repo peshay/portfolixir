@@ -4,7 +4,8 @@ defmodule PortfolixirWeb.Api.V1.DashboardAttackTest do
   # unknown keys sent over the API — beside the wrapper, inside it, in a
   # layout item and its settings, in the query — and fresh template keys,
   # all refused without one new atom; and a layout that names a route is
-  # refused, so a stored layout cannot make the server read one.
+  # refused, or its read-only source ignored, so a stored layout cannot
+  # make the server read one.
   #
   # async: false -- the atom table is the VM's, and the synchronous modules
   # run after every asynchronous one, so no other test makes atoms while
@@ -90,19 +91,27 @@ defmodule PortfolixirWeb.Api.V1.DashboardAttackTest do
 
   # User story (ADR-0062 §11):
   # As the operator,
-  # I want a layout that names a route, a function or a source refused,
-  # and every item's source answered from the registry,
+  # I want a layout that names a route or a function refused, a source it
+  # sends ignored, and every item's source answered from the registry,
   # so that a stored layout cannot make the server, or a reader following
   # it, read an arbitrary route.
   #
   # Acceptance criteria:
-  # - An item carrying source, route, function or url, or settings
-  #   carrying them, answers 422 naming that key; nothing is stored.
-  # - A stored item's source is its kind's registered routes.
+  # - An item carrying route, routes, function or url, or settings carrying
+  #   any of them or source, answers 422 naming that key; nothing is stored.
+  # - An item carrying source or title is accepted with them ignored: both
+  #   are read-only, the registry's for the kind, so a layout read and sent
+  #   back is taken as read (Sprint 31 closing act, C3/A2, the
+  #   orchestrator's decision); neither is stored, and the answer's source
+  #   is still the kind's registered routes, never the one sent.
   test "a layout cannot name what a widget reads", %{conn: conn} do
     item = %{"kind" => "due", "size" => "S", "col" => 1, "row" => 1}
 
-    for key <- ~w(source route routes function url), place <- [:item, :settings] do
+    refusals =
+      for(key <- ~w(route routes function url), do: {:item, key}) ++
+        for key <- ~w(source title route routes function url), do: {:settings, key}
+
+    for {place, key} <- refusals do
       layout =
         case place do
           :item -> [Map.put(item, key, "GET /api/v1/journal")]
@@ -121,12 +130,22 @@ defmodule PortfolixirWeb.Api.V1.DashboardAttackTest do
 
     assert Dashboards.list_dashboards() == []
 
+    # source and title are read-only: sent, they are ignored, not refused.
+    sent =
+      Map.merge(item, %{
+        "source" => %{"routes" => ["GET /api/v1/journal"], "function" => "x", "note" => "x"},
+        "title" => "Journal"
+      })
+
     %{"data" => %{"layout" => [stored]}} =
       conn
       |> authed()
-      |> post("/api/v1/dashboards", %{"dashboard" => %{"name" => "N", "layout" => [item]}})
+      |> post("/api/v1/dashboards", %{"dashboard" => %{"name" => "N", "layout" => [sent]}})
       |> json_response(201)
 
     assert stored["source"]["routes"] == ["GET /api/v1/events/upcoming"]
+    assert stored["title"] == "Due"
+    assert [%{layout: [kept]}] = Dashboards.list_dashboards()
+    assert Map.keys(kept) == ~w(col kind row settings size)
   end
 end
