@@ -94,7 +94,8 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
   #   each template widget at most twice its size's height budget (S 112,
   #   M 236, T and L 360 px, the board's rows) on the review seed, but
   #   „Gesamtwert“, „Datenqualität“ and „Fällig“ at S, whose S forms are a
-  #   later pass (DS1).
+  #   later pass (DS1); no figure of „Crashes im Vergleich“ broken over
+  #   two lines (DS5).
   # - The edit mode at 1200 px (the template copied, „Bearbeiten“): the
   #   grid as wide as outside the edit, no content past a frame, the
   #   catalogue closed until „Widget hinzufügen“ opens it as a drawer at

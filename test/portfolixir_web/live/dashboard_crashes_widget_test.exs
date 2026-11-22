@@ -35,7 +35,9 @@ defmodule PortfolixirWeb.DashboardCrashesWidgetTest do
     do: nodes |> Floki.text(sep: " ") |> String.replace(~r/\s+/, " ") |> String.trim()
 
   defp percent(nil), do: "—"
-  defp percent(value), do: Format.signed_percent(Decimal.new(value)) <> " %"
+  # One percent format across the dashboard, as the other widgets write it
+  # (Sprint 31 closing act, DS5).
+  defp percent(value), do: Format.signed_percent(Decimal.new(value)) <> "%"
 
   # The index falls three times; one held security and one only in the
   # catalogue fall with it, by different amounts.
@@ -138,6 +140,8 @@ defmodule PortfolixirWeb.DashboardCrashesWidgetTest do
   #   reference.return and the lowest entry its first entry, over
   #   universe=held for „Im Depot“ and universe=catalogue for „Katalog“.
   # - The compact rows carry the same windows and benchmark returns.
+  # - Each percentage is written as the other widgets write it („−3,1%“)
+  #   and never breaks across lines (the width walk measures the break).
   # - „Alle Fenster →“ opens the Risk tab.
   test "„Crashes im Vergleich“ draws the crash routes' answers", %{conn: conn} do
     crash_world!()
