@@ -171,7 +171,9 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
   #   says what it reads instead („folgt · 3M → Quartal“, „folgt · 1W →
   #   Woche“: its calendar windows to date; 3J and Max read 1J) and reads
   #   that window; YTD and 1J, its own, say no arrow.
-  # - A widget without a period says „ohne Zeitraum“.
+  # - A widget without a period draws no tag on the grid (its ⋯ menu says
+  #   it has none); in the edit mode it says „ohne Zeitraum“ (Sprint 31
+  #   closing act, DS3; board ux-design-2026-11-21-sprint31/02 ①).
   # - The widget's own period chips are gone: the dashboard's drives it.
   test "a widget follows, translates, or has no period, and says so", %{conn: conn} do
     seed()
@@ -189,8 +191,13 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
     assert tag_state(view, "total_value") == "follows"
 
     for kind <- ~w(crashes snapshots) do
-      assert tag_text(view, kind) == "ohne Zeitraum", kind
-      assert tag_state(view, kind) == "none", kind
+      assert tag_state(view, kind) == nil, kind
+
+      assert has_element?(
+               view,
+               "[data-widget-kind='#{kind}'] [data-role='widget-menu']",
+               "Dieses Widget hat keinen Zeitraum."
+             )
     end
 
     pick(view, "1w")
@@ -204,6 +211,24 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
     render_async(view)
     assert tag_text(view, "movers") == "folgt · Max → 1J"
     assert has_element?(view, "#dashboard-movers[data-window='1y']")
+  end
+
+  # User story (Sprint 31 closing act, DS3):
+  # As the operator arranging a dashboard,
+  # I want the edit mode to say which widgets take no period,
+  # so that I place them knowing the top bar does not move them.
+  #
+  # Acceptance criteria:
+  # - In the edit mode a widget without a period says „ohne Zeitraum“.
+  test "the edit mode says „ohne Zeitraum“", %{conn: conn} do
+    seed()
+    dashboard = dashboard!("Alpha")
+    {:ok, view, _html} = conn |> german() |> live("/dashboards/#{dashboard.id}")
+    render_async(view)
+    assert tag_state(view, "crashes") == nil
+    view |> element("[data-role='edit-start']") |> render_click()
+    assert tag_text(view, "crashes") == "ohne Zeitraum"
+    assert tag_state(view, "crashes") == "none"
   end
 
   # User story:

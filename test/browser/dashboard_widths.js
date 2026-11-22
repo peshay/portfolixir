@@ -202,6 +202,14 @@ function measure(page, roots, targets = TAP_TARGETS) {
                     el.getBoundingClientRect().top +
                     parseFloat(style.paddingBottom)
                 ),
+                // The head: the title's size and box, its ⓘ, its period tag.
+                head: (() => {
+                  const h2 = el.querySelector(":scope > .widget__head h2");
+                  const info = el.querySelector(":scope > .widget__head [data-role='section-info'] > summary");
+                  const tag = el.querySelector(":scope > .widget__head [data-role='widget-period']");
+                  const b = (e) => (e && e.getClientRects().length ? box(e) : null);
+                  return { size: h2 ? parseFloat(getComputedStyle(h2).fontSize) : null, title: b(h2), info: b(info), tag: b(tag), tagText: tag ? tag.textContent.trim() : null };
+                })(),
                 // The innermost element that reaches past the frame, named.
                 past: (() => {
                   if (el.scrollWidth - el.clientWidth <= 1) return null;
@@ -347,6 +355,8 @@ function mediumRules(m, at) {
 // dashboard's own padding (Sprint 31 closing act, DS2: two empty status
 // regions each took a gap, 44 px).
 const BAND = 20;
+// The wide form's title (DS3).
+const TITLE = 15;
 
 function wideRules(m, at) {
   const errors = pageRules(m, at);
@@ -368,6 +378,21 @@ function wideRules(m, at) {
     }
     if (w.wide === false) errors.push(at + ": #" + w.id + " does not show its wide form");
     if (w.compact === true) errors.push(at + ": #" + w.id + " shows its compact form");
+    // The head (DS3): the title at 15 px, its ⓘ on the title's line, the
+    // period tag under the title at its left; no „ohne Zeitraum“.
+    const h = w.head;
+    if (h.size !== null && Math.abs(h.size - TITLE) > 0.1) errors.push(at + ": " + name(w) + "'s title is " + h.size + " px, not " + TITLE);
+    if (h.title && h.info) {
+      const mid = (h.info.top + h.info.bottom) / 2;
+      if (mid < h.title.top - SLACK || mid > h.title.top + Math.min(h.title.height, 24) + SLACK) {
+        errors.push(at + ": " + name(w) + "'s ⓘ is not on its title's line");
+      }
+    }
+    if (h.title && h.tag) {
+      if (h.tag.top < h.title.bottom - SLACK) errors.push(at + ": " + name(w) + "'s period tag is not under its title");
+      if (Math.abs(h.tag.left - h.title.left) > SLACK) errors.push(at + ": " + name(w) + "'s period tag is not at its title's left");
+    }
+    if (h.tagText === "ohne Zeitraum") errors.push(at + ": " + name(w) + " says „ohne Zeitraum“ on the grid");
   }
   for (let i = 0; i < m.widgets.length; i++) {
     for (let j = i + 1; j < m.widgets.length; j++) {
