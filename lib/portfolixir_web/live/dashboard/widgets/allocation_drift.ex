@@ -11,9 +11,14 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
   answers:
 
     * the drift table, M and T alike — each top-level category of the tree
-      and cash, its actual weight („Ist“), its target weight („Soll“) and
-      its drift (ADR-0023: actual − target, positive overweight) with a
-      bar around zero, scaled to the largest drift listed;
+      and cash, its actual weight („Ist“), the target its drift is
+      measured against („Soll“) and its drift (ADR-0023: actual − target,
+      positive overweight) with a bar around zero, scaled to the largest
+      drift listed. For a plan whose top level allocates less than 100 %
+      that target is the entered one divided by the top-level sum
+      (ADR-0040 §2, the read's `drift_basis` `allocated_portion`), and the
+      basis line says so, so a row's Ist − Soll is its drift (Sprint 31
+      closing act, money lens MO2);
     * „Rechnerisch zum Soll“ — the display-only arithmetic of ADR-0023 for
       the rows beyond the Overview's ±5 pp threshold (the threshold
       „Abseits des Ziels“ uses): the amount that would close each gap, the
@@ -113,6 +118,17 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
     end
   end
 
+  @doc """
+  The target a row's drift is measured against: its actual weight minus
+  its drift, which is the entered target for a full plan and the target
+  divided by the top-level sum for one that allocates less (ADR-0040 §2).
+  """
+  @spec drift_target(map()) :: Decimal.t() | nil
+  def drift_target(%{actual_weight: %Decimal{} = actual, drift_weight: %Decimal{} = drift}),
+    do: Decimal.sub(actual, drift)
+
+  def drift_target(row), do: Map.get(row, :target_weight)
+
   @doc "The rows beyond the threshold, each targeted: the arithmetic's rows."
   @spec beyond([map()]) :: [map()]
   def beyond(rows), do: Enum.filter(rows, &beyond?/1)
@@ -165,6 +181,9 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
         <%= gettext("Drift is the actual weight minus the target weight of the active plan, per category of the steering tree; a category without a target is not listed.") %>
       </:info>
       <:info>
+        <%= gettext("Where the plan's top-level targets sum to less than 100%, the drift is measured against the allocated portion: each target is divided by that sum, and the target column shows the divided target.") %>
+      </:info>
+      <:info>
         <%= gettext("Actual: the category's value ÷ the value of the portfolio's holdings and cash in the view, each priced by its latest quote, as Wealth's allocation reads it.") %>
       </:info>
       <:info>
@@ -198,7 +217,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
           <tr :for={row <- @rows} data-role="allocation-drift-row" data-name={row_name(row)}>
             <th scope="row"><%= row_name(row) %></th>
             <td class="num" data-role="drift-actual"><%= weight(row.actual_weight) %></td>
-            <td class="num" data-role="drift-target"><%= if targeted?(row), do: weight(row.target_weight), else: "—" %></td>
+            <td class="num" data-role="drift-target"><%= if targeted?(row), do: weight(drift_target(row)), else: "—" %></td>
             <td class="num widget-drift-table__drift">
               <span :if={targeted?(row)} class="drift-bar" aria-hidden="true">
                 <span
@@ -228,7 +247,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
           data-name={row_name(row)}
         >
           <:name><%= row_name(row) %></:name>
-          <:sub><%= weight(row.actual_weight) %> · <%= gettext("target %{weight}", weight: weight(row.target_weight)) %></:sub>
+          <:sub><%= weight(row.actual_weight) %> · <%= gettext("target %{weight}", weight: weight(drift_target(row))) %></:sub>
           <:figure><span class={sign_class(row.drift_weight)}><%= points(row.drift_weight) %></span></:figure>
         </Widget.row>
         <p :if={@beyond != []} class="widget-compact-note" data-compact-role="allocation-drift-arithmetic">
@@ -254,11 +273,14 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
   defp basis_line(card, true) do
     tree = ClassificationName.display(card.tree)
 
-    case card.plan_names do
-      [name] -> gettext("Plan “%{plan}” on %{tree}", plan: name, tree: tree)
-      [] -> gettext("Targets on %{tree}", tree: tree)
-      _several -> gettext("Several active plans on %{tree}", tree: tree)
-    end
+    plan =
+      case card.plan_names do
+        [name] -> gettext("Plan “%{plan}” on %{tree}", plan: name, tree: tree)
+        [] -> gettext("Targets on %{tree}", tree: tree)
+        _several -> gettext("Several active plans on %{tree}", tree: tree)
+      end
+
+    plan <> portion(card.allocation)
   end
 
   defp basis_line(card, false),
@@ -266,6 +288,19 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
       gettext("No active plan on %{tree}: the actual weights alone.",
         tree: ClassificationName.display(card.tree)
       )
+
+  # ADR-0040 §2, as Wealth's basis line says it: a plan whose top level
+  # allocates less than 100 % measures target and drift against that
+  # portion (MO2).
+  defp portion(%{drift_basis: "allocated_portion", top_level_target_sum: %Decimal{} = sum}),
+    do:
+      " · " <>
+        gettext(
+          "Σ target top level %{sum}: target and drift against the allocated portion",
+          sum: weight(sum)
+        )
+
+  defp portion(_allocation), do: ""
 
   # Board 06: the targeted rows, the largest drift first.
   defp compact_rows(rows) do
