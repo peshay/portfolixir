@@ -14890,6 +14890,27 @@ a.widget-row:hover .widget-row__name {
     display: none;
   }
 
+  /* „Gesamtwert“ at S draws its figure itself (Sprint 31 closing act,
+     DS2; board 02 ①): the total and its currency, the change, the
+     sparkline, then the short note on what the total leaves out. */
+  .widget--s .widget-total__figure {
+    font-size: 24px;
+  }
+
+  .widget--s .widget-total small[data-role="card-period-change"] {
+    color: var(--color-text-muted);
+    font-size: 13px;
+  }
+
+  .dashboard-widget.widget--s > .wealth-card-status {
+    order: 1;
+  }
+
+  .dashboard-widget.widget--s > .widget__foot,
+  .dashboard-widget.widget--s > .widget__sizes {
+    order: 2;
+  }
+
   /* „Gesamtwert“ at S: the strip's four figures one under the other. */
   .widget--s .kpi-strip__cells {
     grid-template-columns: minmax(0, 1fr);
@@ -15161,6 +15182,13 @@ a.widget-row:hover .widget-row__name {
 }
 
 .dashboard-edit-status:empty {
+  position: absolute;
+}
+
+/* The bar's and the page's other status regions likewise: an empty one
+   took a grid gap each, a 44 px blank band between the bar and the grid
+   (Sprint 31 closing act, DS2; board ux-design-2026-11-21-sprint31/02 ③). */
+.dashboard-status:empty {
   position: absolute;
 }
 

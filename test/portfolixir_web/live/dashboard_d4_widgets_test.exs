@@ -671,6 +671,31 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
     assert Floki.find(doc, "#dashboard-wealth [data-role='wealth-card-excluded-short']") == []
   end
 
+  # User story (Sprint 31 closing act, DS2; board
+  # ux-design-2026-11-21-sprint31/02 ①, as planning board 01 ① draws it):
+  # As the operator reading „Gesamtwert“ at S,
+  # I want the figure drawn in the widget itself,
+  # so that a small widget is not a card inside a card.
+  #
+  # Acceptance criteria:
+  # - At S the wide form draws no `.stat` card: the total with its
+  #   currency, the change over the item's period and the sparkline, the
+  #   figure a link to Wealth named with the widget's scope.
+  # - The short note on what the total leaves out stands after them.
+  test "„Gesamtwert“ at S draws its figure without a card", %{conn: conn} do
+    seed()
+    doc = loaded(conn)
+    wide = wide(doc, "dashboard-wealth")
+
+    assert Floki.find(wide, ".stat") == []
+    [figure] = Floki.find(wide, "a#dashboard-wealth-card.widget-total")
+    assert Floki.attribute([figure], "href") == ["/portfolio"]
+    assert text(Floki.find([figure], ".visually-hidden")) == "Everything"
+    assert text(Floki.find([figure], ".widget-total__figure")) =~ "EUR"
+    assert Floki.find([figure], "[data-role='card-period-change']") != []
+    assert Floki.find(wide, "[data-role='total-spark']") != []
+  end
+
   # User story (Sprint 31 D4 on D5's period, ADR-0062 §5):
   # As the operator switching the period above the dashboard,
   # I want „Wertentwicklung“ to read the new period, and a widget whose

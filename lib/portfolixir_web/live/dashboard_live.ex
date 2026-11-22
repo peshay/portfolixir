@@ -1450,7 +1450,7 @@ defmodule PortfolixirWeb.DashboardLive do
           <%= gettext("Customize") %>
         </button>
       </div>
-      <div id="dashboard-customize-status" role="status"><AppShell.data_note
+      <div id="dashboard-customize-status" class="dashboard-status" role="status"><AppShell.data_note
           :if={@customize_error}
           severity={:problem}
         ><%= @customize_error %></AppShell.data_note><AppShell.data_note
@@ -1631,11 +1631,12 @@ defmodule PortfolixirWeb.DashboardLive do
   defp overview(assigns) do
     ~H"""
     <div id="dashboard-overview" class="dashboard">
-      <div id="dashboard-load-error" role="status">
-        <%= if @error do %>
-          <AppShell.data_note severity={:problem}><%= @error %></AppShell.data_note>
-        <% end %>
-      </div>
+      <%!-- No whitespace inside, so `:empty` holds and the empty region
+           takes no gap (Sprint 31 closing act, DS2). --%>
+      <div id="dashboard-load-error" class="dashboard-status" role="status"><AppShell.data_note
+          :if={@error}
+          severity={:problem}
+        ><%= @error %></AppShell.data_note></div>
       <div
         id="dashboard-grid"
         class="dashboard-grid"
@@ -1773,6 +1774,7 @@ defmodule PortfolixirWeb.DashboardLive do
         uid={@uid}
         change={{@change, @item.period}}
         wealth_href={@wealth_href}
+        size={@item.size}
       />
       <Line.sparkline
         :if={@item.size == "S" && is_map(@change)}
@@ -2140,11 +2142,31 @@ defmodule PortfolixirWeb.DashboardLive do
   )
 
   attr(:wealth_href, :string, required: true)
+  attr(:size, :string, default: "M")
 
   # #1081 (D-3, board 01 pick J1 A): the value in every state.
   defp wealth_value(assigns) do
     ~H"""
-    <%= if is_nil(@card) do %>
+    <%= cond do %>
+      <% @card && @size == "S" -> %>
+      <%!-- Sprint 31 closing act, DS2 (board 02 ①, as planning board 01 ①
+           draws it): at S the widget draws the figure itself, no card in
+           the card — the total with its currency, then the change over the
+           item's period; the scope is the footer's, and the link's name. --%>
+      <a id={"dashboard-wealth-card" <> @uid} href={@wealth_href} class="widget-total">
+        <span class="visually-hidden"><%= @card.name || gettext("Everything") %></span>
+        <strong class="widget-total__figure">
+          <span
+            id={"count-wealth-card" <> @uid}
+            class="count-up"
+            phx-hook="CountUp"
+            data-count-to={Format.amount_attribute(@card.valuation.total_with_cash)}
+            data-decimals="2"
+          ><span data-count-digits><%= Format.money(@card.valuation.total_with_cash) %></span></span><small class="value-suffix"><%= @card.valuation.base_currency %></small>
+        </strong>
+        <.period_change :if={@change} change={@change} />
+      </a>
+      <% is_nil(@card) -> %>
       <%!-- Pending with a prior value (UX-DR20, owner pick P2): the last
            known value stays in place, dimmed, with a real-text staleness
            marker BEFORE the digits and the recomputing cue beneath. The
@@ -2182,7 +2204,7 @@ defmodule PortfolixirWeb.DashboardLive do
           <span class="spinner"></span> <%= gettext("computing") %>
         </small>
       </article>
-    <% else %>
+      <% true -> %>
       <%!-- #1122 (board 01 ④, option 3): the card's period travels,
            read on arrival and never stored; no `?view=`. --%>
       <a id={"dashboard-wealth-card" <> @uid} href={@wealth_href} class="stat stat--link">
