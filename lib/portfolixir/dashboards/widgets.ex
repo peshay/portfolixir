@@ -91,9 +91,17 @@ defmodule Portfolixir.Dashboards.Widgets do
       group: "overview",
       sizes: ~w(S M),
       source: %{
-        routes: ["GET /api/v1/valuation", "GET /api/v1/views/:view_id/valuation"],
+        routes: [
+          "GET /api/v1/valuation",
+          "GET /api/v1/views/:view_id/valuation",
+          "GET /api/v1/performance",
+          "GET /api/v1/views/:view_id/performance"
+        ],
         function: {Portfolixir.Portfolios.Valuation, :for_view, 2},
-        note: nil
+        note:
+          "The total and the cash quote are the valuation read's; the change over the " <>
+            "item's period is the performance read's, GET /api/v1/performance with the " <>
+            "period's parameters (Sprint 31 closing act, F2)."
       },
       # At S it draws the change the performance read gives for its
       # period, so it takes the dashboard periods by performance's rule

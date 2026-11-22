@@ -233,6 +233,14 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     {:ok, total_value} = Widgets.fetch("total_value")
     assert total_value.period == performance.period
 
+    # A kind that takes performance's period rule names the routes the
+    # rule's parameters are for (Sprint 31 closing act, F2): the change
+    # „Gesamtwert“ draws is GET /api/v1/performance's.
+    for kind <- [total_value, performance],
+        route <- ["GET /api/v1/performance", "GET /api/v1/views/:view_id/performance"] do
+      assert route in kind.source.routes, "#{kind.key}: #{route}"
+    end
+
     for key <- Widgets.keys() -- ~w(movers performance total_value) do
       {:ok, kind} = Widgets.fetch(key)
       assert kind.period == :none, key
