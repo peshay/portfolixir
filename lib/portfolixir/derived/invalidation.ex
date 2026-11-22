@@ -46,28 +46,41 @@ defmodule Portfolixir.Derived.Invalidation do
   def after_write(repo, resource_type, record, before \\ nil)
 
   def after_write(repo, resource_type, record, before) when is_binary(resource_type) do
-    DataVersion.bump(
+    portfolios =
       union(
         BlastRadius.for_write(resource_type, record),
         before_radius(&BlastRadius.for_write/2, resource_type, before)
-      ),
-      repo,
+      )
+
+    securities =
       union(
         BlastRadius.securities_for_write(resource_type, record),
         before_radius(&BlastRadius.securities_for_write/2, resource_type, before)
       )
-    )
+
+    # `:none` (a write no derived value reads, BlastRadius) with no security
+    # bumps nothing, the global basis included; anything else bumps.
+    case {portfolios, securities} do
+      {:none, []} -> :ok
+      {:none, securities} -> DataVersion.bump([], repo, securities)
+      {portfolios, securities} -> DataVersion.bump(portfolios, repo, securities)
+    end
   end
 
   def after_write(repo, _resource_type, _record, _before), do: DataVersion.bump(:all, repo, :all)
 
   # No before-image (a create) contributes nothing; anything else resolves
   # through the same allowlist as the after-image, so it widens the same way.
-  defp before_radius(_resolver, _resource_type, nil), do: []
+  defp before_radius(_resolver, _resource_type, nil), do: :none
   defp before_radius(resolver, resource_type, before), do: resolver.(resource_type, before)
 
+  # `:none` is the identity of the union: it adds no basis. Two `:none`s stay
+  # `:none`; `:none` beside an answer is that answer, so a list's global bump
+  # is kept.
   defp union(:all, _other), do: :all
   defp union(_one, :all), do: :all
+  defp union(:none, other), do: other
+  defp union(one, :none), do: one
   defp union(one, other), do: (one ++ other) |> Enum.uniq() |> Enum.sort()
 
   @doc """

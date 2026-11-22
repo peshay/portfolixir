@@ -58,11 +58,20 @@ defmodule Portfolixir.Derived.BlastRadius do
 
   @type radius :: :all | [integer()]
 
+  @typedoc """
+  A write's portfolio radius: a `radius/0`, or `:none` for a write that
+  feeds no derived value at all, not even the global basis (`[]` still
+  bumps the global basis, which a setting such as the crash benchmark
+  needs). Only an explicit clause answers `:none`, never a default.
+  """
+  @type write_radius :: radius() | :none
+
   @doc """
   The portfolios a journaled write can affect, or `:all` when that cannot be
-  proven narrower.
+  proven narrower; `:none` for a write no derived value reads (a dashboard),
+  which bumps no basis.
   """
-  @spec for_write(String.t(), map()) :: radius()
+  @spec for_write(String.t(), map()) :: write_radius()
   def for_write(resource_type, record)
 
   def for_write("transaction", %{__struct__: Transaction} = tx), do: transaction_radius(tx)
@@ -130,9 +139,12 @@ defmodule Portfolixir.Derived.BlastRadius do
   # --- S29 C3 end ---
 
   # A dashboard (ADR-0062 §2) is an arrangement of widgets, not data: no
-  # walk, quote, rate or rule reads it, so no portfolio's derived values
-  # move. Resolved per struct, like the knowledge records above.
-  def for_write("dashboard", %{__struct__: Dashboard}), do: []
+  # walk, quote, rate, rule or setting reads it, so no derived value moves,
+  # not even a global one: `:none`, no bump at all. `[]` would bump the
+  # global basis and discard every memoised view walk, band and comparison
+  # on each pin, edit save and agent put (Sprint 31 closing act, O2).
+  # Resolved per struct, like the knowledge records above.
+  def for_write("dashboard", %{__struct__: Dashboard}), do: :none
 
   # An authored write to a security's quotes (E25 S6, T-9) is journaled as
   # one aggregate of the security's rows: its radius is a quote write's, every

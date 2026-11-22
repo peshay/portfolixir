@@ -18,6 +18,7 @@ defmodule Portfolixir.Dashboards.WritesTest do
   alias Portfolixir.Dashboards.Dashboard
   alias Portfolixir.Dashboards.Templates
   alias Portfolixir.Derived.BlastRadius
+  alias Portfolixir.Derived.DataVersion
   alias Portfolixir.Journal
   alias Portfolixir.Repo
 
@@ -502,8 +503,55 @@ defmodule Portfolixir.Dashboards.WritesTest do
     assert Enum.map(Dashboards.list_dashboards(), & &1.id) == [last.id, after_it.id]
   end
 
-  test "a dashboard's write moves no derived figure" do
-    assert BlastRadius.for_write("dashboard", %Dashboard{}) == []
+  # User story (ADR-0062 §2, "a dashboard is arrangement, not data";
+  # Sprint 31 closing act, O2):
+  # As the operator pinning a widget's period, saving an edit, or the agent
+  # putting a layout,
+  # I want the write to leave every derived basis where it was,
+  # so that the remembered walks, bands and comparisons the default period
+  # was warmed with are still served after it, not discarded and
+  # recomputed for a write no figure reads.
+  #
+  # Acceptance criteria:
+  # - A dashboard's radius is :none, a write that bumps no basis: not the
+  #   empty list, which bumps the global basis (a setting such as the crash
+  #   benchmark still needs that); its securities radius is [].
+  # - A create, a template's copy, a replace (a pin), a rename, a move and a
+  #   delete leave the global basis and a portfolio's basis unchanged, each
+  #   still journaled.
+  test "a dashboard's write moves no derived figure and bumps no basis" do
+    assert BlastRadius.for_write("dashboard", %Dashboard{}) == :none
     assert BlastRadius.securities_for_write("dashboard", %Dashboard{}) == []
+
+    {:ok, portfolio} =
+      Portfolixir.Portfolios.create_portfolio(Actor.owner_ui(), %{
+        name: "Synthetic Basis",
+        base_currency_code: "EUR"
+      })
+
+    bases = fn ->
+      {DataVersion.current(DataVersion.global_basis()),
+       DataVersion.current(DataVersion.portfolio_basis(portfolio.id))}
+    end
+
+    before = bases.()
+    journaled = length(entries())
+
+    dashboard = create!("Basis", [due(1, 1)])
+    {:ok, copy} = Dashboards.copy_template(agent(), "overview", %{})
+
+    {:ok, pinned} =
+      Dashboards.replace_dashboard(agent(), dashboard.id, %{
+        "name" => "Basis",
+        "layout" => [due(4, 1)],
+        "lock_version" => 1
+      })
+
+    {:ok, _} = Dashboards.rename_dashboard(agent(), pinned.id, "Renamed")
+    {:ok, _} = Dashboards.reposition_dashboard(agent(), pinned.id, 5)
+    {:ok, _} = Dashboards.delete_dashboard(agent(), copy.id)
+
+    assert bases.() == before
+    assert length(entries()) == journaled + 6
   end
 end
