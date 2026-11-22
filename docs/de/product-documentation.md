@@ -2344,8 +2344,8 @@ Der erste Eintrag der Menügruppe **Dashboards** (die Startseite, `/`) ist
 ein **Dashboard** (ADR-0062, Sprint 31): Seine Karten sind **Widgets**, jedes ein vorhandener
 Lesezugriff in einem Rahmen — sein Titel, ein ⓘ mit der Rechengrundlage
 des Lesezugriffs, sein Zeitraum-Etikett, ein Menü ⋯ (der eigene Zeitraum
-des Widgets; das Bearbeiten kommt später), die Zahlen und eine Fußzeile,
-die die gelesene Ansicht nennt und zum ganzen Screen führt.
+des Widgets), die Zahlen und eine Fußzeile, die die gelesene Ansicht
+nennt und zum ganzen Screen führt.
 
 - **Eine frische Instanz speichert nichts.** Ohne eigenes Dashboard zeigt
   `/` die mitgelieferte Vorlage **Überblick** nur lesend, unter dem Hinweis
@@ -2390,6 +2390,26 @@ die die gelesene Ansicht nennt und zum ganzen Screen führt.
   **Anpassen**. Wurde das Dashboard anderswo geändert, seit die Seite es
   las (ein anderer Tab, Ihr Agent), wird die Festlegung nicht geschrieben:
   Die Seite zeigt das Dashboard, wie es gespeichert ist, und sagt es.
+- **Bearbeiten** (ADR-0062 §7) schaltet ein eigenes Dashboard in den
+  Bearbeitungsmodus; die Vorlage hat keinen (**Anpassen** kopiert sie
+  zuerst). Jedes Widget erhält einen Griff, einen Größenschalter mit den
+  Größen seiner Art und **×**, und neben dem Raster öffnet sich der Katalog
+  **Widget hinzufügen**: Antippen fügt das Widget am ersten freien Platz in
+  seiner kleinsten Größe hinzu. Ein Griff lässt sich im breiten Raster
+  ziehen oder fokussieren und mit den Pfeiltasten (eine Spalte oder Zeile
+  je Druck) und Entf bedienen; jeder Schritt wird einem Screenreader
+  angesagt, und ein Schritt, der ein anderes Widget überdecken oder das
+  Raster verlassen würde, wird abgelehnt und angesagt, nicht ausgeführt.
+  Unter 600 px bietet der Modus nur **nach oben**, **nach unten**, die
+  Größen und **×**: Eine Umstellung tauscht den Platz des Widgets mit dem
+  seines Nachbarn oder ordnet das Raster in der neuen Reihenfolge neu, wo
+  ihre Größen verschieden sind. **Zurücksetzen** verwirft die ungespeicherte
+  Bearbeitung; **Fertig** speichert sie als einen Schreibvorgang, einen
+  Journaleintrag, wie viele Schritte es auch waren. Wurde das Dashboard
+  inzwischen anderswo geändert (ein anderer Tab, das `PUT` Ihres Agenten),
+  schreibt **Fertig** nichts und zeigt das gespeicherte Layout mit
+  **Gespeicherte Fassung laden** und **Weiter bearbeiten** (das nächste
+  **Fertig** ersetzt dann die gespeicherte Fassung).
 - **Die Breite entscheidet das Layout, nie das Gerät.** Ab 1000 px stehen
   die Widgets in einem Raster aus 12 Spalten an den Plätzen und in den
   Größen, die das Layout ihnen gibt; ab 600 px in zwei Spalten, in der
