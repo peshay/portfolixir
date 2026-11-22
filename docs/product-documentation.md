@@ -2120,9 +2120,9 @@ Wealth page mutes non-deployable rows and labels them with their role.
 The first entry of the menu's **Dashboards** group (the start page, `/`) is
 a **dashboard** (ADR-0062, Sprint 31): its cards are **widgets**, each one
 existing read drawn in a frame — its title, an ⓘ with the read's
-computation basis, its period tag, a ⋯ menu (the widget's own period;
-editing comes later), the figures, and a footer naming the view it reads
-and the way to the full screen.
+computation basis, its period tag, a ⋯ menu (the widget's own period),
+the figures, and a footer naming the view it reads and the way to the full
+screen.
 
 - **A fresh instance stores nothing.** With no dashboard of your own, `/`
   shows the shipped template **Overview** read-only, under the banner
@@ -2163,6 +2163,23 @@ and the way to the full screen.
   read-only: its menu offers **Customize** instead. Where the dashboard was
   changed elsewhere since the page read it (another tab, your agent), the
   pin is not written: the page shows the dashboard as stored and says so.
+- **Edit** (ADR-0062 §7) on a dashboard of your own switches it into the
+  edit mode; the template has none (**Customize** copies it first). Each
+  widget gets a handle, a size switch with the sizes its kind takes and
+  **×**, and the catalogue **Add widget** opens beside the grid: a tap
+  adds the widget at the first free place in its smallest size. Drag a
+  handle on the wide grid, or focus it and use the arrow keys (one column
+  or row per press) and Delete; every step is announced to a screen reader,
+  and a step that would overlap another widget or leave the grid is
+  refused and said, not applied. Under 600 px the edit mode offers **up**,
+  **down**, the sizes and **×** only: a reorder swaps the widget's place
+  with its neighbour's, or lays the grid out again in the new order where
+  their sizes differ. **Reset** discards the unsaved edit; **Done** stores
+  it as one write, one journal entry, whatever the number of steps. Where
+  the dashboard was changed elsewhere meanwhile (another tab, your agent's
+  `PUT`), **Done** writes nothing and shows the stored layout with **Load
+  the stored version** and **Keep editing** (the next **Done** then
+  replaces the stored version).
 - **The width decides the layout, never the device.** From 1000 px the
   widgets stand on a 12-column grid at the places and sizes the layout
   gives them; from 600 px they stand in two columns, in the layout's
