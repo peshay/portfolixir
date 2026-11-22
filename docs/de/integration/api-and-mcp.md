@@ -5785,7 +5785,10 @@ Vorlage wird nie geschrieben: mit `POST` kopieren); eine unbekannte id
 `404`. Bei keiner Ablehnung wird etwas geschrieben. Eine `view_id`, die
 gespeichert wurde, bevor ihre View gelöscht wurde, entfernt das nächste
 Speichern, statt abzulehnen; jede andere `view_id` muss eine View nennen.
-Schlüssel werden als Strings verglichen, aus keinem wird ein Atom; der Name
+Ebenso entfernt das nächste Speichern ein Element, dessen `kind` ein
+späteres Release nicht mehr registriert, wenn das gespeicherte Layout diese
+Art schon hält, damit ein Anheften oder Hinzufügen weiter gelingt; jede
+andere `kind` muss registriert sein. Schlüssel werden als Strings verglichen, aus keinem wird ein Atom; der Name
 wird als Text gespeichert und maskiert gezeichnet.
 
 **MCP.** Vier Tools rufen diese Routen. `portfolixir.dashboards.list` liest

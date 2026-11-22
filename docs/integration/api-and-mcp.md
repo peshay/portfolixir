@@ -5302,7 +5302,10 @@ characters, with a control character, or blank answers `422` naming
 never written: copy it with `POST`); an unknown id `404`. Nothing is
 written on any refusal. A `view_id` stored before its view was deleted is
 dropped by the next save, not refused; every other `view_id` must name a
-view. Keys are matched as strings and no atom is made from one; the name
+view. Likewise, an item whose `kind` a later release no longer registers
+is dropped by the next save when the stored layout already holds that
+kind, so a pin or an add still goes through; every other `kind` must be
+registered. Keys are matched as strings and no atom is made from one; the name
 is stored as text and drawn escaped.
 
 **MCP.** Four tools call these routes. `portfolixir.dashboards.list` reads
