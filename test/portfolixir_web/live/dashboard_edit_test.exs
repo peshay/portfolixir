@@ -103,7 +103,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
   # - In the edit mode each widget has a handle, ×, and a size switch with
   #   exactly the grid sizes its kind takes (never „full“), its own
   #   pressed; the ⋯ menu is hidden; „Zurücksetzen“ and „Fertig“ replace
-  #   „Bearbeiten“.
+  #   „Bearbeiten“; the bar's label names the state, „Editing“.
   # - The catalogue lists every registered kind under its group, with its
   #   sizes, as a button that adds it.
   # - The live region says the edit mode began; nothing is written.
@@ -137,6 +137,17 @@ defmodule PortfolixirWeb.DashboardEditTest do
     refute has_element?(view, "[data-role='widget-menu']")
     assert has_element?(view, "[data-role='dashboard-grid'][data-editing='true']")
     assert announced(view) =~ "Bearbeiten"
+
+    # The bar names the state as a label, not a bare verb (Sprint 31 UAT,
+    # finding 8: „bearbeiten“).
+    {:ok, english, _html} = live(conn, "/dashboards/#{dashboard.id}")
+    english |> element("[data-role='edit-start']") |> render_click()
+
+    assert english
+           |> document()
+           |> Floki.find(".dashboard-edit-actions__label")
+           |> Enum.map(&text/1) ==
+             ["Editing"]
 
     doc = document(view)
 
