@@ -1,8 +1,9 @@
 // Board 02 of Sprint 31: the closing act's accessibility and design
 // findings on the dashboard (Y1 to Y5, DS1 to DS5 and the smaller ones),
-// each visible change drawn before and after. Two frames at its end were
-// drawn after the code: fix batch 1 had already built them. Synthetic
-// names and figures only. Called by build.js with the idea board's helpers.
+// each visible change drawn before and after. Two frames (⑧) were drawn
+// after the code: fix batch 1 had already built them. ⑩ draws the UAT
+// persona's findings of 2026-11-23, before and after, before the code.
+// Synthetic names and figures only. Called by build.js with the idea board's helpers.
 'use strict';
 
 const CSS = `<style>
@@ -88,6 +89,33 @@ const CSS = `<style>
 .cl-choice > div.on { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
 .cl-arrow { font-size: 20px; color: var(--color-accent); align-self: center; }
 .cl-drawn-after { border-left: 4px solid var(--color-warning); padding-left: 10px; }
+.u-sheet { position: relative; border: 1px solid var(--color-border-strong); border-radius: 14px; overflow: hidden; background: var(--color-bg); }
+.u-sheet .sh { padding: 10px 14px; background: var(--color-bg-elevated); border-radius: 14px 14px 0 0; box-shadow: 0 -8px 24px rgb(15 23 42 / .14); font-size: 15px; }
+.u-sheet .sh b.t { display: block; font-size: 17px; margin-bottom: 2px; }
+.u-sheet .sh h5 { margin: 8px 0 2px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+.u-sheet .sh div.it { display: flex; align-items: center; min-height: 40px; border-bottom: 1px solid var(--color-border); }
+.u-sheet .sh div.it.out { color: var(--color-danger); font-weight: 600; border-bottom: 0; }
+.u-tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--color-border); background: var(--color-bg-elevated); font-size: 12px; text-align: center; padding: 6px 0; }
+.u-tabs span.on { color: var(--color-accent); font-weight: 700; }
+.u-win { position: relative; width: 422px; height: 195px; border: 1px solid var(--color-border-strong); border-radius: 10px; overflow: hidden; background: var(--color-bg); font-size: 12px; }
+.u-win .rail { position: absolute; top: 0; bottom: 0; left: 0; border-right: 1px solid var(--color-border); background: var(--color-bg-elevated); display: grid; align-content: start; gap: 6px; padding-top: 6px; text-align: center; }
+.u-win .more { position: absolute; top: 0; left: 0; width: 180px; background: var(--color-bg-elevated); box-shadow: 8px 0 24px rgb(15 23 42 / .16); padding: 6px 10px; font-size: 12px; }
+.u-win .more div { padding: 3px 0; border-bottom: 1px solid var(--color-border); }
+.u-win .more h6 { margin: 4px 0 0; font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+.u-cut { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--color-danger); }
+.u-scroll { position: absolute; top: 6px; bottom: 6px; right: 2px; width: 4px; border-radius: 2px; background: var(--color-border-strong); }
+.u-scroll::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 55%; border-radius: 2px; background: var(--color-text-muted); }
+.u-plot { height: 120px; border: 1px dashed var(--color-border-strong); border-radius: 6px; position: relative; color: var(--color-text-muted); font-size: 11px; }
+.u-plot span { position: absolute; }
+.u-quiet { color: var(--color-text-muted); font-size: 12.5px; font-style: normal; }
+.u-bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--color-border); background: var(--color-bg); font-size: 13px; }
+.u-drawer { position: absolute; right: 0; width: 190px; padding: 8px 10px; border: 1px solid var(--color-border-strong); border-radius: 10px 0 0 10px; background: var(--color-bg-elevated); box-shadow: -10px 0 30px rgb(15 23 42 / .2); font-size: 12px; }
+.u-drawer div { padding: 3px 0; display: flex; justify-content: space-between; }
+.u-hidden { color: var(--color-danger); text-decoration: line-through; }
+.u-top { display: flex; align-items: center; gap: 10px; padding: 0 10px; height: 44px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); }
+.u-top .pg { display: grid; line-height: 1.15; }
+.u-top .pg b { font-size: 15px; }
+.u-top .pg small { font-size: 11px; color: var(--color-text-muted); }
 </style>`;
 
 module.exports.board02 = function board02(I) {
@@ -155,6 +183,21 @@ module.exports.board02 = function board02(I) {
   const driftAfter = `<div class="cl-w t">${headAfter('Allokation und Drift')}<div class="cl-sub">Plan „Basis“ auf Strategie · Σ Soll oberste Ebene: 80,0 %, Soll und Drift darauf umgerechnet</div><table class="cl-table"><tr><th>Kategorie</th><th class="num">Ist</th><th class="num">Soll</th><th class="num">Drift</th></tr>${[['Kern', '35,1', '37,5', '−2,4'], ['Wachstum', '9,3', '18,8', '−9,5'], ['Stabil', '21,6', '25,0', '−3,4'], ['Rohstoffe', '34,0', '18,8', '+15,2']].map((r) => `<tr><td>${r[0]}</td><td class="num">${r[1]} %</td><td class="num">${r[2]} %</td><td class="num">${r[3]}</td></tr>`).join('')}</table></div>`;
   const totalM = `<div class="cl-w m">${headAfter('Gesamtwert', 'folgt · 3M')}<div class="cl-fig">124.310,55<small>EUR</small></div><div class="cl-sub"><span class="pos">+2,1 %</span> TTWROR · 3M</div><div class="cl-two" style="grid-template-columns:repeat(4,1fr);font-size:12px"><div><b>+2,1 %</b><div class="cl-sub">TTWROR · 3M</div></div><div><b>8,4 %</b><div class="cl-sub">Cash-Quote</div></div><div><b>20.11.</b><div class="cl-sub">letzte Buchung</div></div><div><b>2</b><div class="cl-sub">Kurse alt</div></div></div></div>`;
 
+
+  // ---- ⑩ the UAT's findings (2026-11-23), before and after ----
+  const sheetItems = ['Vermögen', 'Alle Widgets'];
+  const careItems = ['Transaktionen', 'Konten & Depots', 'Ansichten', 'Klassifizierungen', 'Audit-Journal'];
+  const mehr = (logout) => `<div class="u-sheet" style="width:300px"><div style="height:40px" class="cl-sub">&nbsp;Überblick ▾</div><div class="sh"><b class="t">Mehr</b><h5>Entdecken</h5>${sheetItems.map((t) => `<div class="it">${t}</div>`).join('')}<h5>Pflege</h5>${careItems.map((t) => `<div class="it">${t}</div>`).join('')}${logout ? '<div class="it" style="border-bottom:0;margin-top:6px;border-top:1px solid var(--color-border-strong)">⎋&nbsp; Abmelden</div>' : ''}</div><div class="u-tabs"><span>Dashboards</span><span>Wertpapiere</span><span>Nachrichten</span><span class="on">Mehr</span></div></div>${logout ? '<p class="cl-note">„Abmelden“ am Fuß von „Mehr“, nur wenn ein UI-Passwort gesetzt ist — dieselbe Bedingung wie in der Seitenleiste. Gilt auch für die Schiene (844 × 390), deren „Mehr“ dieselbe Liste ist.</p>' : '<p class="cl-note">393 × 852 und 844 × 390: weder die Tab-Leiste noch „Mehr“ nennt „Abmelden“. Mit UI-Passwort kann man sich am Telefon nicht abmelden.</p>'}`;
+  const railItems = (w, after) => ['▦<br>Dashboards', '◎<br>' + (after ? 'Wertpapiere' : 'Wertpa-<br>piere'), '☰<br>' + (after ? 'Nachrichten' : 'Nachrich-<br>ten'), '⋯<br>Mehr'].map((t, i) => `<div style="${i === 3 ? 'color:var(--color-accent);font-weight:700' : ''}">${t}</div>`).join('');
+  const shortMehr = (after) => `<div class="u-win"><div class="rail" style="width:${after ? 48 : 36}px;font-size:9px">${railItems(36, after)}</div><div class="more" style="left:${after ? 48 : 36}px;${after ? 'bottom:0;overflow:hidden' : 'height:216px'}"><b>Mehr</b><h6>Entdecken</h6>${sheetItems.map((t) => `<div>${t}</div>`).join('')}<h6>Pflege</h6>${careItems.map((t) => `<div${!after && t === 'Audit-Journal' ? ' style="color:var(--color-danger)"' : ''}>${t}</div>`).join('')}${after ? '<div>⎋ Abmelden</div><span class="u-scroll"></span>' : ''}</div>${after ? '' : '<span class="u-cut"></span>'}</div><p class="cl-note">${after ? '„Mehr“ ist nie höher als das Fenster und rollt in sich; jeder Eintrag ist erreichbar.' : 'Halbe Größe. „Mehr“ ist 431 px hoch in einem 390 px hohen Fenster und rollt nicht: „Audit-Journal“ endet unter der Fensterkante.'}</p>`;
+  const crashCompact = (after) => `<div class="cl-phone" style="width:393px"><div class="in"><div class="cl-w" style="width:auto"><div class="cl-h"><div class="t"><h4 style="font-size:17px">Crashes im Vergleich</h4><span class="cl-i">i</span></div></div><div style="display:flex;justify-content:space-between;gap:8px;font-size:16px"><span>Herbst-Dip<br><small class="cl-sub">14.10. → 03.11.2026</small></span><span style="text-align:right"><span class="neg">−2,4 %</span><br><small class="cl-sub">${after ? 'Niedrigste im Depot: Welt-ETF Alpha <span class="neg">−3,1 %</span>' : '<span style="color:var(--color-danger)">Depot</span> −3,1 %'}</small></span></div></div><p class="cl-note">${after ? 'Die kompakte Form nennt, was die Zahl ist: das niedrigste einzelne Wertpapier im Depot, mit Namen — wie die Spalte „Niedrigste im Depot“ der breiten Form. „Katalog“: „Niedrigste im Katalog: …“.' : '„Depot −3,1 %“ liest sich als Rendite des Depots neben der des Benchmarks; −3,1 % ist aber das niedrigste einzelne Wertpapier.'}</p></div></div>`;
+  const perfDay = (after) => `<div class="cl-w m">${headAfter('Wertentwicklung nach Kategorien', 'folgt · 1T')}<div class="cl-sub">Wert · Ebene Kategorien · <span class="pos">+0,1 %</span> TTWROR in 1T</div>${after ? '<p class="u-quiet">Ein Tag: keine Linie. Die Zahl oben ist die Veränderung zum Schlusskurs davor.</p>' : '<div class="u-plot"><span style="left:4px;top:4px">80.000</span><span style="left:4px;bottom:4px">0</span><span style="left:40px;bottom:-16px">23.11.2026</span><span style="right:4px;bottom:-16px">23.11.2026</span></div><div style="height:12px"></div>'}<div class="cl-foot"><span>Ansicht Alles</span><a>Ganze Ansicht →</a></div></div>`;
+  const moverRows = (rows) => `<ul class="cl-list">${rows.map((r) => `<li><span>${r[0]}</span><span class="${r[1][0] === '+' ? 'pos' : 'neg'}">${r[1]}</span></li>`).join('')}</ul>`;
+  const moversM = (after) => `<div class="cl-w m budget-m">${headAfter('Tops und Flops', 'folgt · 1W')}<div><span class="cl-seg"><span class="on">Kursrendite</span><span>Beitrag</span></span></div><div class="cl-two"><div><h5>Höchste</h5>${moverRows(names.slice(0, 4).map((r) => [r[0], r[1]]))}${after ? '<div class="cl-sub" style="margin-top:4px"><a style="color:var(--color-accent);font-weight:600">+1 weiterer</a></div>' : `<div class="cl-sub u-hidden">${names[4][0]} ${names[4][1]}</div>`}</div><div><h5>Niedrigste</h5>${moverRows(lows.slice(0, 4).map((r) => [r[0], r[1]]))}${after ? '<div class="cl-sub" style="margin-top:4px"><a style="color:var(--color-accent);font-weight:600">+1 weiterer</a></div>' : `<div class="cl-sub u-hidden">${lows[4][0]} ${lows[4][1]}</div>`}</div></div><div class="cl-foot"><span>Ansicht Alles</span><a>In Vermögen →</a></div></div><p class="cl-note">${after ? 'Die Lesung antwortet fünf je Hälfte; M zeigt vier und sagt den Rest: „+1 weiterer“, verlinkt auf Vermögen wie der Fuß.' : 'Durchgestrichen: die fünfte Zeile, die das CSS ohne ein Wort verbirgt.'}</p>`;
+  const editBar = (after) => `<div class="cl-page" style="display:block;padding:0;height:210px"><div class="u-bar"><span class="cl-btn">Alles ▾</span><span class="cl-chips"><span>1M</span><span class="on">1J</span><span>Max</span></span><span style="flex:1"></span><span class="cl-sub">${after ? 'Bearbeitungsmodus' : 'bearbeiten'}</span><span class="cl-btn">Widget hinzufügen</span><span class="cl-btn">Zurücksetzen</span><span class="cl-btn acc">Fertig</span></div><div class="u-drawer" style="top:${after ? 52 : 0}px;bottom:0"><b>Widget hinzufügen <span style="float:right;color:var(--color-text-muted)">×</span></b><div>Gesamtwert <span class="cl-sz"><i>S</i><i>M</i></span></div><div>Datenqualität <span class="cl-sz"><i>S</i><i>M</i></span></div><div>Fällig <span class="cl-sz"><i>S</i></span></div><div>Wertentwicklung <span class="cl-sz"><i>S</i><i>M</i><i>L</i></span></div></div><div style="padding:10px" class="cl-grid"><div style="grid-column:span 3">Gesamtwert</div><div style="grid-column:span 3">Datenqualität</div><div style="grid-column:span 3">Fällig</div></div></div><p class="cl-note">${after ? '„Bearbeitungsmodus“ nennt den Zustand. Die Schublade beginnt unter der Leiste und bleibt beim Rollen unter der Kopfleiste stehen; „Zurücksetzen“ und „Fertig“ bleiben klickbar, das Raster behält seine Breite.' : '„bearbeiten“ ist ein nackter Infinitiv. Die offene Schublade liegt über „Zurücksetzen“ und „Fertig“: ein Klick trifft die Schublade.'}</p>`;
+  const titleHead = (after, t) => `<div class="cl-w" style="width:150px"><div class="cl-h"><div class="t" style="${after ? '' : 'flex-wrap:nowrap'}"><h4 style="${after ? '' : 'width:72px;overflow:hidden;white-space:nowrap'}">${t}</h4><span class="cl-i" style="${after ? '' : 'margin-left:-6px'}">i</span>${after ? '' : ''}</div><span class="cl-more">⋯</span></div><div class="cl-fig" style="font-size:20px">88.307,02<small>EUR</small></div></div>`;
+  const topbar = (after) => `<div class="u-win" style="height:150px"><div class="rail" style="width:${after ? 48 : 36}px;font-size:9px">${railItems(36, after)}</div><div style="position:absolute;left:${after ? 48 : 36}px;right:0;top:0"><div class="u-top" style="${after ? '' : 'height:52px;align-items:flex-start;padding-top:6px'}"><div class="pg"><b>Überblick ▾</b>${after ? '' : '<small style="color:var(--color-danger)">Lokales Portfolio-Tracking</small>'}</div><span style="flex:1"></span><span class="cl-sub">◐ ⚙</span></div><div style="padding:8px" class="cl-sub">Alles ▾ · 1T 1W 1M 3M YTD <b>1J</b> 3J Max</div></div></div><p class="cl-note">Halbe Größe, 844 × 390. ${after ? 'Der Untertitel (11 px) entfällt in der Schiene und in der kompakten Klasse; die Schiene ist 96 px breit, jede Beschriftung eine Zeile in 12 px, ohne Trennstrich, auch fett in DejaVu Sans (84 px).' : 'Der Untertitel (11 px) rutscht unter „Überblick ▾“, weg von der Marke, zu der er gehört; die 72-px-Schiene trennt „Wertpa-piere“, „Nachrich-ten“.'}</p>`;
+
   return page('Sprint 31 — Schlussakt', `${CSS}
 <header class="mock-board mock-head"><h1>Sprint 31 · Board 02 — die Funde des Schlussakts, vorher und nachher ${SYN}</h1>
 <p class="mock-note">Die Linsen Barrierefreiheit (Y1 bis Y5) und Gestaltung (DS1 bis DS5) haben das Dashboard des Sprints gelesen. Dieses Board zeichnet jede sichtbare Änderung ihrer Behebung, vorher und nachher, bevor der Code sie baut. Fokus-Wege (Y1, Y3) ändern kein Bild und stehen nur im Text. Die zwei Rahmen am Ende hat Fix-Runde 1 schon gebaut; sie sind <b>nach dem Code gezeichnet</b>. Alle Namen und Zahlen sind erfunden.</p>
@@ -190,5 +233,25 @@ ${pair(`<div class="cl-row">${totalS1}${dqS1}${dueS1}</div>`, `<div class="cl-ro
 
 <section class="mock-board cl-drawn-after"><span class="mock-tag mock-tag--alt">⑧ Nach dem Code gezeichnet</span><h2>Was Fix-Runde 1 schon gebaut hat <small>MO2, F1</small></h2>
 <p class="mock-note">„Allokation und Drift“ zeigt in der Soll-Spalte das wirksame Soll, mit der Basiszeile „Σ Soll oberste Ebene …“; „Gesamtwert“ in M folgt dem Zeitraum und sagt ihn: „TTWROR · 3M“. Beide Rahmen sind nach dem Code gezeichnet, nicht davor.</p>
-<div class="cl-row">${driftAfter}${totalM}</div></section>`);
+<div class="cl-row">${driftAfter}${totalM}</div></section>
+
+<section class="mock-board"><span class="mock-tag mock-tag--rec">⑩ UAT</span><h2>Die Funde der UAT-Persona, vorher und nachher <small>Funde 1, 2, 3, 5, 7, 8, 9, 10 · uat-sprint31-2026-11-23</small></h2>
+<p class="mock-note">Die UAT-Persona hat das Dashboard auf dem Review-Seed in jeder Breitenklasse gelesen. Dieses Board zeichnet jede sichtbare Änderung ihrer Behebung, bevor der Code sie baut. Ohne Bild, nur im Code: Fund 11 („eins ohne Anlageklasse“ wird „1 ohne Anlageklasse“, ebenso „1 ohne Logo“). Nicht behoben, nur festgehalten: Fund 4 (die Kurskurve zeichnet eine gespeicherte 0, Polierliste Wertpapiere) und Fund 6 („→ Woche“ ist die Kalenderwoche nach ADR-0062 §5, die Marke sagt es).</p>
+<h3 style="margin:12px 0 6px;font-size:14px">1 · „Abmelden“ in „Mehr“ <small class="cl-sub">S2, 393 × 852</small></h3>
+${pair(mehr(false), mehr(true))}
+<h3 style="margin:16px 0 6px;font-size:14px">2 · „Mehr“ rollt im Fenster <small class="cl-sub">S2, 844 × 390</small></h3>
+${pair(shortMehr(false), shortMehr(true))}
+<h3 style="margin:16px 0 6px;font-size:14px">3 · Crashes, kompakt: die Zahl heißt, was sie ist <small class="cl-sub">S2, 393 px</small></h3>
+${pair(crashCompact(false), crashCompact(true))}
+<h3 style="margin:16px 0 6px;font-size:14px">5 · Wertentwicklung bei 1T: keine leere Fläche <small class="cl-sub">S3, L, 1200 px</small></h3>
+${pair(perfDay(false), perfDay(true))}
+<p class="cl-note">Mit weniger als zwei Punkten zeichnet das Widget keine Fläche (L) und keine Linie (M) und sagt es leise; die Zahl bleibt. S und kompakt zeichnen ihre Sparkline schon heute nur ab zwei Punkten.</p>
+<h3 style="margin:16px 0 6px;font-size:14px">7 · Tops und Flops, M: die fünfte Zeile wird gesagt <small class="cl-sub">S3, 1200 px</small></h3>
+${pair(moversM(false), moversM(true))}
+<h3 style="margin:16px 0 6px;font-size:14px">8 · Die Bearbeitungsleiste und die Schublade <small class="cl-sub">S3, 1200 px</small></h3>
+${pair(editBar(false), editBar(true), true)}
+<h3 style="margin:16px 0 6px;font-size:14px">9 · Der Titel nie unter seinem ⓘ <small class="cl-sub">S3, 1200 px, Deutsch</small></h3>
+${pair(`<div class="cl-row">${titleHead(false, 'Gesamtwert')}</div><p class="cl-note">Die Titelspalte schrumpft unter ihr längstes Wort: „Gesamtwert“ läuft 2 px unter das ⓘ und wird abgeschnitten (ebenso „Datenqualität“ im Bearbeitungsmodus).</p>`, `<div class="cl-row">${titleHead(true, 'Gesamtwert')}</div><p class="cl-note">Der Titel ist nie schmaler als sein längstes Wort; passt das ⓘ nicht mehr daneben, folgt es dem Titel in die nächste Zeile. Der Width-Walk prüft bei 1200 px in beiden Sprachen: kein Titel überlappt sein ⓘ, keiner ist abgeschnitten.</p>`)}
+<h3 style="margin:16px 0 6px;font-size:14px">10 · Die kurze breite Kopfleiste und die Schiene <small class="cl-sub">S3, 844 × 390</small></h3>
+${pair(topbar(false), topbar(true))}</section>`);
 };
