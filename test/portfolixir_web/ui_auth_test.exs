@@ -155,6 +155,26 @@ defmodule PortfolixirWeb.UiAuthTest do
       assert conn |> get("/security_logos/#{file}") |> response(200)
     end
 
+    # User story (Sprint 31 UAT, finding 1):
+    # As the operator on a phone, upright or turned sideways, with a UI
+    # password set,
+    # I want „Abmelden“ in „Mehr“,
+    # so that I can end the session where the sidebar is not the menu.
+    #
+    # Acceptance criteria:
+    # - With a password the sheet „Mehr“ ends with „Abmelden“, a link to
+    #   the logout page, as the sidebar's foot does.
+    # - Without one the sheet has no such link (menu_test.exs lists its
+    #   entries).
+    test "„Mehr“ carries „Abmelden“ as the sidebar does", %{conn: conn} do
+      Throttle.success(:ui, Throttle.source_key(conn.remote_ip))
+      conn = recycle_session(conn, login(conn, @password))
+      {:ok, view, _html} = live(conn, "/?locale=de")
+
+      assert has_element?(view, "#sidebar-logout[href='/logout']")
+      assert has_element?(view, "#app-more a#more-logout[href='/logout']", "Abmelden")
+    end
+
     test "logout clears the session", %{conn: conn} do
       Throttle.success(:ui, Throttle.source_key(conn.remote_ip))
       conn = recycle_session(conn, login(conn, @password))

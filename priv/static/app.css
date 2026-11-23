@@ -16471,6 +16471,14 @@ a.widget-row:hover .widget-row__name {
   color: var(--color-text-subtle);
 }
 
+/* „Abmelden“ at the sheet's foot, apart from the pages above it (Sprint 31
+   UAT, finding 1; board ux-design-2026-11-21-sprint31/02 ⑩). */
+.app-sheet__logout {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--color-border-strong);
+  border-bottom: 0;
+}
+
 .app-more {
   inset: auto 0 calc(56px + env(safe-area-inset-bottom)) 0;
   width: 100%;
