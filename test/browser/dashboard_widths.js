@@ -231,7 +231,15 @@ function measure(page, roots, targets = TAP_TARGETS) {
                   const info = el.querySelector(":scope > .widget__head [data-role='section-info'] > summary");
                   const tag = el.querySelector(":scope > .widget__head [data-role='widget-period']");
                   const b = (e) => (e && e.getClientRects().length ? box(e) : null);
-                  return { size: h2 ? parseFloat(getComputedStyle(h2).fontSize) : null, title: b(h2), info: b(info), tag: b(tag), tagText: tag ? tag.textContent.trim() : null };
+                  return {
+                    size: h2 ? parseFloat(getComputedStyle(h2).fontSize) : null,
+                    title: b(h2),
+                    info: b(info),
+                    tag: b(tag),
+                    tagText: tag ? tag.textContent.trim() : null,
+                    // How far the title's text reaches past its own box.
+                    clip: h2 ? h2.scrollWidth - h2.clientWidth : 0
+                  };
                 })(),
                 // The innermost element that reaches past the frame, named.
                 past: (() => {
@@ -417,8 +425,26 @@ const TITLE = 15;
 const BUDGET = { S: 112, W: 112, M: 236, T: 360, L: 360 };
 const MARGIN = 2;
 
+// Sprint 31 UAT, finding 9: no title under its ⓘ and none cut. The
+// title's box overlaps the ⓘ's nowhere, and its text fits its box.
+function headRules(m, at) {
+  const errors = [];
+  for (const w of m.widgets) {
+    const h = w.head;
+    if (h.clip > 1) errors.push(at + ": " + name(w) + "'s title is cut by " + h.clip + " px");
+    if (h.title && h.info) {
+      const a = h.title;
+      const b = h.info;
+      if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) {
+        errors.push(at + ": " + name(w) + "'s title runs under its ⓘ by " + Math.round(a.right - b.left) + " px");
+      }
+    }
+  }
+  return errors;
+}
+
 function wideRules(m, at) {
-  const errors = pageRules(m, at);
+  const errors = pageRules(m, at).concat(headRules(m, at));
   if (m.band !== null && m.band > BAND) errors.push(at + ": " + m.band + " px between the bar and the grid, more than " + BAND);
   for (const f of m.broken) errors.push(at + ": the figure " + JSON.stringify(f.text) + " breaks over " + f.lines + " lines");
   if (!m.grid || m.grid.display !== "grid") return errors.concat([at + ": the dashboard is no grid"]);
@@ -442,11 +468,13 @@ function wideRules(m, at) {
     // period tag under the title at its left; no „ohne Zeitraum“.
     const h = w.head;
     if (h.size !== null && Math.abs(h.size - TITLE) > 0.1) errors.push(at + ": " + name(w) + "'s title is " + h.size + " px, not " + TITLE);
+    // Where the two do not fit on one line, the ⓘ follows the title onto
+    // the next, at its left (Sprint 31 UAT, finding 9): never under it.
     if (h.title && h.info) {
       const mid = (h.info.top + h.info.bottom) / 2;
-      if (mid < h.title.top - SLACK || mid > h.title.top + Math.min(h.title.height, 24) + SLACK) {
-        errors.push(at + ": " + name(w) + "'s ⓘ is not on its title's line");
-      }
+      const onLine = !(mid < h.title.top - SLACK || mid > h.title.top + Math.min(h.title.height, 24) + SLACK);
+      const follows = h.info.top >= h.title.bottom - SLACK && h.info.top <= h.title.bottom + 24 && Math.abs(h.info.left - h.title.left) <= 24;
+      if (!onLine && !follows) errors.push(at + ": " + name(w) + "'s ⓘ is neither on its title's line nor right under it");
     }
     if (h.title && h.tag) {
       if (h.tag.top < h.title.bottom - SLACK) errors.push(at + ": " + name(w) + "'s period tag is not under its title");
@@ -574,6 +602,12 @@ async function walk(browser) {
   r = await walkClass(wide, [WIDE], wideRules, []);
   errors.push(...r.errors);
   measured.wide = r.measured;
+  // The titles in English too (finding 9 measured both languages).
+  await visit(wide, base + "/?locale=en");
+  await settle(wide);
+  r = await walkClass(wide, [WIDE], (mm, at) => headRules(mm, at + " (en)"), []);
+  errors.push(...r.errors);
+  await open(wide, "/");
   const m = await measure(wide, []);
   measured.wide_items = m.widgets.map((w) => ({
     kind: w.kind,
@@ -620,6 +654,7 @@ async function editMode(browser) {
   const at = WIDE.width + " x " + WIDE.height + " (edit)";
   let m = await measure(page, []);
   errors.push(...pageRules(m, at));
+  for (const font of await eachFont(page, async (f) => headRules(await measure(page, []), at + " (" + f.name + ")"))) errors.push(...font);
   const editing = await gridWidth();
   if (Math.abs(editing - reading) > SLACK) errors.push(at + ": the grid is " + editing + " px wide in the edit, " + reading + " px outside it");
   const drawer = () =>

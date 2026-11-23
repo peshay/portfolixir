@@ -15309,17 +15309,31 @@ a.widget-row:hover .widget-row__name {
     font-size: 15px;
   }
 
+  /* The title is never narrower than its longest word: a grid column of
+     `minmax(0, max-content)` let it shrink under its ⓘ, cutting
+     „Gesamtwert“ and „Datenqualität“ (Sprint 31 UAT, finding 9; board 02
+     ⑩). A flex line instead: the ⓘ follows the title, onto the next line
+     where both do not fit; an empty line break puts the tag under them. */
   .dashboard-widget > .widget__head > .section-title {
-    display: grid;
-    grid-template-columns: minmax(0, max-content) auto;
+    display: flex;
+    flex-wrap: wrap;
     justify-content: start;
     align-items: center;
     column-gap: var(--space-1);
   }
 
+  .dashboard-widget > .widget__head > .section-title > h2 {
+    min-width: min-content;
+  }
+
+  .dashboard-widget > .widget__head > .section-title:has(> .widget__period)::after {
+    order: 1;
+    flex-basis: 100%;
+    content: "";
+  }
+
   .dashboard-widget > .widget__head > .section-title > .widget__period {
-    grid-column: 1 / -1;
-    justify-self: start;
+    order: 2;
     margin-left: 0;
   }
 }
