@@ -139,7 +139,9 @@ defmodule PortfolixirWeb.DashboardCrashesWidgetTest do
   # - Per window, the benchmark's return is the losers' list's
   #   reference.return and the lowest entry its first entry, over
   #   universe=held for „Im Depot“ and universe=catalogue for „Katalog“.
-  # - The compact rows carry the same windows and benchmark returns.
+  # - The compact rows carry the same windows and benchmark returns, and
+  #   name the lowest entry as the wide column does („Niedrigste im Depot:
+  #   ‹Name› −3,1 %“).
   # - Each percentage is written as the other widgets write it („−3,1%“)
   #   and never breaks across lines (the width walk measures the break).
   # - „Alle Fenster →“ opens the Risk tab.
@@ -164,6 +166,15 @@ defmodule PortfolixirWeb.DashboardCrashesWidgetTest do
              "Synthetic Outsider"
            )
 
+    # The compact form names what its second figure is, as the wide
+    # column does (Sprint 31 UAT, finding 3: „Depot −3,1 %“ read as the
+    # depot's own return).
+    assert has_element?(
+             view,
+             "#dashboard-crashes [data-form='compact'] [data-compact-role='crash-window'] .widget-row__sub",
+             "Lowest in the depot: Synthetic Holding"
+           )
+
     view |> element("#dashboard-crashes [data-universe='catalogue']") |> render_click()
     render_async(view)
 
@@ -178,6 +189,12 @@ defmodule PortfolixirWeb.DashboardCrashesWidgetTest do
              view,
              "#dashboard-crashes [data-role='crash-lowest'] bdi",
              "Synthetic Outsider"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-crashes [data-form='compact'] [data-compact-role='crash-window'] .widget-row__sub",
+             "Lowest in the catalogue: Synthetic Outsider"
            )
 
     compact =

@@ -214,7 +214,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
           <:name><%= window.name || gettext("unnamed") %></:name>
           <:sub><%= dates(window) %></:sub>
           <:figure><span class={sign_class(window.benchmark_return)}><%= percent(window.benchmark_return) %></span></:figure>
-          <:figure_sub :if={window.lowest}><%= lowest_short(@universe) %> <%= percent(window.lowest.return) %></:figure_sub>
+          <:figure_sub :if={window.lowest}><%= lowest_line(@universe, window.lowest) %></:figure_sub>
         </Widget.row>
       </:compact>
     </Widget.frame>
@@ -227,8 +227,22 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
   defp lowest_label("held"), do: gettext("Lowest in the depot")
   defp lowest_label("catalogue"), do: gettext("Lowest in the catalogue")
 
-  defp lowest_short("held"), do: gettext("depot")
-  defp lowest_short("catalogue"), do: gettext("catalogue")
+  # The compact form's second figure says what it is, as the wide column
+  # does: the lowest single security, named, not the depot's own return
+  # (Sprint 31 UAT, finding 3).
+  defp lowest_line("held", lowest),
+    do:
+      gettext("Lowest in the depot: %{name} %{return}",
+        name: lowest.name,
+        return: percent(lowest.return)
+      )
+
+  defp lowest_line("catalogue", lowest),
+    do:
+      gettext("Lowest in the catalogue: %{name} %{return}",
+        name: lowest.name,
+        return: percent(lowest.return)
+      )
 
   defp dates(%{provisional: true} = window),
     do:
