@@ -16596,10 +16596,15 @@ a.widget-row:hover .widget-row__name {
     display: inline-flex;
   }
 
+  /* The window's full height and no more: a popover is as tall as its
+     content, so the insets alone let it reach past a short window's edge
+     (431 px in 390, „Audit-Journal“ out of reach; Sprint 31 UAT, finding
+     2). It scrolls within itself (`.app-sheet`'s overflow). */
   .app-more {
     inset: 0 auto 0 calc(var(--sidebar-rail) + env(safe-area-inset-left));
     width: min(360px, 70vw);
-    max-height: none;
+    height: 100dvh;
+    max-height: 100dvh;
     border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
   }
 
