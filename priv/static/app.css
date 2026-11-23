@@ -15861,16 +15861,37 @@ a.widget-row:hover .widget-row__name {
     display: none;
   }
 
+  /* The open drawer lies over the grid's own cell, not over the bar
+     above it: a fixed drawer from the window's top covered
+     „Zurücksetzen“ and „Fertig“ (Sprint 31 UAT, finding 8; board 02 ⑩).
+     It starts under the bar, stays under the top bar while the page
+     scrolls, and the grid keeps its width. The rows lose their gap so an
+     empty status region above the grid adds no band; a shown one keeps
+     its distance by its margin. */
+  .dashboard:has(> .dashboard-catalogue.is-open) {
+    row-gap: 0;
+  }
+
+  .dashboard:has(> .dashboard-catalogue.is-open) > .dashboard-status:not(:empty) {
+    margin-bottom: var(--space-4);
+  }
+
+  .dashboard:has(> .dashboard-catalogue.is-open) > .dashboard-grid,
   .dashboard > .dashboard-catalogue.is-open {
-    position: fixed;
+    grid-row: 2;
+    grid-column: 1;
+  }
+
+  .dashboard > .dashboard-catalogue.is-open {
+    position: sticky;
     z-index: 40;
-    top: 0;
-    right: 0;
-    bottom: 0;
+    top: calc(var(--topbar-height) + var(--space-2));
     display: grid;
     width: min(20rem, 90vw);
+    max-height: calc(100dvh - var(--topbar-height) - var(--space-4));
+    justify-self: end;
+    align-self: start;
     overflow-y: auto;
-    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
     box-shadow: var(--shadow-panel);
   }
 

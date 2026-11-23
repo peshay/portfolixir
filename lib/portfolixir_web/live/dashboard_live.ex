@@ -1451,7 +1451,7 @@ defmodule PortfolixirWeb.DashboardLive do
              dashboard; in the edit mode „Zurücksetzen“ and „Fertig“. --%>
         <div :if={@board.dashboard} class="dashboard-edit-actions">
           <%= if @edit do %>
-            <span class="dashboard-edit-actions__label"><%= gettext("editing") %></span>
+            <span class="dashboard-edit-actions__label"><%= pgettext("dashboard edit bar", "Editing") %></span>
             <button
               type="button"
               id="dashboard-catalogue-toggle"

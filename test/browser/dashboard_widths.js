@@ -634,7 +634,18 @@ async function editMode(browser) {
   await page.click("[data-role='edit-catalogue-toggle']");
   await page.waitForSelector("#dashboard-catalogue.is-open");
   d = await drawer();
-  if (d.position !== "fixed" || Math.abs(d.right - WIDE.width) > SLACK) errors.push(at + ": the open catalogue is no drawer at the window's right edge: " + JSON.stringify(d));
+  if (d.position === "static" || d.left < WIDE.width / 2) errors.push(at + ": the open catalogue is no drawer at the page's right: " + JSON.stringify(d));
+  // The drawer covers none of the edit bar's buttons: a click on
+  // „Zurücksetzen“ or „Fertig“ lands on it (Sprint 31 UAT, finding 8).
+  const covered = await page.evaluate(() =>
+    ["edit-catalogue-toggle", "edit-reset", "edit-done"].filter((role) => {
+      const el = document.querySelector("[data-role='" + role + "']");
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return !(hit && el.contains(hit));
+    })
+  );
+  if (covered.length) errors.push(at + ": the open drawer covers " + covered.join(", "));
   if (Math.abs((await gridWidth()) - reading) > SLACK) errors.push(at + ": the open drawer narrows the grid");
   measured.edit = { reading, editing, drawer: d };
   const beside = { width: 1440, height: 900 };
