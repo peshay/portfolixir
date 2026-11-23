@@ -296,6 +296,40 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
     assert Floki.attribute(Floki.find(doc, "#dashboard-wealth .widget__foot a"), "href") == [day]
   end
 
+  # User story (Sprint 31 UAT, finding 5):
+  # As the operator reading „Wertentwicklung“ on 1T,
+  # I want no empty plot where one day gives no line, and a quiet word
+  # saying so,
+  # so that an axis from 0 with one date at both ends does not read as a
+  # chart.
+  #
+  # Acceptance criteria:
+  # - At 1T (one point) M draws no value line and L no stacked chart; each
+  #   says „One day: no line“ quietly.
+  # - The TTWROR figure stays at both sizes.
+  test "1T draws no plot and says so; the figure stays", %{conn: conn} do
+    world = base_world()
+    today = Clock.today()
+    fund = create_security!(name: "Day Fund", ticker: nil)
+    deliver_untraded!(world, fund, "1", date: Date.add(today, -30))
+
+    put_quotes!(fund, [
+      {Date.add(today, -30), "100"},
+      {Date.add(today, -1), "110"},
+      {today, "121"}
+    ])
+
+    store!([{"performance", "M", 1, 1}, {"performance", "L", 1, 3}])
+    doc = loaded(conn, "/?period=1d")
+
+    for id <- ["dashboard-performance", "dashboard-performance-2"] do
+      wide = wide(doc, id)
+      assert text(Floki.find(wide, "[data-role='performance-ttwror']")) == percent("0.1"), id
+      assert Floki.find(wide, "svg") == [], id <> " draws a plot of one day"
+      assert text(Floki.find(wide, "[data-role='performance-one-day']")) == "One day: no line", id
+    end
+  end
+
   # User story:
   # As the operator reading „Allokation und Drift“,
   # I want its table and its arithmetic to be the allocation read's,
