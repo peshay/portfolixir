@@ -198,6 +198,16 @@ defmodule PortfolixirWeb.DashboardTradesCardCostTest do
   test "the card computes only the rows it shows", %{conn: conn} do
     seed!()
 
+    # Sprint 31: the template draws eleven widgets, read four at a time
+    # (the page's cap); traced under CI's load, waiting for all of them
+    # outran render_async's 2 s. The card is the „Verkaufsrückblick“
+    # widget, so a dashboard holding only it reads what this test counts.
+    {:ok, _} =
+      Portfolixir.Dashboards.create_dashboard(Actor.owner_ui(), %{
+        "name" => "Trades",
+        "layout" => [%{"kind" => "sale_review", "size" => "M", "col" => 1, "row" => 1}]
+      })
+
     counts =
       calls_by_new_processes(
         [
