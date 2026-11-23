@@ -161,7 +161,8 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Performance do
           <span class={sign_class(@result.ttwror)} data-role="performance-ttwror"><%= percent(@result.ttwror) %></span>
           <%= gettext("TTWROR in %{period}", period: @label) %>
         </p>
-        <.stack bands={@bands} uid={@uid} />
+        <.one_day :if={one_day?(@bands)} />
+        <.stack :if={not one_day?(@bands)} bands={@bands} uid={@uid} />
       <% else %>
         <.headline :if={@result} result={@result} label={@label} end_value={@item.size == "M"} />
         <Line.sparkline
@@ -170,11 +171,12 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Performance do
           role="performance-spark"
         />
         <Line.chart
-          :if={@result && @item.size == "M"}
+          :if={@result && @item.size == "M" && not one_day?(@result)}
           id={"performance-line" <> @uid}
           points={@result.series}
           currency={@result.base_currency}
         />
+        <.one_day :if={@result && @item.size == "M" && one_day?(@result)} />
       <% end %>
       <:compact>
         <div :if={@result} class="widget-figure" data-compact-role="performance">
@@ -203,6 +205,19 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Performance do
         </span>
       </small>
     </div>
+    """
+  end
+
+  # Fewer than two days give no line: a plot of one would draw its axes
+  # around nothing (an axis from 0, one date at both ends). The widget says
+  # so quietly and keeps its figure (Sprint 31 UAT, finding 5).
+  defp one_day?(%{series: series}) when is_list(series), do: length(series) < 2
+  defp one_day?(%{dates: dates}) when is_list(dates), do: length(dates) < 2
+  defp one_day?(_none), do: false
+
+  defp one_day(assigns) do
+    ~H"""
+    <p class="hint" data-role="performance-one-day"><%= gettext("One day: no line") %></p>
     """
   end
 
