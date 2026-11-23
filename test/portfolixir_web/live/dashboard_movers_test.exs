@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Clock
+  alias Portfolixir.Portfolios.Performance.Movers
   alias Portfolixir.Repo
   alias Portfolixir.Settings
   alias PortfolixirWeb.Format
@@ -258,7 +259,15 @@ defmodule PortfolixirWeb.DashboardMoversTest do
       # the share's too (its last close is two days old, so it moved nothing
       # on D, today). Four positions with a contribution, the sold one among
       # them, so two over two; on „Day“ three, so two over one.
-      zeros = if window == "day", do: 2, else: 1
+      # The share's last close is two days before today, so it moved
+      # nothing in a window that starts on or after that day: „Day“ always,
+      # „Week“ on a Monday (S is the Sunday before), „Month“ on the 1st or
+      # 2nd. The rule is the window's, not the weekday the suite runs on.
+      share_moved? =
+        window != "day" and
+          Date.compare(Date.add(today, -2), Movers.start_on(window, today)) == :gt
+
+      zeros = if share_moved?, do: 1, else: 2
       assert answer["price_return"]["answered"] == 3
       assert length(answer["price_return"]["highest"]) == 2
       assert length(answer["price_return"]["lowest"]) == 1
@@ -304,10 +313,11 @@ defmodule PortfolixirWeb.DashboardMoversTest do
 
       assert contribution_counts(doc) == [
                "1 position not valued on any day of the period",
-               if(window == "day",
-                 do: "2 positions without a contribution on their day",
-                 else: "1 position without a contribution in the period"
-               )
+               cond do
+                 window == "day" -> "2 positions without a contribution on their day"
+                 share_moved? -> "1 position without a contribution in the period"
+                 true -> "2 positions without a contribution in the period"
+               end
              ]
 
       # The share's row names its dates: on „Day“ the close before its
