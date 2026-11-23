@@ -186,6 +186,9 @@ defmodule PortfolixirWeb.DashboardDqHeldFirstTest do
   # Acceptance criteria (German, board 04 ② and the KPI cell):
   # - "ein gehaltenes Wertpapier ohne Kurs seit 7 Tagen (im Katalog 3)".
   # - The KPI cell reads "1 gehaltenes veraltet".
+  # - A clause after the first counts in a numeral, as the short form
+  #   does: "1 ohne Anlageklasse", "1 ohne Logo", never "eins ohne …"
+  #   (Sprint 31 UAT, finding 11).
   test "the German line and cell read the held count and the catalogue in parentheses",
        %{conn: conn} do
     seed_catalogue_wider_than_held()
@@ -199,6 +202,9 @@ defmodule PortfolixirWeb.DashboardDqHeldFirstTest do
 
     assert text(view, ~s([data-role="kpi-freshness"] .kpi-strip__sub--attention)) ==
              "1 gehaltenes veraltet"
+
+    assert text(view, ~s(#dashboard-dq-line a[data-role="dq-class"])) == "1 ohne Anlageklasse"
+    assert text(view, ~s(#dashboard-dq-line a[data-role="dq-logo"])) == "1 ohne Logo"
   end
 
   # Acceptance criteria (board 04 ②, "where both are equal, no parenthesis"):
