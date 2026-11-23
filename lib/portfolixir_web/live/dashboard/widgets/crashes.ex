@@ -212,9 +212,14 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
           data-key={window.key}
         >
           <:name><%= window.name || gettext("unnamed") %></:name>
-          <:sub><%= dates(window) %></:sub>
+          <:sub>
+            <%= dates(window) %>
+            <span :if={window.lowest} class="widget-row__line" data-role="crash-lowest-line">
+              <%= lowest_line(@universe, window.lowest.name) %>
+              <span class="widget-row__nowrap"><%= percent(window.lowest.return) %></span>
+            </span>
+          </:sub>
           <:figure><span class={sign_class(window.benchmark_return)}><%= percent(window.benchmark_return) %></span></:figure>
-          <:figure_sub :if={window.lowest}><%= lowest_line(@universe, window.lowest) %></:figure_sub>
         </Widget.row>
       </:compact>
     </Widget.frame>
@@ -227,22 +232,12 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
   defp lowest_label("held"), do: gettext("Lowest in the depot")
   defp lowest_label("catalogue"), do: gettext("Lowest in the catalogue")
 
-  # The compact form's second figure says what it is, as the wide column
-  # does: the lowest single security, named, not the depot's own return
-  # (Sprint 31 UAT, finding 3).
-  defp lowest_line("held", lowest),
-    do:
-      gettext("Lowest in the depot: %{name} %{return}",
-        name: lowest.name,
-        return: percent(lowest.return)
-      )
-
-  defp lowest_line("catalogue", lowest),
-    do:
-      gettext("Lowest in the catalogue: %{name} %{return}",
-        name: lowest.name,
-        return: percent(lowest.return)
-      )
+  # The compact form names its second figure as the wide column does: the
+  # lowest single security, not the depot's own return (Sprint 31 UAT,
+  # finding 3). It stands on a line of its own under the window's dates,
+  # where a long name wraps; the percentage never breaks.
+  defp lowest_line("held", name), do: gettext("Lowest in the depot: %{name}", name: name)
+  defp lowest_line("catalogue", name), do: gettext("Lowest in the catalogue: %{name}", name: name)
 
   defp dates(%{provisional: true} = window),
     do:
