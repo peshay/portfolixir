@@ -316,6 +316,18 @@ defmodule PortfolixirWeb.AppShell do
           <span><%= item.label %></span>
         </a>
       </section>
+      <%!-- Where the bar or the rail is the menu, „Mehr“ is the only way to
+           the logout, so it ends with it on the sidebar's own condition: a
+           UI password is configured (Sprint 31 UAT, finding 1). --%>
+      <a
+        :if={PortfolixirWeb.UiAuth.enabled?()}
+        id="more-logout"
+        class="app-sheet__link app-sheet__logout"
+        href="/logout"
+      >
+        <span class="app-sheet__ico" aria-hidden="true"><%= nav_icon(:logout) %></span>
+        <span><%= gettext("Log out") %></span>
+      </a>
     </div>
     """
   end
