@@ -59,6 +59,9 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
   # listed fills 45 % of the track.
   @bar_reach 45
 
+  # The rows a half draws in the wide form (the CSS's `nth-child(n + 5)`).
+  @drawn_rows 4
+
   @price_reasons [:no_close_at_start, :no_close_at_end, :no_fx_rate, :one_close_only]
 
   attr(:item, :map,
@@ -282,6 +285,8 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
   attr(:privacy_mode, :boolean, required: true)
 
   defp half(assigns) do
+    assigns = assign(assigns, :drawn, @drawn_rows)
+
     ~H"""
     <div data-half={@half}>
       <h4 class="movers__half"><%= half_label(@half) %></h4>
@@ -302,6 +307,15 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
           </a>
         </li>
       </ul>
+      <%!-- The wide form draws four rows a half (CSS); a fifth is said,
+           not dropped: „+1 weiterer“, linked where the footer links
+           (Sprint 31 UAT, finding 7). Hidden where every row is drawn. --%>
+      <a
+        :if={length(@rows) > @drawn}
+        href={@f.wealth_href}
+        class="movers__more"
+        data-role="movers-more"
+      ><%= pngettext("dashboard widget", "+%{count} more", "+%{count} more", length(@rows) - @drawn) %></a>
     </div>
     """
   end

@@ -14577,6 +14577,11 @@ dialog.merge-dialog {
   outline-offset: -2px;
 }
 
+/* Every row is drawn outside the wide form, so nothing is left to say. */
+.movers__more {
+  display: none;
+}
+
 @media (width >= 1000px) {
   .dashboard-widget .movers-switch {
     display: inline-flex;
@@ -14617,6 +14622,15 @@ dialog.merge-dialog {
 
   .dashboard-widget .movers__col .attention-list > li:nth-child(n + 5) {
     display: none;
+  }
+
+  /* The hidden rows are said (Sprint 31 UAT, finding 7). */
+  .dashboard-widget .movers__more {
+    display: inline-block;
+    margin-top: var(--space-1);
+    color: var(--color-accent);
+    font-size: 13px;
+    font-weight: 600;
   }
 
   .dashboard-widget .movers__figure .drift-bar {

@@ -708,6 +708,54 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     assert :sys.get_state(wealth.pid).socket.assigns.active_view_id == nil
   end
 
+  # User story (Sprint 31 UAT, finding 7; board
+  # ux-design-2026-11-21-sprint31/02 ⑩):
+  # As the operator reading „Tops und Flops“ at M on the desk,
+  # I want a half that holds more rows than its four drawn to say how many
+  # more, linked to Wealth,
+  # so that the fifth row is not dropped without a word.
+  #
+  # Acceptance criteria:
+  # - Each half of five rows (the read's limit) carries „+1 more“, a link
+  #   to the card's Wealth link; a half of four or fewer carries none.
+  test "a half of more than four rows says how many more", %{conn: conn} do
+    today = Clock.today()
+    world = base_world(name: "Movers More", cash_name: "Giro", depot_name: "Depot")
+    deposit!(world, "50000", Date.add(today, -420))
+
+    for {step, i} <- Enum.with_index(~w(0.5 0.4 0.3 0.2 0.1 -0.05 -0.08 -0.11 -0.14 -0.17)) do
+      security = create_security!(name: "Synthetic Mover #{i}", ticker: "SM#{i}")
+
+      put_quotes!(
+        security,
+        for(back <- 400..0//-1, do: {Date.add(today, -back), price(step, 400 - back)})
+      )
+
+      buy!(world, security, quantity: "10", price: "100", date: Date.add(today, -390))
+    end
+
+    {:ok, view, _html} = live(conn, "/")
+    doc = loaded(view, "1y")
+    [wealth] = doc |> Floki.find("[data-role='movers-wealth-link']") |> Floki.attribute("href")
+
+    halves = Floki.find(doc, "#dashboard-movers [data-form='wide'] .movers__col > [data-half]")
+    assert length(halves) == 4
+
+    for half <- halves do
+      rows = length(Floki.find(half, "li"))
+      more = Floki.find(half, "[data-role='movers-more']")
+
+      if rows > 4 do
+        assert text(more) == "+#{rows - 4} more"
+        assert Floki.attribute(more, "href") == [wealth]
+      else
+        assert more == []
+      end
+    end
+
+    assert Enum.any?(halves, &(length(Floki.find(&1, "li")) == 5))
+  end
+
   # User story (the Overview's polish list #1358, decided: keep ADR-0061
   # §4's rule; Sprint 31 D3):
   # As the operator whose fund had no price for days of the window,
