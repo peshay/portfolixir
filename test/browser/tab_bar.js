@@ -11,7 +11,8 @@
 //   above the bar whose rows are at least 44 px, and its link opens the
 //   page, „Mehr“ marked.
 // - 844 x 390 (short-wide): the bar is a rail at the side, its tabs one
-//   under the other, the page beside it, „Mehr“ opening beside the rail.
+//   under the other, the page beside it, „Mehr“ opening beside the rail,
+//   inside the window and scrolling within it to its last entry.
 // - 915 x 412 and 1200 x 800: the sidebar is the menu; no bar, no switcher.
 //
 // Prints one JSON object on stdout: {"ok": true} or {"ok": false, "error":
@@ -177,6 +178,19 @@ function checkTabs(m, at) {
     check(m.main.left >= m.bar.right - 1, "844 x 390: the page is under the rail: " + m.main.left);
     sheet = await openSheet(page, "#tab-more", "app-more");
     check(sheet.left >= m.bar.right - 1, "844 x 390: „Mehr“ opens over the rail: " + sheet.left);
+    // The sheet stays inside the window and scrolls within it, so its last
+    // entry is reached (Sprint 31 UAT, finding 2: 431 px tall in a 390 px
+    // window, „Audit-Journal“ under the window's edge).
+    check(sheet.top >= -1 && sheet.bottom <= m.vh + 1, "844 x 390: „Mehr“ reaches past the window: " + sheet.top + " to " + sheet.bottom + " of " + m.vh);
+    const last = await page.evaluate(() => {
+      const el = document.getElementById("app-more");
+      el.scrollTop = el.scrollHeight;
+      const links = el.querySelectorAll("a");
+      const r = links[links.length - 1].getBoundingClientRect();
+      const s = el.getBoundingClientRect();
+      return { top: r.top, bottom: r.bottom, sheetBottom: s.bottom, text: links[links.length - 1].textContent.trim() };
+    });
+    check(last.bottom <= Math.min(last.sheetBottom, m.vh) + 1, "844 x 390: „Mehr“'s last entry " + JSON.stringify(last.text) + " cannot be scrolled into the window: " + JSON.stringify(last));
     await closeSheet(page, "app-more");
 
     await leave(phone);
