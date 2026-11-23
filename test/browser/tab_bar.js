@@ -10,7 +10,8 @@
 //   under the bar; the title switches dashboards; „Mehr“ opens a sheet
 //   above the bar whose rows are at least 44 px, and its link opens the
 //   page, „Mehr“ marked.
-// - 844 x 390 (short-wide): the bar is a rail at the side, its tabs one
+// - 844 x 390 (short-wide): the bar is a 96 px rail at the side, its
+//   labels one line each, unhyphenated, no subtitle in the top bar; its tabs one
 //   under the other, the page beside it, „Mehr“ opening beside the rail,
 //   inside the window and scrolling within it to its last entry.
 // - 915 x 412 and 1200 x 800: the sidebar is the menu; no bar, no switcher.
@@ -21,6 +22,7 @@
 
 const { launchChromium } = require("./launch");
 const { settle, visit, follow, leave } = require("./settle");
+const { eachFont } = require("./fonts");
 
 const args = JSON.parse(process.argv[2]);
 const base = args.base_url;
@@ -29,8 +31,11 @@ const PHONE = { width: 393, height: 852 };
 const SIDEWAYS = { width: 844, height: 390 };
 const SIDEWAYS_WIDE = { width: 915, height: 412 };
 const DESKTOP = { width: 1200, height: 800 };
-// --sidebar-rail in app.css.
+// --sidebar-rail in app.css: the sidebar's own rail.
 const RAIL = 72;
+// --tabbar-rail in app.css: the short-wide window's rail, wide enough for
+// each label on one line (Sprint 31 UAT, finding 10).
+const TABBAR_RAIL = 96;
 
 function check(condition, message) {
   if (!condition) throw new Error(message);
@@ -171,11 +176,41 @@ function checkTabs(m, at) {
     m = await measure(page);
     checkTabs(m, "844 x 390");
     check(m.bar.left === 0 && Math.abs(m.bar.height - m.vh) < 1, "844 x 390: the bar is no rail at the side: " + JSON.stringify(m.bar));
-    check(Math.abs(m.bar.width - RAIL) < 1, "844 x 390: the rail is " + m.bar.width + " px wide");
+    check(Math.abs(m.bar.width - TABBAR_RAIL) < 1, "844 x 390: the rail is " + m.bar.width + " px wide");
     for (let i = 1; i < m.tabs.length; i++) {
       check(m.tabs[i].top >= m.tabs[i - 1].bottom - 1, "844 x 390: the rail's tabs are not one under the other");
     }
     check(m.main.left >= m.bar.right - 1, "844 x 390: the page is under the rail: " + m.main.left);
+    // The top bar keeps one line: no 11 px subtitle dropping under the
+    // title; the rail's labels one line each, unhyphenated, inside their
+    // tab, in Inter and in DejaVu Sans, the current one bold (Sprint 31
+    // UAT, finding 10: „Wertpa-piere“, „Nachrich-ten“).
+    const subtitle = await page.evaluate(() => {
+      const el = document.getElementById("app-topbar-subtitle");
+      return el && getComputedStyle(el).display !== "none" && el.getBoundingClientRect().height > 0;
+    });
+    check(!subtitle, "844 x 390: the top bar's subtitle shows under the title");
+    for (const labels of await eachFont(page, () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll("#app-tabbar .app-tab__label")].map((el) => {
+          const cs = getComputedStyle(el);
+          const r = el.getBoundingClientRect();
+          const tab = el.closest(".app-tab").getBoundingClientRect();
+          return {
+            text: el.textContent.trim(),
+            hyphens: cs.hyphens,
+            lines: Math.round(r.height / parseFloat(cs.lineHeight)),
+            inside: r.left >= tab.left - 0.5 && r.right <= tab.right + 0.5 && el.scrollWidth <= el.clientWidth + 1
+          };
+        })
+      )
+    )) {
+      for (const l of labels) {
+        check(l.hyphens !== "auto", "844 x 390: the rail hyphenates " + JSON.stringify(l.text));
+        check(l.lines === 1, "844 x 390: the rail's label " + JSON.stringify(l.text) + " takes " + l.lines + " lines");
+        check(l.inside, "844 x 390: the rail's label " + JSON.stringify(l.text) + " reaches past its tab");
+      }
+    }
     sheet = await openSheet(page, "#tab-more", "app-more");
     check(sheet.left >= m.bar.right - 1, "844 x 390: „Mehr“ opens over the rail: " + sheet.left);
     // The sheet stays inside the window and scrolls within it, so its last

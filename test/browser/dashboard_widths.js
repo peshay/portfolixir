@@ -551,7 +551,7 @@ function shortWideRules(m, at) {
   for (const w of m.widgets) {
     if (m.bar && m.bar.shown && w.left < m.bar.right - 0.5) errors.push(at + ": #" + w.id + " is under the rail");
   }
-  // The rail's labels keep a margin inside its 72 px (Sprint 31 closing
+  // The rail's labels keep a margin inside the rail (Sprint 31 closing
   // act: „Wertpapiere“ and „Nachrichten“ ran edge to edge).
   for (const t of m.tabLabels) {
     if (t.inset < RAIL_INSET) errors.push(at + ": the rail's label " + JSON.stringify(t.text) + " comes " + t.inset + " px from its tab's edge, under " + RAIL_INSET);

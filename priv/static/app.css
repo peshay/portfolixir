@@ -16615,12 +16615,20 @@ a.widget-row:hover .widget-row__name {
    its own rail is the menu, as before. Later in the file than the compact
    rule, so a window both narrow and short-wide takes the rail. */
 @media (width <= 900px) and (height <= 540px) and (orientation: landscape) {
+  /* The rail is wider than the sidebar's 72 px: every label fits one line
+     at the 12 px floor, the current one bold, in Inter and in DejaVu Sans
+     („Wertpapiere“ bold in DejaVu Sans is 84 px; Sprint 31 UAT, finding
+     10; board ux-design-2026-11-21-sprint31/02 ⑩). */
+  :root {
+    --tabbar-rail: 96px;
+  }
+
   .app-tabbar {
     position: fixed;
     inset: 0 auto 0 0;
     z-index: 35;
     display: flex;
-    width: calc(var(--sidebar-rail) + env(safe-area-inset-left));
+    width: calc(var(--tabbar-rail) + env(safe-area-inset-left));
     height: auto;
     flex-direction: column;
     gap: var(--space-1);
@@ -16632,7 +16640,7 @@ a.widget-row:hover .widget-row__name {
 
   .app-frame,
   #app-sidebar-toggle:checked ~ .app-frame {
-    padding-left: calc(var(--sidebar-rail) + env(safe-area-inset-left));
+    padding-left: calc(var(--tabbar-rail) + env(safe-area-inset-left));
   }
 
   .app-main {
@@ -16660,25 +16668,25 @@ a.widget-row:hover .widget-row__name {
      (431 px in 390, „Audit-Journal“ out of reach; Sprint 31 UAT, finding
      2). It scrolls within itself (`.app-sheet`'s overflow). */
   .app-more {
-    inset: 0 auto 0 calc(var(--sidebar-rail) + env(safe-area-inset-left));
+    inset: 0 auto 0 calc(var(--tabbar-rail) + env(safe-area-inset-left));
     width: min(360px, 70vw);
     height: 100dvh;
     max-height: 100dvh;
     border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
   }
 
-  /* The rail's labels stay inside its 72 px: a long one („Wertpapiere“,
-     „Nachrichten“) breaks within a 64 px line, hyphenated where the
-     browser knows the language, never under the 12 px floor (Sprint 31
-     closing act; board ux-design-2026-11-21-sprint31/02 ⑦). */
+  /* The rail's labels: one line each inside the rail, never hyphenated
+     („Wertpa-piere“ in a 72 px rail, Sprint 31 UAT, finding 10), never
+     under the 12 px floor (Sprint 31 closing act; board
+     ux-design-2026-11-21-sprint31/02 ⑦ and ⑩). */
   .app-tab {
     padding-inline: var(--space-1);
   }
 
   .app-tab__label {
     max-width: 100%;
-    overflow-wrap: anywhere;
-    hyphens: auto;
+    hyphens: manual;
+    white-space: nowrap;
     text-align: center;
   }
 }
@@ -16690,6 +16698,13 @@ a.widget-row:hover .widget-row__name {
    ux-design-2026-11-21-sprint31/02 ⑥). Hidden, not undrawn: the sidebar
    keeps its box, so widening the window back draws the rail as before. */
 @media (width < 600px), (width <= 900px) and (height <= 540px) and (orientation: landscape) {
+  /* The top bar keeps one line: the 11 px subtitle dropped under the title
+     („Überblick ▾“), apart from the brand it belongs to, and under the
+     compact class's 12 px floor (Sprint 31 UAT, finding 10). */
+  .topbar-page p {
+    display: none;
+  }
+
   #app-sidebar-toggle,
   .app-sidebar,
   #app-sidebar-toggle:not(:checked) ~ .app-sidebar {

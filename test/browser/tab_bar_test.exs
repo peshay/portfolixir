@@ -73,8 +73,10 @@ defmodule PortfolixirWeb.Browser.TabBarTest do
   #   bar; the title opens the dashboard switcher; „Mehr“ opens a sheet
   #   above the bar with rows of at least 44 px, whose „Alle Widgets“
   #   opens that page with „Mehr“ marked.
-  # - At 844 × 390 the bar is a 72 px rail at the side, its tabs one under
-  #   the other, the page beside it and „Mehr“ opening beside it.
+  # - At 844 × 390 the bar is a 96 px rail at the side, its tabs one under
+  #   the other, each label on one line without a hyphen, the page beside
+  #   it, no subtitle in the top bar, and „Mehr“ opening beside it, inside
+  #   the window and scrolling to its last entry.
   # - At 915 × 412 and 1200 × 800 the sidebar is the menu: no bar and no
   #   switcher.
   test "the tab bar, „Mehr“ and the side rail, by the window's size", %{
