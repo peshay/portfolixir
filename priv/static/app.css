@@ -14880,6 +14880,16 @@ a.widget-row:hover .widget-row__name {
   font-weight: 400;
 }
 
+/* A second line of a row's sub-line (the crash widget's lowest entry,
+   Sprint 31 UAT, finding 3); a figure in it never breaks. */
+.widget-row__line {
+  display: block;
+}
+
+.widget-row__nowrap {
+  white-space: nowrap;
+}
+
 .widget-total {
   display: grid;
   gap: var(--space-1);
