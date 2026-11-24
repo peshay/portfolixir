@@ -113,6 +113,29 @@ defmodule Portfolixir.News.Shapes do
     |> validate_format(field, @item_url, message: "must be an http or https URL without spaces")
   end
 
+  @doc """
+  Checks the link an item is given: `item_url/2`, and no backslash (N-74;
+  ADR-0056 F6). A browser reads a backslash in an http or https link as a
+  slash where RFC 3986, and so `URI.parse/1`, does not, so the two read
+  different hosts from such a link, and the item's domain is taken from the
+  application's reading. The parser hands over no such link; this refuses
+  one for an item that reaches the table past the parser.
+
+  It reads a link an item is given, never one it has: a row stored before
+  the rule keeps its link and can still be updated, and its story keeps
+  that link as its earliest (`item_url/2`).
+  """
+  @spec item_link(Ecto.Changeset.t(), atom()) :: Ecto.Changeset.t()
+  def item_link(changeset, field) do
+    changeset
+    |> item_url(field)
+    |> validate_change(field, fn ^field, value ->
+      if is_binary(value) and String.contains?(value, "\\"),
+        do: [{field, "must not contain a backslash"}],
+        else: []
+    end)
+  end
+
   @doc "Checks a SHA-256 digest in lower-case hex."
   @spec hex64(Ecto.Changeset.t(), atom()) :: Ecto.Changeset.t()
   def hex64(changeset, field),
