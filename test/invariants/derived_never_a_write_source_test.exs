@@ -1,6 +1,8 @@
 defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
   use ExUnit.Case, async: true
 
+  alias Portfolixir.SourceAliases
+
   # User story (ADR-0039 §5 I7):
   # As a maintainer trusting every financial write to be derived from the
   # ledger alone,
@@ -19,7 +21,8 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
   #   * the write seams, which may reference ONLY the Invalidation announcer —
   #     writes announce, they never read.
   # - The scan is AST-based and resolves aliases, so "Derived" in a comment or
-  #   string never counts, and an aliased `Invalidation.after_write` does.
+  #   string never counts, and an aliased `Invalidation.after_write` does,
+  #   in whichever form the alias is written (N-82, the last block below).
 
   @sources Path.wildcard("lib/portfolixir/**/*.ex") ++
              Path.wildcard("lib/portfolixir_web/**/*.ex")
@@ -138,55 +141,113 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
     end
   end
 
+  # User story (security review 2026-11, N-82):
+  # As the maintainer who trusts this gate instead of reading every diff,
+  # I want the scan to find a reference to the derived layer however the
+  # module's alias is written,
+  # so that the way a file spells an alias cannot decide whether ADR-0039 I7
+  # holds for it.
+  #
+  # Acceptance criteria:
+  # - The scan resolves every form of alias directive: one module, one module
+  #   under another name (`as:`), several modules in braces, a `require` with
+  #   `as:`, and an alias built on an earlier alias.
+  # - It reads synthetic sources here, so a tree with no offender does not
+  #   pass for want of a scan.
+  describe "the scan reads a reference in every form an alias takes" do
+    @facade [:Portfolixir, :Derived]
+    @announcer [:Portfolixir, :Derived, :Invalidation]
+
+    # {the form, a module body that reads or announces through it, the
+    # references the scan must report}
+    @forms [
+      {"the module by its full name",
+       ["def book(basis), do: Portfolixir.Derived.peek(:kind, basis, 1)"], [@facade]},
+      {"the module with its Elixir prefix",
+       ["def book(basis), do: Elixir.Portfolixir.Derived.peek(:kind, basis, 1)"], [@facade]},
+      {"the module as a quoted atom",
+       [~s|def book(basis), do: :"Elixir.Portfolixir.Derived".peek(:kind, basis, 1)|], [@facade]},
+      {"one alias",
+       ["alias Portfolixir.Derived", "def book(basis), do: Derived.peek(:kind, basis, 1)"],
+       [@facade]},
+      {"an alias under another name",
+       [
+         "alias Portfolixir.Derived, as: Memoised",
+         "def book(basis), do: Memoised.peek(:kind, basis, 1)"
+       ], [@facade]},
+      {"several aliases in braces",
+       [
+         "alias Portfolixir.{Derived, Journal}",
+         "def book(basis), do: {Journal, Derived.peek(:kind, basis, 1)}"
+       ], [@facade]},
+      {"braces with options",
+       [
+         "alias Portfolixir.{Journal, Derived}, warn: false",
+         "def book(basis), do: Derived.peek(:kind, basis, 1)"
+       ], [@facade]},
+      {"a require under another name",
+       [
+         "require Portfolixir.Derived, as: Memoised",
+         "def book(basis), do: Memoised.peek(:kind, basis, 1)"
+       ], [@facade]},
+      {"an alias built on an alias",
+       [
+         "alias Portfolixir, as: App",
+         "alias App.Derived",
+         "def book(basis), do: Derived.peek(:kind, basis, 1)"
+       ], [@facade]},
+      {"an alias inside a function",
+       [
+         "def book(basis) do",
+         "  alias Portfolixir.Derived, as: Memoised",
+         "  Memoised.peek(:kind, basis, 1)",
+         "end"
+       ], [@facade]},
+      {"the module handed on as a value",
+       ["alias Portfolixir.{Derived}", "def reader, do: {Derived, :peek}"], [@facade]},
+      {"submodules in braces",
+       [
+         "alias Portfolixir.Derived.{Invalidation, Memo}",
+         "def book(scope), do: {Memo, Invalidation.after_write(scope)}"
+       ], [@announcer, [:Portfolixir, :Derived, :Memo]]},
+      {"a submodule through the facade's alias",
+       [
+         "alias Portfolixir.Derived, as: Memoised",
+         "alias Memoised.Invalidation",
+         "def book(scope), do: Invalidation.after_write(scope)"
+       ], [@facade, @announcer]}
+    ]
+
+    for {form, body, expected} <- @forms do
+      test form do
+        assert unquote(body) |> synthetic() |> derived_references() |> Enum.sort() ==
+                 Enum.sort(unquote(expected))
+      end
+    end
+
+    test "a module that names nothing derived has no reference" do
+      source =
+        synthetic([
+          "alias Portfolixir.{Journal, Ledger}",
+          "alias Portfolixir.Portfolios.Performance, as: Derived",
+          "# Portfolixir.Derived.peek/3 in a comment, and in a string below.",
+          ~s|def book(id), do: {Journal, Ledger, Derived.walk(id), "Portfolixir.Derived"}|
+        ])
+
+      assert derived_references(source) == []
+    end
+  end
+
+  defp synthetic(body) do
+    "defmodule Portfolixir.Ledger.Synthetic do\n  " <> Enum.join(body, "\n  ") <> "\nend\n"
+  end
+
   # Every module path under Portfolixir.Derived a source references, resolved
-  # through its alias directives, deduplicated.
+  # through its alias directives in every form they take
+  # (Portfolixir.SourceAliases), deduplicated.
   defp derived_references(source) do
-    ast = Code.string_to_quoted!(source)
-    aliases = alias_map(ast)
-
-    ast
-    |> referenced_paths(aliases)
+    source
+    |> SourceAliases.references()
     |> Enum.filter(&List.starts_with?(&1, [:Portfolixir, :Derived]))
-    |> Enum.uniq()
-  end
-
-  # `alias Portfolixir.Derived.Invalidation` (optionally `as:`) — the short
-  # name maps to the full path.
-  defp alias_map(ast) do
-    {_ast, acc} =
-      Macro.prewalk(ast, %{}, fn
-        {:alias, _, [{:__aliases__, _, segments}]} = node, acc ->
-          {node, Map.put(acc, List.last(segments), segments)}
-
-        {:alias, _, [{:__aliases__, _, segments}, [as: {:__aliases__, _, [as_name]}]]} = node,
-        acc ->
-          {node, Map.put(acc, as_name, segments)}
-
-        node, acc ->
-          {node, acc}
-      end)
-
-    acc
-  end
-
-  # Every alias usage in the AST (call targets and bare module references),
-  # expanded through the alias map.
-  defp referenced_paths(ast, aliases) do
-    {_ast, acc} =
-      Macro.prewalk(ast, [], fn
-        {:__aliases__, _, [first | rest] = segments} = node, acc when is_atom(first) ->
-          expanded =
-            case Map.fetch(aliases, first) do
-              {:ok, full} -> full ++ rest
-              :error -> segments
-            end
-
-          {node, [expanded | acc]}
-
-        node, acc ->
-          {node, acc}
-      end)
-
-    acc
   end
 end
