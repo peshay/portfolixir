@@ -1,7 +1,7 @@
 # Commit authorship allowlist
 #
 # Every commit's author AND committer email must appear here, and every
-# Co-authored-by trailer must reference one of these addresses. One committer
+# Co-authored-by line must name exactly one address, one of these. One committer
 # is exempt by construction: GitHub's web-flow merge committer
 # (`GitHub <noreply@github.com>`), which the UI stamps on every squash-merge
 # ADR-0026 prescribes -- it is accepted as COMMITTER only, and only when the

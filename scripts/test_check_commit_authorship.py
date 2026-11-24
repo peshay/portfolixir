@@ -164,5 +164,81 @@ class HookModeTests(CommitAuthorshipTests):
         self.assert_refuses(completed, "author is not an accountable human", "committer is not an accountable human")
 
 
+class MessageTests(CommitAuthorshipTests):
+    """A credit line is read as git reads a trailer, and as a reader sees it.
+
+    Every case runs in both modes: as the body of a commit read in range
+    mode, and as the message file the commit-msg hook is handed.
+    """
+
+    HUMAN_LINE = "Co-authored-by: %s <%s>" % HUMAN
+    AGENT_LINE = "Co-authored-by: %s <%s>" % AGENT
+
+    def _both(self, body: str) -> list[subprocess.CompletedProcess]:
+        self._commit(HUMAN, "feat: case", body)
+        return [self._range("HEAD~1..HEAD"), self._hook("feat: case\n\n" + body + "\n")]
+
+    def assert_both_pass(self, body: str) -> None:
+        for completed in self._both(body):
+            with self.subTest(body=body, command=completed.args[2:3]):
+                self.assert_passes(completed)
+
+    def assert_both_refuse(self, body: str, expected: str) -> None:
+        for completed in self._both(body):
+            with self.subTest(body=body, command=completed.args[2:3]):
+                self.assert_refuses(completed, expected)
+
+    def test_a_co_author_on_the_allowlist_passes(self):
+        self.assert_both_pass(self.HUMAN_LINE)
+        self.assert_both_pass("Why it changes.\n\n" + self.HUMAN_LINE.upper())
+
+    def test_a_co_author_outside_the_allowlist_is_refused(self):
+        self.assert_both_refuse(self.AGENT_LINE, "co-author is not an accountable human")
+        self.assert_both_refuse("Why it changes.\n\n" + self.AGENT_LINE.upper(), "co-author is not an accountable human")
+
+    def test_a_co_author_line_names_exactly_one_address(self):
+        human, agent = "<%s>" % HUMAN[1], "<%s>" % AGENT[1]
+        for value in (
+            "Synthetic Agent %s %s" % (agent, human),
+            "Synthetic Agent %s %s" % (human, agent),
+            "Synthetic Human %s %s" % (human, human),
+            "Synthetic Agent <%s %s>" % (AGENT[1], human),
+            "Synthetic Agent <%s> %s>" % (AGENT[1], HUMAN[1]),
+            "Synthetic Agent",
+            HUMAN[1],
+        ):
+            self.assert_both_refuse("Co-authored-by: " + value, "co-author line must name exactly one address")
+
+    def test_a_co_author_key_is_read_with_whitespace_before_its_colon(self):
+        self.assert_both_refuse("Co-authored-by : %s <%s>" % AGENT, "co-author is not an accountable human")
+        self.assert_both_refuse("Co-authored-by\t: %s <%s>" % AGENT, "co-author is not an accountable human")
+        self.assert_both_pass("Co-authored-by : %s <%s>" % HUMAN)
+
+    def test_a_co_author_key_is_read_on_an_indented_line(self):
+        self.assert_both_refuse("  " + self.AGENT_LINE, "co-author is not an accountable human")
+        self.assert_both_refuse("Reviewed-by: %s <%s>\n\t%s" % (*HUMAN, self.AGENT_LINE), "co-author is not an accountable human")
+
+    def test_an_agent_footer_is_refused(self):
+        for line in ("Claude-Session: synthetic", "Model: synthetic", "Thinking level: high", "MODEL: synthetic"):
+            self.assert_both_refuse(line, "remove AI-identity footer line")
+
+    def test_an_agent_footer_key_is_read_with_whitespace_before_its_colon(self):
+        for line in ("Claude-Session : synthetic", "Model\t: synthetic", "Thinking level : high", "Thinking  level: high"):
+            self.assert_both_refuse(line, "remove AI-identity footer line")
+
+    def test_an_agent_footer_key_is_read_on_an_indented_line(self):
+        for line in ("  Model: synthetic", "\tClaude-Session: synthetic", " Thinking level: high"):
+            self.assert_both_refuse(line, "remove AI-identity footer line")
+
+    def test_a_session_link_is_refused_anywhere_in_a_line(self):
+        self.assert_both_refuse("See https://claude.ai/code/session_synthetic for more.", "remove AI session link")
+
+    def test_prose_that_names_the_keys_passes(self):
+        self.assert_both_pass(
+            "The hook reads Co-authored-by trailers and the Model: footer.\n"
+            "A data model: one table. Its co-authored-by handling is unchanged."
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
