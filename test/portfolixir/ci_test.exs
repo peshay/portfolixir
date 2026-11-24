@@ -30,7 +30,7 @@ defmodule Portfolixir.CITest do
     {"quality", "npm test --prefix mcp-server", nil},
     {"quality", "npm run build --prefix mcp-server", nil},
     {"quality", "mix credo --strict", nil},
-    {"quality", "mix sobelow --skip --exit", nil},
+    {"quality", "mix sobelow --skip --exit --no-config", nil},
     {"quality", "mix dialyzer --format short", nil},
     {"advisories", "mix hex.audit", nil},
     {"advisories", "mix deps.audit", @runs_after_a_red_step},
@@ -1058,25 +1058,28 @@ defmodule Portfolixir.CITest do
   # so that the CSP and the HTTPS posture are checked rather than waived.
   #
   # Acceptance criteria:
-  # - The Sobelow step is `mix sobelow --skip --exit` with no --ignore.
+  # - The Sobelow step is `mix sobelow --skip --exit --no-config`, in full:
+  #   no --ignore, and no configuration file read (N-80, the test below).
   # - config/prod.exs states the HTTPS posture: the force_ssl key is present
   #   and off by default, the runtime opt-in PHX_FORCE_SSL switching it on.
   # - The agents' project context says the same (the Sprint 20 γ closing
-  #   act): Sobelow runs as `mix sobelow --skip --exit` with no --ignore, and
-  #   the two findings no annotation can carry are skipped in .sobelow-skips.
+  #   act): Sobelow runs as `mix sobelow --skip --exit --no-config` with no
+  #   --ignore, and the two findings no annotation can carry are skipped in
+  #   .sobelow-skips.
   test "sobelow runs with no ignore and prod.exs states the HTTPS posture" do
-    ci_workflow = File.read!(".github/workflows/ci.yml")
     prod_config = File.read!("config/prod.exs")
 
     project_context =
       "_bmad-output/project-context.md" |> File.read!() |> String.replace(~r/\s+/, " ")
 
-    assert ci_workflow =~ "run: mix sobelow --skip --exit\n"
-    refute ci_workflow =~ "sobelow --skip --exit --ignore"
+    assert gate_step!("quality", "mix sobelow --skip --exit --no-config")
+    refute ci_workflow() =~ ~r/sobelow.*--ignore/
     assert prod_config =~ "force_ssl: false"
     assert prod_config =~ "PHX_FORCE_SSL"
 
-    assert project_context =~ "Sobelow runs as `mix sobelow --skip --exit`, with no `--ignore`"
+    assert project_context =~
+             "Sobelow runs as `mix sobelow --skip --exit --no-config`, with no `--ignore`"
+
     assert project_context =~ "`.sobelow-skips`"
     refute project_context =~ "--ignore Config.CSP,Config.HTTPS"
   end
@@ -1114,6 +1117,48 @@ defmodule Portfolixir.CITest do
       assert Enum.any?(comments, &String.contains?(&1, test_file)),
              "#{type}'s reason names no test that pins it"
     end
+  end
+
+  # User story (security review 2026-11, N-80):
+  # As the owner whose merge rests on green gates instead of a read of the
+  # code,
+  # I want Sobelow and Dialyzer to waive a finding only where a reviewed line
+  # says so -- an annotation with its reason, or an entry of the skip file
+  # the test above pins,
+  # so that no file either tool reads without being told to can switch a
+  # finding off while the workflow and the skip file stay as they are.
+  #
+  # Acceptance criteria:
+  # - CI runs Sobelow with `--no-config`: its configuration file is not
+  #   read, and none exists at the root.
+  # - Dialyzer has no ignore list: no `.dialyzer_ignore.exs` exists, which
+  #   dialyxir reads when it is there, and mix.exs configures the PLT and
+  #   nothing else, so no key names an ignore file or drops a warning class.
+  # - Every copy of the local gate list (AGENTS.md, CONTRIBUTING.md and the
+  #   pull request template's two) carries the two commands as CI runs them.
+  test "Sobelow and Dialyzer read no configuration or ignore file" do
+    sobelow = "mix sobelow --skip --exit --no-config"
+    dialyzer = "mix dialyzer --format short"
+
+    assert gate_step!("quality", sobelow)
+    assert gate_step!("quality", dialyzer)
+
+    refute File.exists?(".sobelow-conf"),
+           ".sobelow-conf can ignore findings, files and confidence levels for a local run"
+
+    refute File.exists?(".dialyzer_ignore.exs"),
+           "dialyxir reads .dialyzer_ignore.exs when it exists, and drops the warnings it lists"
+
+    assert Mix.Project.config()[:dialyzer] |> Keyword.keys() |> Enum.sort() ==
+             [:plt_add_apps, :plt_core_path, :plt_local_path],
+           "mix.exs configures more of Dialyzer than its PLT"
+
+    for file <- ["AGENTS.md", "CONTRIBUTING.md", ".github/pull_request_template.md"] do
+      assert File.read!(file) =~ "mix credo --strict\n#{sobelow}\n#{dialyzer}\n",
+             "#{file}'s gate list must run Sobelow and Dialyzer as CI does"
+    end
+
+    assert File.read!(".github/pull_request_template.md") =~ "- `#{sobelow}`:"
   end
 
   # User story (#924, Sprint 17 Lane D):

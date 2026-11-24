@@ -205,8 +205,11 @@ What agents must know beyond "run the gates":
   than exclude it. A further step is a refactor story of its own.
 - **Dialyzer has no ignore file — keep it at zero;** the first ignore entry is
   the beginning of the end. **Sobelow skips are deliberate and documented:**
-  Sobelow runs as `mix sobelow --skip --exit`, with no `--ignore` since
-  Sprint 11 (#382 ended the `Config.CSP` and `Config.HTTPS` ignores). A
+  Sobelow runs as `mix sobelow --skip --exit --no-config`, with no `--ignore`
+  since Sprint 11 (#382 ended the `Config.CSP` and `Config.HTTPS` ignores)
+  and with no configuration file: `--no-config` keeps it from reading a
+  `.sobelow-conf`, and `ci_test.exs` holds that file and
+  `.dialyzer_ignore.exs` absent (N-80). A
   finding is skipped by a per-function or per-pipeline `# sobelow_skip`
   annotation with a written reason; the two that have nowhere to carry one
   (the HTTPS posture in `config/prod.exs`, TLS being the operator's
