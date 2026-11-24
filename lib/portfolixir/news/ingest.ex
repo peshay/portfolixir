@@ -13,7 +13,11 @@ defmodule Portfolixir.News.Ingest do
     2. **takes the domain**: for an `aggregator` item the `<source>` domain,
        else the item is dropped and counted `dropped_no_source` and no
        redirect is followed (§2); for every other class the link's host,
-       else the feed's host;
+       else the feed's host. A domain that has not a domain's shape
+       (`Portfolixir.News.Shapes.domain?/1`: at most 253 bytes, its labels
+       letters, digits and hyphens) is refused here, before anything is
+       derived from it, and counted `invalid`, as the item's own check
+       would refuse it (N-11);
     3. **drops a claim older than the retention window** (90 days before
        the clock), counted `dropped_old` (B4), so a feed that keeps listing
        old items does not refill what retention removed; an item retention
@@ -26,21 +30,30 @@ defmodule Portfolixir.News.Ingest do
        #1356: the identity is the binding and the link, never the feed's
        row), or one repeated in the same answer, is `known` and neither
        stored nor counted again;
-    5. **rates each item by the tier table** (§3, B5;
-       `Portfolixir.News.Sources`, read once for the batch, under the
-       domains' tier locks held until the items commit, so a rating
-       written meanwhile either waits for them and re-rates them or is read
-       here as written, ADR-0056 E1): an `issuer`
-       or `regulatory` item is `primary` by construction, any other is its
-       domain's tier (or a parent domain's), at most `secondary`, and
-       `awareness` when unrated; an item of a `blocked` domain is dropped
-       and counted `dropped_blocked`, before the cap, so it takes no room;
+    5. **drops an item of a `blocked` domain** (§3), counted
+       `dropped_blocked`, before the cap, so it takes no room: the tier
+       table is read once for the whole answer, without a lock;
     6. **caps the feed at 200 items in 24 hours** (A3): the rolling count of
        the feed's items by `first_seen_at`, read under the feed's row lock,
        leaves room for the first items in the feed's order; the rest are
        counted `dropped_cap`. This is the one order that decides (B3), and
-       it belongs to the feed that floods;
-    7. **stores** each item, in its own savepoint (a row the database
+       it belongs to the feed that floods. **And at `tier_keys_max/0` tier
+       locks an answer** (512, N-11): the items are admitted in the same
+       order only while the tier locks of their domains (below; one per
+       suffix of a domain) fit that number; the rest is counted
+       `dropped_cap` as well and, the day's room allowing, stored by the
+       next fetch that lists it. An answer of ordinary sources never
+       reaches it: 200 items of 200 unrelated three-label domains take 400;
+    7. **rates each admitted item by the tier table** (§3, B5;
+       `Portfolixir.News.Sources`, read again for what was admitted, under
+       its domains' tier locks held until the items commit, so a rating
+       written meanwhile either waits for them and re-rates them or is read
+       here as written, ADR-0056 E1): an `issuer`
+       or `regulatory` item is `primary` by construction, any other is its
+       domain's tier (or a parent domain's), at most `secondary`, and
+       `awareness` when unrated; an item a rating blocked since step 5 is
+       dropped and counted `dropped_blocked`, its room left unused;
+    8. **stores** each item, in its own savepoint (a row the database
        refuses is counted `invalid` and costs no other item), with `first_seen_at` the clock and
        `published_at` the claim clamped to it (`News.Item.changeset/2`, B4),
        and the title keys the clustering reads (`title_words`,
@@ -87,12 +100,15 @@ defmodule Portfolixir.News.Ingest do
   alias Portfolixir.News.FeedDay
   alias Portfolixir.News.Item
   alias Portfolixir.News.Parser.Item, as: Parsed
+  alias Portfolixir.News.Shapes
   alias Portfolixir.News.Sources
   alias Portfolixir.News.Stories
   alias Portfolixir.Repo
 
   @cap 200
   @cap_window_seconds 24 * 60 * 60
+  # The most tier locks one answer's items take (`admit/4`).
+  @tier_keys_max 512
   @retention_days 90
   # How often a fetch locks its feed again when the feed's parent changed
   # between the two locks (`under_feed_lock/3`).
@@ -117,6 +133,13 @@ defmodule Portfolixir.News.Ingest do
   @spec cap() :: pos_integer()
   def cap, do: @cap
 
+  @doc """
+  The most tier locks one answer takes (`Portfolixir.News.Sources.lock_ingest/1`):
+  its items are admitted in the feed's order while their domains' locks fit.
+  """
+  @spec tier_keys_max() :: pos_integer()
+  def tier_keys_max, do: @tier_keys_max
+
   @doc "The retention window in days: an older claim is not stored (B4, §12)."
   @spec retention_days() :: pos_integer()
   def retention_days, do: @retention_days
@@ -130,8 +153,10 @@ defmodule Portfolixir.News.Ingest do
     summary =
       under_feed_lock(feed, @lock_attempts, fn feed ->
         {candidates, summary} = prepare(feed, items, now)
+        {candidates, summary} = drop_blocked(candidates, summary)
+        {candidates, summary} = admit(feed, candidates, now, summary)
         {candidates, summary} = tier_and_block(candidates, summary)
-        {stored, summary} = store(feed, candidates, now, summary)
+        {stored, summary} = store(candidates, now, summary)
 
         count_day(feed, now, summary)
         summary |> Map.delete(:drops) |> Map.put(:items, stored)
@@ -195,10 +220,54 @@ defmodule Portfolixir.News.Ingest do
 
   defp key_share(query), do: query |> lock("FOR KEY SHARE") |> Repo.all()
 
-  # §3, B5: each candidate's tier from the tier table, read once for the
-  # batch under the domains' tier locks (E1); a `blocked` domain's
-  # candidates are dropped and counted `dropped_blocked`, before the cap,
-  # so a blocked item takes no room.
+  # §3: a `blocked` domain's candidates are dropped and counted
+  # `dropped_blocked`, before the cap, so a blocked item takes no room. The
+  # tier table is read once for the whole answer and without a lock: what
+  # is stored is rated again under its tier locks (`tier_and_block/2`), and
+  # an item a rating unblocked this instant is stored by the next fetch.
+  defp drop_blocked([], summary), do: {[], summary}
+
+  defp drop_blocked(candidates, summary) do
+    rated = candidates |> Enum.map(& &1.domain) |> Enum.uniq() |> Sources.lookup()
+
+    {open, blocked} =
+      Enum.split_with(
+        candidates,
+        &(Sources.tier(&1.class, Map.get(rated, &1.domain)) != :blocked)
+      )
+
+    {open, drop(summary, :dropped_blocked, Enum.map(blocked, & &1.canonical_url))}
+  end
+
+  # A3 and N-11: the candidates that are stored, in the feed's own order:
+  # as many as the feed's 200 in 24 hours leave room for, and only while
+  # the tier locks of their domains fit `@tier_keys_max`. The rest counts
+  # `dropped_cap`. So the locks one answer takes, and with them the tier
+  # read under them, are bounded by numbers the server chooses, whatever
+  # the answer names.
+  defp admit(_feed, [], _now, summary), do: {[], summary}
+
+  defp admit(feed, candidates, now, summary) do
+    room = max(@cap - stored_in_window(feed, now), 0)
+
+    {count, _keys} =
+      Enum.reduce_while(candidates, {0, MapSet.new()}, fn candidate, {count, keys} ->
+        keys = if count < room, do: MapSet.union(keys, tier_keys(candidate)), else: keys
+
+        if count < room and MapSet.size(keys) <= @tier_keys_max,
+          do: {:cont, {count + 1, keys}},
+          else: {:halt, {count, keys}}
+      end)
+
+    {admitted, capped} = Enum.split(candidates, count)
+    {admitted, drop(summary, :dropped_cap, Enum.map(capped, & &1.canonical_url))}
+  end
+
+  defp tier_keys(candidate), do: candidate.domain |> Sources.tier_keys() |> MapSet.new()
+
+  # §3, B5: each admitted candidate's tier from the tier table, read under
+  # the domains' tier locks (E1); a candidate whose domain a rating blocked
+  # since `drop_blocked/2` read it is dropped and counted `dropped_blocked`.
   defp tier_and_block([], summary), do: {[], summary}
 
   defp tier_and_block(candidates, summary) do
@@ -272,6 +341,7 @@ defmodule Portfolixir.News.Ingest do
         case candidate(feed, feed_host, item, oldest) do
           {:ok, attrs} -> {[attrs | kept], summary}
           {:drop, :incomplete} -> {kept, Map.update!(summary, :incomplete, &(&1 + 1))}
+          {:drop, :invalid} -> {kept, Map.update!(summary, :invalid, &(&1 + 1))}
           {:drop, counter} -> {kept, drop(summary, counter, [canonical_url(item.link)])}
         end
       end)
@@ -344,6 +414,7 @@ defmodule Portfolixir.News.Ingest do
   defp candidate(feed, feed_host, %Parsed{} = item, oldest) do
     with :ok <- visible(item.title),
          {:ok, domain} <- domain(feed, feed_host, item),
+         :ok <- shaped(domain),
          :ok <- recent(item.published_at, oldest),
          {:ok, url} <- canonical(item.link) do
       {:ok, attrs(feed, item, domain, url)}
@@ -366,6 +437,11 @@ defmodule Portfolixir.News.Ingest do
     do: {:ok, domain}
 
   defp domain(_feed, feed_host, %Parsed{link: link}), do: {:ok, host(link) || feed_host}
+
+  # N-11: a domain is checked for its shape before the tier table, the tier
+  # locks or anything else is asked about it. What fails here would fail
+  # the item's own check (`News.Item.changeset/2`) and counts as that does.
+  defp shaped(domain), do: if(Shapes.domain?(domain), do: :ok, else: {:drop, :invalid})
 
   defp recent(nil, _oldest), do: :ok
 
@@ -450,11 +526,7 @@ defmodule Portfolixir.News.Ingest do
 
   # -- storing -----------------------------------------------------------------
 
-  defp store(feed, candidates, now, summary) do
-    room = max(@cap - stored_in_window(feed, now), 0)
-    {admitted, capped} = Enum.split(candidates, room)
-    summary = drop(summary, :dropped_cap, Enum.map(capped, & &1.canonical_url))
-
+  defp store(admitted, now, summary) do
     Enum.reduce(admitted, {[], summary}, fn attrs, {stored, summary} ->
       changeset = Item.changeset(%Item{}, Map.put(attrs, :first_seen_at, now))
 

@@ -36,7 +36,10 @@ defmodule Portfolixir.News.Sources do
   the longest stored suffix on a label boundary wins, so a rating of
   `example.com` reads for `markets.example.com`, and a block of a domain
   cannot be dodged by a fresh subdomain. A suffix of one label (`com`) is
-  never looked up, so a single-label row matches only itself.
+  never looked up, so a single-label row matches only itself. A name
+  longer than a domain name (253 bytes) is no domain: it is read as itself
+  only, so no row decides it, and no item is stored under one
+  (`Portfolixir.News.Ingest`).
 
   ## Writes (`put_source/4`)
 
@@ -58,6 +61,7 @@ defmodule Portfolixir.News.Sources do
   alias Portfolixir.Actor
   alias Portfolixir.Journal
   alias Portfolixir.News.Retier
+  alias Portfolixir.News.Shapes
   alias Portfolixir.News.Source
   alias Portfolixir.Repo
 
@@ -65,6 +69,7 @@ defmodule Portfolixir.News.Sources do
   @type class :: :issuer | :regulatory | :aggregator | :thematic
 
   @by_construction [:issuer, :regulatory]
+  @domain_max Shapes.domain_max()
 
   # --- S29 N1 begin ---
   # How often a rating runs again when its items moved (`put_attempt/4`).
@@ -136,8 +141,9 @@ defmodule Portfolixir.News.Sources do
   exclusive, and the key of each parent domain of at least two labels
   shared, in ascending key order.
 
-  The fetch takes the key of every suffix of its items' domains shared
-  (`lock_ingest/1`) before it reads their tiers, and holds it until its
+  The fetch takes the key of every suffix of the domains of the items it
+  admits shared (`lock_ingest/1`) before it reads the tiers they are
+  stored with, and holds it until its
   items commit. So a rating waits for every fetch storing an item its row
   could decide, and re-rates what those fetches stored; a fetch that
   starts while a rating holds its key reads the tier the rating wrote.
@@ -182,9 +188,7 @@ defmodule Portfolixir.News.Sources do
   @spec lock_ingest([String.t()]) :: :ok
   def lock_ingest(domains) when is_list(domains) do
     domains
-    |> Enum.flat_map(&suffixes(normalize_domain(&1)))
-    |> Enum.map(&tier_key/1)
-    |> Enum.uniq()
+    |> Enum.reduce(MapSet.new(), &MapSet.union(&2, MapSet.new(tier_keys(&1))))
     |> Enum.sort()
     |> Enum.each(
       &Repo.query!("SELECT pg_advisory_xact_lock_shared($1, $2) /* news tier: ingest */", [
@@ -194,38 +198,64 @@ defmodule Portfolixir.News.Sources do
     )
   end
 
+  @doc """
+  The keys of the tier locks a fetch storing an item of `domain` takes
+  (`lock_ingest/1`): one per suffix of the domain as `lookup/1` reads it,
+  so at most 126 for a domain name's 253 bytes. The ingest counts them
+  before it admits an item, and so bounds the locks one answer takes
+  (`Portfolixir.News.Ingest`, N-11).
+  """
+  @spec tier_keys(String.t()) :: [non_neg_integer()]
+  def tier_keys(domain) when is_binary(domain),
+    do: domain |> normalize_domain() |> suffixes() |> Enum.map(&tier_key/1)
+
   defp tier_key(domain), do: :erlang.phash2(domain)
 
   # --- S29 N1 end ---
 
+  # N-11: one read for the whole list, sent one entry per domain (its last
+  # two labels) and never a domain's every suffix: the rows that end in
+  # the same two labels as a domain are the only ones that can decide it.
+  # Which of them does is then read off the domain's suffixes in memory,
+  # longest first.
   defp deciding_rows(domains) do
-    suffixes_by_domain = Map.new(domains, &{&1, suffixes(normalize_domain(&1))})
-    candidates = suffixes_by_domain |> Map.values() |> List.flatten() |> Enum.uniq()
+    names = Map.new(domains, &{&1, normalize_domain(&1)})
+    rated = rated_under(names |> Map.values() |> Enum.uniq())
 
-    rated =
-      if candidates == [],
-        do: %{},
-        else:
-          Map.new(
-            Repo.all(
-              from(s in Source, where: s.domain in ^candidates, select: {s.domain, s.tier})
-            )
-          )
-
-    for {domain, suffixes} <- suffixes_by_domain,
-        row = Enum.find(suffixes, &Map.has_key?(rated, &1)),
+    for {domain, name} <- names,
+        row = Enum.find(suffixes(name), &is_map_key(rated, &1)),
         into: %{},
         do: {domain, {row, Map.fetch!(rated, row)}}
   end
 
-  # The domain itself, then each parent of at least two labels, longest first.
-  defp suffixes(domain) do
-    labels = String.split(domain, ".")
-    count = length(labels)
+  defp rated_under([]), do: %{}
 
-    if count < 2,
-      do: [domain],
-      else: for(drop <- 0..(count - 2), do: labels |> Enum.drop(drop) |> Enum.join("."))
+  defp rated_under(names) do
+    tails = names |> Enum.map(&(&1 |> suffixes() |> List.last())) |> Enum.uniq()
+
+    from(s in Source,
+      where:
+        fragment("coalesce(substring(? from '[^.]+[.][^.]+$'), ?)", s.domain, s.domain) in ^tails,
+      select: {s.domain, s.tier}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  # The domain itself, then each parent of at least two labels, longest
+  # first. Each parent is a part of the domain's own binary, so a name of
+  # many labels is not copied once per label. A name longer than a domain
+  # name is no domain and has no parent here (N-11): it is itself only.
+  defp suffixes(domain) when byte_size(domain) > @domain_max, do: [domain]
+
+  defp suffixes(domain) do
+    size = byte_size(domain)
+
+    parents =
+      for {at, 1} <- domain |> :binary.matches(".") |> Enum.drop(-1),
+          do: binary_part(domain, at + 1, size - at - 1)
+
+    [domain | parents]
   end
 
   @doc """

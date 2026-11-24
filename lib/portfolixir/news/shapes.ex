@@ -55,6 +55,24 @@ defmodule Portfolixir.News.Shapes do
   @spec space?(String.t()) :: boolean()
   def space?(text) when is_binary(text), do: Regex.match?(@space, text)
 
+  @doc "The longest domain name, in bytes: a DNS name's 253."
+  @spec domain_max() :: pos_integer()
+  def domain_max, do: @domain_max
+
+  @doc """
+  Whether `value`, trimmed and lower-cased as `domain/2` stores it, has a
+  domain's shape: at most `domain_max/0` bytes, labels of lower-case
+  letters, digits and hyphens. The length is checked before the pattern, so
+  a name of any length costs one pass over it (N-11).
+  """
+  @spec domain?(term()) :: boolean()
+  def domain?(value) when is_binary(value) do
+    name = normalize(value)
+    byte_size(name) <= @domain_max and Regex.match?(@domain, name)
+  end
+
+  def domain?(_value), do: false
+
   @doc "Trims and lower-cases a domain, then checks its shape."
   @spec domain(Ecto.Changeset.t(), atom()) :: Ecto.Changeset.t()
   def domain(changeset, field) do
