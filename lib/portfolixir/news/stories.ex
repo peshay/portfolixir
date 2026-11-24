@@ -7,9 +7,12 @@ defmodule Portfolixir.News.Stories do
 
   Two items are **linked** when their `published_at` (the claim clamped to
   the first sight, B4) lie within the window of each other (72 hours,
-  inclusive) and their titles are the same story: their normalized titles
-  are equal, or the Jaccard similarity of their title words reaches the
-  threshold (0.8). **A story is a connected component** of that relation:
+  inclusive), **their first sights lie within the window of each other
+  too** (F2, ADR-0056 amendment of 2026-11-24: the claim is the feed's,
+  the clock is the operator's, and only the clock bounds how many items a
+  window holds), and their titles are the same story: their normalized
+  titles are equal, or the Jaccard similarity of their title words reaches
+  the threshold (0.8). **A story is a connected component** of that relation:
   with A linked to B and B to C, A, B and C are one story even when A and C
   are not linked, whatever order they came in. Both values are settings
   (`Portfolixir.Settings.news_cluster_window_hours/0` and
@@ -62,16 +65,27 @@ defmodule Portfolixir.News.Stories do
       title); two items equal on all of them are indistinguishable to every
       reader. No id and no insertion order enters any comparison.
 
-  ## Cost
+  ## Cost (F2)
 
-  `cluster/2` sorts the items by publication and compares each item only
-  with those published within the window after it: O(n log n + n · k), k
-  the most items of one scope and language published within one window.
-  The fetcher keeps at most 200 items per feed and day (A3), so k is at
-  most 200 · (window in days + 1) per feed bound to the scope — for the
-  default window and one busy feed, about 800 — and each comparison is a
-  set intersection of at most 80 words (a title has at most 160
-  characters).
+  `cluster/2` sorts the items by first sight and compares each item only
+  with those first seen within the window after it, and with at most
+  `compare_max/0` of them (800): O(n log n + n · k), k the most items of
+  one scope and language **first seen** within one window, never more
+  than 800. The fetcher keeps at most 200 items per feed and day (A3) by
+  the server's clock, so one feed puts at most 200 · (window in days + 1)
+  items into a window — for the default window about 800 — whatever
+  publication times it claims; the cap on k holds the same for several
+  feeds flooding one scope, whose farther items are then not compared.
+  Two items of one component already are not compared again, and a
+  comparison walks the two sorted word lists (at most 80 words each; a
+  title has at most 160 characters) only until the threshold is out of
+  reach. The components are kept as disjoint sets, so the memory is
+  linear in n however many items link.
+
+  A recluster reads no more than that needs: its seeds, the items first
+  seen (and published) within one window of them, and the stories those
+  belong to. Removing items (`remove/5`) recomputes the stories that lost
+  a member, not the scope.
 
   ## Recluster (`recluster/4`)
 
@@ -85,8 +99,8 @@ defmodule Portfolixir.News.Stories do
        assigned), and those first seen within one window before `now` —
        so the recent window is recomputed on every run;
     2. **their neighbours**: the scope's items in a story whose
-       `published_at` lies within one window of a seed's — the only items a
-       seed can link to;
+       `published_at` and whose first sight both lie within one window of
+       a seed's — the only items a seed can link to;
     3. **every member of every story a seed or a neighbour belongs to.**
 
   A stored story is a component of the stored items, or (C1) part of one:
@@ -96,9 +110,11 @@ defmodule Portfolixir.News.Stories do
   item read and one not read. The components of what is read are then
   whole, C1 chooses with every primary story there is, and every other
   story stays as it is. With `full: true`
-  every item of the scope and language is read, for a changed window or
-  threshold, or after a retention run removed an item that held a story
-  together.
+  every item of the scope and language is read: for a changed window or
+  threshold, and where an item entered or left the scope by a write (a
+  merge, an assignment, a rating). A removal (`remove/5`) names the
+  stories that lost a member instead, and their remaining members are
+  seeds.
 
   **Identity** (B3, C2): each old story goes with its survivor member to
   the new story that member is in. A new story that receives several keeps
@@ -134,8 +150,12 @@ defmodule Portfolixir.News.Stories do
   @default_window_hours 72
   @default_similarity "0.8"
 
-  # More disjoint publication ranges than this are read as one span.
+  # More disjoint ranges of one clock than this are read as one span.
   @ranges_max 50
+
+  # The most items one item is compared with (`cluster/2`): what one feed
+  # at A3's cap stores within the default window, 200 · (3 + 1).
+  @compare_max 800
 
   @type scope :: {:security, pos_integer()} | {:category, pos_integer()}
   @type story :: %{members: [map()], representative: map(), earliest: map()}
@@ -194,6 +214,10 @@ defmodule Portfolixir.News.Stories do
 
   # --- the pure rule ------------------------------------------------------
 
+  @doc "The most items one item is compared with in `cluster/2` (F2)."
+  @spec compare_max() :: pos_integer()
+  def compare_max, do: @compare_max
+
   @doc """
   The stories of `items` — all of one scope and one language — as
   connected components (B3). Each item is a map (or struct) with
@@ -202,23 +226,25 @@ defmodule Portfolixir.News.Stories do
   the survivor key, its `representative` and its `earliest` member;
   the stories come ordered by their earliest member.
 
-  Options: `window_hours` (default 72) and `similarity` (a `Decimal`,
-  default 0.8).
+  Options: `window_hours` (default 72), `similarity` (a `Decimal`,
+  default 0.8) and `compare_max` (default `compare_max/0`): an item is
+  compared with at most that many items first seen after it.
   """
   @spec cluster([map()], keyword()) :: [story()]
   def cluster(items, opts \\ []) when is_list(items) do
     window = Keyword.get(opts, :window_hours, @default_window_hours) * 3_600_000_000
     ratio = ratio(Keyword.get_lazy(opts, :similarity, fn -> Decimal.new(@default_similarity) end))
+    compare_max = Keyword.get(opts, :compare_max, @compare_max)
 
+    # By first sight: the survivor key begins with it.
     entries =
       items
       |> Enum.map(&entry/1)
-      |> Enum.sort_by(&{&1.published, &1.key})
+      |> Enum.sort_by(& &1.key)
       |> List.to_tuple()
 
     entries
-    |> adjacency(window, ratio)
-    |> anchored_components(entries)
+    |> anchored_components({window, ratio, compare_max})
     |> Enum.map(fn indices -> story(Enum.map(indices, &elem(entries, &1))) end)
     |> Enum.sort_by(& &1.earliest_key)
     |> Enum.map(&Map.delete(&1, :earliest_key))
@@ -226,11 +252,15 @@ defmodule Portfolixir.News.Stories do
 
   defp entry(item) do
     published = DateTime.to_unix(item.published_at, :microsecond)
+    words = :lists.usort(item.title_words)
 
     %{
       item: item,
       published: published,
-      words: MapSet.new(item.title_words),
+      seen: DateTime.to_unix(item.first_seen_at, :microsecond),
+      primary?: item.tier == :primary,
+      words: words,
+      size: length(words),
       hash: item.title_norm_hash,
       key: item_key(item),
       rank: {Map.fetch!(@tier_rank, item.tier), published, item.canonical_url, item_key(item)}
@@ -257,47 +287,61 @@ defmodule Portfolixir.News.Stories do
       else: {coef, Integer.pow(10, -exp)}
   end
 
-  # Each item against those published within the window after it: the
-  # entries are sorted by publication, so the walk stops at the first one
-  # beyond the window.
-  defp adjacency(entries, window, ratio) do
-    count = tuple_size(entries)
+  # F2: `fun` is called for each pair of `order`'s entries that the two
+  # clocks admit: first seen within the window of each other (the entries
+  # are sorted by first sight, so the walk stops at the first one beyond
+  # it), published within it too, and at most `compare_max` entries apart.
+  # `order` is a tuple of indices into `entries`, ascending.
+  defp reduce_near(entries, order, {window, _ratio, compare_max}, acc, fun) do
+    count = tuple_size(order)
 
-    Enum.reduce(0..(count - 1)//1, %{}, fn i, acc ->
-      link_following(entries, i, i + 1, {count, window, ratio}, acc)
+    Enum.reduce(0..(count - 1)//1, acc, fn at, acc ->
+      i = elem(order, at)
+      stop = min(count, at + 1 + compare_max)
+      near(entries, order, {elem(entries, i), i}, {at + 1, stop, window}, acc, fun)
     end)
   end
 
-  defp link_following(entries, i, j, {count, window, ratio} = bounds, acc) when j < count do
-    a = elem(entries, i)
+  defp near(entries, order, {a, _i} = from, {at, stop, window}, acc, fun) when at < stop do
+    j = elem(order, at)
     b = elem(entries, j)
+    next = {at + 1, stop, window}
 
     cond do
-      b.published - a.published > window -> acc
-      linked?(a, b, ratio) -> link_following(entries, i, j + 1, bounds, add_edges(acc, i, j))
-      true -> link_following(entries, i, j + 1, bounds, acc)
+      b.seen - a.seen > window -> acc
+      abs(b.published - a.published) > window -> near(entries, order, from, next, acc, fun)
+      true -> near(entries, order, from, next, fun.(from, {b, j}, acc), fun)
     end
   end
 
-  defp link_following(_entries, _i, _j, _bounds, acc), do: acc
-
-  defp add_edges(adjacency, i, j),
-    do: adjacency |> add_edge(i, j) |> add_edge(j, i)
-
-  defp add_edge(adjacency, from, to), do: Map.update(adjacency, from, [to], &[to | &1])
+  defp near(_entries, _order, _from, _walk, acc, _fun), do: acc
 
   defp linked?(a, b, {numerator, denominator}) do
     cond do
-      MapSet.size(a.words) == 0 or MapSet.size(b.words) == 0 ->
+      a.size == 0 or b.size == 0 ->
         false
 
       a.hash == b.hash ->
         true
 
       true ->
-        shared = a.words |> MapSet.intersection(b.words) |> MapSet.size()
-        union = MapSet.size(a.words) + MapSet.size(b.words) - shared
-        shared * denominator >= numerator * union
+        # |A ∩ B| · d ≥ n · |A ∪ B| with |A ∪ B| = |A| + |B| − |A ∩ B|,
+        # so |A ∩ B| · (d + n) ≥ n · (|A| + |B|): exact, in integers.
+        target = {numerator * (a.size + b.size), denominator + numerator}
+        shares?(a.words, b.words, {a.size, b.size, 0}, target)
+    end
+  end
+
+  # Whether two sorted lists of distinct words share enough words:
+  # `shared · unit ≥ need`. The walk ends as soon as the words left cannot
+  # reach it.
+  defp shares?(a, b, {left_a, left_b, shared}, {need, unit} = target) do
+    cond do
+      (shared + min(left_a, left_b)) * unit < need -> false
+      a == [] or b == [] -> true
+      hd(a) == hd(b) -> shares?(tl(a), tl(b), {left_a - 1, left_b - 1, shared + 1}, target)
+      hd(a) < hd(b) -> shares?(tl(a), b, {left_a - 1, left_b, shared}, target)
+      true -> shares?(a, tl(b), {left_a, left_b - 1, shared}, target)
     end
   end
 
@@ -306,78 +350,113 @@ defmodule Portfolixir.News.Stories do
   # the relation links to primary components joins the one whose survivor
   # key is smallest, so no chain of lower-tier items joins two primary
   # stories. Each list of indices is one story.
-  defp anchored_components(adjacency, entries) do
+  #
+  # F2: the components are disjoint sets (`link/4`), never a list of every
+  # link, and a lower-tier item keeps only the best primary component it
+  # is linked to (`anchor/5`), so the memory is linear in the items
+  # whatever they link to. The primary components are final before a
+  # lower-tier item is compared, so "best" is the survivor key C1 names.
+  defp anchored_components(entries, {_window, ratio, _max} = bounds) do
     {primary, lower} =
       0..(tuple_size(entries) - 1)//1
-      |> Enum.split_with(&(elem(entries, &1).item.tier == :primary))
+      |> Enum.split_with(&elem(entries, &1).primary?)
 
-    anchors = components(restrict(adjacency, primary), primary)
-    anchor_of = for {members, n} <- Enum.with_index(anchors), i <- members, into: %{}, do: {i, n}
+    anchor_of =
+      entries
+      |> reduce_near(List.to_tuple(primary), bounds, %{}, &link(&3, &1, &2, ratio))
+      |> roots(primary)
 
     anchor_keys =
-      anchors
-      |> Enum.with_index()
-      |> Map.new(fn {members, n} ->
-        {n, members |> Enum.map(&survivor_key(elem(entries, &1).item)) |> Enum.min()}
+      primary
+      |> Enum.group_by(&Map.fetch!(anchor_of, &1))
+      |> Map.new(fn {root, members} ->
+        {root, members |> Enum.map(&survivor_key(elem(entries, &1).item)) |> Enum.min()}
       end)
 
+    all = List.to_tuple(Enum.to_list(0..(tuple_size(entries) - 1)//1))
+
+    {lowers, best} =
+      reduce_near(entries, all, bounds, {%{}, %{}}, fn
+        {%{primary?: true}, _i}, {%{primary?: true}, _j}, acc ->
+          acc
+
+        {%{primary?: false}, _i} = a, {%{primary?: false}, _j} = b, {sets, best} ->
+          {link(sets, a, b, ratio), best}
+
+        {%{primary?: true} = a, i}, b, {sets, best} ->
+          {sets, anchor(best, b, {a, Map.fetch!(anchor_of, i)}, anchor_keys, ratio)}
+
+        a, {b, j}, {sets, best} ->
+          {sets, anchor(best, a, {b, Map.fetch!(anchor_of, j)}, anchor_keys, ratio)}
+      end)
+
+    lower_of = roots(lowers, lower)
+
     {joined, alone} =
-      adjacency
-      |> restrict(lower)
-      |> components(lower)
+      lower
+      |> Enum.group_by(&Map.fetch!(lower_of, &1))
+      |> Map.values()
       |> Enum.reduce({%{}, []}, fn members, {joined, alone} ->
-        linked =
-          members
-          |> Enum.flat_map(&Map.get(adjacency, &1, []))
-          |> Enum.flat_map(&List.wrap(Map.get(anchor_of, &1)))
-          |> Enum.uniq()
-
-        case linked do
-          [] ->
-            {joined, [members | alone]}
-
-          anchors ->
-            n = Enum.min_by(anchors, &Map.fetch!(anchor_keys, &1))
-            {Map.update(joined, n, members, &(members ++ &1)), alone}
+        case members |> Enum.flat_map(&List.wrap(Map.get(best, &1))) |> Enum.min(fn -> nil end) do
+          nil -> {joined, [members | alone]}
+          {_key, root} -> {Map.update(joined, root, members, &(members ++ &1)), alone}
         end
       end)
 
-    anchors
-    |> Enum.with_index()
-    |> Enum.map(fn {members, n} -> members ++ Map.get(joined, n, []) end)
+    primary
+    |> Enum.group_by(&Map.fetch!(anchor_of, &1))
+    |> Enum.map(fn {root, members} -> members ++ Map.get(joined, root, []) end)
     |> Kernel.++(alone)
   end
 
-  # The adjacency between `indices` only.
-  defp restrict(adjacency, indices) do
-    keep = MapSet.new(indices)
+  # Two entries of one tier group: one component when linked. Two that are
+  # one component already are not compared.
+  defp link(sets, {a, i}, {b, j}, ratio) do
+    {root_i, sets} = find(sets, i)
+    {root_j, sets} = find(sets, j)
 
-    Map.new(Map.take(adjacency, indices), fn {i, links} ->
-      {i, Enum.filter(links, &MapSet.member?(keep, &1))}
-    end)
+    cond do
+      root_i == root_j -> sets
+      linked?(a, b, ratio) -> Map.put(sets, max(root_i, root_j), min(root_i, root_j))
+      true -> sets
+    end
   end
 
-  # Connected components of `indices` by a depth-first walk, each a list of
-  # indices.
-  defp components(adjacency, indices) do
-    {components, _seen} =
-      Enum.reduce(indices, {[], MapSet.new()}, fn start, {acc, seen} ->
-        if MapSet.member?(seen, start) do
-          {acc, seen}
-        else
-          {members, seen} = walk([start], adjacency, MapSet.put(seen, start), [])
-          {[members | acc], seen}
-        end
+  # A lower-tier entry and a primary one of the component `root`: the
+  # lower one keeps the linked primary component with the smallest
+  # survivor key. A component that cannot be better is not compared.
+  defp anchor(best, {lower, l}, {primary, root}, anchor_keys, ratio) do
+    candidate = {Map.fetch!(anchor_keys, root), root}
+
+    case best do
+      %{^l => kept} when kept <= candidate -> best
+      _other -> if linked?(lower, primary, ratio), do: Map.put(best, l, candidate), else: best
+    end
+  end
+
+  # Disjoint sets as a map from an index to its parent; a root has no
+  # entry. `find/2` answers the root and the sets with the walked path
+  # pointing at it.
+  defp find(sets, index) do
+    case sets do
+      %{^index => parent} ->
+        {root, sets} = find(sets, parent)
+        {root, if(root == parent, do: sets, else: Map.put(sets, index, root))}
+
+      _root ->
+        {index, sets}
+    end
+  end
+
+  # The root of each of `indices`.
+  defp roots(sets, indices) do
+    {root_of, _sets} =
+      Enum.reduce(indices, {%{}, sets}, fn index, {root_of, sets} ->
+        {root, sets} = find(sets, index)
+        {Map.put(root_of, index, root), sets}
       end)
 
-    components
-  end
-
-  defp walk([], _adjacency, seen, members), do: {members, seen}
-
-  defp walk([index | rest], adjacency, seen, members) do
-    next = adjacency |> Map.get(index, []) |> Enum.reject(&MapSet.member?(seen, &1))
-    walk(next ++ rest, adjacency, Enum.into(next, seen), [index | members])
+    root_of
   end
 
   defp story(entries) do
@@ -451,8 +530,14 @@ defmodule Portfolixir.News.Stories do
 
     window = options[:window_hours] * 3_600_000_000
     base = scope_items(scope, language)
+    relation = {window, ratio(options[:similarity]), @compare_max}
 
-    case read_items(base, now, {window, ratio(options[:similarity])}, opts[:full] == true) do
+    read =
+      if opts[:full] == true,
+        do: read_all(base),
+        else: read_near(base, now, relation, Keyword.get(opts, :stories, []))
+
+    case read do
       {[], []} -> {:ok, %{stories: 0, created: 0, merged: 0, moved: 0}}
       {items, old} -> write(cluster(items, options), old, scope, language)
     end
@@ -475,11 +560,13 @@ defmodule Portfolixir.News.Stories do
        member by the representative rule (N2's restrict keys: an item named
        as a representative cannot be deleted);
     3. the doomed items are deleted;
-    4. the scope and language are reclustered in full (`full: true`), so a
-       story that lost a member is recounted and its earliest fields and
-       representative recomputed, and one an expired item held together
-       splits into its components, each old story going with its earliest
-       remaining member (B3).
+    4. the stories that lost a member are reclustered (their remaining
+       members are seeds, beside those of a plain recluster), so each is
+       recounted and its earliest fields and representative recomputed,
+       and one an expired item held together splits into its components,
+       each old story going with its earliest remaining member (B3). A
+       story that lost no member is as it was and is not read again (F2):
+       what a removal costs follows what it removes, not the scope.
 
   Answers `{:ok, %{items: deleted, stories_deleted: emptied}}`.
   """
@@ -513,7 +600,7 @@ defmodule Portfolixir.News.Stories do
 
     {deleted, _} = Repo.delete_all(from(i in Item, where: i.id in ^ids))
 
-    case recluster_locked(scope, language, now, Keyword.put(opts, :full, true)) do
+    case recluster_locked(scope, language, now, Keyword.put(opts, :stories, affected)) do
       {:ok, _summary} -> %{items: deleted, stories_deleted: stories_deleted}
       {:error, changeset} -> Repo.rollback(changeset)
     end
@@ -597,24 +684,31 @@ defmodule Portfolixir.News.Stories do
         i.category_id == ^id and i.language == ^language and i.assignment == :assigned
       )
 
-  # The seeds, their neighbours and every member of the stories they touch;
-  # with `full`, every item of the scope. Answers {items, old stories}.
-  defp read_items(base, _now, _relation, true = _full) do
+  # Every item of the scope (`full: true`). Answers {items, old stories}.
+  defp read_all(base) do
     items = Repo.all(base)
     {items, old_stories(items)}
   end
 
-  defp read_items(base, now, {window, _ratio} = relation, false) do
+  # The seeds, their neighbours and every member of the stories they touch.
+  # A seed is an item in no story, one first seen within one window before
+  # `now`, or a member of one of `stories` (`remove/5`: the stories that
+  # lost a member). Answers {items, old stories}.
+  defp read_near(base, now, {window, _ratio, _max} = relation, stories) do
     since = DateTime.add(now, -window, :microsecond)
 
     seeds =
-      Repo.all(from(i in base, where: is_nil(i.cluster_id) or i.first_seen_at >= ^since))
+      Repo.all(
+        from(i in base,
+          where: is_nil(i.cluster_id) or i.first_seen_at >= ^since or i.cluster_id in ^stories
+        )
+      )
 
     if seeds == [] do
       {[], []}
     else
       neighbours =
-        Repo.all(from(i in base, where: not is_nil(i.cluster_id), where: ^within(seeds, window)))
+        Repo.all(from(i in base, where: not is_nil(i.cluster_id), where: ^nearby(seeds, window)))
 
       touched = story_ids(seeds ++ neighbours)
       members = Repo.all(from(i in base, where: i.cluster_id in ^touched))
@@ -631,26 +725,18 @@ defmodule Portfolixir.News.Stories do
   # and C1's choice is made with every primary story it could join.
   defp linked_stories(_base, items, [], _relation), do: items
 
-  defp linked_stories(base, items, frontier, {window, ratio} = relation) do
+  defp linked_stories(base, items, frontier, {window, _ratio, _max} = relation) do
     read = MapSet.new(items, & &1.id)
-    frontier_entries = Enum.map(frontier, &entry/1)
 
-    linked =
-      from(i in base,
-        where: not is_nil(i.cluster_id) and i.id not in ^MapSet.to_list(read),
-        where: ^within(frontier, window)
+    candidates =
+      Repo.all(
+        from(i in base,
+          where: not is_nil(i.cluster_id) and i.id not in ^MapSet.to_list(read),
+          where: ^nearby(frontier, window)
+        )
       )
-      |> Repo.all()
-      |> Enum.filter(fn candidate ->
-        candidate = entry(candidate)
 
-        Enum.any?(frontier_entries, fn item ->
-          abs(item.published - candidate.published) <= window and
-            linked?(item, candidate, ratio)
-        end)
-      end)
-
-    case story_ids(linked) do
+    case story_ids(linked_to(frontier, candidates, relation)) do
       [] ->
         items
 
@@ -664,17 +750,57 @@ defmodule Portfolixir.News.Stories do
     end
   end
 
+  # The `candidates` the relation links to an item of `frontier`, found by
+  # the walk `cluster/2` makes (F2): each item against those first seen
+  # within the window after it, at most `compare_max` of them, so the work
+  # is bounded as the clustering's is.
+  defp linked_to(_frontier, [], _relation), do: []
+
+  defp linked_to(frontier, candidates, {_window, ratio, _max} = relation) do
+    entries =
+      (Enum.map(frontier, &Map.put(entry(&1), :read?, true)) ++
+         Enum.map(candidates, &Map.put(entry(&1), :read?, false)))
+      |> Enum.sort_by(& &1.key)
+      |> List.to_tuple()
+
+    order = List.to_tuple(Enum.to_list(0..(tuple_size(entries) - 1)//1))
+
+    entries
+    |> reduce_near(order, relation, MapSet.new(), fn
+      {%{read?: same}, _i}, {%{read?: same}, _j}, linked ->
+        linked
+
+      {a, i}, {b, j}, linked ->
+        candidate = if a.read?, do: j, else: i
+
+        if not MapSet.member?(linked, candidate) and linked?(a, b, ratio),
+          do: MapSet.put(linked, candidate),
+          else: linked
+    end)
+    |> Enum.map(&elem(entries, &1).item)
+  end
+
   defp story_ids(items),
     do: items |> Enum.map(& &1.cluster_id) |> Enum.reject(&is_nil/1) |> Enum.uniq()
 
   defp old_stories(items),
     do: Repo.all(from(c in Cluster, where: c.id in ^story_ids(items)))
 
-  # Published within one window of a seed: the seeds' ranges, merged.
-  defp within(seeds, window) do
+  # Within one window of one of `items` on both clocks (F2): published
+  # within a window of one's publication, and first seen within a window
+  # of one's first sight. Only such an item can be linked to one of them.
+  defp nearby(items, window) do
+    dynamic(
+      [i],
+      ^spans(items, window, :published_at) and ^spans(items, window, :first_seen_at)
+    )
+  end
+
+  # The ranges of `field` one window around each of `items`, merged.
+  defp spans(items, window, field) do
     ranges =
-      seeds
-      |> Enum.map(&DateTime.to_unix(&1.published_at, :microsecond))
+      items
+      |> Enum.map(&DateTime.to_unix(Map.fetch!(&1, field), :microsecond))
       |> Enum.sort()
       |> Enum.map(&{&1 - window, &1 + window})
       |> merge_ranges([])
@@ -687,7 +813,7 @@ defmodule Portfolixir.News.Stories do
     Enum.reduce(ranges, dynamic(false), fn {from, to}, acc ->
       from = DateTime.from_unix!(from, :microsecond)
       to = DateTime.from_unix!(to, :microsecond)
-      dynamic([i], ^acc or (i.published_at >= ^from and i.published_at <= ^to))
+      dynamic([i], ^acc or (field(i, ^field) >= ^from and field(i, ^field) <= ^to))
     end)
   end
 

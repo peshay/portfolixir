@@ -1286,3 +1286,43 @@ or how many domains one answer may make the ingest work on.
   process has (512 MiB by default, `Portfolixir.HeapCap`). A fetch grown
   past it is killed, recorded on its feed as `fetch_failed`, and stops no
   other feed (§5).
+
+### F2. The window is read on the server's clock too, and one recluster's work is bounded (B3, B4, §12; N-12)
+
+B3 links two items whose `published_at` lie within the window of each
+other, and B4 says the claim is the feed's and the clock is the operator's.
+A3's cap counts by the clock, so only the clock bounds how many items a
+window holds. The window is therefore read on the clock as well, and what
+one recluster compares and reads is bounded by it.
+
+- **Two items are the same story only when their first sights, too, lie
+  within the window of each other** (the same setting, 72 hours). The rest
+  of B3 stands: the publication times within the window, the titles equal
+  or similar, a story a connected component, C1's anchoring, C2's
+  survivor, the representative. *What changes for a feed that claims
+  nothing false:* nothing for items delivered as they appear, and nothing
+  among the items of one fetch, which share their first sight, so a new
+  feed's first answer still clusters by its claimed dates. An item first
+  seen more than a window after another (a feed registered later, or one
+  back after an outage of more than the window) no longer joins the older
+  item's story and is a story of its own.
+- **An item is compared with at most 800 others**, those first seen next
+  after it: what one feed at A3's cap stores within the default window.
+  Up to that number the stories are exactly the rule's; several feeds
+  flooding one scope past it leave their farther items uncompared, and
+  each such item is then a story of its own or of its nearer neighbours.
+  This is the second order that decides, beside A3's, and like it it
+  belongs to the feeds that flood.
+- **A recluster reads what the clock puts near its seeds**: the items
+  first seen, and published, within one window of a seed, and the stories
+  they belong to. **The retention run recomputes the stories that lost a
+  member** (§12: clusters follow their items), not every story of the
+  scope.
+- **Stored stories are not rewritten by a migration.** A story is
+  recomputed under this rule when its scope is next reclustered around
+  it; until then it stays as stored.
+
+The work of one recluster is so bounded by A3's cap, the window and the
+800, none of which a feed chooses, and it needs memory linear in the items
+it reads. **To flip:** "news window by claim" (B3 as written; the bound
+then needs another rule). The 800: a number by comment.
