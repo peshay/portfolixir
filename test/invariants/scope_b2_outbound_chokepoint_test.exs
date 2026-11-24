@@ -55,7 +55,10 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
   # - Every environment variable the app and the MCP companion read is listed
   #   with its reason, a name the scan cannot read fails, and a
   #   credential-shaped name must be listed as a credential.
-  # - The MCP companion imports only registered modules (no outbound client),
+  # - The MCP companion imports only registered modules (no outbound client)
+  #   and takes no module another way: it reads only registered members of
+  #   Node's `process`, by a plain dotted access, names no loader and builds
+  #   no code at run time (R-146). It
   #   calls fetch at one site with the configured base plus a path, builds
   #   that client once from PORTFOLIXIR_API_BASE_URL, and every tool's path is
   #   an /api/v1/ path, so no argument can move the host.
@@ -447,6 +450,20 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
          "nothing here dials, and the agent is named in that one read only"}
   }
 
+  # `member => reason`: what the MCP companion reads from Node's `process`
+  # global. `process` hands out every built-in module with no import
+  # statement, so what the companion takes from it is registered as its
+  # imports are (R-146).
+  @mcp_process_members %{
+    "env" =>
+      "the companion's configuration; every variable it reads is in the environment " <>
+        "registry above",
+    "execArgv" =>
+      "the runtime's own flags, read once to see whether Node's environment proxy is on " <>
+        "(api-proxy.ts); nothing is started with them",
+    "exit" => "stops the companion on a configuration it refuses to start with"
+  }
+
   # `helper => reason`: functions a tool may build its API path with. Each is
   # checked to keep the path's `/api/v1/` prefix.
   @mcp_path_helpers %{
@@ -788,6 +805,13 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
         Map.new(@mcp_imports, fn {spec, {_, reason}} -> {spec, reason} end),
         "MCP imports"
       )
+
+      # What it reads from `process`, which could hand out a module with no
+      # import at all (R-146).
+      members =
+        mcp_sources() |> Enum.flat_map(&(&1 |> File.read!() |> process_members())) |> MapSet.new()
+
+      assert_registry(members, @mcp_process_members, "members of process the MCP companion reads")
     end
 
     test "it reaches only the configured API base" do
@@ -1405,6 +1429,55 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       dialing = read <> "const socket = globalAgent.createConnection({ host, port });\n"
       assert [offender] = egress_violations(dialing, "mcp-server/src/api-proxy.ts")
       assert offender =~ "createConnection"
+    end
+
+    test "a synthetic companion source that takes a module without importing it is caught" do
+      source = """
+      const childProcess = process.getBuiltinModule("node:child_process");
+      const sqlite = process["getBuiltinModule"]("node:sqlite");
+      const tcp = (process as any).binding("tcp_wrap");
+      process.dlopen(addon, "/opt/native.node");
+      const { binding } = process;
+      const handle = globalThis.process;
+      const linked = handle._linkedBinding("native");
+      const again = handle?.binding("tcp_wrap");
+      const main = process.mainModule;
+      const load = createRequire(import.meta.url);
+      const built = eval("pro" + "cess");
+      const made = new Function("return this")();
+      """
+
+      violations = import_violations(source, "synthetic.ts")
+
+      reported =
+        for violation <- violations,
+            [_, line] <- [Regex.run(~r/^synthetic\.ts:(\d+):/, violation)] do
+          String.to_integer(line)
+        end
+
+      assert Enum.sort(Enum.uniq(reported)) == Enum.to_list(1..12), Enum.join(violations, "\n")
+
+      for needle <-
+            ~w(getBuiltinModule binding dlopen _linkedBinding mainModule createRequire eval
+                       Function) do
+        assert Enum.any?(violations, &(&1 =~ needle)), "nothing names #{needle}"
+      end
+
+      # The companion's own uses, and prose that only shares a word with them.
+      innocent = """
+      /**
+       * Applies the decision to this process at start-up, and stops the process
+       * on a value it refuses: DNS rebinding, a portfolio binding that froze.
+       */
+      const base = process.env.PORTFOLIXIR_API_BASE_URL ?? "http://127.0.0.1:4000";
+      const decision = apiProxyDecision(base, env, process.execArgv);
+      if (decision.kind === "refuse") process.exit(1);
+      const note = "Its portfolio binding freezes once a transaction references it.";
+      const evaluated = evaluate(rule);
+      """
+
+      assert import_violations(innocent, "synthetic.ts") == []
+      assert process_members(innocent) == ~w(env execArgv exit)
     end
 
     test "an API client built twice, or from another base, is caught" do
@@ -2185,6 +2258,15 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
 
   defp mcp_sources, do: Enum.sort(Path.wildcard("mcp-server/src/**/*.ts"))
 
+  # The members of Node's `process` a source reads by a plain dotted access.
+  defp process_members(source) do
+    ~r/\bprocess\s*\.\s*([A-Za-z_$][\w$]*)/
+    |> Regex.scan(source, capture: :all_but_first)
+    |> List.flatten()
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
   defp relative?(specifier), do: String.starts_with?(specifier, ".")
 
   # `[{specifier, clause}]` of every static `import ... from` and
@@ -2223,7 +2305,45 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
         "#{path}:#{line_of(source, start)}: a dynamic import or require the scan cannot read"
       end)
 
-    static ++ dynamic
+    static ++ dynamic ++ unimported_module_violations(source, path)
+  end
+
+  # A module taken with no import statement (R-146). Node's `process` global
+  # hands out every built-in module (`getBuiltinModule`, `binding`,
+  # `dlopen`), so the companion reads `process` by a plain dotted access to a
+  # registered member and in no other way.
+  @unimported_module_forms [
+    {~r/\bprocess\s*(?:\[|\?\.|!|\bas\b)/, "process is indexed or cast, not read by a member"},
+    {~r/(?:[=(,:\[]|\breturn)\s*process\b(?!\s*[.\w])/, "process is handed on as a value"},
+    {~r/\.\s*process\b|["'`]process["'`]/, "process is reached through another object"},
+    {~r/\b(?:getBuiltinModule|_linkedBinding|dlopen|createRequire)\b/,
+     "a loader that takes a module without an import"},
+    {~r/\.\s*binding\b|\[\s*["'`]binding["'`]\s*\]/,
+     "a member named binding, which on process loads an internal module"},
+    {~r/\beval\s*\(|\bnew\s+Function\b|\bFunction\s*\(/,
+     "code built at run time, which the scan cannot read"}
+  ]
+
+  defp unimported_module_violations(source, path) do
+    members =
+      ~r/\bprocess\s*\.\s*([A-Za-z_$][\w$]*)/
+      |> Regex.scan(source, return: :index)
+      |> Enum.flat_map(fn [{start, _}, {at, length}] ->
+        member = binary_part(source, at, length)
+
+        if Map.has_key?(@mcp_process_members, member),
+          do: [],
+          else: ["#{path}:#{line_of(source, start)}: process.#{member} is not registered"]
+      end)
+
+    forms =
+      for {pattern, what} <- @unimported_module_forms,
+          [{start, length} | _] <- Regex.scan(pattern, source, return: :index) do
+        "#{path}:#{line_of(source, start)}: #{what}: " <>
+          String.trim(binary_part(source, start, length))
+      end
+
+    members ++ forms
   end
 
   # A module registered for some of its names: only a braced list of those.
