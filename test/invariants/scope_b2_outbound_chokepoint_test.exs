@@ -200,6 +200,10 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     "PHX_HOST" => {:config, "the name the endpoint serves and builds its URLs for"},
     "PORT" => {:config, "the web listener's port"},
     "PHX_BIND_ALL" => {:config, "binds the listener beyond loopback when set (ADR-0045 §2)"},
+    "PORTFOLIXIR_DEV_DEBUG_ERRORS" =>
+      {:config,
+       "compiles Phoenix's debug pages into a development server when on; off by default, " <>
+         "never read by a release (N-01)"},
     "PHX_SERVER" => {:config, "starts the listener in the test configuration for browser runs"},
     "PHX_FORCE_SSL" => {:config, "redirects plain HTTP and sets HSTS behind TLS (#759)"},
     "PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS" =>

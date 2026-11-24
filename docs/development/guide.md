@@ -50,15 +50,33 @@ Start the project with either:
 
   The development configuration reads `DATABASE_NAME`, `DATABASE_HOST` and
   `DATABASE_PORT` (default `portfolixir_dev` on `127.0.0.1:5432`), `PORT`
-  (default `4000`), `PHX_HOST`, `PHX_BIND_ALL`, `PORTFOLIXIR_ALLOWED_HOSTS`
-  and `PORTFOLIXIR_BACKGROUND_FETCH`; prefix every command of a recipe with
-  the same values. Logo discovery, the quote and FX sync, the news feeds'
+  (default `4000`), `PHX_HOST`, `PHX_BIND_ALL`, `PORTFOLIXIR_ALLOWED_HOSTS`,
+  `PORTFOLIXIR_BACKGROUND_FETCH` and `PORTFOLIXIR_DEV_DEBUG_ERRORS`; prefix
+  every command of a recipe with the same values. Logo discovery, the quote and FX sync, the news feeds'
   fetch and the chain read (Bitcoin's halvings, ADR-0059) run in development
   as they do in production; `PORTFOLIXIR_BACKGROUND_FETCH=off` leaves logo
   discovery, the quote and FX sync, the news feeds' fetch and the chain read
   off, and every demo seed command in `priv/demo/README.md` sets it, so a
   seed run makes no outbound call. A release reads the same
   switch ([Home Deployment](../home-deployment.html)).
+
+  Debug pages are off: an error is answered by the application's own error
+  page, as in a release. `PORTFOLIXIR_DEV_DEBUG_ERRORS=on` compiles Phoenix's
+  debug pages into the endpoint for a debugging session; leave it unset on a
+  server that runs as an instance. The switch is read when the endpoint is
+  compiled, so changing it takes a forced compile with the new value, and a
+  server started with another value than it was compiled with refuses to
+  boot and names the difference:
+
+  ```bash
+  PORTFOLIXIR_DEV_DEBUG_ERRORS=on mix compile --force
+  PORTFOLIXIR_DEV_DEBUG_ERRORS=on mix phx.server
+  ```
+
+  `mix compile --force` without the variable switches the pages off again.
+  The server signs sessions with `SECRET_KEY_BASE` when it is exported, and
+  otherwise with a key it generates once into `_build/dev_secret_key_base`;
+  no file in the repository holds one.
 
 - The test suite on a database of its own, for a second checkout or git
   worktree running it at the same time: `mix test` neither creates nor

@@ -684,7 +684,7 @@ defmodule Portfolixir.CITest do
 
     security = "SECURITY.md" |> File.read!() |> String.replace(~r/\s+/, " ")
     assert security =~ "`docker-compose.dev.yml`"
-    assert security =~ "public development secrets"
+    assert security =~ "a public database password"
 
     for {path, heading} <- [
           {"docs/home-deployment.md", "### Moving off the development stack"},

@@ -42,10 +42,13 @@ dev_hosts =
   |> Enum.reject(&(&1 == ""))
   |> Enum.uniq()
 
-# Public: committed here, so it signs nothing an operator should rely on; the
-# run-from-source route requires the UI password (README, SECURITY.md).
-dev_secret_key_base =
-  "dev_secret_key_base_which_should_be_changed_in_production_and_is_long_enough_for_sessions"
+# Debug pages are a developer's tool, off unless asked for (N-01): Phoenix
+# compiles its debugger into the endpoint only when this is true, and a
+# server run from source (README, "Run from source") is an instance, not a
+# debugging session. The switch is read when the endpoint is compiled: a
+# server started with another value than it was compiled with refuses to
+# boot and says so, until `mix compile --force` has run with the new value.
+dev_debug_errors? = switch_word.(System.get_env("PORTFOLIXIR_DEV_DEBUG_ERRORS"), false)
 
 config :portfolixir, PortfolixirWeb.Endpoint,
   url: [host: System.get_env("PHX_HOST", "localhost"), port: dev_http_port],
@@ -56,17 +59,11 @@ config :portfolixir, PortfolixirWeb.Endpoint,
   # The socket handshake accepts the names the Host guard accepts, as a
   # release's does (K18): the socket is dispatched ahead of the guard.
   check_origin: Enum.map(dev_hosts, &("//" <> &1)),
-  # Derived from the secret as config/runtime.exs derives a release's
-  # (Portfolixir.RuntimeConfig.derived_salt/2, inlined for the reason above).
-  live_view: [
-    signing_salt:
-      :hmac
-      |> :crypto.mac(:sha256, dev_secret_key_base, "portfolixir.live_view.signing_salt")
-      |> Base.url_encode64(padding: false)
-  ],
+  # No signing key and no LiveView salt here: no configuration file holds
+  # the key (N-01). config/runtime.exs sets both under :dev, the key from
+  # SECRET_KEY_BASE or generated per checkout, the salt derived from it.
   code_reloader: true,
-  debug_errors: true,
-  secret_key_base: dev_secret_key_base,
+  debug_errors: dev_debug_errors?,
   watchers: []
 
 config :portfolixir, PortfolixirWeb.HostGuard, hosts: dev_hosts

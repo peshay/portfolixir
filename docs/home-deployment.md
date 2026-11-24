@@ -701,18 +701,22 @@ browser extension injected script into it — the policy did its job.
 
 ## Development stack
 
-The development configuration — source mounted, Mix present, debug pages, a
-public session key, the database port published for local tooling — lives in
+The development configuration — source mounted, Mix present, a public
+database password, the database port published for local tooling — lives in
 `docker-compose.dev.yml` and is never the documented deployment:
 
 ```bash
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-It runs on public development secrets — the database password `postgres` and
-the `SECRET_KEY_BASE` committed in `config/dev.exs` — so both of its ports, the
+Its database password, `postgres`, is public, so both of its ports, the
 application's and the database's, are published on the host's loopback only,
-and it holds synthetic data only.
+and it holds synthetic data only. It signs sessions with a key generated once
+into `_build/dev_secret_key_base`, which lives in the stack's build volume
+and in no file of the repository, and it serves debug pages only when
+`PORTFOLIXIR_DEV_DEBUG_ERRORS=on` is set for it, in `.env` or in the shell
+that starts it, and the application was compiled with that value (the
+[development guide](development/guide.html) has the commands).
 
 It is a Compose project of its own, `portfolixir-dev`, with a database volume
 of its own (#932), so its containers and its reset never touch a production

@@ -161,8 +161,8 @@ every session everywhere. Either is the one to reach for when a device or a
 cookie may be in someone else's hands (ADR-0045).
 
 The development stack, `docker-compose.dev.yml`, is not a deployment. It runs
-on public development secrets: the database password `postgres` and the
-`SECRET_KEY_BASE` committed in `config/dev.exs`, with debug pages on. Anyone
+on a public database password, `postgres`, and its web UI asks for no login
+unless one is configured. Anyone
 who reaches its ports can read and change its data, so both
 its ports, the application's and the database's, are published on loopback
 only (E25), and it holds synthetic data, never an operator's real records. An
@@ -175,11 +175,19 @@ connects as the superuser `postgres` with the password `postgres`, which
 from every process on the machine; a release, by contrast, refuses to boot on
 an empty, placeholder or short database password.
 Running from source (`mix phx.server`, the README's "Run from source") uses
-the same development configuration and so the same public session key: its
-socket accepts only the names its Host guard does and its LiveView salt is
-derived from the secret, as a release's are, but anyone can sign a session for
-it, so that route requires `PORTFOLIXIR_UI_PASSWORD`, without which every
-process on the machine can use the UI (K18).
+the same development configuration: its socket accepts only the names its
+Host guard does, and its LiveView salt is derived from its signing key, as a
+release's are (K18). That key is in no file of the repository (N-01): a
+development server signs with `SECRET_KEY_BASE` when it is exported, held to
+the rules a release holds it to, and otherwise with a key it generates once
+per checkout into `_build/dev_secret_key_base`, which git does not track and
+only its owner can read; deleting that file ends every session of that
+server. Debug pages are off unless `PORTFOLIXIR_DEV_DEBUG_ERRORS` switches
+them on, which is for a developer's own session: a server that serves them
+shows its errors, with source lines and request details, to whoever reaches
+it. The web UI still asks for a login only when `PORTFOLIXIR_UI_PASSWORD` is
+set, so that route requires it: without it every process on the machine can
+use the UI.
 
 Known limits, recorded rather than hidden: as shipped, the application
 connects as the database's bootstrap superuser, which also owns the tables, so

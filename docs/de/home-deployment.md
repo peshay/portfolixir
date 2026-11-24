@@ -747,20 +747,25 @@ hat ihre Arbeit getan.
 
 ## Entwicklungs-Stack
 
-Die Entwicklungskonfiguration — Quelltext eingebunden, Mix vorhanden,
-Debug-Seiten, ein öffentlicher Sitzungsschlüssel, der Datenbank-Port für
-lokale Werkzeuge veröffentlicht — liegt in `docker-compose.dev.yml` und ist nie das
+Die Entwicklungskonfiguration — Quelltext eingebunden, Mix vorhanden, ein
+öffentliches Datenbankpasswort, der Datenbank-Port für lokale Werkzeuge
+veröffentlicht — liegt in `docker-compose.dev.yml` und ist nie das
 dokumentierte Deployment:
 
 ```bash
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-Der Stack läuft mit öffentlichen Entwicklungsgeheimnissen — dem Datenbankpasswort
-`postgres` und dem in `config/dev.exs` eingecheckten `SECRET_KEY_BASE` —,
-deshalb sind seine beiden Ports, der der Anwendung und der der Datenbank, nur
-auf der Loopback-Schnittstelle des Hosts veröffentlicht, und er enthält nur
-synthetische Daten.
+Sein Datenbankpasswort, `postgres`, ist öffentlich, deshalb sind seine beiden
+Ports, der der Anwendung und der der Datenbank, nur auf der
+Loopback-Schnittstelle des Hosts veröffentlicht, und er enthält nur
+synthetische Daten. Sitzungen signiert er mit einem Schlüssel, den er einmal
+nach `_build/dev_secret_key_base` erzeugt; die Datei liegt im Build-Volume des
+Stacks und in keiner Datei des Repositorys. Debug-Seiten liefert er nur aus,
+wenn `PORTFOLIXIR_DEV_DEBUG_ERRORS=on` für ihn gesetzt ist, in `.env` oder in
+der Shell, die ihn startet, und die Anwendung mit diesem Wert kompiliert
+wurde (die Befehle stehen im
+[Development Guide](../development/guide.html)).
 
 Er ist ein eigenes Compose-Projekt, `portfolixir-dev`, mit einem eigenen
 Datenbank-Volume (#932): Seine Container und sein Zurücksetzen berühren nie

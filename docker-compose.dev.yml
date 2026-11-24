@@ -1,12 +1,14 @@
-# The DEVELOPMENT configuration (#760): source mounted, Mix present, debug
-# pages, a public session key. Never the documented deployment — that is
+# The DEVELOPMENT configuration (#760): source mounted, Mix present, a public
+# database password. Never the documented deployment — that is
 # docker-compose.yml (a production release). Run with:
 #   docker compose -f docker-compose.dev.yml up --build
 # The database port is published for local tooling; the tokens have no
 # fallback so a development stack never authenticates with a public string.
 # Every port is published on loopback only (E25 S2): the database password
-# and the development secret key base are public values, so nothing beyond
-# this machine may reach either service.
+# is a public value, so nothing beyond this machine may reach either service.
+# The session key is generated once into the app-build volume
+# (_build/dev_secret_key_base), and debug pages are off unless
+# PORTFOLIXIR_DEV_DEBUG_ERRORS switches them on (N-01).
 #
 # A Compose project of its own (#932): without a name, this file and
 # docker-compose.yml both took the checkout directory's name, so in one
@@ -61,6 +63,10 @@ services:
       # "app" is the name the MCP companion reaches the app under.
       PORTFOLIXIR_ALLOWED_HOSTS: app
       PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}
+      # Debug pages for a developer at work: off unless .env or the shell
+      # says on and the application was compiled with that value
+      # (config/dev.exs, docs/development/guide.md).
+      PORTFOLIXIR_DEV_DEBUG_ERRORS: ${PORTFOLIXIR_DEV_DEBUG_ERRORS:-off}
       PORT: 4000
     # Descriptors above the listener's connection cap (500, config/config.exs),
     # so a flood of connections meets the cap, not the descriptor table.
