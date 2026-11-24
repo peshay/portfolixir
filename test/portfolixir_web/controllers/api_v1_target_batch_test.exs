@@ -124,7 +124,8 @@ defmodule PortfolixirWeb.ApiV1TargetBatchTest do
   end
 
   # The MCP companion's schema mirrors the fixed maximum, so an agent reads
-  # the bound where it builds the call.
+  # the bound where it builds the call. Each row of the batch is a closed
+  # object (N-08), which is how the validator's text reads.
   test "the MCP schema's maxItems is the API's fixed maximum" do
     source = File.read!("mcp-server/src/tools.ts")
     [schema] = Regex.run(~r/const targetsSetSchema = \{.*?\n\};/s, source)
@@ -132,6 +133,6 @@ defmodule PortfolixirWeb.ApiV1TargetBatchTest do
     assert schema =~ "maxItems: #{Targets.max_batch()}"
 
     assert source =~
-             ~r/target_weight: z\.string\(\)\s*\}\)\s*\)\s*\.min\(1\)\s*\.max\(#{Targets.max_batch()}\)/
+             ~r/target_weight: z\.string\(\)\s*\}\)\.strict\(\)\s*\)\s*\.min\(1\)\s*\.max\(#{Targets.max_batch()}\)/
   end
 end

@@ -56,8 +56,10 @@ export function serverInstructions(policy: ToolPolicy = {}): string {
  * closed objects included, rather than the schema the SDK would derive from
  * the validator, which carries neither. The validator still runs before any
  * API request (`callTool`), and a test holds it to the properties the
- * published schema names. Under a profile (A1, #992) it lists only that
- * profile's tools, and `callTool` refuses any other tool again at the call.
+ * published schema names and to the objects it closes: an argument a tool
+ * does not take is refused by name, never dropped (N-08). Under a profile
+ * (A1, #992) it lists only that profile's tools, and `callTool` refuses any
+ * other tool again at the call.
  * It offers three prompts (A4, #983; position_review, Sprint 25 F5), the
  * same under every agent profile and none under the news labeller's; the
  * first-setup and position-review prompts embed the profile that runs.

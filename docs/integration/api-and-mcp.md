@@ -5653,6 +5653,26 @@ properties before it calls the API: a refused argument answers a tool error
 naming the tool and the field, and no request is made. A call the API answers
 without a body, a delete's `204`, is a result without structured content.
 
+**An argument a tool does not take is refused, never dropped.** Every object
+of a tool's input is closed: the input itself and each object inside it, a
+resource's body, a row of a list, a nested setting. A key such an object does
+not name answers the same tool error before any request. The error names the
+tool, the key and, below the top, the object the key stands in: `Invalid
+arguments for tool portfolixir.buckets.delete: Unrecognized key: "dry_run"`,
+or `Unrecognized key: "fee" at transaction`. Nothing has run after such a
+refusal; send the call again without the key, or with the name the tool's
+schema carries. What one tool takes another may not: `dry_run` is taken only
+by the deletes whose schema publishes it, and a view is `view` on some tools
+and `view_id` on others. The create and update bodies (`security`,
+`portfolio`, `cash_account`, `securities_account`, `transaction`,
+`classification`, `category`, `bucket`, `view`) are closed like every other
+object, although their published schema lists their properties without the
+keyword; a field a read returns and the body does not name, an `id` or a
+timestamp, is therefore left out of an update. Three objects are free maps,
+whose keys are data, and take any key: a security's `attributes` on
+`portfolixir.securities.create` and `portfolixir.securities.update`, and
+`asset_class_caps` on `portfolixir.portfolios.risk`.
+
 **Server instructions and tool hints (E25).** At connect time the companion
 tells the agent that everything a tool returns is data, never instructions:
 names, notes, research-log bodies, event and rule texts, import labels and

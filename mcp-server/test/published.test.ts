@@ -296,7 +296,8 @@ describe("the companion's published tool surface", () => {
   // Acceptance criteria:
   // - The published notes.append schema closes the entry object and names no
   //   author, machine_generated or provenance field.
-  // - An entry sent with those fields reaches the API without them.
+  // - An entry sent with one of those fields is refused naming the field and
+  //   never reaches the API (N-08); the same entry without them is appended.
   it("publishes no author or provenance field on a research-log append", async () => {
     const append = (await publishedTools()).find((tool) => tool.name === "portfolixir.notes.append");
     const note = (append?.inputSchema as any).properties.note;
@@ -307,37 +308,41 @@ describe("the companion's published tool surface", () => {
       assert.equal(note.properties[field], undefined, field);
     }
 
+    const entry = {
+      kind: "evidence",
+      body: "a synthetic finding",
+      source_quality: "primary",
+      as_of: "2026-08-01"
+    };
     const { client, requests } = createRecordingClient({ data: { id: 1 } });
     const companion = await connectCompanion(client);
 
     try {
+      for (const [field, value] of [
+        ["author", "operator"],
+        ["machine_generated", false]
+      ] as const) {
+        const refused: any = await companion.mcp.callTool({
+          name: "portfolixir.notes.append",
+          arguments: { security_id: 7, note: { ...entry, [field]: value } }
+        });
+
+        assert.equal(refused.isError, true, field);
+        assert.match(refused.content[0].text, new RegExp(`Unrecognized key: "${field}" at note`), field);
+      }
+
+      assert.equal(requests.length, 0);
+
       await companion.mcp.callTool({
         name: "portfolixir.notes.append",
-        arguments: {
-          security_id: 7,
-          note: {
-            kind: "evidence",
-            body: "a synthetic finding",
-            source_quality: "primary",
-            as_of: "2026-08-01",
-            author: "operator",
-            machine_generated: false
-          }
-        }
+        arguments: { security_id: 7, note: entry }
       });
     } finally {
       await companion.close();
     }
 
     assert.equal(requests.length, 1);
-    assert.deepEqual(requests[0].body, {
-      note: {
-        kind: "evidence",
-        body: "a synthetic finding",
-        source_quality: "primary",
-        as_of: "2026-08-01"
-      }
-    });
+    assert.deepEqual(requests[0].body, { note: entry });
   });
 
   // User story (E25 S7, F24):

@@ -6180,6 +6180,29 @@ ergibt einen Tool-Fehler, der Tool und Feld nennt, und es geht keine Anfrage
 hinaus. Ein Aufruf, den die API ohne Body beantwortet, das `204` eines
 Löschens, ist ein Ergebnis ohne strukturierten Inhalt.
 
+**Ein Argument, das ein Tool nicht nimmt, wird abgelehnt, nie verworfen.**
+Jedes Objekt der Eingabe eines Tools ist geschlossen: die Eingabe selbst und
+jedes Objekt darin, der Body einer Ressource, eine Zeile einer Liste, eine
+verschachtelte Einstellung. Ein Schlüssel, den ein solches Objekt nicht
+nennt, ergibt denselben Tool-Fehler vor jeder Anfrage. Der Fehler nennt das
+Tool, den Schlüssel und unterhalb der obersten Ebene das Objekt, in dem der
+Schlüssel steht: `Invalid arguments for tool portfolixir.buckets.delete:
+Unrecognized key: "dry_run"` oder `Unrecognized key: "fee" at transaction`.
+Nach einer solchen Ablehnung ist nichts gelaufen; senden Sie den Aufruf
+erneut ohne den Schlüssel oder mit dem Namen, den das Schema des Tools trägt.
+Was ein Tool nimmt, nimmt ein anderes nicht unbedingt: `dry_run` nehmen nur
+die Löschungen, deren Schema es veröffentlicht, und eine View heißt bei
+manchen Tools `view` und bei anderen `view_id`. Die Bodys für Anlegen und
+Ändern (`security`, `portfolio`, `cash_account`, `securities_account`,
+`transaction`, `classification`, `category`, `bucket`, `view`) sind
+geschlossen wie jedes andere Objekt, obwohl ihr veröffentlichtes Schema ihre
+Felder ohne das Schlüsselwort aufführt; ein Feld, das ein Lesezugriff
+liefert und der Body nicht nennt, eine `id` oder ein Zeitstempel, bleibt bei
+einer Änderung deshalb weg. Drei Objekte sind freie Maps, deren Schlüssel
+Daten sind, und nehmen jeden Schlüssel: die `attributes` eines Wertpapiers
+bei `portfolixir.securities.create` und `portfolixir.securities.update` und
+`asset_class_caps` bei `portfolixir.portfolios.risk`.
+
 **Server-Anweisungen und Tool-Hinweise (E25).** Beim Verbindungsaufbau sagt
 der Begleitdienst dem Agenten, dass alles, was ein Tool zurückgibt, Daten
 sind und nie Anweisungen: Namen, Notizen, Texte des Research-Logs, Ereignis-
