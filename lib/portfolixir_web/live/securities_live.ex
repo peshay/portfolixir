@@ -5021,8 +5021,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
-  defp escaped(value), do: Phoenix.HTML.html_escape(value) |> safe_to_string()
-
   # The one staleness rule (issue 789), in two readings that must not be
   # confused. The *marker* is a finding, and a retired security's stopped feed
   # is expected, so it carries none (the same exception the filter makes). The
@@ -5370,56 +5368,49 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # The class cell, shared by the table and the phone row (#799): the two
   # render the same badge or remedy, under distinct form ids.
   #
-  # Every interpolated value goes through escaped/1 (html_escape |>
-  # safe_to_string) and the quick-assign form's options are built from
-  # AssetClasses.options() — compile-time constants — so no unescaped input
-  # reaches the markup. The annotation rides with the raw calls: it sat on
-  # render_cell/2 until issue 799 moved them here.
-  # sobelow_skip ["XSS.Raw"]
+  # R-148: the cell and its quick-assign form are HEEx like the other cells,
+  # so every value is escaped by construction, and this page has no raw/1
+  # call and no XSS.Raw skip left; securities_render_cell_test.exs holds
+  # both, and the markup byte for byte. Each template is one line because
+  # the markup has no whitespace between its elements: a line break between
+  # two tags would put a text node there.
   defp asset_class_cell(field, row, form_prefix) do
     case {security_from_row(row).asset_class, SecurityFields.value(field, row)} do
       # Stated by the operator: a plain badge, and no remediation prompt.
       {stored, _effective} when is_binary(stored) ->
-        Phoenix.HTML.raw(
-          ~s(<span class="badge" data-asset-class="stated">) <>
-            escaped(AssetClasses.label(stored)) <>
-            ~s(</span>)
-        )
+        assigns = %{label: AssetClasses.label(stored)}
+
+        ~H"""
+        <span class="badge" data-asset-class="stated"><%= @label %></span>
+        """
 
       # Not stated, but derivable: show what we derived, say that we derived it,
       # and still offer the control that turns it into a stated value.
       {nil, effective} when is_binary(effective) ->
-        Phoenix.HTML.raw(
-          ~s(<span class="badge badge--derived" data-asset-class="derived">) <>
-            ~s(<span class="visually-hidden">) <>
-            escaped(gettext("Derived:")) <>
-            ~s( </span>) <>
-            ~s(<span class="badge-derived-marker" aria-hidden="true">≈</span>) <>
-            escaped(AssetClasses.label(effective)) <>
-            ~s(</span>) <>
-            quick_assign_form(row, form_prefix)
-        )
+        assigns = %{label: AssetClasses.label(effective), row: row, form_prefix: form_prefix}
+
+        ~H"""
+        <span class="badge badge--derived" data-asset-class="derived"><span class="visually-hidden"><%= gettext("Derived:") %> </span><span class="badge-derived-marker" aria-hidden="true">≈</span><%= @label %></span><%= quick_assign_form(@row, @form_prefix) %>
+        """
 
       # Neither stated nor derivable.
       {nil, nil} ->
-        Phoenix.HTML.raw(quick_assign_form(row, form_prefix))
+        quick_assign_form(row, form_prefix)
     end
   end
 
   defp quick_assign_form(row, form_prefix) do
     sec_id = to_string(security_id(row))
 
-    options_html =
-      AssetClasses.options()
-      |> Enum.map_join("", fn {label, code} ->
-        ~s(<option value="#{escaped(code)}">#{escaped(label)}</option>)
-      end)
+    assigns = %{
+      form_id: "#{form_prefix}-#{sec_id}",
+      sec_id: sec_id,
+      options: AssetClasses.options()
+    }
 
-    ~s[<form id="#{form_prefix}-#{sec_id}" phx-change="quick_assign_asset_class" phx-value-id="#{sec_id}" data-swallow-click class="quick-assign-form">] <>
-      ~s[<select name="asset_class" class="quick-assign-select" aria-label="#{escaped(gettext("Assign asset class"))}">] <>
-      ~s[<option value="">—</option>] <>
-      options_html <>
-      ~s[</select></form>]
+    ~H"""
+    <form id={@form_id} phx-change="quick_assign_asset_class" phx-value-id={@sec_id} data-swallow-click class="quick-assign-form"><select name="asset_class" class="quick-assign-select" aria-label={gettext("Assign asset class")}><option value="">—</option><option :for={{label, code} <- @options} value={code}><%= label %></option></select></form>
+    """
   end
 
   # Decided on the figure as displayed (#1149): `places` is the precision
@@ -5467,8 +5458,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
        do: to_string(value)
 
   defp display_value(_key, _value), do: ""
-
-  defp safe_to_string({:safe, iodata}), do: IO.iodata_to_binary(iodata)
 
   attr(:findings, :list, required: true)
 
