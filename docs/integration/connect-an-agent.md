@@ -144,7 +144,8 @@ proxy. Where Node's own proxy is switched on (`NODE_USE_ENV_PROXY=1` or
 in `NO_PROXY` exactly as `PORTFOLIXIR_API_BASE_URL` writes it
 (`NO_PROXY=127.0.0.1,localhost,app`; `localhost` does not cover `127.0.0.1`).
 Otherwise the companion stops at start with exit status 1 and a line naming
-`NO_PROXY`.
+`NO_PROXY`. It reads the switch from what Node did with it, however the
+switch was given.
 
 ## First steps
 

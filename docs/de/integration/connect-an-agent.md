@@ -154,7 +154,9 @@ nie über einen Proxy. Wo der eigene Proxy von Node eingeschaltet ist
 oder `HTTPS_PROXY`), nennen Sie den API-Host in `NO_PROXY` genau so, wie
 `PORTFOLIXIR_API_BASE_URL` ihn schreibt (`NO_PROXY=127.0.0.1,localhost,app`;
 `localhost` deckt `127.0.0.1` nicht ab). Sonst stoppt der Begleitdienst beim
-Start mit dem Exit-Status 1 und einer Zeile, die `NO_PROXY` nennt.
+Start mit dem Exit-Status 1 und einer Zeile, die `NO_PROXY` nennt. Er liest
+den Schalter daran ab, was Node damit gemacht hat, wie auch immer der
+Schalter gesetzt wurde.
 
 ## Erste Schritte
 
