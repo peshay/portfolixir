@@ -155,6 +155,18 @@ der englischen Statusbezeichnung.
 `204 No Content` mit leerem Body. Clients sollten für diese erfolgreiche
 Löschantwort keinen JSON-Body parsen.
 
+**Parameter einer Löschung.** Ein `DELETE` nimmt nur die Parameter, die seine
+Route dokumentiert: `dry_run` bei den Löschungen, die einen Probelauf
+anbieten, `view` und `plan_id` bei den beiden Ziel-Löschungen, `name` bei den
+beiden `former_names`-Löschungen, und keinen bei jeder anderen. Jeder andere
+Query-Parameter oder Schlüssel im JSON-Body liefert `422` mit seinem Namen,
+`{"errors": {"dry_run": ["is unknown: this request takes no parameters"]}}`
+bei einer Löschung ohne Parameter und `["is unknown: this delete takes only
+dry_run"]` (oder die Liste der Route) bei einer mit Parametern, und nichts
+wird gelöscht. Ein Parameter einer Löschung wird befolgt oder abgelehnt, nie
+übergangen: `dry_run=true` an einer Löschung ohne Probelauf ist eine
+Ablehnung, nicht die Löschung.
+
 **IDs.** Jede ID ist eine positive Ganzzahl, die in ein PostgreSQL-`bigint`
 passt (höchstens `9223372036854775807`). Eine Pfad-ID, die fehlerhaft,
 unbekannt oder jenseits dieser Grenze ist, liefert `404`; eine ID jenseits der

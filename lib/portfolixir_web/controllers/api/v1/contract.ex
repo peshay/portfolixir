@@ -45,6 +45,48 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 32,
+      # The security review's fixes of 2026-11 (one PR). Each row appends its
+      # own summary sentence and items between its own markers.
+      date: ~D[2026-11-24],
+      summary:
+        Enum.join(
+          [
+            # --- N-07 begin ---
+            "N-07 (decision D-4): every DELETE under /api/v1 answers 422 for a query " <>
+              "parameter or a JSON body key its route does not take, naming it, and deletes " <>
+              "nothing; a parameter of a delete is honoured or refused, never ignored. No " <>
+              "endpoint or tool is added."
+            # --- N-07 end ---
+          ],
+          " "
+        ),
+      endpoints: [],
+      tools: [],
+      parameters: [
+        # --- N-07 begin ---
+        "every DELETE /api/v1/... route: a query parameter or JSON body key the route does " <>
+          "not take answers 422 errors.<key>, [\"is unknown: this request takes no " <>
+          "parameters\"] on a delete that takes none and [\"is unknown: this delete takes " <>
+          "only <its parameters>\"] on one that takes some, where it was dropped and the " <>
+          "delete ran (204, or the route's 200); the route's path parameters are not looked " <>
+          "at. dry_run stays taken by DELETE /api/v1/classifications/:id, " <>
+          "DELETE /api/v1/classifications/:classification_id/categories/:id, " <>
+          "DELETE /api/v1/views/:id and DELETE /api/v1/dashboards/:id; view and plan_id by " <>
+          "DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id and " <>
+          "DELETE /api/v1/portfolios/:portfolio_id/position_targets/:category_id/:security_id; " <>
+          "name by DELETE /api/v1/cash_accounts/:id/former_names and " <>
+          "DELETE /api/v1/securities_accounts/:id/former_names; every other DELETE takes " <>
+          "none, so dry_run=true asked of one of them is refused, not carried out. The " <>
+          "delete tools send what they sent before"
+        # --- N-07 end ---
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 31,
       # Sprint 31's sprint PR. Dated after entry 30, because since=
       # compares strictly after a date. Each story of the sprint appends its
