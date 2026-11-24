@@ -126,10 +126,23 @@ defmodule Portfolixir.News.Stories do
   are inserted or updated first (a representative is an existing item),
   then members move, then the merged stories, by then empty, are deleted.
 
+  **An item filed late enters its scope then** (F5, ADR-0056 amendment of
+  2026-11-24; C3's rule for a late assignment). An item is stored before
+  its story is written, in a transaction of its own, so a recluster that
+  failed leaves it assigned and in no story, and no read shows it. When a
+  later recluster files it, and that recluster's clock is later than the
+  item's `scope_at`, the item's `scope_at` becomes that clock: a reader
+  whose `since`, or whose confirmed position, lies after the item's first
+  sight still reads its story. `recluster_unfiled/1` is the sweep that
+  finds such items: every scope and language that holds one is
+  reclustered, each on its own.
+
   Stories and items are not journaled (B7): a staging area that retention
   empties, written by a system job.
   """
   import Ecto.Query
+
+  require Logger
 
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Classifications.Category
@@ -539,8 +552,59 @@ defmodule Portfolixir.News.Stories do
 
     case read do
       {[], []} -> {:ok, %{stories: 0, created: 0, merged: 0, moved: 0}}
-      {items, old} -> write(cluster(items, options), old, scope, language)
+      {items, old} -> write(cluster(items, options), old, {scope, language}, now)
     end
+  end
+
+  @doc """
+  Reclusters every scope and language that holds an assigned item in no
+  story (F5; see the moduledoc), at the server's clock `now`, each in a
+  transaction of its own. A scope whose recluster raises, exits or is
+  refused is named in the log and counted, and stops no other. Answers
+  the scopes tried and how many of them failed.
+
+  The news scheduler calls it on every tick, after that tick's fetches
+  (`Portfolixir.News.Scheduler`).
+  """
+  @spec recluster_unfiled(DateTime.t()) :: %{
+          scopes: non_neg_integer(),
+          failed: non_neg_integer()
+        }
+  def recluster_unfiled(%DateTime{} = now) do
+    from(i in Item,
+      where: i.assignment == :assigned and is_nil(i.cluster_id),
+      distinct: true,
+      select: {i.security_id, i.category_id, i.language}
+    )
+    |> Repo.all()
+    |> Enum.sort()
+    |> Enum.reduce(%{scopes: 0, failed: 0}, fn {security_id, category_id, language}, acc ->
+      scope = scope(%{security_id: security_id, category_id: category_id})
+
+      case file(scope, language, now) do
+        :ok ->
+          %{acc | scopes: acc.scopes + 1}
+
+        {:error, reason} ->
+          Logger.warning(
+            "news stories of #{inspect(scope)} (#{language}) not written, " <>
+              "its items wait for the next sweep: #{reason}"
+          )
+
+          %{acc | scopes: acc.scopes + 1, failed: acc.failed + 1}
+      end
+    end)
+  end
+
+  defp file(scope, language, now) do
+    case recluster(scope, language, now) do
+      {:ok, _summary} -> :ok
+      {:error, changeset} -> {:error, inspect(changeset.errors)}
+    end
+  rescue
+    exception -> {:error, Exception.message(exception)}
+  catch
+    :exit, reason -> {:error, "exit: " <> inspect(reason)}
   end
 
   # --- removing items -----------------------------------------------------
@@ -824,7 +888,7 @@ defmodule Portfolixir.News.Stories do
 
   defp merge_ranges([range | rest], merged), do: merge_ranges(rest, [range | merged])
 
-  defp write(stories, old, scope, language) do
+  defp write(stories, old, {scope, language}, now) do
     old_by_id = Map.new(old, &{&1.id, &1})
     survivors = survivors(stories)
 
@@ -846,7 +910,7 @@ defmodule Portfolixir.News.Stories do
     end)
     |> case do
       {:ok, written} ->
-        moved = Enum.reduce(written, 0, fn {story, id}, acc -> acc + move(story, id) end)
+        moved = Enum.reduce(written, 0, fn {story, id}, acc -> acc + move(story, id, now) end)
         merged = Map.keys(old_by_id) -- Map.values(survivors)
         Repo.delete_all(from(c in Cluster, where: c.id in ^merged))
 
@@ -905,18 +969,26 @@ defmodule Portfolixir.News.Stories do
     }
   end
 
-  defp move(story, cluster_id) do
-    case for(member <- story.members, member.cluster_id != cluster_id, do: member.id) do
-      [] ->
-        0
+  # The members that are not in the story yet move into it. F5: one that
+  # sat in no story and entered its scope before this recluster's clock is
+  # filed late, and enters its scope now (`scope_at`; never moved back).
+  defp move(story, cluster_id, now) do
+    {late, moving} =
+      story.members
+      |> Enum.filter(&(&1.cluster_id != cluster_id))
+      |> Enum.split_with(&(is_nil(&1.cluster_id) and DateTime.compare(&1.scope_at, now) == :lt))
 
-      ids ->
-        {count, _} =
-          Repo.update_all(from(i in Item, where: i.id in ^ids),
-            set: [cluster_id: cluster_id, updated_at: DateTime.utc_now()]
-          )
+    updated_at = DateTime.utc_now()
 
-        count
-    end
+    moved(moving, cluster_id: cluster_id, updated_at: updated_at) +
+      moved(late, cluster_id: cluster_id, scope_at: now, updated_at: updated_at)
+  end
+
+  defp moved([], _set), do: 0
+
+  defp moved(members, set) do
+    ids = Enum.map(members, & &1.id)
+    {count, _} = Repo.update_all(from(i in Item, where: i.id in ^ids), set: set)
+    count
   end
 end

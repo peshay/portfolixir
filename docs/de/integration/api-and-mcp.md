@@ -2475,7 +2475,15 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   (`cap`, `no_source`, `old`) und `blocked`. Ein verworfener Eintrag zählt
   einmal je Servertag, wie oft er auch abgerufen wird; verwirft ein Feed an
   einem Tag mehr als 1.000 verschiedene Einträge, zählen die weiteren bei
-  jedem Abruf, der sie nennt.
+  jedem Abruf, der sie nennt. Zuletzt `unfiled`: die zugeordneten Einträge,
+  die in keiner Story stehen, obwohl sie vor mehr als zwei Minuten in ihren
+  Bereich kamen. Ein Eintrag wird gespeichert, bevor seine Story geschrieben
+  wird; einer, dessen Story nicht geschrieben werden konnte, steht in keiner
+  Liste und keinem Digest, bis der nächste Tick des Schedulers ihn einordnet.
+  Von da an zählt er als neu, sodass ein Leser, der inzwischen bestätigt
+  hat, seine Story trotzdem liest. Bleibt `unfiled` über zwei Abfragen im
+  Abstand weniger Minuten über 0, können die Storys eines Bereichs nicht
+  geschrieben werden.
 - `GET /api/v1/news/digest` beantwortet, was neu ist, eine Zeile je
   Wertpapier: mit `view_id` die Wertpapiere, die diese Sicht hält, ohne sie
   das News-Universum (gehalten, mit einem Zielgewicht oder beobachtet).

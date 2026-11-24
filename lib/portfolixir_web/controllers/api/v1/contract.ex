@@ -73,8 +73,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- R-018 end ---
             # --- N-13 begin ---
             "N-13 (ADR-0056 F3): the health read's day counts of a feed stay exact up to " <>
-              "1,000 different dropped items a day and run ahead past that."
+              "1,000 different dropped items a day and run ahead past that.",
             # --- N-13 end ---
+            # --- N-15 begin ---
+            "N-15 (ADR-0056 F5): GET /api/v1/news/health answers unfiled, the assigned " <>
+              "items in no story that entered their scope more than 120 seconds ago; an item " <>
+              "filed late counts as new from the moment it is filed."
+            # --- N-15 end ---
           ],
           " "
         ),
@@ -139,8 +144,17 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/news/health (portfolixir.news.health), changed: a feed's dropped " <>
           "and blocked counts of the day stay exact while the feed drops up to 1,000 " <>
           "different items that day and run ahead for one that drops more; no field is " <>
-          "added or removed"
+          "added or removed",
         # --- N-13 end ---
+        # --- N-15 begin ---
+        "GET /api/v1/news/health (portfolixir.news.health), added: unfiled, the count " <>
+          "of assigned items in no story that entered their scope more than 120 seconds " <>
+          "ago (0 when every item is filed)",
+        "GET /api/v1/news/stories and GET /api/v1/news/digest (portfolixir.news.list, " <>
+          "portfolixir.news.digest), changed: an item filed into a story after its first " <>
+          "sight enters its scope at the filing, so since and a consumer's position read " <>
+          "it as new then"
+        # --- N-15 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],
