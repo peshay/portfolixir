@@ -1258,6 +1258,8 @@ Datenbanksicherung zurück.
   berechnet ihn. Auch der Abruf jedes Nachrichten-Feeds läuft unter der
   Grenze, in einem eigenen Task: Wächst einer darüber, wird er beendet, am
   Feed als `fetch_failed` vermerkt, und kein anderer Feed wird aufgehalten.
+  Ebenso der tägliche Aufräumlauf der Nachrichten: Wächst er darüber, wird
+  er beendet, protokolliert und eine Stunde später erneut gestartet.
   Die Performance-Berechnung hält rund 300 Bytes je
   gehaltenem Wertpapier und Tag, und gemessen erreicht eine Berechnung die
   Standardgrenze bei rund 600.000 gehaltenen Wertpapier-Tagen (etwa 160
