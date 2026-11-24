@@ -26,7 +26,7 @@ defmodule Portfolixir.CIGateOrderTest do
   # Red only for something a change did.
   @deterministic_gates [
     "mix credo --strict",
-    "mix sobelow --skip --exit",
+    "mix sobelow --skip --exit --no-config",
     "mix dialyzer --format short",
     "npm test --prefix mcp-server",
     "npm run build --prefix mcp-server"

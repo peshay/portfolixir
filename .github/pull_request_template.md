@@ -52,7 +52,7 @@ silence is not.
 - `mix test`:
 - `mix coveralls` (if applicable):
 - `mix credo --strict`:
-- `mix sobelow --skip --exit`:
+- `mix sobelow --skip --exit --no-config`:
 - `mix dialyzer --format short`:
 - `mix deps.unlock --check-unused`:
 - `mix hex.audit`:
@@ -71,7 +71,7 @@ mix gettext.extract --check-up-to-date
 mix test
 mix coveralls
 mix credo --strict
-mix sobelow --skip --exit
+mix sobelow --skip --exit --no-config
 mix dialyzer --format short
 mix deps.unlock --check-unused
 mix hex.audit
