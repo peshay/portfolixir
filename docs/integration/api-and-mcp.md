@@ -4473,7 +4473,20 @@ church tax withheld at a zero church-tax rate.
     `asset_class_caps[<asset_class>]` query param (a percentage, e.g.
     `asset_class_caps[equity]=50`). Only classes whose current percentage weight
     exceeds the cap come back, each with `asset_class`, `current_weight`, `cap`
-    and `overage` (current − cap, in percentage points).
+    and `overage` (current − cap, in percentage points). A cap is keyed by one
+    of the asset class codes (`equity`, `etf`, `fund`, `government_bond`,
+    `bond`, `crypto`, `commodity`, `index`, `warrant`, `knock_out`,
+    `factor_certificate`, `discount_certificate`, `bonus_certificate`,
+    `express_certificate`, `reverse_convertible`, `other`); any other key, in
+    any spelling, answers `422` naming it,
+    `{"errors": {"asset_class_caps[stock]": ["is unknown: asset_class_caps takes only the asset class codes equity, etf, ..."]}}`,
+    and nothing is read. `asset_class_caps` in the answer states the caps it
+    applied, decimal strings keyed by class (`{}` without caps), so an empty
+    list of violations reads apart from no caps.
+  - An inner key the three other maps do not take (`hhi_bands` takes `low` and
+    `high`, `stock_thresholds` `warn` and `hard`, `etf_thresholds` `warn`)
+    answers `422` naming it the same way,
+    `{"errors": {"hhi_bands[hig]": ["is unknown: hhi_bands takes only low, high"]}}`.
 
   The lens is a pure read-time derivation of the live valuation and the
   securities' asset classification — nothing is stored, so it is deterministic on

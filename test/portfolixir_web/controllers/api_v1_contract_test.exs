@@ -115,6 +115,25 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- R-019 end ---
 
+    # --- R-018 begin ---
+    # R-018 (decision AD-9): the risk read's closed caps and its echo.
+    assert newest["summary"] =~ "R-018 (decision AD-9): the risk read refuses a cap"
+
+    assert [risk_caps] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(&1, "GET /api/v1/portfolios/:portfolio_id/risk ")
+             )
+
+    for part <- [
+          "not one of the 16 asset class codes answers 422",
+          "etf_thresholds (warn)",
+          "data.asset_class_caps states the caps applied"
+        ],
+        do: assert(risk_caps =~ part, part)
+
+    # --- R-018 end ---
+
     # Sprint 31's sprint PR (version 31), found by version from the
     # 2026-11 security fixes on. Dated strictly after entry 30, so
     # since=2026-11-15 still returns it. Each story appends its own items

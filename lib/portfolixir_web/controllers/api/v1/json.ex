@@ -1724,6 +1724,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       top_n: risk.top_n,
       top_holdings: Enum.map(risk.top_holdings, &risk_holding/1),
       hhi: risk_hhi(risk.hhi),
+      asset_class_caps:
+        Map.new(risk.asset_class_caps, fn {class, cap} -> {class, decimal(cap)} end),
       asset_class_violations: Enum.map(risk.asset_class_violations, &risk_violation/1),
       metrics: portfolio_metrics(Map.get(risk, :metrics))
     }

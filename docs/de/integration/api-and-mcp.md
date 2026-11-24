@@ -4720,6 +4720,20 @@ Beispiel-Payloads für Konten:
     `asset_class_caps[equity]=50`) konfiguriert. Nur Klassen, deren aktuelles
     Prozentgewicht den Cap übersteigt, kommen zurück, je mit `asset_class`,
     `current_weight`, `cap` und `overage` (aktuell − Cap, in Prozentpunkten).
+    Ein Cap ist nach einem der Anlageklassen-Codes benannt (`equity`, `etf`,
+    `fund`, `government_bond`, `bond`, `crypto`, `commodity`, `index`,
+    `warrant`, `knock_out`, `factor_certificate`, `discount_certificate`,
+    `bonus_certificate`, `express_certificate`, `reverse_convertible`,
+    `other`); jeder andere Schlüssel, in jeder Schreibweise, liefert `422` mit
+    seinem Namen,
+    `{"errors": {"asset_class_caps[stock]": ["is unknown: asset_class_caps takes only the asset class codes equity, etf, ..."]}}`,
+    und nichts wird gelesen. `asset_class_caps` in der Antwort nennt die
+    angewandten Caps, Dezimal-Strings nach Klasse (`{}` ohne Caps), sodass
+    eine leere Liste von Verletzungen sich von keinem Cap unterscheidet.
+  - Ein innerer Schlüssel, den die drei anderen Maps nicht nehmen
+    (`hhi_bands` nimmt `low` und `high`, `stock_thresholds` `warn` und
+    `hard`, `etf_thresholds` `warn`), liefert ebenso `422` mit seinem Namen,
+    `{"errors": {"hhi_bands[hig]": ["is unknown: hhi_bands takes only low, high"]}}`.
 
   Die Sicht ist eine reine Lese-Ableitung der Live-Bewertung und der
   Anlageklassen-Klassifizierung — nichts wird gespeichert, sie ist also

@@ -64,8 +64,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- N-10 end ---
             # --- R-019 begin ---
             "R-019 (#1301's rule): the holdings read and the tax reads refuse a filter " <>
-              "value they cannot use, naming the parameter, where they dropped it."
+              "value they cannot use, naming the parameter, where they dropped it.",
             # --- R-019 end ---
+            # --- R-018 begin ---
+            "R-018 (decision AD-9): the risk read refuses a cap keyed by a word that is no " <>
+              "asset class, and an inner key its threshold and band maps do not take, " <>
+              "naming it, and echoes the caps it applied."
+            # --- R-018 end ---
           ],
           " "
         ),
@@ -114,8 +119,18 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/tax/trim_budget (portfolixir.tax_snapshots.trim_budget, unchanged): a " <>
           "tax_year that is sent and is not a whole year from 1 to 9999 answers 422 " <>
           "errors.tax_year [\"is invalid\"], where it answered " <>
-          "[\"is required\"]; an absent or empty tax_year keeps [\"is required\"]"
+          "[\"is required\"]; an absent or empty tax_year keeps [\"is required\"]",
         # --- R-019 end ---
+        # --- R-018 begin ---
+        "GET /api/v1/portfolios/:portfolio_id/risk (portfolixir.portfolios.risk): an " <>
+          "asset_class_caps key that is not one of the 16 asset class codes answers 422 " <>
+          "errors[\"asset_class_caps[<key>]\"], naming the codes, where it was read as a " <>
+          "class at 0 % and the answer said no class was over its cap; an inner key of " <>
+          "hhi_bands (low, high), stock_thresholds (warn, hard) or etf_thresholds (warn) " <>
+          "it does not take answers 422 errors[\"<map>[<key>]\"], where it was dropped " <>
+          "and the default applied; data.asset_class_caps states the caps applied, decimal " <>
+          "strings keyed by class, {} without caps"
+        # --- R-018 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],
