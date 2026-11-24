@@ -1326,3 +1326,18 @@ The work of one recluster is so bounded by A3's cap, the window and the
 800, none of which a feed chooses, and it needs memory linear in the items
 it reads. **To flip:** "news window by claim" (B3 as written; the bound
 then needs another rule). The 800: a number by comment.
+
+### F3. The record of a day's drops is bounded per feed and day (A3; N-13)
+
+A3 caps what a feed stores and counts the rest. Since the closing act of
+Sprint 27 a dropped item counts once per feed, link, reason and server day
+(COR4), which takes a record of the day's drops: `news_feed_drops`, one
+row per drop, holding a hash of the link and never the link.
+
+**That record holds at most 1,000 rows per feed and server day**, over
+every reason together: five times the items the feed may store in a day. A
+drop that finds no room has no row; it is still counted, and so at every
+fetch that lists it. The day's counters stay exact for a feed that drops
+up to a thousand different items a day, and run ahead for one that drops
+more, the feed A3 calls flooding. A day's rows go with that day's
+counters, 30 days later (§12). **To flip:** a number by comment.

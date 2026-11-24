@@ -2472,7 +2472,10 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   Tagen, von dessen Storys keine übernommen wurde; A3). Nichts schaltet einen
   Feed von selbst ab: Der Betreiber entscheidet. Dazu die Tageszähler
   `unassigned`, `ambiguous`, `dropped`
-  (`cap`, `no_source`, `old`) und `blocked`.
+  (`cap`, `no_source`, `old`) und `blocked`. Ein verworfener Eintrag zählt
+  einmal je Servertag, wie oft er auch abgerufen wird; verwirft ein Feed an
+  einem Tag mehr als 1.000 verschiedene Einträge, zählen die weiteren bei
+  jedem Abruf, der sie nennt.
 - `GET /api/v1/news/digest` beantwortet, was neu ist, eine Zeile je
   Wertpapier: mit `view_id` die Wertpapiere, die diese Sicht hält, ohne sie
   das News-Universum (gehalten, mit einem Zielgewicht oder beobachtet).

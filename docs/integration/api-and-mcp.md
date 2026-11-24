@@ -2259,7 +2259,9 @@ only the digest's `unlabeled` grows.
   feed with at least 50 items in 30 days and none of its stories promoted;
   A3). Nothing disables a feed by itself: the operator decides. Then the
   day's `unassigned`, `ambiguous`, `dropped` (`cap`, `no_source`, `old`)
-  and `blocked` counts.
+  and `blocked` counts. A dropped item counts once a server day however
+  often it is fetched; a feed that drops more than 1,000 different items
+  in a day is counted past them at every fetch that lists them.
 - `GET /api/v1/news/digest` answers what is new, one row per security: with
   `view_id` the securities that view holds, without it the news universe
   (held, carrying a target weight, or watched). `since` (default 24 hours

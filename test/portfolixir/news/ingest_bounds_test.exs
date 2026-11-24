@@ -164,4 +164,104 @@ defmodule Portfolixir.News.IngestBoundsTest do
       assert tier_read_entries(statements) <= 2 * length(domains)
     end
   end
+
+  defp old(n, tag) do
+    %Parsed{
+      title: "Synthetic archive notice #{tag} #{n}",
+      link: "https://newsroom.example.com/archive/#{tag}/#{n}",
+      published_at: DateTime.add(@now, -100, :day)
+    }
+  end
+
+  defp fresh(n, tag) do
+    %Parsed{
+      title: "Synthetic notice #{tag} #{n}",
+      link: "https://newsroom.example.com/fresh/#{tag}/#{n}"
+    }
+  end
+
+  defp drop_rows(feed),
+    do: Repo.aggregate(from(d in "news_feed_drops", where: d.feed_id == ^feed.id), :count)
+
+  defp day_row(feed) do
+    Repo.one!(
+      from(d in "news_feed_days",
+        where: d.feed_id == ^feed.id,
+        select: %{dropped_old: d.dropped_old, dropped_cap: d.dropped_cap}
+      )
+    )
+  end
+
+  # User story:
+  # As the operator,
+  # I want the record of which items a feed's day dropped bounded per feed
+  # and day, and what is dropped past it still counted,
+  # so that a feed that lists new links at every fetch costs a bounded
+  # number of rows, as it costs a bounded number of items (N-13).
+  #
+  # Acceptance criteria:
+  # - A feed keeps at most `Ingest.drop_rows_max/0` rows (1,000) of the
+  #   drop record for one server day, over every reason together, however
+  #   many items its answers drop.
+  # - Every drop is counted in the day's row. A drop that has a row counts
+  #   once that day, however often it is fetched (COR4); a drop past the
+  #   bound has none and counts at every fetch that lists it.
+  describe "the drop record of one feed and day" do
+    test "holds at most drop_rows_max rows, whatever the answers drop" do
+      feed = feed!(%{class: "issuer", security_id: security!().id})
+      max = 1_000
+
+      first = for n <- 1..(max + 300), do: old(n, "a")
+      assert {:ok, %{stored: 0, dropped_old: dropped}} = Ingest.ingest(feed, first, @now)
+      assert dropped == max + 300
+      assert drop_rows(feed) == max
+      assert day_row(feed).dropped_old == max + 300
+
+      # Other links, a fetch later: no row is added, and each is counted.
+      second = for n <- 1..(max + 300), do: old(n, "b")
+      later = DateTime.add(@now, 15, :minute)
+      assert {:ok, %{stored: 0, dropped_old: ^dropped}} = Ingest.ingest(feed, second, later)
+      assert drop_rows(feed) == max
+      assert day_row(feed).dropped_old == 2 * (max + 300)
+
+      assert Ingest.drop_rows_max() == max
+    end
+
+    test "a drop with a row counts once a day, one past the bound at each fetch" do
+      feed = feed!(%{class: "issuer", security_id: security!().id})
+      max = 1_000
+      answer = for n <- 1..(max + 50), do: old(n, "c")
+
+      assert {:ok, %{dropped_old: listed}} = Ingest.ingest(feed, answer, @now)
+      assert listed == max + 50
+      assert day_row(feed).dropped_old == max + 50
+
+      later = DateTime.add(@now, 15, :minute)
+      assert {:ok, %{dropped_old: ^listed}} = Ingest.ingest(feed, answer, later)
+      assert drop_rows(feed) == max
+      assert day_row(feed).dropped_old == max + 50 + 50
+    end
+
+    test "the bound is the feed's and the day's, over every reason together" do
+      feed = feed!(%{class: "issuer", security_id: security!().id})
+      max = 1_000
+
+      # 200 are stored (A3), 600 are past the cap, 600 are too old.
+      answer = for(n <- 1..800, do: fresh(n, "d")) ++ for(n <- 1..600, do: old(n, "d"))
+
+      assert {:ok, %{stored: 200, dropped_cap: 600, dropped_old: 600}} =
+               Ingest.ingest(feed, answer, @now)
+
+      assert drop_rows(feed) == max
+      assert %{dropped_cap: 600, dropped_old: 600} = day_row(feed)
+
+      # The next server day has room of its own.
+      tomorrow = DateTime.add(@now, 2, :day)
+
+      assert {:ok, %{dropped_old: 5}} =
+               Ingest.ingest(feed, for(n <- 1..5, do: old(n, "e")), tomorrow)
+
+      assert drop_rows(feed) == max + 5
+    end
+  end
 end

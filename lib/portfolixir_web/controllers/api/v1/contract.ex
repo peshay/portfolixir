@@ -69,8 +69,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- R-018 begin ---
             "R-018 (decision AD-9): the risk read refuses a cap keyed by a word that is no " <>
               "asset class, and an inner key its threshold and band maps do not take, " <>
-              "naming it, and echoes the caps it applied."
+              "naming it, and echoes the caps it applied.",
             # --- R-018 end ---
+            # --- N-13 begin ---
+            "N-13 (ADR-0056 F3): the health read's day counts of a feed stay exact up to " <>
+              "1,000 different dropped items a day and run ahead past that."
+            # --- N-13 end ---
           ],
           " "
         ),
@@ -129,8 +133,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "hhi_bands (low, high), stock_thresholds (warn, hard) or etf_thresholds (warn) " <>
           "it does not take answers 422 errors[\"<map>[<key>]\"], where it was dropped " <>
           "and the default applied; data.asset_class_caps states the caps applied, decimal " <>
-          "strings keyed by class, {} without caps"
+          "strings keyed by class, {} without caps",
         # --- R-018 end ---
+        # --- N-13 begin ---
+        "GET /api/v1/news/health (portfolixir.news.health), changed: a feed's dropped " <>
+          "and blocked counts of the day stay exact while the feed drops up to 1,000 " <>
+          "different items that day and run ahead for one that drops more; no field is " <>
+          "added or removed"
+        # --- N-13 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],
