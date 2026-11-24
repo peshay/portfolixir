@@ -1014,20 +1014,41 @@ defmodule Portfolixir.CITest do
   # and Dependabot's github-actions ecosystem still sees the version to bump.
   #
   # Acceptance criteria:
-  # - Every `uses:` line in every workflow names a 40-hex-digit commit and
-  #   carries a `# vX.Y.Z` comment.
+  # - Every `uses` of every workflow, read as a YAML parser reads the file
+  #   (N-81), names an action by a 40-hex-digit commit. That holds for a
+  #   step's `uses` and for a job's, which would call a reusable workflow.
+  # - Each stands on a line of its own that reads `uses: <action>@<commit>
+  #   # vX.Y.Z`, once for every time the workflow uses the action: the
+  #   comment is the one thing a parser drops, so the lines are read as text.
   test "every GitHub Actions step is pinned to a commit SHA" do
-    uses_lines =
-      for path <- Path.wildcard(".github/workflows/*.yml"),
-          line <- String.split(File.read!(path), "\n"),
-          String.contains?(line, "uses:"),
-          do: {path, String.trim(line)}
+    used =
+      for {path, workflow} <- parsed_workflows(),
+          {job, spec} <- workflow["jobs"],
+          holder <- [spec | spec["steps"] || []],
+          Map.has_key?(holder, "uses"),
+          do: {path, job, holder["uses"]}
 
-    assert uses_lines != []
+    assert used != []
 
-    for {path, line} <- uses_lines do
-      assert Regex.match?(~r|^uses: [\w.-]+/[\w.-]+@[0-9a-f]{40} # v\d+(\.\d+)*$|, line),
-             "#{path}: not pinned to a commit SHA with a version comment: #{line}"
+    for {path, job, action} <- used do
+      assert is_binary(action) and action =~ ~r|^[\w.-]+/[\w.-]+@[0-9a-f]{40}$|,
+             "#{path}: job #{job} uses an action that is not pinned to a commit SHA: " <>
+               inspect(action)
+    end
+
+    for {{path, action}, uses} <-
+          Enum.frequencies_by(used, fn {path, _job, action} -> {path, action} end) do
+      commented =
+        path
+        |> File.read!()
+        |> String.split("\n")
+        |> Enum.count(
+          &(String.trim(&1) =~ ~r/^(- )?uses: #{Regex.escape(action)} # v\d+(\.\d+)*$/)
+        )
+
+      assert commented == uses,
+             "#{path} uses #{action} #{uses} time(s) and has #{commented} line(s) " <>
+               "`uses: #{action} # vX.Y.Z`"
     end
   end
 
@@ -1237,34 +1258,39 @@ defmodule Portfolixir.CITest do
   # text, and no later step -- a dependency's install script, a hook -- finds
   # the token in .git/config.
   #
-  # Acceptance criteria:
-  # - No `run:` script in any workflow contains a `${{ }}` context expression;
-  #   the values reach the script through the step's `env:`.
-  # - Every actions/checkout step sets `persist-credentials: false`: no
-  #   workflow here pushes.
+  # Acceptance criteria, read from the workflows as a YAML parser reads them
+  # (N-81):
+  # - No step's `run` script in any workflow contains a `${{ }}` context
+  #   expression; the values reach the script through the step's `env:`.
+  # - Every actions/checkout step sets `with.persist-credentials` to `false`:
+  #   no workflow here pushes.
   # - The migration gate diffs against the pull request's immutable base SHA,
   #   passed through env, instead of a branch name fetched at run time.
   test "run scripts read no context expressions and checkouts keep no token" do
     checked =
-      for {path, workflow} <- workflows() do
-        scripts = run_scripts(workflow)
+      for {path, workflow} <- parsed_workflows() do
+        steps = for {_job, spec} <- workflow["jobs"], step <- spec["steps"] || [], do: step
+        scripts = for step <- steps, Map.has_key?(step, "run"), do: step["run"]
 
         for script <- scripts do
+          assert is_binary(script), "#{path}: a `run` that is no script: #{inspect(script)}"
+
           refute script =~ "${{",
                  "#{path}: a run script interpolates a context expression:\n#{script}"
         end
 
-        checkouts = for step <- steps(workflow), step =~ "uses: actions/checkout@", do: step
+        checkouts =
+          for step <- steps, to_string(step["uses"]) =~ ~r/^actions\/checkout(@|$)/, do: step
 
         for checkout <- checkouts do
-          assert checkout =~ ~r/^\s+persist-credentials: false$/m,
-                 "#{path}: a checkout leaves the job token in .git/config:\n#{checkout}"
+          assert get_in(checkout, ["with", "persist-credentials"]) == false,
+                 "#{path}: a checkout leaves the job token in .git/config: #{inspect(checkout)}"
         end
 
         {length(scripts), length(checkouts)}
       end
 
-    # The parser found what it polices, so a passing run is not a vacuous one.
+    # The walk found what it polices, so a passing run is not a vacuous one.
     assert Enum.sum(for {scripts, _} <- checked, do: scripts) > 0
     assert Enum.sum(for {_, checkouts} <- checked, do: checkouts) > 0
 
@@ -1902,10 +1928,6 @@ defmodule Portfolixir.CITest do
   defp job!(yaml, name) do
     [job] = Regex.run(~r/^  #{Regex.escape(name)}:\n(?:(?:    .*| *)\n)*/m, yaml)
     job
-  end
-
-  defp workflows do
-    for path <- Path.wildcard(".github/workflows/*.yml"), do: {path, File.read!(path)}
   end
 
   # The script under every `run:` key: the inline scalar, or a block scalar's
