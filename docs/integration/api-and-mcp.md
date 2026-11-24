@@ -141,6 +141,17 @@ bound of 2,000,000 bytes `413`, an unknown route `404`, an internal error `500`,
 `204 No Content` with an empty body. Clients should not parse a JSON body for
 that successful delete response.
 
+**Parameters of a delete.** A `DELETE` takes only the parameters its route
+documents: `dry_run` on the deletes that offer a dry run, `view` and
+`plan_id` on the two target deletes, `name` on the two `former_names`
+deletes, and none on every other. Any other query parameter or JSON body key
+answers `422` naming it, `{"errors": {"dry_run": ["is unknown: this request
+takes no parameters"]}}` on a delete that takes none and `["is unknown: this
+delete takes only dry_run"]` (or the route's own list) on one that takes
+some, and nothing is deleted. A parameter of a delete is honoured or
+refused, never ignored: `dry_run=true` asked of a delete that offers no dry
+run is a refusal, not the delete.
+
 **Ids.** Every id is a positive integer that fits a PostgreSQL `bigint`
 (at most `9223372036854775807`). A path id that is malformed, unknown or past
 that bound answers `404`; an id past the bound in a query string or a JSON body

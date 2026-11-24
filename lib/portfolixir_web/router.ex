@@ -67,6 +67,9 @@ defmodule PortfolixirWeb.Router do
     # #1291 (ADR-0003, amended): a write refuses a JSON number in a money,
     # quantity, price, fee, tax or rate field, for every route.
     plug(PortfolixirWeb.Api.V1.DecimalStringGuard)
+    # N-07: a DELETE answers 422 for a query or body key its route does not
+    # declare (`metadata: %{delete_takes: [...]}`), for every route.
+    plug(PortfolixirWeb.Api.V1.DeleteParamsGuard)
   end
 
   scope "/", PortfolixirWeb do
@@ -314,14 +317,18 @@ defmodule PortfolixirWeb.Router do
     get("/portfolios/:portfolio_id/policy_findings", PolicyFindingController, :index)
     get("/portfolios/:portfolio_id/targets", TargetController, :index)
     put("/portfolios/:portfolio_id/targets", TargetController, :set)
-    delete("/portfolios/:portfolio_id/targets/:category_id", TargetController, :delete)
+
+    delete("/portfolios/:portfolio_id/targets/:category_id", TargetController, :delete,
+      metadata: %{delete_takes: ~w(view plan_id)}
+    )
 
     get("/portfolios/:portfolio_id/position_targets", TargetController, :index_positions)
 
     delete(
       "/portfolios/:portfolio_id/position_targets/:category_id/:security_id",
       TargetController,
-      :delete_position
+      :delete_position,
+      metadata: %{delete_takes: ~w(view plan_id)}
     )
 
     get("/portfolios/:portfolio_id/cash_target", TargetController, :show_cash_target)
@@ -369,7 +376,11 @@ defmodule PortfolixirWeb.Router do
     get("/classifications", ClassificationController, :index)
     post("/classifications", ClassificationController, :create)
     patch("/classifications/:id", ClassificationController, :update)
-    delete("/classifications/:id", ClassificationController, :delete)
+
+    delete("/classifications/:id", ClassificationController, :delete,
+      metadata: %{delete_takes: ~w(dry_run)}
+    )
+
     put("/classifications/:classification_id/assignments", ClassificationController, :assign)
 
     put(
@@ -393,7 +404,8 @@ defmodule PortfolixirWeb.Router do
     delete(
       "/classifications/:classification_id/categories/:id",
       ClassificationController,
-      :delete_category
+      :delete_category,
+      metadata: %{delete_takes: ~w(dry_run)}
     )
 
     delete(
@@ -408,7 +420,11 @@ defmodule PortfolixirWeb.Router do
     patch("/cash_accounts/:id", CashAccountController, :update)
     post("/cash_accounts/:id/balance", CashAccountController, :set_balance)
     delete("/cash_accounts/:id", CashAccountController, :delete)
-    delete("/cash_accounts/:id/former_names", CashAccountController, :remove_former_name)
+
+    delete("/cash_accounts/:id/former_names", CashAccountController, :remove_former_name,
+      metadata: %{delete_takes: ~w(name)}
+    )
+
     # ADR-0050 §7, §10: the merge of a cash account into another — a read
     # that previews it, and the apply under the preview's digest.
     get("/cash_accounts/:id/merge_preview", MergeController, :cash_account_preview)
@@ -423,7 +439,8 @@ defmodule PortfolixirWeb.Router do
     delete(
       "/securities_accounts/:id/former_names",
       SecuritiesAccountController,
-      :remove_former_name
+      :remove_former_name,
+      metadata: %{delete_takes: ~w(name)}
     )
 
     # ADR-0050 §7, §10: the merge of a depot into another — a read that
@@ -441,7 +458,7 @@ defmodule PortfolixirWeb.Router do
     post("/views", ViewController, :create)
     get("/views/:id", ViewController, :show)
     patch("/views/:id", ViewController, :update)
-    delete("/views/:id", ViewController, :delete)
+    delete("/views/:id", ViewController, :delete, metadata: %{delete_takes: ~w(dry_run)})
     put("/views/:id/buckets", ViewController, :set_buckets)
     get("/views/:view_id/valuation", ViewValuationController, :show)
     # #1007 (D-5): the total across every portfolio, the view read with no view.
@@ -544,7 +561,11 @@ defmodule PortfolixirWeb.Router do
     get("/dashboards/:id", DashboardController, :show)
     put("/dashboards/:id", DashboardController, :replace)
     patch("/dashboards/:id", DashboardController, :update)
-    delete("/dashboards/:id", DashboardController, :delete)
+
+    delete("/dashboards/:id", DashboardController, :delete,
+      metadata: %{delete_takes: ~w(dry_run)}
+    )
+
     # --- S31 D2 end ---
 
     put("/securities_accounts/:id/buckets", BucketAssignmentController, :set_depot_buckets)

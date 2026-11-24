@@ -49,9 +49,41 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 31's sprint PR (version 31). Dated strictly after entry 30, so
+    # The security review's fixes of 2026-11 (version 32, one PR). Dated
+    # strictly after entry 31, so since=2026-11-21 still returns it. Each row
+    # appends its own items between its own markers.
+    assert newest["version"] == 32
+    assert newest["date"] == "2026-11-24"
+    assert newest["endpoints"] == []
+    assert newest["tools"] == []
+
+    # --- N-07 begin ---
+    # N-07 (decision D-4): a DELETE refuses a parameter its route does not
+    # take; no endpoint or tool.
+    assert newest["summary"] =~ "N-07 (decision D-4): every DELETE under /api/v1 answers 422"
+
+    assert [delete_rule] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(&1, "every DELETE /api/v1/... route: ")
+             )
+
+    for part <- [
+          "is unknown: this request takes no parameters",
+          "is unknown: this delete takes only <its parameters>",
+          "DELETE /api/v1/dashboards/:id",
+          "DELETE /api/v1/securities_accounts/:id/former_names",
+          "dry_run=true asked of one of them is refused, not carried out"
+        ],
+        do: assert(delete_rule =~ part, part)
+
+    # --- N-07 end ---
+
+    # Sprint 31's sprint PR (version 31), found by version from the
+    # 2026-11 security fixes on. Dated strictly after entry 30, so
     # since=2026-11-15 still returns it. Each story appends its own items
     # between its own markers.
+    newest = Enum.find(data["entries"], &(&1["version"] == 31))
     assert newest["version"] == 31
     assert newest["date"] == "2026-11-21"
 
