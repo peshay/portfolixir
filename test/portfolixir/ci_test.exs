@@ -15,6 +15,38 @@ defmodule Portfolixir.CITest do
     {"GIT_COMMITTER_EMAIL", "author@example.invalid"}
   ]
 
+  # Every command of ci.yml whose failure must turn the run red, with the job
+  # that holds it and the `if:` its step carries (nil: none). A gate is the
+  # whole of its step's `run`, so the text here is the whole script: nothing
+  # before, after or beside the command decides the step's exit status.
+  @runs_after_a_red_step "${{ !cancelled() }}"
+  @gates [
+    {"pre-commit", "pre-commit run --all-files", nil},
+    {"test", "mix format --check-formatted", nil},
+    {"test", "set -o pipefail\nMIX_ENV=test mix coveralls.json 2>&1 | tee test-output.log", nil},
+    {"quality", "mix deps.unlock --check-unused", nil},
+    {"quality", "mix compile --force --warnings-as-errors", nil},
+    {"quality", "mix gettext.extract --check-up-to-date", nil},
+    {"quality", "npm test --prefix mcp-server", nil},
+    {"quality", "npm run build --prefix mcp-server", nil},
+    {"quality", "mix credo --strict", nil},
+    {"quality", "mix sobelow --skip --exit", nil},
+    {"quality", "mix dialyzer --format short", nil},
+    {"advisories", "mix hex.audit", nil},
+    {"advisories", "mix deps.audit", @runs_after_a_red_step},
+    {"advisories", "npm audit --audit-level=high --prefix mcp-server", @runs_after_a_red_step},
+    {"advisories", "npm audit --audit-level=high --prefix test/browser", @runs_after_a_red_step},
+    {"browser", "mix test test/browser --only browser", nil},
+    {"migration-roundtrip",
+     "MIX_ENV=test mix ecto.migrate\nMIX_ENV=test mix ecto.rollback\nMIX_ENV=test mix ecto.migrate",
+     nil},
+    {"migration-roundtrip", "MIX_ENV=test mix test --only seeded_upgrade", nil}
+  ]
+
+  # A run script that discards a command's exit status: `|| true`, `|| :`,
+  # `set +e` in any of its spellings.
+  @discards_exit_status ~r/\|\|\s*(?:true|:)(?:[\s;)]|$)|\bset\s+\+[a-z]*e|\bset\s+\+o\s+errexit/
+
   # Long enough that an edit keeps it above git's 50% rename-similarity
   # threshold, so a renamed-and-edited copy is reported as a rename.
   @migration """
@@ -85,7 +117,7 @@ defmodule Portfolixir.CITest do
     ci_workflow = File.read!(".github/workflows/ci.yml")
     mix_file = File.read!("mix.exs")
 
-    assert ci_workflow =~ "mix deps.audit"
+    assert gate_step!("advisories", "mix deps.audit")
     assert mix_file =~ ":mix_audit"
     refute ci_workflow =~ "intentionally NOT wired"
   end
@@ -969,8 +1001,8 @@ defmodule Portfolixir.CITest do
     end
 
     refute ci_workflow =~ "mix local.hex"
-    assert ci_workflow =~ "run: mix hex.audit"
-    assert ci_workflow =~ "run: mix deps.audit"
+    assert gate_step!("advisories", "mix hex.audit")
+    assert gate_step!("advisories", "mix deps.audit")
     refute ci_workflow =~ "--ignore-advisory-ids"
   end
 
@@ -1126,24 +1158,75 @@ defmodule Portfolixir.CITest do
   #   (Node 26, the pinned line) — CI 1558 ran it before, on the image's npm,
   #   and failed on the retiring quick-audit endpoint's 400.
   # - The gate is unchanged: `--audit-level=high`, no `|| true`, no
-  #   `continue-on-error`.
+  #   `continue-on-error`. The step is its command, its name and
+  #   `if: ${{ !cancelled() }}`, and nothing else.
   test "the npm audit runs on the pinned Node and keeps its level" do
-    ci = File.read!(".github/workflows/ci.yml")
-    [_before, advisories] = String.split(ci, ~r/^  advisories:$/m, parts: 2)
-    advisories = advisories |> String.split(~r/^  [a-z-]+:$/m) |> hd()
+    steps = ci_jobs()["advisories"]["steps"]
+    audit_step = gate_step!("advisories", "npm audit --audit-level=high --prefix mcp-server")
 
-    {setup_node, _} = :binary.match(advisories, "uses: actions/setup-node@")
+    setup_node =
+      Enum.find_index(steps, &String.starts_with?(&1["uses"] || "", "actions/setup-node@"))
 
-    {audit, _} =
-      :binary.match(advisories, "run: npm audit --audit-level=high --prefix mcp-server")
+    audit = Enum.find_index(steps, &(&1 == audit_step))
 
     assert setup_node < audit, "the npm audit runs before the pinned Node is set up"
-    assert advisories =~ ~s(node-version: "26")
+    assert get_in(Enum.at(steps, setup_node), ["with", "node-version"]) == "26"
 
-    audit_step = binary_part(advisories, audit, byte_size(advisories) - audit)
-    audit_step = audit_step |> String.split("\n      - name:") |> hd()
-    refute audit_step =~ "|| true"
-    refute audit_step =~ "continue-on-error"
+    assert Enum.sort(Map.keys(audit_step)) == ["if", "name", "run"]
+    assert audit_step["if"] == @runs_after_a_red_step
+  end
+
+  # User story (security review 2026-11, N-79):
+  # As the owner whose merge rests on green gates instead of a read of the
+  # workflows,
+  # I want every gate pinned as the whole of a step that fails its job, and
+  # no job or step allowed to fail without failing the run,
+  # so that a workflow change that makes a gate optional fails a test instead
+  # of passing every one.
+  #
+  # Acceptance criteria, read from the workflows as a YAML parser reads them:
+  # - Each gate of the list above is a step of its job whose `run` is the
+  #   gate's text and nothing else, with no key beside its name and, where
+  #   the list says so, `if: ${{ !cancelled() }}`. The job that holds it has
+  #   no `if:` of its own.
+  # - No job and no step of any workflow carries `continue-on-error`.
+  # - No run script of any workflow discards a command's exit status
+  #   (`|| true`, `|| :`, `set +e`), and no workflow or job replaces the
+  #   shell: the runner's default for a `run:` script is `bash -e`.
+  test "every gate is the whole of a step that can fail the run" do
+    jobs = ci_jobs()
+
+    for {job, command, condition} <- @gates do
+      step = gate_step!(job, command)
+
+      assert Enum.sort(Map.keys(step)) == if(condition, do: ~w(if name run), else: ~w(name run)),
+             "job #{job}: the step `#{step["name"]}` carries more than its gate: " <>
+               inspect(Map.drop(step, ["name", "run"]))
+
+      assert step["if"] == condition, "job #{job}: `#{step["name"]}` runs on `#{step["if"]}`"
+
+      refute Map.has_key?(jobs[job], "if"),
+             "job #{job} holds a gate and runs on a condition: #{inspect(jobs[job]["if"])}"
+    end
+
+    for {path, workflow} <- parsed_workflows() do
+      refute Map.has_key?(workflow, "defaults"), "#{path} replaces the default shell"
+
+      for {job, spec} <- workflow["jobs"] do
+        for key <- ~w(continue-on-error defaults) do
+          refute Map.has_key?(spec, key), "#{path}: job #{job} carries `#{key}`"
+        end
+
+        for step <- spec["steps"] || [] do
+          refute Map.has_key?(step, "continue-on-error"),
+                 "#{path}: job #{job}, step `#{step["name"]}` carries `continue-on-error`"
+
+          refute to_string(step["run"]) =~ @discards_exit_status,
+                 "#{path}: job #{job}, step `#{step["name"]}` discards an exit status:\n" <>
+                   to_string(step["run"])
+        end
+      end
+    end
   end
 
   # User story (E25 S8, F61 -- #893):
@@ -1787,6 +1870,32 @@ defmodule Portfolixir.CITest do
   end
 
   defp ci_workflow, do: File.read!(".github/workflows/ci.yml")
+
+  # Every workflow as a YAML parser reads it, which is how the runner reads
+  # it: how a key is quoted or spaced, and where in its step it stands, makes
+  # no difference to what a test finds.
+  defp parsed_workflows do
+    for path <- Path.wildcard(".github/workflows/*.{yml,yaml}") do
+      {path, YamlElixir.read_from_file!(path)}
+    end
+  end
+
+  defp ci_jobs, do: YamlElixir.read_from_file!(".github/workflows/ci.yml")["jobs"]
+
+  # The one step of `job` whose whole run script is `command`.
+  defp gate_step!(job, command) do
+    steps =
+      for step <- Map.fetch!(ci_jobs(), job)["steps"],
+          is_binary(step["run"]),
+          String.trim(step["run"]) == command,
+          do: step
+
+    assert length(steps) == 1,
+           "job #{job} must hold exactly one step whose `run` is, in full:\n#{command}\n" <>
+             "found #{length(steps)}"
+
+    hd(steps)
+  end
 
   # One job of a workflow: its `  name:` line under `jobs:` and every
   # following line up to the next job's.

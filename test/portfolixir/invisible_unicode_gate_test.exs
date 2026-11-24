@@ -258,7 +258,16 @@ defmodule Portfolixir.InvisibleUnicodeGateTest do
              "no pre-commit hook runs the unit tests in scripts/"
 
       assert File.exists?(Path.join(ctx.repo, "scripts/test_check_invisible_unicode.py"))
-      assert ci =~ "run: pre-commit run --all-files"
+
+      # The pre-commit job runs every hook, as the whole of one step: read
+      # as a YAML parser reads the workflow (N-79; ci_test pins the step's
+      # shape with every other gate's).
+      pre_commit_runs =
+        for step <- YamlElixir.read_from_string!(ci)["jobs"]["pre-commit"]["steps"],
+            is_binary(step["run"]),
+            do: String.trim(step["run"])
+
+      assert "pre-commit run --all-files" in pre_commit_runs
     end
   end
 end

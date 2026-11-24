@@ -3,16 +3,25 @@ defmodule Portfolixir.CIGateOrderTest do
   # rules: a step without a status function in its `if:` runs only while no
   # earlier step of its job failed (an implicit `success() &&`); `always()`
   # and `!cancelled()` run regardless; `failure()` runs only after a failure;
-  # `continue-on-error: true` keeps the job green; a job runs only when every
-  # job it `needs:` succeeded. Non-status operands (`steps.x.outputs.y ==
-  # 'true'`, `github.event_name == ...`) are taken as true, the worst case for
-  # the claim being tested.
+  # `continue-on-error: true` on a step keeps the job green, and on a job
+  # keeps the run green; a job runs only when every job it `needs:`
+  # succeeded. Non-status operands (`steps.x.outputs.y == 'true'`,
+  # `github.event_name == ...`) are taken as true, the worst case for the
+  # claim being tested. The model does not read a script's shell: that a
+  # gate's step is its command and nothing else is ci_test's
+  # "every gate is the whole of a step that can fail the run".
   use ExUnit.Case, async: true
 
   defp workflow_path, do: ".github/workflows/ci.yml"
 
   # Red with nobody pushing: they read a live advisory or retirement feed.
-  @live_feed_audits ["mix hex.audit", "mix deps.audit", "npm audit"]
+  # Each is named in full, so that a probe fails one step and no other.
+  @live_feed_audits [
+    "mix hex.audit",
+    "mix deps.audit",
+    "npm audit --audit-level=high --prefix mcp-server",
+    "npm audit --audit-level=high --prefix test/browser"
+  ]
 
   # Red only for something a change did.
   @deterministic_gates [
@@ -75,10 +84,12 @@ defmodule Portfolixir.CIGateOrderTest do
     # judge every change while the feed is red.
     #
     # Acceptance criteria:
-    # - With any one live-feed audit (`mix hex.audit`, `mix deps.audit`,
-    #   `npm audit`) red, every deterministic gate still runs.
-    # - The red audit still fails the run: no `continue-on-error`.
-    # - One red live-feed audit does not hide the other two.
+    # - With any one live-feed audit (`mix hex.audit`, `mix deps.audit`, the
+    #   companion's `npm audit`, the browser tests' `npm audit`) red, every
+    #   deterministic gate still runs.
+    # - The red audit still fails the run: no `continue-on-error`, on its
+    #   step or on its job (N-79).
+    # - One red live-feed audit does not hide the others.
     test "every deterministic gate still runs while a live-feed audit is red, and the audit stays blocking" do
       wf = workflow()
 
@@ -177,7 +188,9 @@ defmodule Portfolixir.CIGateOrderTest do
 
       if holds?(job["if"], needs_failed?) do
         {ran, failed?} = run_steps(job["steps"] || [], failing)
-        result = if failed?, do: :failure, else: :success
+        # A job that may fail (`continue-on-error: true`) does not fail the
+        # run, and the jobs that need it go on.
+        result = if failed? and not continues?(job), do: :failure, else: :success
         Map.put(acc, name, %{ran: ran, ran_names: Enum.map(ran, &elem(&1, 0)), result: result})
       else
         Map.put(acc, name, %{ran: [], ran_names: [], result: :skipped})
@@ -191,8 +204,7 @@ defmodule Portfolixir.CIGateOrderTest do
         if holds?(step["if"], failed?) do
           script = step["run"]
           fails? = is_binary(script) and String.contains?(script, failing)
-          continue? = step["continue-on-error"] in [true, "true"]
-          {[{step["name"], script} | ran], failed? or (fails? and not continue?)}
+          {[{step["name"], script} | ran], failed? or (fails? and not continues?(step))}
         else
           {ran, failed?}
         end
@@ -200,6 +212,10 @@ defmodule Portfolixir.CIGateOrderTest do
 
     {Enum.reverse(ran), failed?}
   end
+
+  # `continue-on-error`, on a step or on a job. Anything but an absent key or
+  # a plain `false` counts: an expression is taken as true, the worst case.
+  defp continues?(step_or_job), do: step_or_job["continue-on-error"] not in [nil, false, "false"]
 
   # An `if:` without a status function is `success() && (...)`.
   defp holds?(nil, failed?), do: not failed?
