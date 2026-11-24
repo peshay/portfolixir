@@ -109,6 +109,43 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
     ])
   end
 
+  # User story (security review 2026-11, N-93):
+  # As an operator who points the companion at an API on another host, or
+  # binds its listener beyond loopback,
+  # I want the agent guide to say which of the two is named at start and
+  # what travels unencrypted on each link,
+  # so that I put TLS where a token crosses a link I do not own.
+  #
+  # Acceptance criteria:
+  # - The EN and DE agent guides state the one warning line for a plain-http
+  #   API base beyond this machine, which hosts are not named (loopback, a
+  #   name without a dot), that the companion starts all the same, and the
+  #   remedy.
+  # - They state that no such line is given for the companion's own
+  #   listener, what a client then sends unencrypted, and why.
+  test "the agent guides say when the companion names a plain-http link at start" do
+    assert_fragments([
+      {"docs/integration/connect-an-agent.md",
+       [
+         "The companion speaks plain HTTP on both sides",
+         "is named in one warning line at start: every API call would carry the API token unencrypted over that link",
+         "nor a name without a dot (how a container network names a neighbour, as Compose's `app`)",
+         "The companion starts all the same; use an `https://` base there",
+         "It gives no such line for its own listener",
+         "clients send `PORTFOLIXIR_MCP_TOKEN` over plain HTTP unless a proxy that terminates TLS stands in front"
+       ]},
+      {"docs/de/integration/connect-an-agent.md",
+       [
+         "Der Begleitdienst spricht auf beiden Seiten unverschlüsseltes HTTP",
+         "wird beim Start in einer Warnzeile genannt: Jeder API-Aufruf trüge das API-Token unverschlüsselt über diese Verbindung",
+         "noch ein Name ohne Punkt ist (so nennt ein Container-Netz einen Nachbarn, wie `app` bei Compose)",
+         "Der Begleitdienst startet trotzdem; verwenden Sie dort eine `https://`-Basis",
+         "Für seinen eigenen Listener gibt er keine solche Zeile aus",
+         "senden Clients `PORTFOLIXIR_MCP_TOKEN` über unverschlüsseltes HTTP, solange kein Proxy davorsteht, der TLS terminiert"
+       ]}
+    ])
+  end
+
   # User story (E25 S7, F22):
   # As an operator running the companion over HTTP,
   # I want the reference to say that a foreign Host is refused first,

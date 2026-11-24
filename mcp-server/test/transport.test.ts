@@ -1026,4 +1026,51 @@ describe("the built companion over its real transports", () => {
       }
     });
   }
+
+  // User story (security review 2026-11, N-93):
+  // As the operator who starts the companion against an API on another host
+  // over plain http,
+  // I want the built companion to say so once on stderr and start all the
+  // same,
+  // so that the hint stands where I read a start, and nothing I run stops.
+  //
+  // Acceptance criteria:
+  // - With a plain-http base beyond this machine the built companion starts
+  //   (it ends with its input, exit 0), and stderr is one line naming the
+  //   variable and the host. The line does not carry the API token.
+  // - With the base on this machine stderr stays empty.
+  // - Nothing is contacted: the companion calls the API for a tool only.
+  //   The address is one reserved for documentation.
+  it("warns once at start when the API token would cross a plain-http link, and starts", { timeout: 60_000 }, async () => {
+    const start = async (baseUrl: string): Promise<{ code: number | null; stderr: string }> => {
+      const companion = spawnCompanion({
+        PORTFOLIXIR_API_BASE_URL: baseUrl,
+        PORTFOLIXIR_API_TOKEN: apiToken,
+        PORTFOLIXIR_MCP_TRANSPORT: "stdio"
+      });
+      const exited = once(companion.child, "close");
+      companion.child.stdin.end();
+
+      try {
+        const [code] = await within(exited, 15_000, "the companion's exit");
+        return { code, stderr: companion.stderr() };
+      } finally {
+        await companion.stop();
+      }
+    };
+
+    const beyond = await start("http://192.0.2.10:4000");
+    const lines = beyond.stderr.split(/\r?\n/).filter((line) => line !== "");
+
+    assert.equal(beyond.code, 0, beyond.stderr);
+    assert.equal(lines.length, 1, beyond.stderr);
+    assert.match(lines[0], /PORTFOLIXIR_API_BASE_URL/);
+    assert.match(lines[0], /plain http to 192\.0\.2\.10/);
+    assert.ok(!beyond.stderr.includes(apiToken), "the line carries the API token");
+
+    const here = await start("http://127.0.0.1:4000");
+
+    assert.equal(here.code, 0, here.stderr);
+    assert.equal(here.stderr, "");
+  });
 });
