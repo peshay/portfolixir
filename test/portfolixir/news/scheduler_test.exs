@@ -305,6 +305,41 @@ defmodule Portfolixir.News.SchedulerTest do
       assert reload(healthy).last_error == nil
     end
 
+    # N-11: the fetch's task carries the heap cap every request and page
+    # process has (`Portfolixir.HeapCap`), so an answer cannot make its task
+    # grow without limit; the runtime's kill is recorded as any other
+    # failure of the task, on its own feed.
+    test "a feed's fetch runs under the heap cap, and a killed one is its own feed's error" do
+      capped = issuer_feed!()
+      killed = issuer_feed!()
+      test_pid = self()
+
+      fetch = fn feed, opts ->
+        send(test_pid, {:heap, feed.id, Process.info(self(), :max_heap_size)})
+        if feed.id == killed.id, do: Process.exit(self(), :kill)
+        News.Fetcher.fetch(feed, opts)
+      end
+
+      body = rss([%{title: "Northwind ships", link: "https://newsroom.example.com/s/3"}])
+
+      {results, log} =
+        with_log(fn ->
+          News.fetch_due(@t0, static(body) ++ [fetch: fetch, clock: fn -> @t0 end]) |> Map.new()
+        end)
+
+      for feed <- [capped, killed] do
+        id = feed.id
+        assert_received {:heap, ^id, {:max_heap_size, flag}}
+        assert flag.size == Portfolixir.HeapCap.max_heap_words()
+        assert flag.kill
+      end
+
+      assert {:ok, %{stored: 1}} = results[capped.id]
+      assert {:error, "fetch_failed"} = results[killed.id]
+      assert log =~ "news feed #{killed.id}: fetch_failed"
+      assert %{last_error: "fetch_failed", last_ok_at: nil} = reload(killed)
+    end
+
     test "fetch_now fetches one feed on demand, and refuses a disabled or unknown one" do
       feed = issuer_feed!(%{interval_minutes: 180})
       body = rss([%{title: "Northwind ships", link: "https://newsroom.example.com/s/9"}])

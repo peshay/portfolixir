@@ -17,7 +17,9 @@ description: "Decision for gate B3.3, narrowed to news (idea F12, idea I21; exte
   2026-11-09 by the Sprint 28 build and its closing act, adopted by the
   merge of that sprint PR (see "Amendment of 2026-11-09"), and amended on
   2026-11-12 by the merge of the Sprint 29 planning PR (see "Amendment of
-  2026-11-12" at the end). The merge opens gate B3.3
+  2026-11-12"), and amended on 2026-11-24 with the fixes of the security
+  review of 2026-11-11, adopted by the merge of the pull request that
+  carries them (see "Amendment of 2026-11-24" at the end). The merge opens gate B3.3
   **for news feeds only**; every other kind of acquisition (bank, broker
   and wallet sync, F13; CPI and other series) stays behind it.
 - **Date:** 2026-11-05
@@ -1237,3 +1239,50 @@ the link's domain and opens the link, and prints no link in full.
 | Resolve aggregator redirects at ingest | the report's premise | **Deferred**, unchanged — "news follow" (§2, D9) |
 
 D5 and D10 stay open questions, unchanged by this amendment.
+
+## Amendment of 2026-11-24: bounds behind the parser, and failures that stay their own
+
+**Adopted by the merge of the pull request that carries it.** The security
+review of 2026-11-10 and 2026-11-11 (its triage of 2026-11-11, idea I40)
+read the news layer as built against this record. A1 and A3 bound what a
+feed's answer may be. This amendment bounds what the ingest, the clustering
+and the retention then do with it, and keeps a failure in one scope from
+stopping the work for another. Each item names the review's finding it
+answers. None books or corrects a stored money figure.
+
+### F1. A host has a domain name's length, and the tier work of one answer is bounded (A1, A3, E1; N-11)
+
+A1 bounds the answer's bytes, depth and item count, and E1 has a fetch take
+the tier locks of its items' domains. Neither said how long a host may be
+or how many domains one answer may make the ingest work on.
+
+- **The parser hands over no host longer than a domain name** (253 bytes):
+  a link with a longer host is no link, and a `<source>` with one names no
+  source. This joins A1's bounds.
+- **A domain is checked for its shape before anything is derived from
+  it.** The ingest refuses a domain that has not a domain's shape (at most
+  253 bytes, labels of letters, digits and hyphens) before it reads the
+  tier table or takes a tier lock for it. Such an item counts `invalid`,
+  as before: the item's own check refused it then, after that work.
+- **The tier table is read with one entry per domain**, never with every
+  suffix of every domain. §3's rule is unchanged: the longest stored
+  suffix on a label boundary decides. A name longer than a domain name is
+  read as itself only.
+- **One answer takes at most 512 tier locks** (E1, "Order"). A blocked
+  domain's items are still dropped before the cap and take no room; that
+  read of the tier table takes no lock. Then the items are admitted in the
+  feed's own order, as many as A3's 200 in 24 hours leave room for and
+  only while the tier locks of their domains (one per suffix) fit 512;
+  the rest counts `dropped_cap` and is stored by a later fetch that lists
+  it, the day's room allowing. What is admitted is rated again under its
+  tier locks, held to the commit, so E1's order holds for every stored
+  item: none is stored with an old tier after a re-rating committed. An
+  item a rating blocked between the two reads is dropped
+  (`dropped_blocked`) and its room is left unused for that fetch. An
+  answer of ordinary sources does not reach the bound: 200 items of 200
+  unrelated three-label domains take 400 locks. **To flip:** a number by
+  comment.
+- **A feed's fetch runs under the heap cap** every request and page
+  process has (512 MiB by default, `Portfolixir.HeapCap`). A fetch grown
+  past it is killed, recorded on its feed as `fetch_failed`, and stops no
+  other feed (§5).

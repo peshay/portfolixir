@@ -89,6 +89,25 @@ defmodule Portfolixir.News.SourcesTest do
                }
     end
 
+    # N-11: what a lookup costs is bounded by the names it is given, not by
+    # their labels. A name longer than a domain name (253 bytes) is no
+    # domain: it is looked up as itself only, so no row decides it. A
+    # single-label row still matches only itself.
+    test "a name longer than a domain name is looked up as itself only" do
+      {:ok, _} = Sources.put_source(@agent, "long.sources-test.example.net", :blocked)
+      {:ok, _} = Sources.put_source(@agent, "sources-test-single", :blocked)
+
+      inside = String.duplicate("a.", 100) <> "long.sources-test.example.net"
+      beyond = String.duplicate("a.", 300) <> "long.sources-test.example.net"
+      assert byte_size(inside) <= 253 and byte_size(beyond) > 253
+
+      assert Sources.lookup([inside, beyond]) == %{inside => :blocked}
+      refute Sources.blocked?(beyond)
+
+      assert Sources.blocked?("sources-test-single")
+      refute Sources.blocked?("x.sources-test-single")
+    end
+
     test "tier/2 is the same rule without the table" do
       assert Sources.tier(:issuer, nil) == :primary
       assert Sources.tier(:aggregator, nil) == :awareness

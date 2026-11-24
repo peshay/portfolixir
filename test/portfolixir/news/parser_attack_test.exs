@@ -360,6 +360,47 @@ defmodule Portfolixir.News.ParserAttackTest do
     end
   end
 
+  # User story:
+  # As the operator,
+  # I want a link or a `<source>` whose host is longer than a domain name
+  # can be read as no link and no source,
+  # so that nothing behind the parser works on a host name no source has
+  # (N-11).
+  #
+  # Acceptance criteria:
+  # - A link whose host is longer than 253 bytes is nil: the item is
+  #   handed over without a link.
+  # - A `<source>` with such a host gives no source domain.
+  # - A host of exactly 253 bytes is read.
+  describe "a host's length" do
+    defp host_of(bytes), do: String.duplicate("a.", div(bytes - 7, 2)) <> "example"
+
+    defp linked(host) do
+      @rss_open <>
+        "<item><title>Synthetic item</title><link>https://#{host}/a</link>" <>
+        ~s(<source url="https://#{host}/">Source</source></item>) <> @rss_close
+    end
+
+    test "a host longer than a domain name is no link and no source" do
+      long = host_of(601)
+      assert byte_size(long) == 601
+
+      assert {:ok, %{items: [item]}} = Parser.parse(linked(long))
+      assert item.title == "Synthetic item"
+      assert item.link == nil
+      assert item.source_domain == nil
+    end
+
+    test "a host of exactly 253 bytes is read" do
+      longest = host_of(253)
+      assert byte_size(longest) == 253
+
+      assert {:ok, %{items: [item]}} = Parser.parse(linked(longest))
+      assert item.link == "https://#{longest}/a"
+      assert item.source_domain == longest
+    end
+  end
+
   test "every refusal names a reason from the fixed set" do
     assert Parser.refusal_reasons() == [
              :too_large,

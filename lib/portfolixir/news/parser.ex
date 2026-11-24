@@ -5,8 +5,8 @@ defmodule Portfolixir.News.Parser.Item do
 
     * `title`, `excerpt` — plain text (`Portfolixir.News.Text`), capped at
       160 and 600 code points; nil when the feed sent none.
-    * `link` — an absolute `http` or `https` URL of at most 2,048 bytes, or
-      nil.
+    * `link` — an absolute `http` or `https` URL of at most 2,048 bytes
+      whose host is at most 253 bytes, or nil.
     * `guid` — RSS `guid` or Atom `id` as plain text of at most 512 code
       points, or nil.
     * `published_at` — a UTC `DateTime` to the second, or nil when the feed's
@@ -476,7 +476,10 @@ defmodule Portfolixir.News.Parser do
   # `javascript:` or `data:` URL) is nil. So is a link with a backslash
   # (closing act of Sprint 29, F2; A1): a browser reads `\` as `/` where
   # RFC 3986 does not, so `https://attacker.example\@ir.example/` would be
-  # stored under one host and open another.
+  # stored under one host and open another. So is a link whose host is
+  # longer than a domain name (253 bytes, N-11): no source has such a
+  # host, and what the ingest derives from an item's host is bounded by
+  # that length.
   defp http_url(nil), do: nil
 
   defp http_url(raw) do
@@ -490,6 +493,7 @@ defmodule Portfolixir.News.Parser do
          %URI{scheme: scheme, host: host}
          when is_binary(scheme) and is_binary(host) and host != "" <-
            URI.parse(url),
+         true <- byte_size(host) <= Shapes.domain_max(),
          true <- String.downcase(scheme) in ["http", "https"] do
       url
     else

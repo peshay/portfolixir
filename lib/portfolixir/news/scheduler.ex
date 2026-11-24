@@ -22,11 +22,13 @@ defmodule Portfolixir.News.Scheduler do
   minutes.
 
   **Isolation.** Each feed is fetched in its own task under
-  `Portfolixir.News.Tasks`, with a time of its own (2 minutes): a fetch
-  that raises is recorded on its feed as `fetch_failed`, one that outlives
-  its time is killed and recorded as `timeout`, and neither stops another
-  feed's fetch. One run at a time: a tick that finds the last run still
-  going skips.
+  `Portfolixir.News.Tasks`, with a time of its own (2 minutes) and under
+  the heap cap every request and page process has
+  (`Portfolixir.HeapCap`, N-11): a fetch that raises, or that the runtime
+  kills past the cap, is recorded on its feed as `fetch_failed`, one that
+  outlives its time is killed and recorded as `timeout`, and none of them
+  stops another feed's fetch. One run at a time: a tick that finds the
+  last run still going skips.
 
   **Retention** (§12, N6). The first tick of each server day
   (`Portfolixir.Clock.local_date/1`) also runs the retention
@@ -45,6 +47,7 @@ defmodule Portfolixir.News.Scheduler do
   import Ecto.Query
 
   alias Portfolixir.Clock
+  alias Portfolixir.HeapCap
   alias Portfolixir.News.Feed
   alias Portfolixir.News.Fetcher
   alias Portfolixir.News.Retention
@@ -149,8 +152,11 @@ defmodule Portfolixir.News.Scheduler do
     end)
   end
 
-  # A raise inside one feed's fetch stays that feed's.
+  # A raise inside one feed's fetch stays that feed's, and so does what
+  # the fetch allocates: the task caps its own heap first (N-11), as a
+  # request's process does.
   defp guarded(fetch, feed, opts) do
+    HeapCap.cap!()
     fetch.(feed, opts)
   rescue
     exception -> {:crashed, Exception.message(exception)}
