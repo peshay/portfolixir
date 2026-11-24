@@ -158,6 +158,19 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- N-15 end ---
 
+    # --- N-18 begin ---
+    assert newest["summary"] =~ "N-18 (ADR-0056 F8, decision D-5):"
+
+    assert ("POST /api/v1/securities/:security_id/notes with note.cluster_id " <>
+              "(portfolixir.notes.append), changed: source_quality counts a rated source by " <>
+              "its row of the tier table and one feed's claims once, so it answers unverified " <>
+              "where it answered secondary_multi for one row under two host names or for two " <>
+              "domains named by one feed; an entry already written keeps its grade") in newest[
+             "parameters"
+           ]
+
+    # --- N-18 end ---
+
     # Sprint 31's sprint PR (version 31), found by version from the
     # 2026-11 security fixes on. Dated strictly after entry 30, so
     # since=2026-11-15 still returns it. Each story appends its own items

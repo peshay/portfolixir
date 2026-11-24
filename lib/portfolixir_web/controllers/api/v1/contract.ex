@@ -78,8 +78,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- N-15 begin ---
             "N-15 (ADR-0056 F5): GET /api/v1/news/health answers unfiled, the assigned " <>
               "items in no story that entered their scope more than 120 seconds ago; an item " <>
-              "filed late counts as new from the moment it is filed."
+              "filed late counts as new from the moment it is filed.",
             # --- N-15 end ---
+            # --- N-18 begin ---
+            "N-18 (ADR-0056 F8, decision D-5): an entry written from a story grades " <>
+              "secondary_multi only for two distinct rated sources that reached the story " <>
+              "through two different feeds."
+            # --- N-18 end ---
           ],
           " "
         ),
@@ -153,8 +158,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/news/stories and GET /api/v1/news/digest (portfolixir.news.list, " <>
           "portfolixir.news.digest), changed: an item filed into a story after its first " <>
           "sight enters its scope at the filing, so since and a consumer's position read " <>
-          "it as new then"
+          "it as new then",
         # --- N-15 end ---
+        # --- N-18 begin ---
+        "POST /api/v1/securities/:security_id/notes with note.cluster_id " <>
+          "(portfolixir.notes.append), changed: source_quality counts a rated source by " <>
+          "its row of the tier table and one feed's claims once, so it answers unverified " <>
+          "where it answered secondary_multi for one row under two host names or for two " <>
+          "domains named by one feed; an entry already written keeps its grade"
+        # --- N-18 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

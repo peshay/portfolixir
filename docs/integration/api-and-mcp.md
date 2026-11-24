@@ -921,8 +921,12 @@ sent instead; another kind answers `422` naming `kind`); `as_of` the day the
 story was published (its representative's publication, as `news.get`
 answers it); `source_url` the link of its best-tier member (every stored
 link fits an entry's 2,048 characters); `source_quality` by ADR-0056 §3's rule (a `primary`
-member gives `primary`, two or more distinct `secondary` domains
-`secondary_multi`, one `unverified`, else `awareness`), each member at the
+member gives `primary`; two distinct `secondary` sources that reached the
+story through two different feeds `secondary_multi`; any other `secondary`
+member `unverified`; else `awareness`. A source is the rated row a member's
+domain reads, so a name with and without `www.` and a name and its subdomain
+are one source, and two rated domains named by one feed's items are that
+feed's claims and count once: ADR-0056 F8), each member at the
 tier the source table gives it now, so a second promotion after a re-rating
 states the new tier, and a member whose domain is now blocked is left out
 (of the quality and of the link; ADR-0056 E1 rule 5); `headline` its title
