@@ -213,6 +213,50 @@ defmodule Portfolixir.ApiTokenPolicyTest do
              ~r/if config_env\(\) == :dev do\n(?:  .*\n|\n)*?.*RuntimeConfig\.dev_api_tokens\(/
   end
 
+  # User story (security review 2026-11, N-35):
+  # As a contributor starting the development stack,
+  # I want its API token held to the rule CONTRIBUTING.md states,
+  # so that the stack starts only with a token of my own.
+  #
+  # Acceptance criteria:
+  # - docker-compose.dev.yml names the app's principal, as docker-compose.yml
+  #   does, so development builds its principals by the release's rules.
+  # - With the environment that file gives the app, the placeholder
+  #   .env.example prints and a token under 32 bytes are refused, naming the
+  #   variable; a sound token is taken under the name `mcp`.
+  # - CONTRIBUTING.md states the rule.
+  test "the development stack holds its API token to the release's rules" do
+    [app] = Regex.run(~r/^  app:\n(?:    .*\n|\n)*/m, File.read!("docker-compose.dev.yml"))
+
+    assert app =~
+             "PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}"
+
+    assert [_, principal] = Regex.run(~r/^      PORTFOLIXIR_API_PRINCIPAL: (\S+)$/m, app)
+    assert principal == "mcp"
+
+    [_, placeholder] =
+      Regex.run(~r/^PORTFOLIXIR_API_TOKEN=(\S+)$/m, File.read!(".env.example"))
+
+    assert_raise ArgumentError, ~r/^PORTFOLIXIR_API_TOKEN is a placeholder/, fn ->
+      RuntimeConfig.dev_api_tokens(placeholder, nil, principal)
+    end
+
+    for short <- ["x", String.duplicate("k7Qm", 7) <> "abc"] do
+      assert_raise ArgumentError, ~r/^PORTFOLIXIR_API_TOKEN must be at least 32 bytes/, fn ->
+        RuntimeConfig.dev_api_tokens(short, nil, principal)
+      end
+    end
+
+    sound = Base.encode64(:crypto.strong_rand_bytes(48))
+    assert RuntimeConfig.dev_api_tokens(sound, nil, principal) == [{"mcp", sound}]
+
+    contributing = "CONTRIBUTING.md" |> File.read!() |> String.replace(~r/\s+/, " ")
+
+    assert contributing =~
+             "Both local bearer tokens must be at least 32 bytes and not a placeholder, or " <>
+               "the app and the companion refuse to start"
+  end
+
   # User story (E25 S1, F01):
   # As a maintainer,
   # I want the MCP companion's token policy pinned to the API token's,

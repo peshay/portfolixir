@@ -63,6 +63,12 @@ services:
       # "app" is the name the MCP companion reaches the app under.
       PORTFOLIXIR_ALLOWED_HOSTS: app
       PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}
+      # Named as the production file names it (N-35): with a principal set,
+      # the development server builds its principals by the release's rules,
+      # so it refuses a placeholder or a token under 32 bytes at boot, as
+      # CONTRIBUTING.md says, and the journal names "mcp" for the
+      # companion's writes.
+      PORTFOLIXIR_API_PRINCIPAL: mcp
       # Debug pages for a developer at work: off unless .env or the shell
       # says on and the application was compiled with that value
       # (config/dev.exs, docs/development/guide.md).
