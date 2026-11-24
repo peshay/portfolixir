@@ -134,6 +134,16 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- R-018 end ---
 
+    # --- N-13 begin ---
+    assert newest["summary"] =~ "N-13 (ADR-0056 F3):"
+
+    assert ("GET /api/v1/news/health (portfolixir.news.health), changed: a feed's dropped " <>
+              "and blocked counts of the day stay exact while the feed drops up to 1,000 " <>
+              "different items that day and run ahead for one that drops more; no field is " <>
+              "added or removed") in newest["parameters"]
+
+    # --- N-13 end ---
+
     # Sprint 31's sprint PR (version 31), found by version from the
     # 2026-11 security fixes on. Dated strictly after entry 30, so
     # since=2026-11-15 still returns it. Each story appends its own items

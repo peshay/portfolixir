@@ -70,7 +70,13 @@ defmodule Portfolixir.News.Ingest do
   The day's counters go to `news_feed_days` (the server's day of the
   clock); a dropped item counts there once per feed, canonical URL, reason
   and server day, however often it is fetched (`news_feed_drops`, closing
-  act COR4), while the fetch's summary reports every drop of its answer. Items and day rows are a staging area, not journaled (B7,
+  act COR4), while the fetch's summary reports every drop of its answer.
+  **That record holds at most `drop_rows_max/0` rows (1,000) per feed and
+  server day**, over every reason together (N-13): a drop past them has no
+  row, so it is counted in the day's row at every fetch that lists it. The
+  counters then run ahead for a feed that drops more than a thousand
+  different items a day, the feed A3 calls flooding, and stay exact for
+  every other. Items and day rows are a staging area, not journaled (B7,
   `Portfolixir.Journal.Allowlist`); the fetcher that calls this is the
   registered system job.
 
@@ -109,6 +115,9 @@ defmodule Portfolixir.News.Ingest do
   @cap_window_seconds 24 * 60 * 60
   # The most tier locks one answer's items take (`admit/4`).
   @tier_keys_max 512
+  # The most rows one feed keeps in the drop record for one server day
+  # (`new_drops/3`): five times the items it may store in a day.
+  @drop_rows_max 1_000
   @retention_days 90
   # How often a fetch locks its feed again when the feed's parent changed
   # between the two locks (`under_feed_lock/3`).
@@ -139,6 +148,13 @@ defmodule Portfolixir.News.Ingest do
   """
   @spec tier_keys_max() :: pos_integer()
   def tier_keys_max, do: @tier_keys_max
+
+  @doc """
+  The most rows one feed keeps in the drop record (`news_feed_drops`) for
+  one server day, over every reason together (N-13).
+  """
+  @spec drop_rows_max() :: pos_integer()
+  def drop_rows_max, do: @drop_rows_max
 
   @doc "The retention window in days: an older claim is not stored (B4, §12)."
   @spec retention_days() :: pos_integer()
@@ -589,33 +605,62 @@ defmodule Portfolixir.News.Ingest do
 
   # COR4: records this fetch's drops for the server day and answers, per
   # counter, how many were not recorded yet: only those reach the day row.
+  # N-13: the record takes a new row only while the feed's day holds fewer
+  # than `@drop_rows_max`; a drop that finds no room is answered as not
+  # recorded, and so counted, without a row. The feed's row is locked
+  # (`under_feed_lock/3`), so the count read here is the count written to.
   defp new_drops(_feed, _now, []), do: %{}
 
   defp new_drops(feed, now, drops) do
     day = Clock.local_date(now)
 
-    drops
-    |> Enum.map(fn {counter, url} ->
-      %{
-        feed_id: feed.id,
-        url_hash: url_hash(url || ""),
-        reason: Map.fetch!(@drop_reasons, counter),
-        day: day
-      }
-    end)
-    |> Enum.uniq()
-    |> Enum.chunk_every(1_000)
-    |> Enum.flat_map(fn rows ->
-      {_count, inserted} =
-        Repo.insert_all("news_feed_drops", rows,
-          on_conflict: :nothing,
-          conflict_target: [:feed_id, :url_hash, :reason, :day],
-          returning: [:reason]
-        )
+    rows =
+      drops
+      |> Enum.map(fn {counter, url} ->
+        %{
+          feed_id: feed.id,
+          url_hash: url_hash(url || ""),
+          reason: Map.fetch!(@drop_reasons, counter),
+          day: day
+        }
+      end)
+      |> Enum.uniq()
 
-      inserted
+    recorded = recorded_drops(feed, day, rows)
+    unrecorded = Enum.reject(rows, &MapSet.member?(recorded, {&1.url_hash, &1.reason}))
+    room = max(@drop_rows_max - drop_rows(feed, day), 0)
+
+    unrecorded
+    |> Enum.take(room)
+    |> Enum.chunk_every(1_000)
+    |> Enum.each(fn chunk ->
+      Repo.insert_all("news_feed_drops", chunk,
+        on_conflict: :nothing,
+        conflict_target: [:feed_id, :url_hash, :reason, :day]
+      )
     end)
-    |> Enum.frequencies_by(&Map.fetch!(@drop_counters, &1.reason))
+
+    Enum.frequencies_by(unrecorded, &Map.fetch!(@drop_counters, &1.reason))
+  end
+
+  # Which of `rows` the feed's record of `day` already holds, as
+  # `{url_hash, reason}`.
+  defp recorded_drops(feed, day, rows) do
+    hashes = rows |> Enum.map(& &1.url_hash) |> Enum.uniq()
+
+    from(d in "news_feed_drops",
+      where: d.feed_id == ^feed.id and d.day == ^day and d.url_hash in ^hashes,
+      select: {d.url_hash, d.reason}
+    )
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  defp drop_rows(feed, day) do
+    Repo.aggregate(
+      from(d in "news_feed_drops", where: d.feed_id == ^feed.id and d.day == ^day),
+      :count
+    )
   end
 
   @doc """
