@@ -1388,3 +1388,23 @@ that a gap does not read as calm, and C3 so that `since` loses no item.
   Coverage") a capability may ship over the API and the companion alone
   when its view lands in the same or the next sprint; this one ships with
   a fix that was not to wait for a board.
+
+### F6. An item's link holds no backslash (A1; N-74)
+
+A browser reads a backslash in an http or https link as a slash, and the
+application reads a link as RFC 3986 does, which does not. Such a link
+names one host to the application, which takes the item's domain from it,
+and another to the browser that opens it. Since the closing act of Sprint 29
+the parser hands over no link and no `<source>` holding a backslash, and
+an entry's and an event's link refuse one.
+
+**The item's own check refuses it too**, for an item that reaches the table
+without the parser: a new item whose link holds a backslash is not stored
+and counts `invalid`. This joins A1's bounds.
+
+*What is left as it is:* a link of this form stored before the parser
+refused it stays, and so does its story's stored link; the check reads a
+link an item is given, never one it already has. The table's own check is
+not tightened: it would refuse every later update of such a row, and with
+it the recluster of its scope. Such an item's link cannot become an
+entry's (ADR-0044's link rule refuses it), and it ages out with §12.

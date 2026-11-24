@@ -10,11 +10,14 @@ defmodule Portfolixir.News.IngestSavepointTest do
   import Ecto.Query
   import Portfolixir.NewsFixtures
 
+  alias Portfolixir.News.Cluster
   alias Portfolixir.News.Feed
   alias Portfolixir.News.Fetcher
   alias Portfolixir.News.Ingest
   alias Portfolixir.News.Item
+  alias Portfolixir.News.Parser
   alias Portfolixir.News.Parser.Item, as: Parsed
+  alias Portfolixir.News.Stories
   alias Portfolixir.Repo
 
   @now ~U[2026-11-07 10:00:00.000000Z]
@@ -109,6 +112,93 @@ defmodule Portfolixir.News.IngestSavepointTest do
                "https://newsroom.example.com/n/1",
                "https://newsroom.example.com/n/3"
              ]
+    end
+  end
+
+  # User story (N-74; ADR-0056 A1, amendment of 2026-11-24, F6):
+  # As the operator who reads an item's domain beside its link,
+  # I want an item whose link holds a backslash refused wherever it comes
+  # from,
+  # so that no item is stored under a host that is not the one its link
+  # opens.
+  #
+  # Acceptance criteria:
+  # - The parser hands over no link and no source holding a backslash
+  #   (closed on main by the closing act of Sprint 29; pinned here beside
+  #   the item's check).
+  # - An item given such a link past the parser is refused by the item's
+  #   own check and counted `invalid`; the rest of the answer is stored.
+  # - A link an item already has is not checked again: a row stored before
+  #   the rule can still be updated, and its story can still be written.
+  describe "a link with a backslash (N-74)" do
+    @differing "https://first.example.org\\@second.example.org/x"
+
+    test "the parser hands over no such link and no such source" do
+      body =
+        rss([
+          %{title: "Good one", link: "https://newsroom.example.com/n/1"},
+          %{title: "Differing", link: @differing, source: @differing}
+        ])
+
+      assert {:ok, %{items: [good, differing]}} = Parser.parse(body)
+      assert good.link == "https://newsroom.example.com/n/1"
+      assert differing.link == nil
+      assert differing.source_domain == nil
+    end
+
+    test "the item's own check refuses it, and the rest is stored" do
+      feed = feed!(%{class: "issuer", security_id: security!().id})
+
+      batch = [
+        parsed(1, "https://newsroom.example.com/n/1"),
+        parsed(2, @differing),
+        parsed(3, "https://newsroom.example.com/a\\b")
+      ]
+
+      assert {:ok, %{stored: 1, invalid: 2}} = Ingest.ingest(feed, batch, @now)
+      assert links(feed) == ["https://newsroom.example.com/n/1"]
+
+      changeset =
+        Item.changeset(%Item{}, %{
+          class: :issuer,
+          security_id: feed.security_id,
+          feed_id: feed.id,
+          assignment: :assigned,
+          first_seen_at: @now,
+          title: "Differing",
+          canonical_url: @differing,
+          domain: "second.example.org",
+          tier: :primary,
+          language: "en",
+          content_hash: String.duplicate("0", 64),
+          title_norm_hash: String.duplicate("0", 64)
+        })
+
+      assert %{canonical_url: ["must not contain a backslash"]} = errors_on(changeset)
+    end
+
+    test "a link an item already has is left as it is" do
+      feed = feed!(%{class: "issuer", security_id: security!().id})
+
+      assert {:ok, %{stored: 1}} =
+               Ingest.ingest(feed, [parsed(1, "https://newsroom.example.com/n/1")], @now)
+
+      # A row as one stored before the rule: the table's check allows it.
+      Repo.update_all(from(i in Item, where: i.feed_id == ^feed.id),
+        set: [canonical_url: @differing]
+      )
+
+      [stored] = Repo.all(from(i in Item, where: i.feed_id == ^feed.id))
+      assert stored.canonical_url == @differing
+
+      assert {:ok, muted} = stored |> Item.changeset(%{status: :muted}) |> Repo.update()
+      assert muted.status == :muted
+
+      # Its story is written again with the link it has.
+      scope = {:security, feed.security_id}
+      assert {:ok, _summary} = Stories.recluster(scope, "en", @now, full: true)
+      story = Repo.get!(Cluster, Repo.get!(Item, stored.id).cluster_id)
+      assert story.earliest_url == @differing
     end
   end
 end

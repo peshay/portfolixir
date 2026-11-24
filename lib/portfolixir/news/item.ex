@@ -34,6 +34,11 @@ defmodule Portfolixir.News.Item do
   excerpt of at most 600, counted as characters, without control
   characters; invisible characters are kept as received.
 
+  **Link**: an http or https URL without whitespace, and, for a link an
+  item is given, without a backslash (`Shapes.item_link/2`, ADR-0056 F6):
+  the item's domain is the host the application reads from it, and a
+  browser must open that host.
+
   **Dedupe keys**: `content_hash` and `title_norm_hash` are SHA-256 digests
   in lower-case hex; `title_words` are the normalized title's words for the
   Jaccard similarity (at most 160). A feed lists an item once:
@@ -125,7 +130,7 @@ defmodule Portfolixir.News.Item do
     |> Text.validate([:canonical_url, :domain, :language, :content_hash, :title_norm_hash],
       max: Shapes.url_max()
     )
-    |> Shapes.item_url(:canonical_url)
+    |> Shapes.item_link(:canonical_url)
     |> Shapes.domain(:domain)
     |> Shapes.language(:language)
     |> Shapes.hex64(:content_hash)
