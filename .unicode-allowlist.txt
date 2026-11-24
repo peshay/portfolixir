@@ -11,6 +11,9 @@
 #   * Everything after "#" is the mandatory human reason. An entry without a
 #     reason is rejected as a configuration error.
 #
+# An entry exempts a character in a file's content. A file's name is never
+# exempt: the gate refuses the same characters there whatever this file says.
+#
 # Blank lines and lines starting with "#" are comments.
 
 # The scanner's own negative-test fixtures deliberately embed forbidden
