@@ -34,8 +34,12 @@ defmodule Portfolixir.News.Scheduler do
   (`Portfolixir.Clock.local_date/1`) also runs the retention
   (`Portfolixir.News.Retention.run/1`), after that tick's fetches and in
   the same task, so it runs exactly where the fetcher runs and never beside
-  one of this scheduler's runs. A retention that raises is logged and
-  stops nothing; the next server day runs it again.
+  one of this scheduler's runs. **The day counts as retained once a run
+  finished** (F4, ADR-0056 amendment of 2026-11-24): a run that raised, or
+  whose task ended (the run's task carries the heap cap, as a fetch's
+  does), is logged, stops nothing, and is run again by the first tick an
+  hour later (`:retention_retry_ms`), not at every tick and not only the
+  next day.
 
   `run_due/2` and `run_one/2` are the on-demand entries
   (`Portfolixir.News.fetch_due/2`, `fetch_now/2`).
@@ -55,6 +59,8 @@ defmodule Portfolixir.News.Scheduler do
 
   @default_tick_ms 60_000
   @task_timeout_ms 120_000
+  # How long a failed retention run waits before it is run again.
+  @retention_retry_ms 60 * 60_000
   @max_concurrency 8
 
   @type result :: {:ok, map()} | {:error, String.t()}
@@ -65,7 +71,10 @@ defmodule Portfolixir.News.Scheduler do
 
   @doc """
   Starts the scheduler. Options: `:enabled?` (default false), `:tick_ms`,
-  `:fetch_opts` (passed to every fetch), `:name` (nil for an unnamed one).
+  `:fetch_opts` (passed to every fetch), `:name` (nil for an unnamed one),
+  `:retention` (the function of the clock a retention run is, default
+  `Portfolixir.News.Retention.run/1`) and `:retention_retry_ms` (how long a
+  failed run waits, default an hour).
   """
   def start_link(opts) do
     case Keyword.get(opts, :name, __MODULE__) do
@@ -176,8 +185,14 @@ defmodule Portfolixir.News.Scheduler do
       enabled?: Keyword.get(opts, :enabled?, false),
       tick_ms: Keyword.get(opts, :tick_ms, @default_tick_ms),
       fetch_opts: Keyword.get(opts, :fetch_opts, []),
+      retention: Keyword.get(opts, :retention, &Retention.run/1),
+      retention_retry_ms: Keyword.get(opts, :retention_retry_ms, @retention_retry_ms),
       running: nil,
-      retained_on: nil
+      # The run under way retains this day, or nil when it does not.
+      retaining: nil,
+      retained_on: nil,
+      # Monotonic milliseconds before which a failed run is not run again.
+      retention_retry_at: nil
     }
 
     if state.enabled?, do: schedule_tick(state.tick_ms)
@@ -187,19 +202,20 @@ defmodule Portfolixir.News.Scheduler do
   @impl true
   def handle_info(:tick, %{running: nil} = state) do
     fetch_opts = state.fetch_opts
+    retention = state.retention
     now = DateTime.utc_now()
     today = Clock.local_date(now)
-    retain? = state.retained_on != today
+    retain? = state.retained_on != today and not waiting?(state.retention_retry_at)
 
     task =
       Task.Supervisor.async_nolink(Portfolixir.News.Tasks, fn ->
+        HeapCap.cap!()
         results = run_due(now, fetch_opts)
-        if retain?, do: retain(now)
-        results
+        {results, if(retain?, do: retain(retention, now), else: :not_due)}
       end)
 
     schedule_tick(state.tick_ms)
-    {:noreply, %{state | running: task.ref, retained_on: today}}
+    {:noreply, %{state | running: task.ref, retaining: if(retain?, do: today)}}
   end
 
   # The last run is still going: this tick skips.
@@ -208,23 +224,41 @@ defmodule Portfolixir.News.Scheduler do
     {:noreply, state}
   end
 
-  def handle_info({ref, _results}, %{running: ref} = state) do
+  def handle_info({ref, {_results, retention}}, %{running: ref} = state) do
     Process.demonitor(ref, [:flush])
-    {:noreply, %{state | running: nil}}
+    {:noreply, retained(%{state | running: nil}, retention)}
   end
 
   def handle_info({:DOWN, ref, :process, _pid, reason}, %{running: ref} = state) do
     Logger.warning("news scheduler run ended: #{inspect(reason)}")
-    {:noreply, %{state | running: nil}}
+    {:noreply, retained(%{state | running: nil}, :failed)}
   end
 
   def handle_info(_message, state), do: {:noreply, state}
 
-  defp retain(now) do
-    Retention.run(now)
+  defp retain(retention, now) do
+    retention.(now)
+    :ok
   rescue
-    exception -> Logger.warning("news retention failed: #{Exception.message(exception)}")
+    exception ->
+      Logger.warning("news retention failed: #{Exception.message(exception)}")
+      :failed
   end
+
+  # F4: the day is recorded once its run finished. A run that failed, or
+  # whose task ended, leaves the day open and waits before the next try.
+  defp retained(%{retaining: nil} = state, _retention), do: state
+
+  defp retained(%{retaining: day} = state, :ok),
+    do: %{state | retaining: nil, retained_on: day, retention_retry_at: nil}
+
+  defp retained(state, _failed) do
+    retry_at = System.monotonic_time(:millisecond) + state.retention_retry_ms
+    %{state | retaining: nil, retention_retry_at: retry_at}
+  end
+
+  defp waiting?(nil), do: false
+  defp waiting?(retry_at), do: System.monotonic_time(:millisecond) < retry_at
 
   defp schedule_tick(tick_ms), do: Process.send_after(self(), :tick, tick_ms)
 end

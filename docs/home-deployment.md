@@ -1167,6 +1167,8 @@ added migrations, restore the database backup taken before that upgrade.
   scope is skipped, and the next read computes it. Each news feed's fetch
   runs under the cap too, in a task of its own: one grown past it is
   killed, recorded on its feed as `fetch_failed`, and stops no other feed.
+  So does the news layer's daily retention run: one grown past it is
+  killed, logged, and run again an hour later.
   The performance walk
   holds roughly 300 bytes per held security and day, and on the default
   cap a walk was measured to reach it at roughly 600,000 held security-days

@@ -1341,3 +1341,21 @@ fetch that lists it. The day's counters stay exact for a feed that drops
 up to a thousand different items a day, and run ahead for one that drops
 more, the feed A3 calls flooding. A day's rows go with that day's
 counters, 30 days later (§12). **To flip:** a number by comment.
+
+### F4. A retention run finishes for every scope but the one that failed (§12; N-14)
+
+§12 keeps items 90 days and lets clusters follow their items, and §14
+item 9 has an expired item gone after the retention run. The run removes
+the expired items of a security or a category one scope at a time, and
+D3 has it free the place of a consumer nobody confirmed.
+
+- **What belongs to no scope goes first**: the expired items no security
+  claims, the day rows with the record of their drops (F3), and the digest
+  consumers.
+- **A scope whose removal fails keeps its items until the next run and
+  stops no other scope.** It is named in the log and counted in the run's
+  summary (`scopes_failed`).
+- **A server day counts as retained once a run finished.** A run that
+  raised, or whose task ended, is run again by the first tick an hour
+  later: not at every tick, and not only the next day. The run's task
+  carries the heap cap, as a fetch's does (F1).

@@ -45,6 +45,13 @@ defmodule Portfolixir.News.Retention do
   good. A consumer that has not confirmed for 90 days has read nothing it
   kept; named again, it starts as a new one, 24 hours back.
 
+  **One scope's failure is its own** (F4, ADR-0056 amendment of
+  2026-11-24). What belongs to no scope goes first: the expired items no
+  security claims, the day rows and drop records, the digest consumers.
+  Then the scopes, one at a time: a scope whose removal raises, exits or
+  is refused keeps its items until the next run, is named in the log and
+  counted in the summary's `scopes_failed`, and stops no other scope.
+
   **When.** Once a server day, from the news scheduler's tick
   (`Portfolixir.News.Scheduler`), after that tick's fetches, in the same
   task: so it runs exactly where the fetcher runs (B6), never in tests, and
@@ -75,6 +82,7 @@ defmodule Portfolixir.News.Retention do
   @type summary :: %{
           items: non_neg_integer(),
           stories_deleted: non_neg_integer(),
+          scopes_failed: non_neg_integer(),
           feed_days: non_neg_integer(),
           consumers: non_neg_integer()
         }
@@ -90,7 +98,8 @@ defmodule Portfolixir.News.Retention do
   @doc """
   Runs the retention at the server's clock `now`; see the moduledoc.
   `{:ok, summary}`: the items deleted, the stories deleted because they
-  were emptied, and the day rows pruned.
+  were emptied, the scopes whose removal failed and wait for the next run,
+  the day rows and the digest consumers pruned.
   """
   @spec run(DateTime.t()) :: {:ok, summary()}
   def run(%DateTime{} = now) do
@@ -98,19 +107,21 @@ defmodule Portfolixir.News.Retention do
     expired = expired(now)
     prune_tombstones(now)
     tombstone(expired, now)
-    scoped = remove_scoped(job, expired, now)
 
+    # F4: what belongs to no scope first, so no scope's trouble keeps it.
     {open, _} =
       Repo.delete_all(from(i in expired, where: i.assignment in [:unassigned, :ambiguous]))
 
     days = prune_days(now)
     consumers = prune_consumers(now)
+    scoped = remove_scoped(job, expired, now)
 
     summary =
       Map.merge(scoped, %{items: scoped.items + open, feed_days: days, consumers: consumers})
 
     Logger.info(
       "#{job}: #{summary.items} items, #{summary.stories_deleted} emptied stories, " <>
+        "#{summary.scopes_failed} scopes kept for the next run, " <>
         "#{days} day rows, #{consumers} digest consumers"
     )
 
@@ -129,7 +140,8 @@ defmodule Portfolixir.News.Retention do
   end
 
   # One scope and language at a time; one that fails keeps its items until
-  # the next run and stops no other.
+  # the next run and stops no other (F4): whatever its removal raises or
+  # exits with is caught here, logged and counted.
   defp remove_scoped(job, expired, now) do
     from(i in expired,
       where: i.assignment == :assigned,
@@ -138,11 +150,11 @@ defmodule Portfolixir.News.Retention do
     )
     |> Repo.all()
     |> Enum.sort()
-    |> Enum.reduce(%{items: 0, stories_deleted: 0, feed_days: 0}, fn
+    |> Enum.reduce(%{items: 0, stories_deleted: 0, scopes_failed: 0}, fn
       {security_id, category_id, language}, acc ->
         scope = Stories.scope(%{security_id: security_id, category_id: category_id})
 
-        case Stories.remove(scope, language, expired, now) do
+        case remove_scope(scope, language, expired, now) do
           {:ok, removed} ->
             %{
               acc
@@ -150,15 +162,25 @@ defmodule Portfolixir.News.Retention do
                 stories_deleted: acc.stories_deleted + removed.stories_deleted
             }
 
-          {:error, changeset} ->
+          {:error, reason} ->
             Logger.warning(
-              "#{job}: #{inspect(scope)} (#{language}) kept for the next run: " <>
-                inspect(changeset.errors)
+              "#{job}: #{inspect(scope)} (#{language}) kept for the next run: #{reason}"
             )
 
-            acc
+            %{acc | scopes_failed: acc.scopes_failed + 1}
         end
     end)
+  end
+
+  defp remove_scope(scope, language, expired, now) do
+    case Stories.remove(scope, language, expired, now) do
+      {:ok, removed} -> {:ok, removed}
+      {:error, changeset} -> {:error, inspect(changeset.errors)}
+    end
+  rescue
+    exception -> {:error, Exception.message(exception)}
+  catch
+    :exit, reason -> {:error, "exit: " <> inspect(reason)}
   end
 
   # --- closing act, Fix-1 (COR2) ----------------------------------------------
