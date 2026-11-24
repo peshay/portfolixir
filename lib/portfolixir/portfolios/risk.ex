@@ -169,6 +169,9 @@ defmodule Portfolixir.Portfolios.Risk do
       top_n: top_n,
       top_holdings: top_holdings(weighted, top_n, risk_opts),
       hhi: hhi(weighted, risk_opts),
+      # The caps the read applied, echoed (R-018), so that no violations
+      # reads apart from no caps.
+      asset_class_caps: Keyword.get(risk_opts, :asset_class_caps) || %{},
       asset_class_violations: asset_class_violations(weighted, basis, risk_opts)
     }
   end
@@ -283,7 +286,7 @@ defmodule Portfolixir.Portfolios.Risk do
   # return only the classes whose current percentage weight exceeds the cap, with
   # the overage in percentage points. No caps configured ⇒ no violations.
   defp asset_class_violations(weighted, basis, opts) do
-    caps = Keyword.get(opts, :asset_class_caps, %{})
+    caps = Keyword.get(opts, :asset_class_caps) || %{}
 
     weight_by_class =
       weighted

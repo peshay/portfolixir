@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.Api.V1.RiskController do
   use PortfolixirWeb, :controller
 
+  alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance.Benchmark
@@ -16,6 +17,7 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
     with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params),
+         :ok <- known_keys(params),
          {:ok, opts} <- risk_opts(params) do
       # The view can vanish between resolve and read (fix round TOCTOU):
       # still a plain 404, never a 500.
@@ -29,11 +31,41 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
       end
     else
       {:error, :view} -> unprocessable(conn, %{view: ["is invalid"]})
+      {:error, {:unknown, errors}} -> unprocessable(conn, errors)
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
       :view_not_found -> not_found(conn)
       :error -> not_found(conn)
       nil -> not_found(conn)
     end
+  end
+
+  # The keys each map of the lens reads (R-018): a cap is keyed by an asset
+  # class code, a threshold or a band cutoff by its own name. A key outside
+  # them is refused by name, never read as a class at 0 % or dropped, so an
+  # empty list of violations never stands for a cap that met nothing.
+  defp known_keys(params) do
+    errors =
+      [
+        {"asset_class_caps", AssetClasses.codes(),
+         "asset_class_caps takes only the asset class codes "},
+        {"hhi_bands", ~w(low high), "hhi_bands takes only "},
+        {"stock_thresholds", ~w(warn hard), "stock_thresholds takes only "},
+        {"etf_thresholds", ~w(warn), "etf_thresholds takes only "}
+      ]
+      |> Enum.flat_map(fn {param, known, takes} ->
+        case Map.get(params, param) do
+          %{} = map when not is_struct(map) ->
+            for key <- Map.keys(map), key not in known do
+              {"#{param}[#{key}]", ["is unknown: " <> takes <> Enum.join(known, ", ")]}
+            end
+
+          _absent_or_not_a_map ->
+            []
+        end
+      end)
+      |> Map.new()
+
+    if errors == %{}, do: :ok, else: {:error, {:unknown, errors}}
   end
 
   # Builds the option list for `Risk.for_portfolio/2` from the query params. All

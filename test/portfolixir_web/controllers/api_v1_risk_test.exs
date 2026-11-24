@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.ApiV1RiskTest do
   import Portfolixir.WorldFixtures,
     only: [base_world: 0, create_security!: 1, buy!: 3, deposit!: 3]
 
+  alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Quotes
 
   defp api_conn(conn) do
@@ -121,6 +122,69 @@ defmodule PortfolixirWeb.ApiV1RiskTest do
     assert violation["current_weight"] == "74"
     assert violation["cap"] == "50"
     assert violation["overage"] == "24"
+  end
+
+  # User story (architecture review 2026-11, R-018; decision AD-9):
+  # As the agent asking whether any asset class is over its cap,
+  # I want a cap on a word that is no asset class refused by name, and the
+  # caps the answer applied stated in it,
+  # so that an empty list of violations never stands for a cap that met no
+  # class.
+  #
+  # Acceptance criteria:
+  # - A key of `asset_class_caps` outside the asset class codes answers 422
+  #   `errors["asset_class_caps[<key>]"]`, naming the codes; a right cap
+  #   beside it is refused with it, so nothing is applied in part.
+  # - An inner key `hhi_bands`, `stock_thresholds` or `etf_thresholds` does
+  #   not take answers 422 `errors["<map>[<key>]"]` naming the keys it takes.
+  # - The answer carries `asset_class_caps`, the caps it applied, as decimal
+  #   strings keyed by class; `{}` when none was asked.
+  test "refuses a cap on a word that is no asset class and echoes the caps it applied",
+       %{conn: conn} do
+    world = risk_world()
+    path = "/api/v1/portfolios/#{world.portfolio.id}/risk"
+
+    applied =
+      conn
+      |> api_conn()
+      |> get(path <> "?asset_class_caps[equity]=50&asset_class_caps[etf]=30")
+      |> json_response(200)
+
+    assert applied["data"]["asset_class_caps"] == %{"equity" => "50", "etf" => "30"}
+    assert [%{"asset_class" => "equity"}] = applied["data"]["asset_class_violations"]
+
+    none = conn |> api_conn() |> get(path) |> json_response(200)
+    assert none["data"]["asset_class_caps"] == %{}
+
+    codes = Enum.join(AssetClasses.codes(), ", ")
+    refusal = ["is unknown: asset_class_caps takes only the asset class codes " <> codes]
+
+    for key <- ~w(stock equities Equity EQUITY aktien) do
+      body =
+        conn |> api_conn() |> get(path <> "?asset_class_caps[#{key}]=50") |> json_response(422)
+
+      assert body["errors"] == %{"asset_class_caps[#{key}]" => refusal}, key
+    end
+
+    beside =
+      conn
+      |> api_conn()
+      |> get(path <> "?asset_class_caps[stock]=50&asset_class_caps[etf]=30")
+      |> json_response(422)
+
+    assert beside["errors"] == %{"asset_class_caps[stock]" => refusal}
+
+    for {query, key, takes} <- [
+          {"hhi_bands[hig]=20000", "hhi_bands[hig]", "hhi_bands takes only low, high"},
+          {"stock_thresholds[hrad]=101", "stock_thresholds[hrad]",
+           "stock_thresholds takes only warn, hard"},
+          {"stock_thresholds[warning]=101", "stock_thresholds[warning]",
+           "stock_thresholds takes only warn, hard"},
+          {"etf_thresholds[hard]=10", "etf_thresholds[hard]", "etf_thresholds takes only warn"}
+        ] do
+      body = conn |> api_conn() |> get(path <> "?" <> query) |> json_response(422)
+      assert body["errors"] == %{key => ["is unknown: " <> takes]}, query
+    end
   end
 
   test "top_n overrides the default Top-N length", %{conn: conn} do
