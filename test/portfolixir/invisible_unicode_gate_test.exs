@@ -7,6 +7,8 @@ defmodule Portfolixir.InvisibleUnicodeGateTest do
   # filenames. Synthetic content only; nothing in the repository is written.
   use ExUnit.Case, async: true
 
+  alias Portfolixir.Input.Text
+
   @rlo "\u202E"
   @lri "\u2066"
   @pdi "\u2069"
@@ -51,7 +53,8 @@ defmodule Portfolixir.InvisibleUnicodeGateTest do
 
   # Build a scratch repository holding the gate (scanner + allowlist from the
   # checkout) and `files`, commit it, and run the hook's entry over it.
-  defp gate(%{repo: repo, dir: dir}, files) do
+  # `hook_env` is added to the environment of the hook's entry alone.
+  defp gate(%{repo: repo, dir: dir}, files, hook_env \\ []) do
     File.mkdir_p!(Path.join(dir, "scripts"))
 
     File.cp!(
@@ -71,17 +74,21 @@ defmodule Portfolixir.InvisibleUnicodeGateTest do
     git!(dir, ["add", "-A"])
     git!(dir, ["commit", "-q", "-m", "synthetic"])
 
-    {listed, 0} = System.cmd("git", ["ls-files"], cd: dir, env: @git_env)
-    for {rel, _} <- files, do: assert(listed =~ rel, "#{rel} is not tracked")
+    # -z: the names as they are, not quoted and escaped for a terminal.
+    {listed, 0} = System.cmd("git", ["ls-files", "-z"], cd: dir, env: @git_env)
+    listed = String.split(listed, <<0>>, trim: true)
+    for {rel, _} <- files, do: assert(rel in listed, "#{inspect(rel)} is not tracked")
 
     # .pre-commit-config.yaml: entry `python3 scripts/check_invisible_unicode.py`,
     # pass_filenames: false.
     System.cmd("python3", ["scripts/check_invisible_unicode.py"],
       cd: dir,
-      env: @git_env,
+      env: @git_env ++ hook_env,
       stderr_to_stdout: true
     )
   end
+
+  defp code(cp), do: "U+" <> (cp |> Integer.to_string(16) |> String.pad_leading(4, "0"))
 
   defp git!(dir, args) do
     {out, status} = System.cmd("git", args, cd: dir, env: @git_env, stderr_to_stdout: true)
@@ -107,6 +114,81 @@ defmodule Portfolixir.InvisibleUnicodeGateTest do
       icon = File.read!(Path.join(ctx.repo, "priv/static/favicon.ico"))
       assert :binary.match(icon, <<0>>) != :nomatch
       assert {"", 0} = gate(ctx, [{"priv/static/favicon.ico", icon}])
+    end
+  end
+
+  describe "the gate reads no less than the application's rule for stored text" do
+    # User story (security review 2026-11, N-84; #1286):
+    # As the owner whose agents read tracked files as their instructions,
+    # I want the repository's gate to refuse every character the application's
+    # writers refuse as invisible, in a file's content and in its name, and to
+    # fail when it cannot list the files it is to read,
+    # so that text a reviewer cannot see does not reach a tracked file past
+    # the gate that exists to stop it, and a run that read nothing is not a
+    # pass.
+    #
+    # Acceptance criteria:
+    # - Every code point Portfolixir.Input.Text refuses as invisible between
+    #   two letters is reported by the gate, each on its own line of a
+    #   tracked file: the application's rule is the list, so the two cannot
+    #   drift apart.
+    # - A tracked file whose name carries such a character is refused, and
+    #   the report spells the character instead of printing it.
+    # - When the tracked files cannot be listed, the gate exits 1.
+    test "every character the application refuses as invisible is refused in a tracked file",
+         ctx do
+      refused =
+        Enum.concat(0x20..0xD7FF, 0xE000..0x10FFFF)
+        |> Enum.map_join(fn cp -> "a" <> <<cp::utf8>> <> "b" end)
+        |> Text.invisible_characters()
+        |> Enum.map(fn "U+" <> hex -> String.to_integer(hex, 16) end)
+
+      # Unicode's Default_Ignorable_Code_Point set and the interlinear
+      # annotation characters, as the module's documentation lists them.
+      assert length(refused) > 4_000
+
+      for cp <- [0x034F, 0x2065, 0x3164, 0xFE0F, 0xFFF0, 0xE0080, 0xE01EF, 0xE0FFF] do
+        assert cp in refused, "#{code(cp)} is not in the application's rule"
+      end
+
+      content = Enum.map_join(refused, fn cp -> "a" <> <<cp::utf8>> <> "b\n" end)
+      {out, status} = gate(ctx, [{"docs/sweep.md", content}])
+      assert status == 1
+
+      reported =
+        ~r/^docs\/sweep\.md:(\d+):2: U\+([0-9A-F]{4,6}) /m
+        |> Regex.scan(out, capture: :all_but_first)
+        |> MapSet.new(fn [line, hex] -> {String.to_integer(line), String.to_integer(hex, 16)} end)
+
+      passed =
+        for {cp, line} <- Enum.with_index(refused, 1), {line, cp} not in reported, do: code(cp)
+
+      assert passed == [],
+             "the gate passes #{length(passed)} code point(s) the application refuses: " <>
+               Enum.join(Enum.take(passed, 20), ", ")
+    end
+
+    test "a tracked file whose name carries an invisible character is refused", ctx do
+      {out, status} =
+        gate(ctx, [
+          {"docs/notes" <> @rlo <> "txt.md", "plain ASCII content\n"},
+          {"priv/static/logo" <> <<0x200B::utf8>> <> ".png", <<0x89, "PNG", 0, 0xFF>>}
+        ])
+
+      assert status == 1
+      assert out =~ "docs/notes[U+202E]txt.md: file name, character 11: U+202E"
+      assert out =~ "priv/static/logo[U+200B].png: file name, character 17: U+200B"
+      refute out =~ @rlo
+    end
+
+    test "the gate fails when it cannot list the tracked files", ctx do
+      {out, status} =
+        gate(ctx, [{"AGENTS.md", agent_md()}], [
+          {"GIT_DIR", Path.join(ctx.dir, "no-such-git-dir")}
+        ])
+
+      assert status == 1
+      assert out =~ "cannot list the tracked files"
     end
   end
 

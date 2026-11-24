@@ -34,11 +34,28 @@ occurrence of the following code points:
         U+FEFF ZERO WIDTH NO-BREAK SPACE (only when NOT a leading BOM)
   * Unicode tag characters (used to hide payloads in modern smuggling attacks):
         U+E0000 .. U+E007F (entire Tags block)
+  * Every other default-ignorable code point: a character that renders as
+    nothing, or as a blank, and still reaches whatever reads the file. The
+    ranges are written out in ``DEFAULT_IGNORABLE`` below, because most of
+    them are not format characters and some are not assigned at all: the
+    combining grapheme joiner, the Hangul fillers, the Khmer inherent vowels,
+    the Mongolian selectors, the variation selectors U+FE00 .. U+FE0F and
+    U+E0100 .. U+E01EF, and the reserved ranges. They are the ranges the
+    application's own rule for stored text refuses (``@ignorable`` in
+    lib/portfolixir/input/text.ex); invisible_unicode_gate_test.exs runs
+    every character that rule refuses through this gate, so the gate is never
+    the narrower of the two (N-84, #1286).
   * Any other character in the Unicode general category ``Cf`` (Format) that is
     not on the explicit allowlist. This is the conservative catch-all: ``Cf``
     covers invisible formatting characters (interlinear annotations, additional
     bidi/joining controls, etc.) without touching normal printable text,
     whitespace (tab/newline/space are ``Cc``/``Zs``, not ``Cf``), or letters.
+
+The same characters are flagged in a file's NAME, for every path the scan is
+given, whether or not the file's content is read: a tracked binary's or a
+deleted file's name is read like any other. No allowlist entry exempts a
+name. The report spells such a name with ``[U+XXXX]`` in place of each
+flagged character.
 
 WHAT IS NOT FLAGGED
 -------------------
@@ -46,6 +63,10 @@ WHAT IS NOT FLAGGED
   * Ordinary whitespace: TAB (U+0009), LF (U+000A), CR (U+000D), SPACE (U+0020).
   * A single U+FEFF appearing as the very first character of a file (a UTF-8
     byte-order mark). A BOM anywhere else is flagged.
+  * U+FE0F, the emoji presentation selector, directly after a pictograph
+    (``PICTOGRAPHS`` below) and not followed by another variation selector:
+    there it only chooses the glyph of the character before it. Every other
+    variation selector is flagged, wherever it stands.
   * Binary files, and only those: a file whose extension is on the explicit
     list ``BINARY_EXTENSIONS`` below, or one ``.gitattributes`` marks binary
     (``binary`` or ``-text``) that also holds a NUL or does not decode as
@@ -73,7 +94,11 @@ USAGE
     python3 scripts/check_invisible_unicode.py FILE...    # scan given files
 
 Exit code is 0 when clean, 1 when violations (or a malformed allowlist) are
-found. Output is ``path:line:col: U+XXXX NAME (description)`` per violation.
+found, and 1 when no file is named and the tracked files cannot be listed:
+a scan that could read nothing is not a clean one. Output is
+``path:line:col: U+XXXX NAME (description)`` per violation in a file's
+content, and ``path: file name, character N: U+XXXX NAME (description)`` per
+violation in its name.
 
 The script is pure Python 3 standard library, deterministic, and fast.
 """
@@ -102,6 +127,63 @@ TAG_CHARS = set(range(0xE0000, 0xE007F + 1))
 # U+FEFF: forbidden unless it is the first character of the file (BOM).
 BOM = 0xFEFF
 
+# Unicode's default-ignorable code points and the interlinear annotation
+# characters, as inclusive ranges. Written out, not read from the Unicode
+# tables: most are not in the general category Cf (the grapheme joiner, the
+# Khmer vowels and the selectors are Mn, the Hangul fillers Lo, the reserved
+# ranges unassigned), and a written-out set does not shrink with the Unicode
+# version of the Python that runs the gate. These are the ranges of
+# `@ignorable` in lib/portfolixir/input/text.ex.
+DEFAULT_IGNORABLE = (
+    (0x00AD, 0x00AD),  # soft hyphen
+    (0x034F, 0x034F),  # combining grapheme joiner
+    (0x061C, 0x061C),  # Arabic letter mark
+    (0x115F, 0x1160),  # Hangul choseong and jungseong fillers
+    (0x17B4, 0x17B5),  # Khmer inherent vowels
+    (0x180B, 0x180F),  # Mongolian free variation selectors, vowel separator
+    (0x200B, 0x200F),  # zero-width space and joiners, directional marks
+    (0x202A, 0x202E),  # bidirectional embeddings and overrides
+    (0x2060, 0x206F),  # word joiner, invisible operators, isolates, reserved
+    (0x3164, 0x3164),  # Hangul filler
+    (0xFE00, 0xFE0F),  # variation selectors 1 to 16
+    (0xFEFF, 0xFEFF),  # zero-width no-break space
+    (0xFFA0, 0xFFA0),  # halfwidth Hangul filler
+    (0xFFF0, 0xFFFB),  # reserved, interlinear annotation characters
+    (0x1BCA0, 0x1BCA3),  # shorthand format controls
+    (0x1D173, 0x1D17A),  # musical symbol format controls
+    (0xE0000, 0xE0FFF),  # tags, variation selectors 17 to 256, reserved
+)
+
+# U+FE00 .. U+FE0F and U+E0100 .. U+E01EF.
+VARIATION_SELECTORS = ((0xFE00, 0xFE0F), (0xE0100, 0xE01EF))
+
+# U+FE0F, the emoji presentation selector: the one variation selector the
+# gate lets stand, and only directly after a pictograph.
+EMOJI_PRESENTATION_SELECTOR = 0xFE0F
+
+# The characters an emoji presentation selector may follow: the application's
+# written-out superset of Unicode's Extended_Pictographic below U+1FB00
+# (`@pictograph` in lib/portfolixir/input/text.ex).
+PICTOGRAPHS = (
+    (0x00A9, 0x00A9),
+    (0x00AE, 0x00AE),
+    (0x203C, 0x203C),
+    (0x2049, 0x2049),
+    (0x2122, 0x2122),
+    (0x2139, 0x2139),
+    (0x2190, 0x21FF),
+    (0x2300, 0x23FF),
+    (0x24C2, 0x24C2),
+    (0x25A0, 0x27BF),
+    (0x2934, 0x2935),
+    (0x2B00, 0x2BFF),
+    (0x3030, 0x3030),
+    (0x303D, 0x303D),
+    (0x3297, 0x3297),
+    (0x3299, 0x3299),
+    (0x1F000, 0x1FAFF),
+)
+
 # The binary files the gate skips, by extension. A tracked binary of another
 # kind joins this list, or is marked `binary` in .gitattributes; any other file
 # must be UTF-8 text without a NUL.
@@ -121,18 +203,29 @@ class Violation:
     col: int
     codepoint: int | None
     description: str
+    # True for a character of the path itself: `col` then counts the path's
+    # characters and `line` is unused.
+    in_name: bool = False
 
     def render(self) -> str:
+        path = spell_path(self.path)
         if self.codepoint is None:
-            return f"{self.path}:{self.line}:{self.col}: {self.description}"
+            return f"{path}:{self.line}:{self.col}: {self.description}"
         try:
             name = unicodedata.name(chr(self.codepoint))
         except ValueError:
             name = "<unnamed>"
-        return (
-            f"{self.path}:{self.line}:{self.col}: "
-            f"U+{self.codepoint:04X} {name} ({self.description})"
-        )
+        where = f" file name, character {self.col}" if self.in_name else f"{self.line}:{self.col}"
+        return f"{path}:{where}: U+{self.codepoint:04X} {name} ({self.description})"
+
+
+def spell_path(path: str) -> str:
+    """The path as a report prints it: every flagged character spelled
+    ``[U+XXXX]``, so a report line shows what the name holds and is not
+    itself reordered or shortened by it."""
+    return "".join(
+        f"[U+{ord(char):04X}]" if classify(ord(char)) is not None else char for char in path
+    )
 
 
 @dataclass(frozen=True)
@@ -211,11 +304,19 @@ def is_allowed(path: str, codepoint: int, allowlist: list[AllowlistEntry]) -> bo
     return False
 
 
+def in_ranges(codepoint: int, ranges: tuple[tuple[int, int], ...]) -> bool:
+    """True if the code point lies in one of the inclusive ranges."""
+    return any(first <= codepoint <= last for first, last in ranges)
+
+
 def classify(codepoint: int) -> str | None:
     """Return a human description if the code point is forbidden, else None.
 
-    U+FEFF is intentionally not classified here; leading-BOM handling happens
-    in the per-file scan so byte offset is known.
+    The verdict is for the character by itself, and it is the verdict for a
+    character of a file name. In a file's content two characters depend on
+    where they stand, and the per-file scan decides them before it asks
+    here: U+FEFF as the file's first character (a BOM), and U+FE0F after a
+    pictograph (``is_emoji_presentation``).
     """
     if codepoint in BIDI_CONTROLS:
         return "bidirectional control character (Trojan Source)"
@@ -225,10 +326,25 @@ def classify(codepoint: int) -> str | None:
         return "Unicode tag character"
     if codepoint in ALLOWED_WHITESPACE:
         return None
+    if in_ranges(codepoint, VARIATION_SELECTORS):
+        return "variation selector with nothing it may vary"
+    if in_ranges(codepoint, DEFAULT_IGNORABLE):
+        return "default-ignorable character (renders as nothing)"
     # Conservative catch-all: any other format (Cf) character is invisible.
     if unicodedata.category(chr(codepoint)) == "Cf":
         return "invisible format character (Unicode category Cf)"
     return None
+
+
+def is_emoji_presentation(text: str, index: int) -> bool:
+    """True if ``text[index]`` is U+FE0F directly after a pictograph and is
+    not followed by another variation selector."""
+    if ord(text[index]) != EMOJI_PRESENTATION_SELECTOR or index == 0:
+        return False
+    if not in_ranges(ord(text[index - 1]), PICTOGRAPHS):
+        return False
+    following = index + 1
+    return following == len(text) or not in_ranges(ord(text[following]), VARIATION_SELECTORS)
 
 
 def read_bytes(path: str) -> bytes | None:
@@ -331,7 +447,7 @@ def scan_text(path: str, text: str, allowlist: list[AllowlistEntry]) -> list[Vio
             continue
 
         description = classify(codepoint)
-        if description is None:
+        if description is None or is_emoji_presentation(text, index):
             continue
         if is_allowed(path, codepoint, allowlist):
             continue
@@ -340,17 +456,45 @@ def scan_text(path: str, text: str, allowlist: list[AllowlistEntry]) -> list[Vio
     return violations
 
 
+def scan_path(path: str) -> list[Violation]:
+    """Scan a path's own characters: every directory and the file name.
+
+    A name has no place for a byte-order mark or an emoji presentation
+    selector, and no allowlist entry exempts one, so ``classify`` alone
+    decides.
+    """
+    violations: list[Violation] = []
+    for position, char in enumerate(path, start=1):
+        description = classify(ord(char))
+        if description is not None:
+            violations.append(Violation(path, 0, position, ord(char), description, in_name=True))
+    return violations
+
+
+class ListingError(Exception):
+    """The tracked files could not be listed."""
+
+
 def tracked_files() -> list[str]:
-    """Enumerate tracked files via git, falling back to a recursive walk."""
+    """The files git tracks. Raises ListingError when git cannot list them
+    or a name is not UTF-8: there is no fallback, and an empty list would
+    read as a clean scan."""
     try:
         output = subprocess.run(
             ["git", "ls-files", "-z"],
             check=True,
             capture_output=True,
         ).stdout
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return []
-    return [name for name in output.decode("utf-8").split("\0") if name]
+    except subprocess.CalledProcessError as exc:
+        reason = exc.stderr.decode("utf-8", errors="replace").strip() if exc.stderr else ""
+        raise ListingError(f"git ls-files exited {exc.returncode}: {reason}") from exc
+    except FileNotFoundError as exc:
+        raise ListingError("git was not found") from exc
+    try:
+        names = output.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ListingError("a tracked file's name is not valid UTF-8") from exc
+    return [name for name in names.split("\0") if name]
 
 
 def main(argv: list[str]) -> int:
@@ -365,13 +509,23 @@ def main(argv: list[str]) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
-    files = args if args else tracked_files()
+    if args:
+        files = args
+    else:
+        try:
+            files = tracked_files()
+        except ListingError as exc:
+            print(f"error: cannot list the tracked files: {exc}", file=sys.stderr)
+            return 1
 
     violations: list[Violation] = []
     # Files that hold a NUL or are not UTF-8: reported unless .gitattributes
     # marks them binary, which git answers for all of them at once.
     not_text: list[tuple[str, Violation, list[Violation]]] = []
     for path in files:
+        # The name first: it is read for every path, also where the content
+        # is skipped below.
+        violations.extend(scan_path(path))
         if not os.path.isfile(path) or is_listed_binary(path):
             continue
         data = read_bytes(path)
