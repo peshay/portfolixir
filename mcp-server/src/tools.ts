@@ -1,6 +1,6 @@
 import { readOnlyClient, type ApiClient } from "./api-client.js";
 import { profileAdmits, profileRefusal, type McpProfile } from "./profiles.js";
-import { z, type ZodTypeAny } from "zod";
+import { z, type ZodObject, type ZodTypeAny } from "zod";
 
 type JsonSchema = Record<string, any>;
 
@@ -191,9 +191,12 @@ const securityZ = z.object({
     provider: optionalString(),
     online_id: optionalString(),
     is_benchmark: z.boolean().optional(),
+    // A free map, open by design (here and on the update): a security's
+    // attributes are the operator's own keys, so the keys are data and the
+    // schema names none. The API bounds each key and value.
     attributes: z.record(z.string(), z.unknown()).optional(),
     ...bondZ(false)
-  })
+  }).strict()
 });
 
 // E25 S6, F20 (decision T-9): an authored quote is manual. The API stores
@@ -209,7 +212,7 @@ const quoteUpsertZ = z.object({
       date: z.string(),
       close: z.string(),
       source: z.enum(quoteSources).optional()
-    })
+    }).strict()
   )
 });
 
@@ -231,7 +234,7 @@ const portfolioZ = z.object({
     name: z.string(),
     base_currency_code: z.string(),
     notes: cappedText(FREE_TEXT_MAX).optional()
-  })
+  }).strict()
 });
 
 const liquidityRoleZ = z.enum(["free_cash", "credit_line", "reserve"]);
@@ -245,7 +248,7 @@ const cashAccountZ = z.object({
     currency_code: z.string(),
     notes: cappedText(FREE_TEXT_MAX).optional(),
     liquidity_role: liquidityRoleZ.optional()
-  })
+  }).strict()
 });
 
 const securitiesAccountZ = z.object({
@@ -256,7 +259,7 @@ const securitiesAccountZ = z.object({
     cash_account_id: z.number().int().positive(),
     name: z.string(),
     notes: cappedText(FREE_TEXT_MAX).optional()
-  })
+  }).strict()
 });
 
 // The 13 bookable PP kinds. `balance_adjustment` is deliberately absent:
@@ -395,6 +398,7 @@ const transactionZ = z.object({
       settlement_fx_rate: optionalString(),
       notes: cappedText(FREE_TEXT_MAX).optional()
     })
+    .strict()
     .superRefine((tx, ctx) => {
       // The backend validates per-kind required fields; these two guards are
       // deliberately client-side because the failure they prevent is silent:
@@ -694,7 +698,7 @@ const classificationZ = z.object({
     name: z.string(),
     position: position.optional(),
     description: cappedText(FREE_TEXT_MAX).optional()
-  })
+  }).strict()
 });
 
 const categorySchema = {
@@ -725,7 +729,7 @@ const categoryZ = z.object({
     description: cappedText(CATEGORY_DESCRIPTION_MAX).optional(),
     parent_id: z.number().int().positive().optional(),
     position: position.optional()
-  })
+  }).strict()
 });
 
 const assignSchema = {
@@ -783,7 +787,7 @@ const classificationUpdateZ = z.object({
     name: optionalString(),
     position: position.optional(),
     description: cappedText(FREE_TEXT_MAX).optional()
-  })
+  }).strict()
 });
 
 const categoryUpdateSchema = {
@@ -815,7 +819,7 @@ const categoryUpdateZ = z.object({
     description: cappedText(CATEGORY_DESCRIPTION_MAX).optional(),
     parent_id: z.number().int().positive().optional(),
     position: position.optional()
-  })
+  }).strict()
 });
 
 // Sprint 25 X1 (#894; plan D-4): the three cascading deletes take dry_run,
@@ -1006,7 +1010,7 @@ const securityUpdateZ = z.object({
     // --- S29 H1 begin ---
     halving_chain: z.enum(HALVING_CHAINS).nullable().optional()
     // --- S29 H1 end ---
-  })
+  }).strict()
 });
 
 const transactionUpdateSchema = {
@@ -1064,6 +1068,7 @@ const transactionUpdateZ = z.object({
       settlement_fx_rate: optionalString(),
       notes: cappedText(FREE_TEXT_MAX).optional()
     })
+    .strict()
     .superRefine((tx, ctx) => {
       // Closes the create-guard bypass: re-typing an existing booking into an
       // inbound delivery without supplying a price would leave a silent
@@ -1110,7 +1115,7 @@ const cashAccountUpdateZ = z.object({
     currency_code: optionalString(),
     notes: cappedText(FREE_TEXT_MAX).optional(),
     liquidity_role: liquidityRoleZ.optional()
-  })
+  }).strict()
 });
 
 const securitiesAccountUpdateSchema = {
@@ -1136,7 +1141,7 @@ const securitiesAccountUpdateZ = z.object({
     cash_account_id: z.number().int().positive().optional(),
     name: optionalString(),
     notes: cappedText(FREE_TEXT_MAX).optional()
-  })
+  }).strict()
 });
 
 // Since ADR-0020 a SOLL plan belongs to a view: the target read/write tools take
@@ -1206,7 +1211,7 @@ const targetsSetZ = z.object({
         category_id: z.number().int().positive(),
         security_id: z.number().int().positive().optional(),
         target_weight: z.string()
-      })
+      }).strict()
     )
     .min(1)
     .max(10000)
@@ -1353,14 +1358,18 @@ const riskZ = z.object({
   portfolio_id: z.number().int().positive(),
   view: z.number().int().positive().optional(),
   top_n: z.number().int().positive().max(1000).optional(),
+  // A free map, open by design: its keys are asset classes, which are data,
+  // so the schema names none and takes any key with a string value.
   asset_class_caps: z.record(z.string(), z.string()).optional(),
   hhi_bands: z
     .object({ low: optionalString(), high: optionalString() })
+    .strict()
     .optional(),
   stock_thresholds: z
     .object({ warn: optionalString(), hard: optionalString() })
+    .strict()
     .optional(),
-  etf_thresholds: z.object({ warn: optionalString() }).optional(),
+  etf_thresholds: z.object({ warn: optionalString() }).strict().optional(),
   risk_free_rate: z.string().optional()
 });
 
@@ -1441,7 +1450,7 @@ const policyVersionZ = z.object({
   severity: z.enum(POLICY_SEVERITIES),
   note: cappedText(FREE_TEXT_MAX).optional(),
   valid_from: optionalString()
-});
+}).strict();
 
 const policyRulesListSchema = {
   type: "object",
@@ -1499,7 +1508,7 @@ const policyRuleCreateZ = z.object({
     name: z.string(),
     view_id: z.number().int().positive().optional(),
     version: policyVersionZ
-  })
+  }).strict()
 });
 
 const policyRuleAddVersionSchema = {
@@ -1929,7 +1938,7 @@ const bucketZ = z.object({
     name: z.string(),
     color: optionalString(),
     dimension: z.enum(["tag", "scope"]).optional()
-  })
+  }).strict()
 });
 
 const bucketUpdateSchema = {
@@ -1953,7 +1962,7 @@ const bucketUpdateZ = z.object({
   bucket: z.object({
     name: optionalString(),
     color: optionalString()
-  })
+  }).strict()
 });
 
 const viewSchema = objectWith("view", {
@@ -1969,7 +1978,7 @@ const viewZ = z.object({
   view: z.object({
     name: z.string(),
     include_all: z.boolean().optional()
-  })
+  }).strict()
 });
 
 const viewUpdateSchema = {
@@ -1993,7 +2002,7 @@ const viewUpdateZ = z.object({
   view: z.object({
     name: optionalString(),
     include_all: z.boolean().optional()
-  })
+  }).strict()
 });
 
 const bucketIdArraySchema = {
@@ -2593,7 +2602,7 @@ const reconcileZ = z.object({
         }),
         currency: optionalString(),
         security_id: z.number().int().positive().optional()
-      })
+      }).strict()
     )
     .min(1)
     .max(10000),
@@ -2674,7 +2683,7 @@ const eventBodyZ = z.object({
   // --- S29 H1 begin ---
   chain_height: z.number().int().positive().optional()
   // --- S29 H1 end ---
-});
+}).strict();
 
 const eventsListSchema = {
   type: "object",
@@ -3139,6 +3148,7 @@ const noteAppendZ = z.object({
       invalidation_condition: cappedText(FREE_TEXT_MAX).optional(),
       time_stop: optionalString()
     })
+    .strict()
     // --- S28 N5 begin ---
     .refine(
       (note) =>
@@ -6543,14 +6553,20 @@ function withoutKeys(
   return rest;
 }
 
+// The one place a tool is built, so the one place its validator is closed
+// (N-08): an argument a tool does not take is refused by name before any
+// request, as its published schema says (additionalProperties: false), never
+// dropped and the call run without it. The objects inside an input are closed
+// where they are written (.strict()), the free maps excepted, whose keys are
+// data; test/closed-arguments.test.ts walks every object of every tool.
 function tool(
   name: string,
   title: string,
   description: string,
   inputSchema: JsonSchema,
-  zodSchema: ZodTypeAny
+  zodSchema: ZodObject
 ): DeclaredTool {
-  return { name, title, description, inputSchema, zodSchema };
+  return { name, title, description, inputSchema, zodSchema: zodSchema.strict() };
 }
 
 function isinChangeBody(args: Record<string, any>): Record<string, unknown> {

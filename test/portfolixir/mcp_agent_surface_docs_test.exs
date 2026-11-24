@@ -41,6 +41,46 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
     ])
   end
 
+  # User story (security review 2026-11, N-08; decision D-4):
+  # As the operator or the agent reading the MCP reference,
+  # I want it to say that an argument a tool does not take is refused by
+  # name, at every depth of the input, and which objects take any key,
+  # so that I ask a dry run or a scope only of a tool that offers it and
+  # read a refusal as "nothing has run".
+  #
+  # Acceptance criteria:
+  # - The EN and DE MCP pages state the rule, the error's wording at the top
+  #   and inside an object, that nothing has run, the closed create and
+  #   update bodies, and the three free maps.
+  test "the MCP pages state that an argument a tool does not take is refused" do
+    assert_fragments([
+      {"docs/integration/api-and-mcp.md",
+       [
+         "**An argument a tool does not take is refused, never dropped.**",
+         "Every object of a tool's input is closed: the input itself and each object inside it",
+         "`Invalid arguments for tool portfolixir.buckets.delete: Unrecognized key: \"dry_run\"`",
+         "`Unrecognized key: \"fee\" at transaction`",
+         "Nothing has run after such a refusal",
+         "`dry_run` is taken only by the deletes whose schema publishes it",
+         "The create and update bodies (`security`, `portfolio`, `cash_account`, `securities_account`, `transaction`, `classification`, `category`, `bucket`, `view`) are closed like every other object",
+         "Three objects are free maps, whose keys are data, and take any key",
+         "`asset_class_caps` on `portfolixir.portfolios.risk`"
+       ]},
+      {"docs/de/integration/api-and-mcp.md",
+       [
+         "**Ein Argument, das ein Tool nicht nimmt, wird abgelehnt, nie verworfen.**",
+         "Jedes Objekt der Eingabe eines Tools ist geschlossen: die Eingabe selbst und jedes Objekt darin",
+         "`Invalid arguments for tool portfolixir.buckets.delete: Unrecognized key: \"dry_run\"`",
+         "`Unrecognized key: \"fee\" at transaction`",
+         "Nach einer solchen Ablehnung ist nichts gelaufen",
+         "`dry_run` nehmen nur die Löschungen, deren Schema es veröffentlicht",
+         "Die Bodys für Anlegen und Ändern (`security`, `portfolio`, `cash_account`, `securities_account`, `transaction`, `classification`, `category`, `bucket`, `view`) sind geschlossen wie jedes andere Objekt",
+         "Drei Objekte sind freie Maps, deren Schlüssel Daten sind, und nehmen jeden Schlüssel",
+         "`asset_class_caps` bei `portfolixir.portfolios.risk`"
+       ]}
+    ])
+  end
+
   # User story (E25 S7, F22):
   # As an operator running the companion over HTTP,
   # I want the reference to say that a foreign Host is refused first,

@@ -3703,8 +3703,14 @@ describe("Portfolixir MCP tools", () => {
       from: "2025-01-01",
       to: "2025-06-30"
     });
-    // The contribution has no series: one passed is not forwarded.
-    await callTool(client, "portfolixir.views.contribution", { id: 2, year: 2025, series: true });
+    // The contribution has no series: one passed is refused by name (N-08),
+    // and nothing is sent.
+    await assert.rejects(
+      callTool(client, "portfolixir.views.contribution", { id: 2, year: 2025, series: true }),
+      /"series"/
+    );
+    assert.equal(requests.length, 2);
+    await callTool(client, "portfolixir.views.contribution", { id: 2, year: 2025 });
 
     assert.equal(
       requests[1].path,
