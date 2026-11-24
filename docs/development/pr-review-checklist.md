@@ -66,7 +66,9 @@ the diff; verify before reporting.
 - Every new user-visible function has an API endpoint **and** an MCP tool, or the
   PR explicitly documents why coverage is n/a.
 - MCP tools call the public JSON API only — never the DB or Elixir contexts
-  directly (guarded by `mcp_dependency_allowlist_test`, but verify the intent).
+  directly (guarded by `scope_b2_outbound_chokepoint_test`, which reads the
+  companion's source, and by `mcp_dependency_allowlist_test`, which reads its
+  manifest; verify the intent all the same).
 - Financial decimals serialized as **strings** in both API responses and MCP
   schemas.
 

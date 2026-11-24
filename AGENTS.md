@@ -252,7 +252,8 @@ contradicted an environment the owner runs (owner, 2026-11-07).
 - **MCP tools call the public JSON API only** — never the database or the
   Elixir contexts. *Why:* one integration contract and no second data path
   around the API's validation and auth (ADR-0002;
-  `test/invariants/mcp_dependency_allowlist_test.exs`).
+  `test/invariants/scope_b2_outbound_chokepoint_test.exs` reads the
+  companion's source, `mcp_dependency_allowlist_test.exs` its manifest).
 
 ## API And MCP Coverage
 
