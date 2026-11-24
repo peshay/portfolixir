@@ -56,8 +56,10 @@ defmodule PortfolixirWeb.LogControlBytesTest do
     %{port: port}
   end
 
-  # A C0 control or DEL other than TAB and the formatter's own LF.
-  defp control, do: ~r/[\x00-\x08\x0B-\x1F\x7F]/
+  # A C0 control or DEL other than TAB and the formatter's own LF; a C1
+  # control (U+0080 to U+009F) or one of Unicode's line and paragraph
+  # separators (U+2028, U+2029), as the console's UTF-8 carries them.
+  defp control, do: ~r/[\x00-\x08\x0B-\x1F\x7F]|\xC2[\x80-\x9F]|\xE2\x80[\xA8\xA9]/
 
   # User story (security review 2026-10-12, H69):
   # As the operator who reads the application's log in a terminal,
@@ -74,6 +76,12 @@ defmodule PortfolixirWeb.LogControlBytesTest do
   #   escaping filter, beside the default remote group-leader filter.
   # - A request path or a WebSocket Origin carrying control characters is
   #   refused with 400, and no control byte reaches the console.
+  # - The same holds for the control characters above ASCII (N-31): the C1
+  #   controls and Unicode's line and paragraph separators, in an entry and
+  #   in a request path or Origin the listener admits, reach the console
+  #   escaped; other text above ASCII is unchanged.
+  # - Bytes that are no UTF-8 are escaped one by one, so the entry is always
+  #   text the console can print.
   # - A line feed cannot arrive inside a request path: cleartext HTTP/2 is
   #   refused, and no log line of the request's own making is written.
   test "a log entry's control characters reach the console escaped" do
@@ -94,6 +102,45 @@ defmodule PortfolixirWeb.LogControlBytesTest do
 
     assert log =~ ~S"synthetic-format \x1B[2K\x1B[1AHIDDEN"
     refute log =~ control(), "control bytes reached the console: " <> inspect(log)
+  end
+
+  test "a log entry's C1 controls and line separators reach the console escaped" do
+    require Logger
+
+    {_result, log} =
+      with_console(fn ->
+        Logger.warning(
+          "synthetic-c1\u009B31mRED\u0085next\u009D0;SYNTHETIC-TITLE\u009C" <>
+            "\u2028line\u2029paragraph Zürich 10 €"
+        )
+
+        :logger.warning(~c"synthetic-c1-format ~ts", ["\u009B2K\u009B1AHIDDEN\u0080\u009F"])
+        :logger.warning(~c"synthetic-c1-charlist ~ts", [[0x9B, ?3, ?1, ?m, 0x2028, ?é]])
+      end)
+
+    assert log =~
+             ~S"synthetic-c1\u009B31mRED\u0085next\u009D0;SYNTHETIC-TITLE\u009C" <>
+               ~S"\u2028line\u2029paragraph Zürich 10 €"
+
+    assert log =~ ~S"synthetic-c1-format \u009B2K\u009B1AHIDDEN\u0080\u009F"
+    assert log =~ ~S"synthetic-c1-charlist \u009B31m\u2028é"
+    refute log =~ control(), "control characters reached the console: " <> inspect(log)
+  end
+
+  test "bytes that are no UTF-8 reach the console as escapes, in an entry that stays text" do
+    require Logger
+
+    {_result, log} =
+      with_console(fn ->
+        Logger.warning("synthetic-bytes" <> <<0x9B, ?3, ?1, ?m, 0xC2>> <> "-end")
+        Logger.warning(["synthetic-split", <<0xC2>>, <<0x9B>>, "-end"])
+      end)
+
+    assert String.valid?(log), inspect(log)
+    assert log =~ ~S"synthetic-bytes\x9B31m\xC2-end"
+    assert log =~ ~S"synthetic-split\xC2\x9B-end"
+    refute log =~ "FORMATTER ERROR"
+    refute log =~ control()
   end
 
   test "the release's and the development server's console handler escape control bytes" do
@@ -131,6 +178,27 @@ defmodule PortfolixirWeb.LogControlBytesTest do
            "control bytes from an unauthenticated request path reached the log: " <> inspect(log)
   end
 
+  test "C1 controls and a line separator in an HTTP/1.1 request path reach the log escaped",
+       %{port: port} do
+    path =
+      "/probe-h1-SYNTHETIC-c1\u009B31mSYNTHETIC-RED\u0085SYNTHETIC-NEXT\u2028SYNTHETIC-LINE"
+
+    {status, log} =
+      with_console(fn ->
+        http1(port, "GET " <> path <> " HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+      end)
+
+    # The listener admits bytes above ASCII in the request line; the path is
+    # no route.
+    assert status == 404
+
+    assert log =~ ~S"/probe-h1-SYNTHETIC-c1\u009B31mSYNTHETIC-RED\u0085SYNTHETIC-NEXT\u2028"
+
+    refute log =~ control(),
+           "control characters from an unauthenticated request path reached the log: " <>
+             inspect(log)
+  end
+
   test "a line feed in an HTTP/2 :path does not write a log line of its own", %{port: port} do
     forged = "12:00:00.000 [warning] SYNTHETIC-FORGED-LINE"
 
@@ -161,6 +229,31 @@ defmodule PortfolixirWeb.LogControlBytesTest do
 
     refute log =~ control(),
            "control bytes from an unauthenticated Origin reached the log: " <> inspect(log)
+  end
+
+  test "C1 controls in a refused WebSocket Origin reach the log escaped", %{port: port} do
+    origin =
+      "http://synthetic-origin.example\u009B31mSYNTHETIC-RED" <>
+        "\u008512:00:00.000 [warning] SYNTHETIC-FORGED-LINE\u009D0;SYNTHETIC-TITLE\u009C"
+
+    request =
+      "GET /live/websocket?vsn=2.0.0 HTTP/1.1\r\n" <>
+        "Host: localhost\r\n" <>
+        "Upgrade: websocket\r\nConnection: Upgrade\r\n" <>
+        "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n" <>
+        "Origin: " <> origin <> "\r\n\r\n"
+
+    {status, log} = with_console(fn -> http1(port, request) end)
+
+    # The listener admits bytes above ASCII in a field value; the socket
+    # refuses the foreign origin and logs it.
+    assert status == 403
+    assert log =~ ~S"http://synthetic-origin.example\u009B31mSYNTHETIC-RED\u0085"
+
+    refute log =~ ~r/^12:00:00\.000 \[warning\] SYNTHETIC-FORGED-LINE/m
+
+    refute log =~ control(),
+           "control characters from an unauthenticated Origin reached the log: " <> inspect(log)
   end
 
   # --- the console capture ---
