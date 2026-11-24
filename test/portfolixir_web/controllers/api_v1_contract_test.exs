@@ -97,6 +97,24 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- N-10 end ---
 
+    # --- R-019 begin ---
+    # R-019 (#1301's rule): three reads refuse a filter they cannot use.
+    assert newest["summary"] =~ "R-019 (#1301's rule): the holdings read and the tax reads"
+
+    for {read, part} <- [
+          {"GET /api/v1/portfolios/:portfolio_id/holdings (portfolixir.holdings.list",
+           "securities_account_id that is not a positive integer id answers 422"},
+          {"GET /api/v1/tax/statement_snapshots and GET /api/v1/tax/allowance_orders",
+           "a tax_year that is not a whole year from 1 to 9999 answers 422"},
+          {"GET /api/v1/tax/trim_budget (portfolixir.tax_snapshots.trim_budget",
+           ~s(an absent or empty tax_year keeps ["is required"])}
+        ] do
+      assert [line] = Enum.filter(newest["parameters"], &String.starts_with?(&1, read)), read
+      assert line =~ part, part
+    end
+
+    # --- R-019 end ---
+
     # Sprint 31's sprint PR (version 31), found by version from the
     # 2026-11 security fixes on. Dated strictly after entry 30, so
     # since=2026-11-15 still returns it. Each story appends its own items

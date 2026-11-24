@@ -60,8 +60,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- N-07 end ---
             # --- N-10 begin ---
             "N-10 (ADR-0054 §4): the bands reads name a category and a classification by " <>
-              "kind and id in computation_basis; their names travel as data."
+              "kind and id in computation_basis; their names travel as data.",
             # --- N-10 end ---
+            # --- R-019 begin ---
+            "R-019 (#1301's rule): the holdings read and the tax reads refuse a filter " <>
+              "value they cannot use, naming the parameter, where they dropped it."
+            # --- R-019 end ---
           ],
           " "
         ),
@@ -93,8 +97,25 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "\"classification <id>\", where they " <>
           "quoted the stored name; the names are in data.category.name and " <>
           "data.classification.name as before, and no figure moves (the performance_bands " <>
-          "and performance_view_bands computation versions moved)"
+          "and performance_view_bands computation versions moved)",
         # --- N-10 end ---
+        # --- R-019 begin ---
+        "GET /api/v1/portfolios/:portfolio_id/holdings (portfolixir.holdings.list, " <>
+          "unchanged: its schema already types both as positive integers): a security_id or " <>
+          "securities_account_id that is not a positive integer id answers 422 " <>
+          "errors.<parameter> [\"is invalid\"], as the transactions read does, where it " <>
+          "was dropped and the read answered every holding of the portfolio with 200; an " <>
+          "empty value stays absent",
+        "GET /api/v1/tax/statement_snapshots and GET /api/v1/tax/allowance_orders " <>
+          "(portfolixir.tax_snapshots.list, portfolixir.allowance_orders.list, unchanged: " <>
+          "their schemas already type tax_year): a tax_year that is not a whole year from 1 " <>
+          "to 9999 answers 422 errors.tax_year [\"is invalid\"], where it was dropped and " <>
+          "the read answered every year's rows with 200; an empty tax_year stays absent",
+        "GET /api/v1/tax/trim_budget (portfolixir.tax_snapshots.trim_budget, unchanged): a " <>
+          "tax_year that is sent and is not a whole year from 1 to 9999 answers 422 " <>
+          "errors.tax_year [\"is invalid\"], where it answered " <>
+          "[\"is required\"]; an absent or empty tax_year keeps [\"is required\"]"
+        # --- R-019 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

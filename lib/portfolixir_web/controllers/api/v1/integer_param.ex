@@ -18,6 +18,7 @@ defmodule PortfolixirWeb.Api.V1.IntegerParam do
 
   @max_offset 1_000_000
   @max_days 3650
+  @max_year 9999
 
   @doc "The largest `offset` the list reads accept."
   @spec max_offset() :: pos_integer()
@@ -39,6 +40,21 @@ defmodule PortfolixirWeb.Api.V1.IntegerParam do
       value when is_integer(value) -> in_range(value, key, max)
       value when is_binary(value) -> parse_binary(value, key, max)
       _other -> {:error, key}
+    end
+  end
+
+  @doc """
+  An optional year filter of a read (R-019): `{:ok, nil}` when `key` is
+  absent or empty, `{:ok, year}` for a whole year from 1 to #{@max_year} (what
+  a calendar can name and an int4 column can hold, #856), and `{:error, key}`
+  for anything else, which the read answers 422 naming the parameter. A
+  year filter is applied or refused, never dropped.
+  """
+  @spec year(map(), String.t()) :: {:ok, pos_integer() | nil} | {:error, String.t()}
+  def year(params, key) when is_map(params) and is_binary(key) do
+    case parse(params, key, nil, @max_year) do
+      {:ok, 0} -> {:error, key}
+      other -> other
     end
   end
 

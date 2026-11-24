@@ -25,6 +25,7 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
 
   alias Portfolixir.Tax
   alias PortfolixirWeb.Api.V1.IdParam
+  alias PortfolixirWeb.Api.V1.IntegerParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.TextParam
 
@@ -93,19 +94,16 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
   end
 
   def index_allowance_orders(conn, params) do
-    case text_filters(params, ["holder", "institution"]) do
-      {:ok, %{"holder" => holder, "institution" => institution}} ->
-        orders =
-          Tax.list_allowance_orders(
-            holder: holder,
-            institution: institution,
-            tax_year: parse_year(params["tax_year"])
-          )
+    # R-019: a tax_year that is no year is refused by name, not dropped.
+    with {:ok, %{"holder" => holder, "institution" => institution}} <-
+           text_filters(params, ["holder", "institution"]),
+         {:ok, tax_year} <- IntegerParam.year(params, "tax_year") do
+      orders =
+        Tax.list_allowance_orders(holder: holder, institution: institution, tax_year: tax_year)
 
-        json(conn, %{data: Enum.map(orders, &JSON.allowance_order/1)})
-
-      {:error, key} ->
-        invalid_param(conn, key)
+      json(conn, %{data: Enum.map(orders, &JSON.allowance_order/1)})
+    else
+      {:error, key} -> invalid_param(conn, key)
     end
   end
 
@@ -127,21 +125,6 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
       _otherwise -> not_found(conn)
     end
   end
-
-  defp parse_year(nil), do: nil
-
-  # A year the `tax_year` column (an int4) can hold and a calendar can name;
-  # anything else reads as a malformed year (#856) — before this bound a
-  # 20-digit year reached the driver as a DBConnection.EncodeError, a 500.
-  defp parse_year(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {year, ""} -> parse_year(year)
-      _other -> nil
-    end
-  end
-
-  defp parse_year(value) when is_integer(value) and value >= 1 and value <= 9999, do: value
-  defp parse_year(_value), do: nil
 
   defp text_filters(params, keys), do: TextParam.parse_all(params, keys)
 
