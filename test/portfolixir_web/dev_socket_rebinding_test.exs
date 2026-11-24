@@ -158,11 +158,16 @@ defmodule PortfolixirWeb.DevSocketRebindingTest do
     open = %{dev | check_origin: false}
     apply_endpoint_config(open)
 
-    {result, _log} = with_log(fn -> rebinding_attack(attacker(open), world, port) end)
+    # The control also hands the forger the server's own key and salt, which
+    # no file of the repository holds (N-01): the password has to hold
+    # against a session signed with them.
+    key_holder = %{secret_key_base: open.secret_key_base, live_view_salt: open.live_view_salt}
+
+    {result, _log} = with_log(fn -> rebinding_attack(key_holder, world, port) end)
 
     # The handshake itself still succeeds under the foreign origin; the
-    # password's fingerprint (keyed from the public secret, but over a
-    # password the attacker does not know) is what stops the mount.
+    # password's fingerprint (keyed from the server's key, but over a
+    # password the forger does not know) is what stops the mount.
     assert result.handshake == 101, inspect(result)
     assert result.join_status == "error", inspect(result)
     assert result.join_redirect == "/login", inspect(result)
@@ -392,7 +397,8 @@ defmodule PortfolixirWeb.DevSocketRebindingTest do
   # -- the configuration the run-from-source route boots with ------------------
 
   # The values `mix phx.server` gets under MIX_ENV=dev: config/dev.exs on top
-  # of config/config.exs, and config/runtime.exs evaluated under :dev.
+  # of config/config.exs, and config/runtime.exs evaluated under :dev, which
+  # gives the endpoint its signing key and the salt derived from it (N-01).
   defp dev_endpoint_security_config do
     dev = Config.Reader.read!(Path.join(@root, "config/dev.exs"), env: :dev, target: :host)
     dev_endpoint = dev |> Keyword.fetch!(:portfolixir) |> Keyword.fetch!(@endpoint_mod)
@@ -402,14 +408,14 @@ defmodule PortfolixirWeb.DevSocketRebindingTest do
     base = Config.Reader.read!(Path.join(@root, "config/config.exs"), env: :dev, target: :host)
     base_endpoint = base |> Keyword.fetch!(:portfolixir) |> Keyword.fetch!(@endpoint_mod)
 
-    runtime =
-      Config.Reader.read!(Path.join(@root, "config/runtime.exs"), env: :dev, target: :host)
+    runtime = runtime_config_under_dev()
 
-    runtime_dev_touches_endpoint? =
-      runtime |> Keyword.get(:portfolixir, []) |> Keyword.has_key?(@endpoint_mod)
+    runtime_endpoint = runtime |> Keyword.get(:portfolixir, []) |> Keyword.get(@endpoint_mod, [])
+    runtime_dev_touches_endpoint? = runtime_endpoint != []
 
     live_view =
-      Keyword.get(dev_endpoint, :live_view) || Keyword.fetch!(base_endpoint, :live_view)
+      Keyword.get(runtime_endpoint, :live_view) || Keyword.get(dev_endpoint, :live_view) ||
+        Keyword.fetch!(base_endpoint, :live_view)
 
     host_guard_hosts =
       dev
@@ -419,11 +425,29 @@ defmodule PortfolixirWeb.DevSocketRebindingTest do
 
     %{
       check_origin: Keyword.fetch!(dev_endpoint, :check_origin),
-      secret_key_base: Keyword.fetch!(dev_endpoint, :secret_key_base),
+      secret_key_base:
+        Keyword.get(runtime_endpoint, :secret_key_base) ||
+          Keyword.fetch!(dev_endpoint, :secret_key_base),
       live_view_salt: Keyword.fetch!(live_view, :signing_salt),
       runtime_dev_touches_endpoint?: runtime_dev_touches_endpoint?,
       host_guard_hosts: host_guard_hosts
     }
+  end
+
+  # Read with a key exported for the read, so that it generates no key file;
+  # where a development server's key comes from is
+  # dev_endpoint_configuration_test.exs's subject.
+  defp runtime_config_under_dev do
+    saved = System.get_env("SECRET_KEY_BASE")
+    System.put_env("SECRET_KEY_BASE", Base.encode64(:crypto.strong_rand_bytes(48)))
+
+    try do
+      Config.Reader.read!(Path.join(@root, "config/runtime.exs"), env: :dev, target: :host)
+    after
+      if saved,
+        do: System.put_env("SECRET_KEY_BASE", saved),
+        else: System.delete_env("SECRET_KEY_BASE")
+    end
   end
 
   defp apply_endpoint_config(dev) do

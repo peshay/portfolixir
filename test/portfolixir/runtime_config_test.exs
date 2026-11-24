@@ -287,7 +287,8 @@ defmodule Portfolixir.RuntimeConfigTest do
   # - A missing value raises the same way.
   # - The .env.example placeholder and the other placeholder prefixes are
   #   refused whatever their length.
-  # - The literals committed in config/dev.exs and config/test.exs are refused.
+  # - The literal committed in config/test.exs, and the one config/dev.exs held
+  #   until N-01, are refused.
   # - A 64-byte random value is returned unchanged, and config/runtime.exs
   #   reads the variable through this check.
   test "refuses short, placeholder and committed secret key bases" do
@@ -309,15 +310,21 @@ defmodule Portfolixir.RuntimeConfigTest do
       end
     end
 
-    for {config, env} <- [{"config/dev.exs", :dev}, {"config/test.exs", :test}] do
-      # What the file evaluates to is committed, however it is spelled there.
-      committed =
-        config
-        |> Config.Reader.read!(env: env, target: :host)
-        |> Keyword.fetch!(:portfolixir)
-        |> Keyword.fetch!(PortfolixirWeb.Endpoint)
-        |> Keyword.fetch!(:secret_key_base)
+    # What config/test.exs evaluates to is committed, however it is spelled
+    # there.
+    committed_for_tests =
+      "config/test.exs"
+      |> Config.Reader.read!(env: :test, target: :host)
+      |> Keyword.fetch!(:portfolixir)
+      |> Keyword.fetch!(PortfolixirWeb.Endpoint)
+      |> Keyword.fetch!(:secret_key_base)
 
+    # config/dev.exs holds no key since N-01; the literal it held until then
+    # is in the repository's history, so a release keeps refusing it.
+    held_by_dev_until_n01 =
+      "dev_secret_key_base_which_should_be_changed_in_production_and_is_long_enough_for_sessions"
+
+    for committed <- [committed_for_tests, held_by_dev_until_n01] do
       assert_raise ArgumentError, ~r/SECRET_KEY_BASE/, fn ->
         RuntimeConfig.validate_secret_key_base!(committed)
       end

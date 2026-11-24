@@ -278,9 +278,14 @@ user `postgres` with password `postgres`, which `config/dev.exs` fixes: no
 variable changes them. Only a release reads `DATABASE_URL`. The server listens
 on loopback, on `PORT` (default `4000`), and its web UI asks for a login only
 when `PORTFOLIXIR_UI_PASSWORD` is exported before `mix phx.server`. This route
-requires it: without it the UI is open to every process on the machine, and
-the development configuration signs sessions with a key the repository
-publishes, so the password is the only lock it has (`SECURITY.md`).
+requires it: without it the UI is open to every process on the machine
+(`SECURITY.md`). The server signs sessions with a key of its own, which no
+file in the repository holds: `SECRET_KEY_BASE` when you export one (at least
+64 bytes, as a release asks), otherwise a key it generates on its first start
+into `_build/dev_secret_key_base`, a file git does not track and only you can
+read. It serves no debug pages unless it was compiled and started with
+`PORTFOLIXIR_DEV_DEBUG_ERRORS=on`, which is for a developer at work, not for
+an instance.
 The `read` below sets it: type a password of at least 12 characters at its
 prompt (bash or zsh), which neither shows it nor keeps it in the shell's
 history. `/api/v1` and the MCP companion share one bearer token,

@@ -641,8 +641,9 @@ defmodule Portfolixir.RuntimeConfig do
 
   # What the cookie store needs, and what `openssl rand -base64 48` prints.
   @min_secret_key_base_bytes 64
-  # The placeholders, plus the prefixes of the literals committed in
-  # config/dev.exs and config/test.exs, which anyone can read.
+  # The placeholders, plus the prefixes of the literal committed in
+  # config/test.exs and of the one config/dev.exs held until N-01, which
+  # anyone can read.
   @secret_key_base_placeholders @placeholder_prefixes ++
                                   ~w(dev_secret_key_base test_secret_key_base)
 
@@ -673,6 +674,99 @@ defmodule Portfolixir.RuntimeConfig do
   def validate_secret_key_base!(_missing) do
     raise ArgumentError,
           "SECRET_KEY_BASE is required; generate one with `openssl rand -base64 48`"
+  end
+
+  @dev_secret_key_base_path "_build/dev_secret_key_base"
+
+  @doc """
+  Where a development server keeps the signing key it generated: under the
+  build directory, which git and the image build leave out, relative to the
+  project root Mix runs in.
+  """
+  @spec dev_secret_key_base_path() :: String.t()
+  def dev_secret_key_base_path, do: @dev_secret_key_base_path
+
+  @doc """
+  The signing key a development server boots with (`MIX_ENV=dev`: `mix
+  phx.server`, the README's "Run from source", the development stack; N-01).
+  No configuration file holds one. An exported `SECRET_KEY_BASE` is taken by
+  the release's rules (`validate_secret_key_base!/1`); without one the key is
+  generated once per checkout into `path`, readable by its owner only, and
+  read from there on every later start, so a restart ends no session.
+  """
+  @spec dev_secret_key_base!(String.t() | nil, Path.t()) :: String.t()
+  def dev_secret_key_base!(exported, path \\ @dev_secret_key_base_path) do
+    if is_binary(exported) and String.trim(exported) != "",
+      do: validate_secret_key_base!(exported),
+      else: stored_dev_secret_key_base!(path)
+  end
+
+  # `path` is the constant above, or a test's own directory: these two
+  # functions run while the configuration is read, before the application
+  # serves, and no request reaches them.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp stored_dev_secret_key_base!(path) do
+    case File.read(path) do
+      {:ok, stored} ->
+        check_stored_dev_secret_key_base!(stored, path)
+
+      {:error, :enoent} ->
+        generate_dev_secret_key_base!(path)
+        path |> File.read!() |> check_stored_dev_secret_key_base!(path)
+
+      {:error, reason} ->
+        raise ArgumentError,
+              "the development signing key in #{path} cannot be read " <>
+                "(#{:file.format_error(reason)}); fix the file or export SECRET_KEY_BASE"
+    end
+  end
+
+  defp check_stored_dev_secret_key_base!(stored, path) do
+    key = String.trim(stored)
+
+    if byte_size(key) < @min_secret_key_base_bytes do
+      raise ArgumentError,
+            "the development signing key in #{path} is shorter than " <>
+              "#{@min_secret_key_base_bytes} bytes; delete the file to have a new one " <>
+              "generated, or export SECRET_KEY_BASE"
+    end
+
+    key
+  end
+
+  # Written beside its final name and linked into place: the link is atomic
+  # and refuses a name that exists, so of two servers started at once one
+  # key is stored, whole, and both read that one.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp generate_dev_secret_key_base!(path) do
+    key = Base.encode64(:crypto.strong_rand_bytes(48))
+    draft = path <> "." <> Base.url_encode64(:crypto.strong_rand_bytes(9), padding: false)
+
+    try do
+      File.mkdir_p!(Path.dirname(path))
+      File.write!(draft, "", [:exclusive])
+      File.chmod!(draft, 0o600)
+      File.write!(draft, key <> "\n")
+
+      case File.ln(draft, path) do
+        :ok -> :ok
+        {:error, :eexist} -> :ok
+        # A file system without hard links: the rename is atomic as well.
+        {:error, _no_link} -> File.rename!(draft, path)
+      end
+    rescue
+      error in File.Error ->
+        reraise ArgumentError,
+                [
+                  message:
+                    "the development signing key could not be stored in #{path} " <>
+                      "(#{Exception.message(error)}); make the directory writable or " <>
+                      "export SECRET_KEY_BASE"
+                ],
+                __STACKTRACE__
+    after
+      File.rm(draft)
+    end
   end
 
   # What `openssl rand -hex 32` prints is twice this.

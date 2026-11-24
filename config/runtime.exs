@@ -13,6 +13,19 @@ if config_env() == :dev do
        ) do
     config :portfolixir, :api_tokens, api_tokens
   end
+
+  # The development server's signing key (N-01): no configuration file holds
+  # one. SECRET_KEY_BASE by the release's rules when it is exported, else a
+  # key generated once per checkout under _build/, which git does not track;
+  # the LiveView salt is derived from it, as a release's is (K18).
+  dev_secret_key_base =
+    Portfolixir.RuntimeConfig.dev_secret_key_base!(System.get_env("SECRET_KEY_BASE"))
+
+  config :portfolixir, PortfolixirWeb.Endpoint,
+    secret_key_base: dev_secret_key_base,
+    live_view: [
+      signing_salt: Portfolixir.RuntimeConfig.derived_salt(dev_secret_key_base, "live_view")
+    ]
 end
 
 # The news fetcher's user agent (ADR-0056 §5, B8): the operator's own, with
