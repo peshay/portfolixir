@@ -1263,7 +1263,7 @@ or how many domains one answer may make the ingest work on.
   it.** The ingest refuses a domain that has not a domain's shape (at most
   253 bytes, labels of letters, digits and hyphens) before it reads the
   tier table or takes a tier lock for it. Such an item counts `invalid`,
-  as before: the item's own check refused it then, after that work.
+  as the item's own check counts it.
 - **The tier table is read with one entry per domain**, never with every
   suffix of every domain. §3's rule is unchanged: the longest stored
   suffix on a label boundary decides. A name longer than a domain name is
@@ -1408,3 +1408,34 @@ link an item is given, never one it already has. The table's own check is
 not tightened: it would refuse every later update of such a row, and with
 it the recluster of its scope. Such an item's link cannot become an
 entry's (ADR-0044's link rule refuses it), and it ages out with §12.
+
+### F7. The three staging tables the journal does not record (B7, D3; N-90)
+
+ADR-0017 keeps the tables whose writes are not journaled as a closed list
+(`Portfolixir.Journal.Allowlist`) that grows only by an amendment of a
+record. B7 put the news layer's items and stories on it, and D3 the digest's
+consumers. Three more tables of the staging area were added to the list by
+the build and by the closing act of Sprint 27 (COR2, COR4) and are named in
+no record. They are named here, with who writes each and how long a row
+lives. None holds a link, a title or any other text of a feed: they hold
+counters and SHA-256 hashes.
+
+| Table | A row is | Written by | Removed |
+|---|---|---|---|
+| `news_feed_days` | one feed's counters for one server day: items stored, errors, and the items dropped by reason (cap, no source, old, blocked) | the fetcher (`news_fetch`), with each ingest and each failed fetch | by the retention run (`news_retention`), 30 server days after its day; with its feed |
+| `news_item_tombstones` | a feed and the hash of the link of an item retention removed from it (COR2), so a dateless item is not stored again as new (B4) | the retention run, for each expired item that has a feed, before it removes it | by the retention run, 90 days after the removal; with its feed |
+| `news_feed_drops` | a feed, the hash of a dropped item's link, the reason and the server day (COR4), so a drop counts once a day | the fetcher, at most 1,000 rows per feed and server day (F3) | by the retention run, with that day's row of `news_feed_days`; with its feed |
+
+*Why not journaled:* as B7 says of items and stories, they are a staging
+area a registered system job writes and retention empties, and they record
+no decision of the operator or the agent. The feed they hang off is master
+data and journaled, and its delete, which removes its rows of all three, is
+a journaled write under its actor. The fetcher and the retention run are the
+registered system jobs of B7's backstop
+(`scope_b5_system_writers_and_schedulers_test.exs`).
+
+With this amendment every table of the allowlist is named in a record:
+`security_quotes` and `exchange_rates` in ADR-0017 (the quote and the
+FX-rate sync), `news_items` and `news_clusters` in B7,
+`news_digest_consumers` in D3, `chain_reads` in ADR-0059 §9, and these
+three here.
