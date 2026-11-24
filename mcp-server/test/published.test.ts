@@ -6,12 +6,13 @@ import { z } from "zod";
 
 import { ApiOutcomeUnknownError, ApiReadTimeoutError, createApiClient } from "../src/api-client.js";
 import { readOnlySwitch } from "../src/server.js";
-import { callTool, listTools } from "../src/tools.js";
+import { allTools, callTool, listTools, type ToolDefinition } from "../src/tools.js";
 import { connectCompanion, publishedTools } from "./support/companion.js";
 import { createRecordingClient } from "./support/recording-client.js";
 
 // The properties a structural comparison keeps: what a schema lets through
-// (types, enums, properties, required, array items), not how it words it.
+// (types, enums, properties, required, array items, and what an object does
+// with a key it does not name), not how it words it.
 function structure(schema: any): any {
   if (schema === null || typeof schema !== "object") {
     return schema;
@@ -47,11 +48,104 @@ function structure(schema: any): any {
     out.required = [...(schema.required ?? [])].sort();
   }
 
+  if (schema.properties !== undefined || [schema.type].flat().includes("object")) {
+    out.additionalProperties = unnamedKeys(schema.additionalProperties);
+  }
+
   if (schema.items !== undefined) {
     out.items = structure(schema.items);
   }
 
   return out;
+}
+
+// What an object does with a key it does not name (R-098): false refuses it;
+// true takes it whatever its value, which is also what a schema says that
+// leaves the keyword out; a schema takes it when its value fits. A schema that
+// fits everything (`{}`, as the validator's free map reads) is true.
+function unnamedKeys(additionalProperties: any): any {
+  if (additionalProperties === undefined || additionalProperties === true) {
+    return true;
+  }
+
+  if (additionalProperties === false) {
+    return false;
+  }
+
+  const value = structure(additionalProperties);
+  return Object.keys(value).length === 0 ? true : value;
+}
+
+// Every object of a published schema, the input itself first, with the path
+// that reaches it.
+function* objectsOf(schema: any, path: string): Generator<[string, any]> {
+  if (schema === null || typeof schema !== "object") {
+    return;
+  }
+
+  if (schema.properties !== undefined || [schema.type].flat().includes("object")) {
+    yield [path, schema];
+  }
+
+  for (const [key, value] of Object.entries<any>(schema.properties ?? {})) {
+    yield* objectsOf(value, `${path}.${key}`);
+  }
+
+  if (schema.items !== undefined) {
+    yield* objectsOf(schema.items, `${path}[]`);
+  }
+
+  for (const branch of schema.anyOf ?? []) {
+    yield* objectsOf(branch, path);
+  }
+}
+
+// The create and update bodies whose published schema names its properties
+// and leaves additionalProperties out. The validator closes them like every
+// other object (N-08): a key such a body does not name is refused. Stating
+// the keyword costs 29 bytes of the schema budget a body, which the budget
+// does not hold today, so these are compared as the closed objects they are
+// enforced as. The list only ever shrinks: a body that states the keyword
+// leaves it, and a new object states the keyword.
+const BODIES_WITHOUT_THE_KEYWORD = [
+  "portfolixir.securities.create.security",
+  "portfolixir.securities.update.security",
+  "portfolixir.portfolios.create.portfolio",
+  "portfolixir.cash_accounts.create.cash_account",
+  "portfolixir.cash_accounts.update.cash_account",
+  "portfolixir.securities_accounts.create.securities_account",
+  "portfolixir.securities_accounts.update.securities_account",
+  "portfolixir.transactions.create.transaction",
+  "portfolixir.transactions.update.transaction",
+  "portfolixir.classifications.create.classification",
+  "portfolixir.classifications.update.classification",
+  "portfolixir.classifications.categories.create.category",
+  "portfolixir.classifications.categories.update.category",
+  "portfolixir.buckets.create.bucket",
+  "portfolixir.buckets.update.bucket",
+  "portfolixir.views.create.view",
+  "portfolixir.views.update.view"
+];
+
+// The free maps: objects whose keys are data, so their schema names none.
+const FREE_MAPS = [
+  "portfolixir.portfolios.risk.asset_class_caps",
+  "portfolixir.securities.create.security.attributes",
+  "portfolixir.securities.update.security.attributes"
+];
+
+// A tool's published input schema as the validator is held to it: the schema
+// itself, with the keyword put on the bodies that leave it out.
+function publishedAsEnforced(definition: ToolDefinition): any {
+  const published = structuredClone(definition.inputSchema);
+
+  for (const [path, object] of objectsOf(published, definition.name)) {
+    if (BODIES_WITHOUT_THE_KEYWORD.includes(path) && object.additionalProperties === undefined) {
+      object.additionalProperties = false;
+    }
+  }
+
+  return published;
 }
 
 // Every property of a published schema, with the path that reaches it.
@@ -259,14 +353,62 @@ describe("the companion's published tool surface", () => {
   });
 
   it("enforces the properties its published schema names", async () => {
-    for (const definition of listTools()) {
+    for (const definition of allTools()) {
       const enforced = z.toJSONSchema(definition.zodSchema, { io: "input" });
       assert.deepEqual(
         structure(enforced),
-        structure(definition.inputSchema),
+        structure(publishedAsEnforced(definition)),
         `${definition.name}: the validator and the published schema disagree`
       );
     }
+  });
+
+  // User story (architecture review 2026-11, R-098, its closure half; N-08):
+  // As a developer adding or changing a tool,
+  // I want the test that holds a tool's published schema and its validator
+  // together to compare which objects are closed as well,
+  // so that a tool cannot publish a closed object and enforce an open one,
+  // and a new tool cannot ship an object that takes a key it does not name.
+  //
+  // Acceptance criteria:
+  // - The comparison above keeps, for every object of every declared tool,
+  //   what the object does with a key it does not name, so the published
+  //   schema and the validator agree on it (the labeller's two tools too).
+  // - Every published object that names its properties states
+  //   additionalProperties: false, the input itself and every object below
+  //   it; the only exceptions are the bodies listed above, which leave the
+  //   keyword out and are enforced closed.
+  // - An object that names no property is a free map; it states what its
+  //   values are, and there are exactly the three listed above.
+  it("closes every object that names its properties, and names the free maps", () => {
+    const withoutTheKeyword: string[] = [];
+    const freeMaps: string[] = [];
+
+    for (const definition of allTools()) {
+      assert.equal(
+        definition.inputSchema.additionalProperties,
+        false,
+        `${definition.name}: the input takes an argument it does not name`
+      );
+
+      for (const [path, object] of objectsOf(definition.inputSchema, definition.name)) {
+        if (object.properties === undefined) {
+          freeMaps.push(path);
+          assert.ok(
+            object.additionalProperties === true ||
+              (typeof object.additionalProperties === "object" && object.additionalProperties !== null),
+            `${path} names no property and does not say what its values are`
+          );
+        } else if (object.additionalProperties === undefined) {
+          withoutTheKeyword.push(path);
+        } else {
+          assert.equal(object.additionalProperties, false, `${path} names its properties and is not closed`);
+        }
+      }
+    }
+
+    assert.deepEqual(withoutTheKeyword.sort(), [...BODIES_WITHOUT_THE_KEYWORD].sort());
+    assert.deepEqual(freeMaps.sort(), [...FREE_MAPS].sort());
   });
 
   it("types every published decimal as a string and no property as a JSON number", async () => {
