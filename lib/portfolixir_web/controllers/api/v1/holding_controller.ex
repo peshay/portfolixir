@@ -13,11 +13,15 @@ defmodule PortfolixirWeb.Api.V1.HoldingController do
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
     with {:ok, id} <- IdParam.parse(portfolio_id),
          portfolio when not is_nil(portfolio) <- Portfolios.get_portfolio(id),
-         {:ok, fields} <- FieldSelection.parse(params, @fields_whitelist) do
+         {:ok, fields} <- FieldSelection.parse(params, @fields_whitelist),
+         # R-019: a filter that is no id is refused by name, not dropped.
+         {:ok, security_id} <- IdParam.optional(params, "security_id"),
+         {:ok, account_id} <- IdParam.optional(params, "securities_account_id") do
       holdings =
         id
         |> Ledger.holdings_for_portfolio()
-        |> filter_holdings(params)
+        |> filter_by(& &1.security_id, security_id)
+        |> filter_by(& &1.securities_account_id, account_id)
 
       response =
         JSON.holdings(holdings, id)
@@ -37,30 +41,19 @@ defmodule PortfolixirWeb.Api.V1.HoldingController do
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{errors: %{fields: ["is invalid"]}})
+
+      {:error, key} when is_binary(key) ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: %{key => ["is invalid"]}})
     end
   end
 
   # Optional in-memory filters on the enriched holdings.
-  defp filter_holdings(holdings, params) do
-    security_id = optional_id(params["security_id"])
-    account_id = optional_id(params["securities_account_id"])
-
-    holdings
-    |> filter_by(& &1.security_id, security_id)
-    |> filter_by(& &1.securities_account_id, account_id)
-  end
-
   defp filter_by(holdings, _selector, nil), do: holdings
 
   defp filter_by(holdings, selector, value),
     do: Enum.filter(holdings, fn holding -> selector.(holding) == value end)
-
-  defp optional_id(value) do
-    case IdParam.parse(value) do
-      {:ok, id} -> id
-      _ -> nil
-    end
-  end
 
   defp not_found(conn) do
     conn

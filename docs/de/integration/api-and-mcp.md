@@ -199,6 +199,16 @@ nicht-negative Ganzzahl ist, liefert `422` mit dem Namen des Parameters.
 den Wertpapier-Terminen. Ein Jahr außerhalb von `1`–`9999` gilt als
 fehlerhaftes Jahr.
 
+**Filter.** Ein Filter, den eine Abfrage nimmt, wird angewendet oder
+abgelehnt, nie übergangen. Ein optionaler ID-Filter, der keine ID ist
+(`security_id` und `securities_account_id` auf der Bestandsabfrage, wie auf
+der Transaktionsabfrage), und ein `tax_year`, das kein ganzes Jahr von `1`
+bis `9999` ist (auf `GET /api/v1/tax/statement_snapshots`,
+`GET /api/v1/tax/allowance_orders` und `GET /api/v1/tax/trim_budget`), liefern
+`422` mit dem Namen des Parameters, `{"errors": {"tax_year": ["is invalid"]}}`.
+Ein leerer Wert ist ein fehlender Filter; das Trim-Budget, das das Jahr
+verlangt, beantwortet ein fehlendes oder leeres mit `["is required"]`.
+
 **Ein begrenzter Listen-Read sagt, wenn er gekürzt wurde (#1254).** Jeder
 Listen-Read, der seine Zeilen mit `limit` begrenzt — die fünf Delta-Reads
 unten, das Journal, die Merge-Einträge, die Wechselkurse, die Kurse eines

@@ -180,6 +180,16 @@ non-negative integer, answers `422` naming the parameter. `limit` keeps its
 capped-and-echoed contract, and so does the security events' `days`. A year
 outside `1`–`9999` reads as a malformed year.
 
+**Filters.** A filter a read takes is applied or refused, never dropped. An
+optional id filter that is not an id (`security_id` and
+`securities_account_id` on the holdings read, as on the transactions read)
+and a `tax_year` that is not a whole year from `1` to `9999` (on
+`GET /api/v1/tax/statement_snapshots`, `GET /api/v1/tax/allowance_orders` and
+`GET /api/v1/tax/trim_budget`) answer `422` naming the parameter,
+`{"errors": {"tax_year": ["is invalid"]}}`. An empty value is an absent
+filter; the trim budget, which requires the year, answers an absent or empty
+one with `["is required"]`.
+
 **A capped list read says when it was cut (#1254).** Every list read that
 bounds its rows with `limit` — the five delta reads below, the journal, the
 merge records, the exchange rates, a security's quotes and its manual-quote

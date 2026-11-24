@@ -40,6 +40,27 @@ defmodule PortfolixirWeb.Api.V1.IdParam do
 
   def parse(_value), do: :error
 
+  @doc """
+  An optional id filter of a read (R-019; #1301's rule): `{:ok, nil}` when
+  `key` is absent or empty, `{:ok, id}` for an id, and `{:error, key}` for
+  anything else, which the read answers 422 naming the parameter. A filter
+  is applied or refused, never dropped: dropped, the read answered the
+  unfiltered list as if the filter had not been sent.
+  """
+  @spec optional(map(), String.t()) :: {:ok, pos_integer() | nil} | {:error, String.t()}
+  def optional(params, key) when is_map(params) and is_binary(key) do
+    case Map.get(params, key) do
+      absent when absent in [nil, ""] ->
+        {:ok, nil}
+
+      value ->
+        case parse(value) do
+          {:ok, id} -> {:ok, id}
+          :error -> {:error, key}
+        end
+    end
+  end
+
   @doc "Parses a list of ids whole: `{:ok, ids}` or `:error` if any one fails."
   @spec parse_list(term()) :: {:ok, [pos_integer()]} | :error
   def parse_list(values) when is_list(values) do

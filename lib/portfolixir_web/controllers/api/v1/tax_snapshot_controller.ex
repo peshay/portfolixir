@@ -25,23 +25,20 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
 
   alias Portfolixir.Tax
   alias PortfolixirWeb.Api.V1.IdParam
+  alias PortfolixirWeb.Api.V1.IntegerParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.TextParam
 
   def index(conn, params) do
-    case TextParam.parse_all(params, ["holder", "institution"]) do
-      {:ok, %{"holder" => holder, "institution" => institution}} ->
-        snapshots =
-          Tax.list_snapshots(
-            holder: holder,
-            institution: institution,
-            tax_year: parse_year(params["tax_year"])
-          )
+    # R-019: a tax_year that is no year is refused by name, not dropped.
+    with {:ok, %{"holder" => holder, "institution" => institution}} <-
+           TextParam.parse_all(params, ["holder", "institution"]),
+         {:ok, tax_year} <- IntegerParam.year(params, "tax_year") do
+      snapshots = Tax.list_snapshots(holder: holder, institution: institution, tax_year: tax_year)
 
-        json(conn, %{data: Enum.map(snapshots, &serialize/1)})
-
-      {:error, key} ->
-        invalid_param(conn, key)
+      json(conn, %{data: Enum.map(snapshots, &serialize/1)})
+    else
+      {:error, key} -> invalid_param(conn, key)
     end
   end
 
@@ -95,7 +92,7 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
   def trim_budget(conn, params) do
     with {:ok, %{"holder" => holder}} when is_binary(holder) <-
            TextParam.parse_all(params, ["holder"]),
-         year when is_integer(year) <- parse_year(params["tax_year"]) do
+         {:ok, year} when is_integer(year) <- IntegerParam.year(params, "tax_year") do
       summary = Tax.holder_summary(holder, year)
 
       json(conn, %{
@@ -104,7 +101,7 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
     else
       {:error, key} -> invalid_param(conn, key)
       {:ok, %{"holder" => nil}} -> missing_param(conn, "holder")
-      nil -> missing_param(conn, "tax_year")
+      {:ok, nil} -> missing_param(conn, "tax_year")
     end
   end
 
@@ -114,21 +111,6 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
       staleness: Tax.staleness(snapshot.as_of)
     )
   end
-
-  defp parse_year(nil), do: nil
-
-  # A year the `tax_year` column (an int4) can hold and a calendar can name;
-  # anything else reads as a malformed year (#856) — before this bound a
-  # 20-digit year reached the driver as a DBConnection.EncodeError, a 500.
-  defp parse_year(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {year, ""} -> parse_year(year)
-      _other -> nil
-    end
-  end
-
-  defp parse_year(value) when is_integer(value) and value >= 1 and value <= 9999, do: value
-  defp parse_year(_value), do: nil
 
   defp invalid_param(conn, param) do
     conn |> put_status(422) |> json(%{errors: %{param => ["is invalid"]}})
