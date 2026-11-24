@@ -18,9 +18,10 @@ defmodule Portfolixir.News.Promotion do
       publication (clamped, B4), as `news.get` answers it, on the
       instance's calendar (`Portfolixir.Clock.local_date/1`);
     * `source_url` — the best-tier member's link: the representative's (the
-      earliest of the best tier, C2), else, when its domain is now blocked
-      (E1 rule 5, below), the first member's in `news.get`'s member order
-      (tier, publication, link). Every stored link fits an entry: the
+      first seen of the best tier, F9), else, when its domain is now blocked
+      (E1 rule 5, below), the next member's by the representative's own
+      rule (tier, first sight, publication, link). Every stored link fits
+      an entry: the
       database holds an item's to 2,048 characters, an entry's width
       (ADR-0056 E2), so no link is refused or passed over by its length
       (#1356: the fallback by length and its two 422s were unreachable
@@ -309,14 +310,16 @@ defmodule Portfolixir.News.Promotion do
     )
   end
 
-  # The representative first, then news.get's member order: the best tier,
-  # the earliest publication, the smallest link. `members` are the current
-  # ones (`current_members/1`), never empty; every stored link fits an
-  # entry's source_url (E2), so the first is the link.
+  # The representative first, then the representative's own rule (F9): the
+  # best tier, the earliest first sight, the earliest publication, the
+  # smallest link. `members` are the current ones (`current_members/1`),
+  # never empty; every stored link fits an entry's source_url (E2), so the
+  # first is the link.
   defp source_url(story, members) do
     members
     |> Enum.min_by(
       &{&1.id != story.representative_item_id, -@tier_rank[&1.tier],
+       DateTime.to_unix(&1.first_seen_at, :microsecond),
        DateTime.to_unix(&1.published_at, :microsecond), &1.canonical_url}
     )
     |> Map.fetch!(:canonical_url)

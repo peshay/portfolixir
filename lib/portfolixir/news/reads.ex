@@ -579,8 +579,9 @@ defmodule Portfolixir.News.Reads do
   One story (`news.get` with a `cluster_id`): its representative's title,
   link, domain, excerpt and clamped publication, the story's best tier, its
   language, its earliest first sight, its count, at most five members
-  (`id`, `domain`, `tier`, `at`; the representative first, then by B3's
-  order: best tier, earliest publication, smallest link), the notes of
+  (`id`, `domain`, `tier`, `at`; the representative first, then by best
+  tier, earliest publication, smallest link: a list's order, which chooses
+  no representative, ADR-0056 F9), the notes of
   every member, its security or category (`id`, short `name`), and its
   active `label` of `prompt_version` (S28 N2; none for `nil`).
   """

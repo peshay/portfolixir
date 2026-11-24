@@ -3795,8 +3795,9 @@ research-log entry drawn on the security's chart.
   names, and one that names none, or several, waits as unassigned or
   ambiguous until you or the agent assign it. Nothing is guessed.
 - **Deduplicated** into stories: the same release from several sites, in one
-  language, is one story, its representative chosen by the source's tier,
-  never by who was fetched first.
+  language, is one story. Its representative is chosen by the source's
+  tier and, within a tier, is the item the server saw first: never by a
+  publication date an item claims.
 - **Labelled from outside, if you want:** a model you run outside the app
   can give a story an event type, a materiality from 0 to 3 and a tone
   (see "Running a labeller" below). A label is a machine's proposal: it

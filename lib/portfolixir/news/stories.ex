@@ -46,12 +46,16 @@ defmodule Portfolixir.News.Stories do
 
   ## The order of members, never by id
 
-    * **The representative** (B3) is the member of the best tier
-      (`primary`, then `secondary`, then `awareness`), then the earliest
-      clamped `published_at`, then the smallest canonical URL. An
-      aggregator's item is at most `secondary` (B5), so it never stands for
-      a story that has a true primary; a future claim is clamped (B4), so it
-      cannot make an item the earliest.
+    * **The representative** (B3, as F9 amends it: ADR-0056 amendment of
+      2026-11-24) is the member of the best tier (`primary`, then
+      `secondary`, then `awareness`), then the earliest `first_seen_at`,
+      then the earliest clamped `published_at`, then the smallest canonical
+      URL. An aggregator's item is at most `secondary` (B5), so it never
+      stands for a story that has a true primary; within a tier the
+      server's first sight decides before any claim (B4: the claim is the
+      feed's, the clock is the operator's), so a story's title, link and
+      time do not change when a later item claims an earlier publication.
+      Among the items of one first sight the earliest claim decides.
     * **The earliest member** is the member earliest by
       `(first_seen_at, canonical URL)`, stored on the story as
       `earliest_first_seen_at` and `earliest_url`.
@@ -265,18 +269,20 @@ defmodule Portfolixir.News.Stories do
 
   defp entry(item) do
     published = DateTime.to_unix(item.published_at, :microsecond)
+    seen = DateTime.to_unix(item.first_seen_at, :microsecond)
     words = :lists.usort(item.title_words)
+    key = item_key(item)
 
     %{
       item: item,
       published: published,
-      seen: DateTime.to_unix(item.first_seen_at, :microsecond),
+      seen: seen,
       primary?: item.tier == :primary,
       words: words,
       size: length(words),
       hash: item.title_norm_hash,
-      key: item_key(item),
-      rank: {Map.fetch!(@tier_rank, item.tier), published, item.canonical_url, item_key(item)}
+      key: key,
+      rank: {Map.fetch!(@tier_rank, item.tier), seen, published, item.canonical_url, key}
     }
   end
 
