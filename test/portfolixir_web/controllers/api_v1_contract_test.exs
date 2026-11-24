@@ -79,6 +79,24 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- N-07 end ---
 
+    # --- N-10 begin ---
+    # N-10 (ADR-0054 §4): the bands basis names records by kind and id.
+    assert newest["summary"] =~ "N-10 (ADR-0054 §4): the bands reads name a category"
+
+    assert [bands_basis] =
+             Enum.filter(newest["parameters"], &String.starts_with?(&1, "bands reads (GET "))
+
+    for part <- [
+          "portfolixir.portfolios.bands, portfolixir.views.bands",
+          ~s("category <id>"),
+          ~s("classification <id>"),
+          "data.category.name",
+          "no figure moves"
+        ],
+        do: assert(bands_basis =~ part, part)
+
+    # --- N-10 end ---
+
     # Sprint 31's sprint PR (version 31), found by version from the
     # 2026-11 security fixes on. Dated strictly after entry 30, so
     # since=2026-11-15 still returns it. Each story appends its own items

@@ -108,7 +108,7 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   day (ADR-0051, note of 2026-10-28). The answer is a derived value of its
   own (ADR-0039, I34 step 1): the `:performance_bands` analytic under the
   portfolio's basis, and `:performance_view_bands` under the global basis
-  for a view across portfolios, computation version 1, lifetime `:request`
+  for a view across portfolios, computation version 3, lifetime `:request`
   by default, keyed as the contribution table is (scope, walk end date,
   period, and the base currency across portfolios) plus the request's level,
   sort, scale, category filter and classification. Only the fixed periods
@@ -1178,7 +1178,7 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
     do: "the unclassified band's line, the filter's"
 
   defp parent_text(%{filter: {:category, category}}),
-    do: "the line of the category #{inspect(category.name)}, the filter's band one level up"
+    do: "the line of #{category_reference(category)}, the filter's band one level up"
 
   defp filter_text(%{filter: nil}),
     do: "none: the whole scope (category_id narrows every level to one category's subtree)"
@@ -1190,9 +1190,8 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
 
   defp filter_text(%{filter: {:category, category}}),
     do:
-      "category #{inspect(category.name)} (id #{category.id}): the securities filed under " <>
-        "it or any of its descendants, no cash and no unclassified; they add up to its " <>
-        "band one level up"
+      "#{category_reference(category)}: the securities filed under it or any of its " <>
+        "descendants, no cash and no unclassified; they add up to its band one level up"
 
   defp level_text(:total, %{filter: nil}), do: "total: one band, the series itself"
 
@@ -1217,17 +1216,17 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
 
   defp level_text(:category, %{filter: {:category, category}, children: []}),
     do:
-      "category: #{inspect(category.name)} has no sub-categories, so one band, its own, " <>
-        "keyed category:#{category.id}"
+      "category: #{category_reference(category)} has no sub-categories, so one band, its " <>
+        "own, keyed category:#{category.id}"
 
   defp level_text(:category, %{filter: {:category, category}}),
     do:
-      "category: one band per direct sub-category of #{inspect(category.name)} holding " <>
-        "something in the scope, each over the securities filed under it or any of its " <>
-        "descendants, plus one band of kind direct (key direct:#{category.id}, the " <>
-        "category's id and name) for the securities filed in #{inspect(category.name)} " <>
-        "itself, absent when it holds none; no cash, no unclassified; they add up to the " <>
-        "category's band"
+      "category: one band per direct sub-category of #{category_reference(category)} " <>
+        "holding something in the scope, each over the securities filed under it or any " <>
+        "of its descendants, plus one band of kind direct (key direct:#{category.id}, the " <>
+        "category's id and name) for the securities filed in " <>
+        "#{category_reference(category)} itself, absent when it holds none; no cash, no " <>
+        "unclassified; they add up to the category's band"
 
   defp level_text(:security, %{filter: nil}),
     do: "security: one band per security of the scope, plus cash"
@@ -1239,8 +1238,8 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
 
   defp level_text(:security, %{filter: {:category, category}}),
     do:
-      "security: one band per security filed under the category #{inspect(category.name)} " <>
-        "or any of its descendants, no cash; they add up to that category's band"
+      "security: one band per security filed under #{category_reference(category)} or " <>
+        "any of its descendants, no cash; they add up to that category's band"
 
   defp classification_text(grouping) do
     rule =
@@ -1258,9 +1257,15 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
         "none: no classification exists, so every security is unclassified. Rule: " <> rule
 
       %{classification: classification, chosen_by: chosen_by} ->
-        "#{inspect(classification.name)} (#{chosen_text(chosen_by)}). Rule: " <> rule
+        "classification #{classification.id} (#{chosen_text(chosen_by)}). Rule: " <> rule
     end
   end
+
+  # A stored name never sits inside the app's own words (ADR-0054 §4, F75,
+  # N-10): a sentence of the basis names a category or a classification by
+  # its kind and id, as the benchmark basis names its security. The names
+  # travel as data, in the read's `category` and `classification`.
+  defp category_reference(%{id: id}), do: "category #{id}"
 
   defp chosen_text(:requested), do: "requested by classification_id"
   defp chosen_text(:targets), do: "the tree of this scope's allocation targets"

@@ -107,8 +107,11 @@ defmodule Portfolixir.Derived.Registry do
     # table's are.
     # v2 (Sprint 31 Z1, #1473): the walk reads a close of 0 or below as no
     # price; a v1 band valued the units at it.
-    performance_bands: %{computation_version: 2, default_lifetime: :request},
-    performance_view_bands: %{computation_version: 2, default_lifetime: :request},
+    # v3 (N-10, ADR-0054 §4): the basis names a category and a classification
+    # by kind and id; a v2 payload's sentences carry their stored names. No
+    # figure moves.
+    performance_bands: %{computation_version: 3, default_lifetime: :request},
+    performance_view_bands: %{computation_version: 3, default_lifetime: :request},
     # The benchmark comparison (ADR-0046 §5, Sprint 11 Lane B): a read model
     # over a walk and a benchmark's price series, keyed under the global
     # basis because a benchmark the portfolio never held is outside the
