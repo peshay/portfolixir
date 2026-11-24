@@ -98,22 +98,42 @@ check_committer() {
   check_identity "$ref" committer "$name" "$email"
 }
 
+# A credit line is matched the way git reads a trailer key -- in any case,
+# with whitespace allowed between the key and its colon -- and also where the
+# line is indented: git folds such a line into the trailer above it, and a
+# reader sees the credit either way (N-83). The patterns are kept in
+# variables so that bash 3.2 and later read them as regular expressions.
+CO_AUTHOR_KEY='^[[:space:]]*co-authored-by[[:space:]]*:'
+AI_FOOTER_KEY='^[[:space:]]*(claude-session|model|thinking[[:space:]]+level)[[:space:]]*:'
+
+# A co-author line names exactly one address: one `<` and one `>`, with the
+# address between them. More, fewer or nested brackets leave open which
+# address a reader or a tool takes, so the line is refused whatever the
+# addresses are.
+check_co_author() {
+  local ref="$1" line="$2"
+  local value opens closes email
+  value="${line#*:}"
+  opens="${value//[^<]/}"
+  closes="${value//[^>]/}"
+  email="$(email_of "$value")"
+  if [[ "${#opens}" -ne 1 || "${#closes}" -ne 1 || -z "$email" ]]; then
+    report "$ref: co-author line must name exactly one address, as Name <address>:$value"
+  elif ! is_allowed "$email"; then
+    report "$ref: co-author is not an accountable human:$value"
+  fi
+}
+
 check_message() {
   local ref="$1" message="$2"
-  local line low email
+  local line low
   while IFS= read -r line; do
     low="$(to_lower "$line")"
-    case "$low" in
-      co-authored-by:*)
-        email="$(email_of "$line")"
-        if [[ -z "$email" ]] || ! is_allowed "$email"; then
-          report "$ref: co-author is not an accountable human: ${line#*: }"
-        fi
-        ;;
-      claude-session:*|model:*|"thinking level:"*)
-        report "$ref: remove AI-identity footer line: $line"
-        ;;
-    esac
+    if [[ "$low" =~ $CO_AUTHOR_KEY ]]; then
+      check_co_author "$ref" "$line"
+    elif [[ "$low" =~ $AI_FOOTER_KEY ]]; then
+      report "$ref: remove AI-identity footer line: $line"
+    fi
     # Match real AI session links (always carry a "session_<id>" segment), not
     # prose that merely mentions the pattern while documenting this policy.
     case "$low" in
