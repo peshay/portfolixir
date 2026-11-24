@@ -6225,7 +6225,9 @@ liefert und der Body nicht nennt, eine `id` oder ein Zeitstempel, bleibt bei
 einer Änderung deshalb weg. Drei Objekte sind freie Maps, deren Schlüssel
 Daten sind, und nehmen jeden Schlüssel: die `attributes` eines Wertpapiers
 bei `portfolixir.securities.create` und `portfolixir.securities.update` und
-`asset_class_caps` bei `portfolixir.portfolios.risk`.
+`asset_class_caps` bei `portfolixir.portfolios.risk`. Den Schlüssel eines
+Caps reicht der Companion weiter, wie er ist; die API beantwortet einen
+Schlüssel außerhalb der Anlageklassen-Codes mit einem `422`, das sie nennt.
 
 **Server-Anweisungen und Tool-Hinweise (E25).** Beim Verbindungsaufbau sagt
 der Begleitdienst dem Agenten, dass alles, was ein Tool zurückgibt, Daten
