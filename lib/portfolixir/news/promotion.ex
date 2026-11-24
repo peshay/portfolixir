@@ -25,10 +25,17 @@ defmodule Portfolixir.News.Promotion do
       (ADR-0056 E2), so no link is refused or passed over by its length
       (#1356: the fallback by length and its two 422s were unreachable
       since E2, and are gone);
-    * `source_quality` — §3's one rule over every member: a `primary`
-      member gives `primary`; two or more distinct `secondary` domains
-      `secondary_multi`; one `secondary` domain `unverified`; else
-      `awareness`. Each member counts at its **current** tier, the one the
+    * `source_quality` — §3's one rule over every member, as F8 reads it
+      (ADR-0056 amendment of 2026-11-24): a `primary` member gives
+      `primary`; two distinct `secondary` sources that reached the story
+      through two different feeds `secondary_multi`; any other `secondary`
+      member `unverified`; else `awareness`. **A source is the row of the
+      tier table that rates the member's domain** (`Sources.decider/1`), so
+      a name with and without `www.`, and a name and its subdomain, are one
+      source; **one feed's claims count once**, since an aggregator item's
+      domain is a claim inside the item (B5): two rated domains named by
+      one feed's items corroborate nothing. Each member counts at its
+      **current** tier, the one the
       table gives now (`Portfolixir.News.Sources.tier/2`), not a promoted
       member's stored tier, which stays the provenance of the entry
       already written (ADR-0056 E1 rule 5, precision of the closing act,
@@ -343,18 +350,41 @@ defmodule Portfolixir.News.Promotion do
       else: %{"tone" => label.tone}
   end
 
-  # §3: a primary member gives primary; two or more distinct secondary
-  # domains secondary_multi; one unverified; else awareness.
+  # §3 as F8 reads it: a primary member gives primary; two distinct
+  # secondary sources that reached the story through two different feeds
+  # secondary_multi; any other secondary member unverified; else awareness.
   defp source_quality(members) do
-    secondary_domains =
-      for %Item{tier: :secondary, domain: domain} <- members, uniq: true, do: domain
-
     cond do
       Enum.any?(members, &(&1.tier == :primary)) -> :primary
-      length(secondary_domains) >= 2 -> :secondary_multi
-      secondary_domains != [] -> :unverified
+      corroborated?(secondary_claims(members)) -> :secondary_multi
+      Enum.any?(members, &(&1.tier == :secondary)) -> :unverified
       true -> :awareness
     end
+  end
+
+  # Each secondary member as `{source, feed}`, each pair once. The source
+  # is the row of the tier table that rates the member's domain, the key
+  # the table itself matched (a `secondary` tier comes only from a row); the
+  # feed is the one that carried the item, `nil` for a deleted feed's.
+  defp secondary_claims(members) do
+    secondary = Enum.filter(members, &(&1.tier == :secondary))
+    rows = Sources.decider(secondary |> Enum.map(& &1.domain) |> Enum.uniq())
+
+    secondary
+    |> Enum.map(fn %Item{domain: domain, feed_id: feed_id} ->
+      {Map.get_lazy(rows, domain, fn -> Sources.normalize_domain(domain) end), feed_id}
+    end)
+    |> Enum.uniq()
+  end
+
+  # Two claims that differ in their source and in their feed: one feed
+  # naming two sources, and two feeds naming one, corroborate nothing.
+  defp corroborated?(claims) do
+    Enum.any?(claims, fn {source, feed} ->
+      Enum.any?(claims, fn {other_source, other_feed} ->
+        source != other_source and feed != other_feed
+      end)
+    end)
   end
 
   # The label's id stays when the entry took its event type or its tone

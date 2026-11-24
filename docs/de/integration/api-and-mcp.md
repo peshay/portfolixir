@@ -1028,9 +1028,14 @@ liefert `422` mit `kind`); `as_of` der Tag, an dem die Story veröffentlicht
 wurde (die Veröffentlichung ihres Repräsentanten, wie `news.get` sie
 antwortet); `source_url` der Link ihres Mitglieds der besten Stufe (jeder
 gespeicherte Link passt in die 2.048 Zeichen eines Eintrags); `source_quality` nach der Regel von ADR-0056 §3 (ein
-`primary`-Mitglied ergibt `primary`, zwei oder mehr verschiedene
-`secondary`-Domains `secondary_multi`, eine `unverified`, sonst
-`awareness`), jedes Mitglied mit der Stufe, die ihm die Quellentabelle jetzt
+`primary`-Mitglied ergibt `primary`; zwei verschiedene `secondary`-Quellen,
+die über zwei verschiedene Feeds in die Story kamen, `secondary_multi`; jedes
+andere `secondary`-Mitglied `unverified`; sonst `awareness`. Eine Quelle ist
+die bewertete Zeile, die die Domain eines Mitglieds liest: Ein Name mit und
+ohne `www.` und ein Name und seine Subdomain sind eine Quelle, und zwei
+bewertete Domains, die die Einträge eines einzigen Feeds nennen, sind die
+Angaben dieses Feeds und zählen einmal: ADR-0056 F8), jedes Mitglied mit der
+Stufe, die ihm die Quellentabelle jetzt
 gibt, sodass eine zweite Übernahme nach einer Neubewertung die neue Stufe
 nennt, und ein Mitglied, dessen Domain jetzt gesperrt ist, bleibt außen vor
 (bei der Qualität und beim Link; ADR-0056 E1 Regel 5); `headline` ihr Titel,

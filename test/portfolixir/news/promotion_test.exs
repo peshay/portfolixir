@@ -264,6 +264,132 @@ defmodule Portfolixir.News.PromotionTest do
     end
   end
 
+  # One story of `security` whose members are one item per `{domain, feed}`
+  # of an existing aggregator feed, all titled `title`, clustered.
+  defp feed_story!(security, title, members) do
+    at = DateTime.add(DateTime.utc_now(), -3600, :second)
+
+    items =
+      for {{domain, feed}, index} <- Enum.with_index(members) do
+        link = "https://#{domain}/claimed-#{System.unique_integer([:positive])}"
+
+        %Item{}
+        |> Item.changeset(
+          Map.merge(Stories.title_keys(title), %{
+            feed_id: feed.id,
+            class: feed.class,
+            security_id: security.id,
+            assignment: :assigned,
+            first_seen_at: DateTime.add(at, index, :second),
+            title: title,
+            canonical_url: link,
+            domain: domain,
+            tier: Sources.tier_for(domain, feed.class),
+            language: "en",
+            content_hash: :sha256 |> :crypto.hash(link) |> Base.encode16(case: :lower)
+          })
+        )
+        |> Repo.insert!()
+      end
+
+    {:ok, _} = Stories.recluster({:security, security.id}, "en", DateTime.utc_now())
+    Repo.get!(Cluster, Repo.get!(Item, hd(items).id).cluster_id)
+  end
+
+  defp quality(security, story) do
+    assert {:ok, note} = promote(security, story)
+    note.source_quality
+  end
+
+  # User story (N-18; ADR-0056 §3, B5, D6 and F8):
+  # As the operator who reads an entry's source quality as how well a
+  # finding is corroborated,
+  # I want `secondary_multi` to take two rated sources that reached the
+  # story through two feeds,
+  # so that one source under two host names, or one feed naming two
+  # sources, is never recorded as several sources agreeing.
+  #
+  # Acceptance criteria:
+  # - Two host names the tier table reads as one row (a name with `www.`,
+  #   a name and its subdomain) are one source: `unverified`.
+  # - Two rated domains named by the items of one aggregator feed are that
+  #   feed's claims: `unverified`.
+  # - Two rated domains named by the items of two feeds are
+  #   `secondary_multi`; one domain named by two feeds is `unverified`.
+  # - The same holds for a story stored through the ingest.
+  describe "source quality counts sources, and one feed's claims once (F8)" do
+    test "two host names of one rated row are one source" do
+      security = NewsFixtures.security!()
+      {wire, :aggregator} = domain!(:secondary)
+
+      for other <- ["www." <> wire, "markets." <> wire] do
+        title = "Northwind story #{System.unique_integer([:positive])}"
+        story = story!(security, title, [{wire, :aggregator}, {other, :aggregator}])
+
+        assert Enum.map(members(story), & &1.tier) == [:secondary, :secondary]
+        assert quality(security, story) == :unverified, other
+      end
+    end
+
+    test "one feed naming two rated domains is one feed's claims" do
+      security = NewsFixtures.security!()
+      [{first, _}, {second, _}] = [domain!(:secondary), domain!(:secondary)]
+      feed = NewsFixtures.feed!(%{class: "aggregator"})
+      other = NewsFixtures.feed!(%{class: "aggregator"})
+
+      for {members, expected} <- [
+            {[{first, feed}, {second, feed}], :unverified},
+            {[{first, feed}, {second, other}], :secondary_multi},
+            {[{first, feed}, {first, other}], :unverified},
+            {[{first, feed}, {second, feed}, {first, other}], :secondary_multi}
+          ] do
+        title = "Northwind claims #{System.unique_integer([:positive])}"
+        story = feed_story!(security, title, members)
+        assert quality(security, story) == expected, inspect(members, limit: 3)
+      end
+    end
+
+    test "a story stored through the ingest is graded the same" do
+      {wire, _} = domain!(:secondary)
+      {press, _} = domain!(:secondary)
+      security = NewsFixtures.security!("Promowind Logistics AG")
+
+      {:ok, security} =
+        Portfolixir.Catalog.update_security(Actor.owner_ui(), security, %{
+          news_watch: true,
+          news_aliases: [%{token: "Promowind", context: [], case: "insensitive"}]
+        })
+
+      now = DateTime.utc_now()
+
+      for {sources, expected} <- [
+            {[wire, "www." <> wire], :unverified},
+            {[wire, press], :unverified}
+          ] do
+        n = System.unique_integer([:positive])
+        feed = NewsFixtures.feed!(%{class: "aggregator"})
+
+        batch =
+          for {source, index} <- Enum.with_index(sources) do
+            %Parsed{
+              title: "Promowind reports results of run #{n}",
+              link: "https://search.example.com/r?u=#{n}-#{index}",
+              source_domain: source
+            }
+          end
+
+        assert {:ok, %{stored: 2}} = Ingest.ingest(feed, batch, now)
+
+        [story_id] =
+          from(i in Item, where: i.feed_id == ^feed.id, distinct: true, select: i.cluster_id)
+          |> Repo.all()
+
+        assert is_integer(story_id)
+        assert quality(security, Repo.get!(Cluster, story_id)) == expected, inspect(sources)
+      end
+    end
+  end
+
   # User story (ADR-0056 §8):
   # As the operator whose agent may promote a story twice, or name the
   # wrong one,

@@ -1439,3 +1439,34 @@ With this amendment every table of the allowlist is named in a record:
 FX-rate sync), `news_items` and `news_clusters` in B7,
 `news_digest_consumers` in D3, `chain_reads` in ADR-0059 §9, and these
 three here.
+
+### F8. Source quality counts sources, and one feed's claims count once (§3, B5, D6; N-18; the triage's D-5)
+
+§3 turns a story's tiers into an entry's `source_quality`: "members from
+two or more distinct `secondary` domains give `secondary_multi`; one
+`secondary` domain gives `unverified`". D6 makes that grade the story's,
+which a caller may not send, and the research log keeps it for good
+(ADR-0044). Two things decide what "two distinct secondary domains" are.
+
+- **A source is the row of the tier table that rates it**, not the host
+  name an item carries. A name with and without `www.`, and a name and
+  its subdomain, read the same row (§3; `Portfolixir.News.Sources`), so
+  they are one source and give `unverified`. *A precision of §3, read with
+  §3's own table.* Its
+  price: two publishers under one rated row (a hosting domain rated as a
+  whole) count as one source, so the grade can understate and never
+  overstates; rating the subdomains tells them apart.
+- **One feed's claims count once.** *This changes §3 as written.* An
+  aggregator item's domain is a claim inside the item (B5). Two rated
+  domains named by the items of one feed are that feed's two claims, not
+  two sources that reported: `secondary_multi` now takes two distinct
+  secondary sources that reached the story through two different feeds.
+  The items of a deleted feed count as one unknown feed's. *Why:*
+  `secondary_multi` says that sources corroborate each other, and a single
+  feed cannot corroborate itself by what it says its sources are.
+  **To flip:** "news claims corroborate" (§3 as written: distinct sources,
+  however many feeds named them).
+
+An entry already written keeps its grade (ADR-0044: the log is never
+rewritten; E1 rule 5). A new entry, a second promotion of the same story
+included, reads the rule as amended.
