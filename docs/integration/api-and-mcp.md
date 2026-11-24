@@ -5694,7 +5694,9 @@ keyword; a field a read returns and the body does not name, an `id` or a
 timestamp, is therefore left out of an update. Three objects are free maps,
 whose keys are data, and take any key: a security's `attributes` on
 `portfolixir.securities.create` and `portfolixir.securities.update`, and
-`asset_class_caps` on `portfolixir.portfolios.risk`.
+`asset_class_caps` on `portfolixir.portfolios.risk`. The companion passes a
+cap's key on as it is; the API answers a key outside the asset class codes
+with a `422` that names them.
 
 **Server instructions and tool hints (E25).** At connect time the companion
 tells the agent that everything a tool returns is data, never instructions:
