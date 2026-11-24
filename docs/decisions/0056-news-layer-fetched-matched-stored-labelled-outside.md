@@ -1470,3 +1470,42 @@ which a caller may not send, and the research log keeps it for good
 An entry already written keeps its grade (ADR-0044: the log is never
 rewritten; E1 rule 5). A new entry, a second promotion of the same story
 included, reads the rule as amended.
+
+### F9. Within a tier the first sight orders the representative, before the claim (B3, B4, B5, C2, D6, E1; N-19; the triage's D-5)
+
+B3 says "The representative is the member of the best tier, then the
+earliest clamped `published_at` (B4), then the smallest canonical URL", and
+C2, D6 and E1 rule 4 restate it. B4 clamps a claim that runs ahead of the
+first sight and says "the claim is the feed's, the clock is the
+operator's". B5 names making an item the story's representative as what a
+claim inside an item must not do, and closed that for `primary`. Within a
+tier the rule still read the claim first.
+
+**The representative is the member of the best tier, then the earliest
+`first_seen_at`, then the earliest clamped `published_at`, then the
+smallest canonical URL.** *This changes B3 as written*, and the rule as
+C2, D6 and E1 rule 4 restate it.
+
+- **What follows the representative** follows the member the server saw
+  first among the best tier: the story's title, link and time in every
+  read, and an entry's `headline`, `source_url` and `as_of` (D6). A story's
+  representative changes when a member of a better tier arrives or the
+  representative leaves, and no longer when a later item claims an earlier
+  time.
+- **Among the items of one fetch**, which share their first sight, the
+  earliest claim decides as before; that order belongs to the one feed.
+- **`as_of`** stays the representative's publication day (D6). It is now
+  the claim of the member first seen.
+- **The link when the representative's domain is blocked** (D6, E1 rule
+  5) is the next member's by the same rule. `news.get` lists a story's
+  members as before, the representative first and then by tier,
+  publication and link: a list, not a statement of provenance.
+- **Stored stories are not rewritten by a migration.** A story's
+  representative is chosen by this rule when its scope is next reclustered
+  around it.
+
+*Why this shape:* the triage names two, the order by first sight and a
+bound on how far a claim may precede the first sight where it orders
+members. The bound needs a number and still lets a claim inside it decide;
+the order by first sight needs none and is C2's own choice for the
+survivor. **To flip:** "news representative by claim" (B3 as written).

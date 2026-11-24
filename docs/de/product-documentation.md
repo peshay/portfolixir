@@ -4186,8 +4186,9 @@ Wertpapiers erscheint.
   mehrere nennt, wartet als nicht zugeordnet oder mehrdeutig, bis Sie oder
   der Agent ihn zuordnen. Nichts wird geraten.
 - **Entdoppelt** zu Meldungen: dieselbe Meldung von mehreren Seiten, in einer
-  Sprache, ist eine; ihr Repräsentant wird nach der Stufe der Quelle
-  gewählt, nie danach, wer zuerst abgerufen wurde.
+  Sprache, ist eine. Ihr Repräsentant wird nach der Stufe der Quelle
+  gewählt und ist innerhalb einer Stufe der Eintrag, den der Server zuerst
+  gesehen hat: nie nach einem Veröffentlichungsdatum, das ein Eintrag angibt.
 - **Von außen eingeordnet, wenn Sie wollen:** Ein Modell, das Sie außerhalb
   der App betreiben, kann einer Meldung eine Ereignisart, eine Materialität
   von 0 bis 3 und eine Tonalität geben (siehe „Einen Labeller betreiben“

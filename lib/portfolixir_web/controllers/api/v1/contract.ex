@@ -83,8 +83,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- N-18 begin ---
             "N-18 (ADR-0056 F8, decision D-5): an entry written from a story grades " <>
               "secondary_multi only for two distinct rated sources that reached the story " <>
-              "through two different feeds."
+              "through two different feeds.",
             # --- N-18 end ---
+            # --- N-19 begin ---
+            "N-19 (ADR-0056 F9, decision D-5): a story's representative is the member of " <>
+              "its best tier the server saw first; a claimed publication time orders only the " <>
+              "items of one first sight."
+            # --- N-19 end ---
           ],
           " "
         ),
@@ -165,8 +170,17 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "(portfolixir.notes.append), changed: source_quality counts a rated source by " <>
           "its row of the tier table and one feed's claims once, so it answers unverified " <>
           "where it answered secondary_multi for one row under two host names or for two " <>
-          "domains named by one feed; an entry already written keeps its grade"
+          "domains named by one feed; an entry already written keeps its grade",
         # --- N-18 end ---
+        # --- N-19 begin ---
+        "GET /api/v1/news/stories, GET /api/v1/news/stories/:id, GET " <>
+          "/api/v1/news/digest and POST /api/v1/securities/:security_id/notes with " <>
+          "note.cluster_id (portfolixir.news.list, portfolixir.news.get, " <>
+          "portfolixir.news.digest, portfolixir.notes.append), changed: a story's title, " <>
+          "url, at and an entry's headline, source_url and as_of are those of the member " <>
+          "of the best tier first seen, not of the one with the earliest claimed " <>
+          "publication"
+        # --- N-19 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

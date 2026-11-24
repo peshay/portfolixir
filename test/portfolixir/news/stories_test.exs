@@ -176,6 +176,8 @@ defmodule Portfolixir.News.StoriesTest do
       assert [_one, _two] = Stories.cluster([a, b])
     end
 
+    # Since ADR-0056 F9 the first sight comes before the clamped time
+    # (`representative_first_sight_test.exs`); these members share theirs.
     test "the representative: best tier, then earliest clamped time, then the smaller URL" do
       row = fn key, feed, domain, seen ->
         pure_item({key, feed, domain, @q3, seen, seen, "en"})

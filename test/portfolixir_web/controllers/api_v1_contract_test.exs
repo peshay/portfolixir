@@ -171,6 +171,19 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- N-18 end ---
 
+    # --- N-19 begin ---
+    assert newest["summary"] =~ "N-19 (ADR-0056 F9, decision D-5):"
+
+    assert ("GET /api/v1/news/stories, GET /api/v1/news/stories/:id, GET " <>
+              "/api/v1/news/digest and POST /api/v1/securities/:security_id/notes with " <>
+              "note.cluster_id (portfolixir.news.list, portfolixir.news.get, " <>
+              "portfolixir.news.digest, portfolixir.notes.append), changed: a story's title, " <>
+              "url, at and an entry's headline, source_url and as_of are those of the member " <>
+              "of the best tier first seen, not of the one with the earliest claimed " <>
+              "publication") in newest["parameters"]
+
+    # --- N-19 end ---
+
     # Sprint 31's sprint PR (version 31), found by version from the
     # 2026-11 security fixes on. Dated strictly after entry 30, so
     # since=2026-11-15 still returns it. Each story appends its own items
