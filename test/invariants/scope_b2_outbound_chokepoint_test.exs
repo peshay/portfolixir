@@ -441,7 +441,10 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     "zod" => {:all, "the tools' input schemas"},
     "node:crypto" => {:all, "the constant-time bearer-token compare"},
     "node:http" =>
-      {["STATUS_CODES"], "status texts for the listener's error bodies; nothing that dials"}
+      {["STATUS_CODES", "globalAgent"],
+       "status texts for the listener's error bodies, and Node's global agent, whose " <>
+         "options api-proxy.ts reads to see whether Node's environment proxy is on (N-09); " <>
+         "nothing here dials, and the agent is named in that one read only"}
   }
 
   # `helper => reason`: functions a tool may build its API path with. Each is
@@ -1384,6 +1387,26 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       assert Enum.any?(egress, &(&1 =~ "fetch"))
     end
 
+    test "Node's global agent named outside its one read is caught" do
+      read = """
+      import { globalAgent } from "node:http";
+
+      export function runtimeEnvProxy(agent: { options?: unknown } = globalAgent as { options?: unknown }): boolean {
+        const options = agent.options as { proxyEnv?: unknown } | null | undefined;
+        return options?.proxyEnv !== undefined && options.proxyEnv !== null;
+      }
+      """
+
+      assert egress_violations(read, "mcp-server/src/api-proxy.ts") == []
+
+      assert [elsewhere] = egress_violations(read, "mcp-server/src/tools.ts")
+      assert elsewhere =~ "only api-proxy.ts reads"
+
+      dialing = read <> "const socket = globalAgent.createConnection({ host, port });\n"
+      assert [offender] = egress_violations(dialing, "mcp-server/src/api-proxy.ts")
+      assert offender =~ "createConnection"
+    end
+
     test "an API client built twice, or from another base, is caught" do
       good = """
       const apiBaseUrl = process.env.PORTFOLIXIR_API_BASE_URL ?? "http://127.0.0.1:4000";
@@ -2242,7 +2265,40 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
         "#{path}:#{line_of(stripped, start)}: #{binary_part(stripped, start, length)}"
       end)
 
-    globals ++ if(client?, do: client_violations(source, path), else: [])
+    globals ++
+      agent_violations(source, path) ++
+      if(client?, do: client_violations(source, path), else: [])
+  end
+
+  # Node's global agent is registered for one read (N-09): api-proxy.ts looks
+  # at its options to see whether Node's environment proxy is on. Named in
+  # another file, or on any line but its import and that read, it would be an
+  # outbound client in the companion's hands.
+  @agent_read [
+    ~s(import { globalAgent } from "node:http";),
+    "export function runtimeEnvProxy(agent: { options?: unknown } = " <>
+      "globalAgent as { options?: unknown }): boolean {"
+  ]
+
+  defp agent_violations(source, path) do
+    lines =
+      source
+      |> String.split("\n")
+      |> Enum.map(&String.trim/1)
+      |> Enum.filter(&(&1 =~ ~r/\bglobalAgent\b/))
+
+    cond do
+      lines == [] ->
+        []
+
+      Path.basename(path) != "api-proxy.ts" ->
+        ["#{path}: names Node's global agent, which only api-proxy.ts reads"]
+
+      true ->
+        for line <- lines, line not in @agent_read do
+          "#{path}: Node's global agent beyond its one read: #{line}"
+        end
+    end
   end
 
   defp client_violations(source, path) do

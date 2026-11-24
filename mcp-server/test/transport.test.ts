@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { once } from "node:events";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
-import { createServer as createNetServer, type AddressInfo } from "node:net";
+import { createServer as createNetServer, type AddressInfo, type Socket } from "node:net";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { before, describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
@@ -116,6 +117,88 @@ async function freePort(): Promise<number> {
   return port;
 }
 
+interface ProxyStandIn {
+  url: string;
+  connections(): number;
+  close(): Promise<void>;
+}
+
+// A loopback stand-in for an HTTP proxy: it counts the connections it gets,
+// refuses each and forwards nothing.
+async function startProxyStandIn(): Promise<ProxyStandIn> {
+  let connections = 0;
+  const sockets = new Set<Socket>();
+  const server = createNetServer((socket) => {
+    connections += 1;
+    sockets.add(socket);
+    socket.on("error", () => undefined);
+    socket.on("close", () => sockets.delete(socket));
+    socket.end("HTTP/1.1 403 Forbidden\r\ncontent-length: 0\r\n\r\n");
+  });
+
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const { port } = server.address() as AddressInfo;
+
+  return {
+    url: `http://127.0.0.1:${port}`,
+    connections: () => connections,
+    close: async () => {
+      for (const socket of sockets) socket.destroy();
+      server.close();
+      await once(server, "close");
+    }
+  };
+}
+
+// What Node itself does under one way of writing its proxy switch (N-09):
+// whether a request this Node makes, with a proxy variable set and a NO_PROXY
+// that does not name the target, arrives at the proxy stand-in. The judge of
+// the companion's refusal is the runtime, not a list of spellings.
+async function nodeSendsThroughProxy(nodeOptions: string[], env: Record<string, string>): Promise<boolean> {
+  const api = await startFakeApi();
+  const proxy = await startProxyStandIn();
+  const child = spawn(
+    process.execPath,
+    [...nodeOptions, "-e", "fetch(process.argv[1]).catch(() => undefined)", `${api.baseUrl}/probe`],
+    { cwd: packageRoot, env: { HTTP_PROXY: proxy.url, NO_PROXY: "localhost", ...env }, stdio: "ignore" }
+  );
+
+  try {
+    await within(once(child, "close"), 15_000, "Node's own request");
+
+    const throughProxy = proxy.connections() > 0;
+    assert.ok(!throughProxy || api.hits.length === 0, "a request went both ways");
+    return throughProxy;
+  } finally {
+    child.kill("SIGKILL");
+    await api.close();
+    await proxy.close();
+  }
+}
+
+// A Node configuration file that sets the switch, in a folder of its own.
+const nodeConfigFolder = mkdtempSync(join(tmpdir(), "portfolixir-transport-test-"));
+const nodeConfigFile = join(nodeConfigFolder, "node.config.json");
+writeFileSync(nodeConfigFile, `${JSON.stringify({ nodeOptions: { "use-env-proxy": true } })}\n`);
+
+// Ways of writing Node's proxy switch (N-09): a label, Node's own options
+// before the entry, the environment beside the proxy variables, and whether
+// it is one of the documented three, which a supported Node must honour.
+const proxySwitchSpellings: Array<[string, string[], Record<string, string>, boolean]> = [
+  ["NODE_USE_ENV_PROXY=1", [], { NODE_USE_ENV_PROXY: "1" }, true],
+  ["NODE_OPTIONS=--use-env-proxy", [], { NODE_OPTIONS: "--use-env-proxy" }, true],
+  ["node --use-env-proxy", ["--use-env-proxy"], {}, true],
+  ["NODE_OPTIONS=--use_env_proxy", [], { NODE_OPTIONS: "--use_env_proxy" }, false],
+  ["node --use_env_proxy", ["--use_env_proxy"], {}, false],
+  ['NODE_OPTIONS="--use-env-proxy"', [], { NODE_OPTIONS: '"--use-env-proxy"' }, false],
+  ['NODE_OPTIONS=--use-env"-"proxy', [], { NODE_OPTIONS: '--use-env"-"proxy' }, false],
+  ["NODE_OPTIONS=--use-env-proxy=true", [], { NODE_OPTIONS: "--use-env-proxy=true" }, false],
+  ["node --use-env-proxy=true", ["--use-env-proxy=true"], {}, false],
+  ["node --use-env-proxy=false", ["--use-env-proxy=false"], {}, false],
+  ["a configuration file", [`--experimental-config-file=${nodeConfigFile}`], {}, false]
+];
+
 interface SpawnedCompanion {
   child: ChildProcessWithoutNullStreams;
   stderr(): string;
@@ -125,9 +208,10 @@ interface SpawnedCompanion {
 }
 
 // `node dist/index.js` with exactly the environment given: nothing of the
-// developer's own PORTFOLIXIR_* or proxy variables reaches it.
-function spawnCompanion(env: Record<string, string>): SpawnedCompanion {
-  const child = spawn(process.execPath, [entry], { cwd: packageRoot, env, stdio: "pipe" });
+// developer's own PORTFOLIXIR_* or proxy variables reaches it. `nodeOptions`
+// are Node's own, written before the entry as an operator writes them.
+function spawnCompanion(env: Record<string, string>, nodeOptions: string[] = []): SpawnedCompanion {
+  const child = spawn(process.execPath, [...nodeOptions, entry], { cwd: packageRoot, env, stdio: "pipe" });
   let stderr = "";
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk: string) => {
@@ -438,6 +522,8 @@ describe("the built companion over its real transports", () => {
     },
     { timeout: 150_000 }
   );
+
+  after(() => rmSync(nodeConfigFolder, { recursive: true, force: true }));
 
   // User story (#1021):
   // As an operator whose MCP host starts the companion as a subprocess,
@@ -837,4 +923,107 @@ describe("the built companion over its real transports", () => {
       fakeProxy.close();
     }
   });
+
+  // User story (security review 2026-11, N-09):
+  // As the operator whose environment switches on Node's proxy in a way of
+  // writing I did not choose,
+  // I want the companion to stop however the switch is written,
+  // so that "the API calls never go through a proxy" holds for every
+  // spelling Node itself accepts.
+  //
+  // Acceptance criteria:
+  // - For every way of writing the switch (the variable; the flag on the
+  //   command line or in NODE_OPTIONS, with hyphens or underscores, in
+  //   double quotes, with a value; a configuration file): where this Node
+  //   itself sends a request through the proxy, the built companion, given
+  //   the same options and variables, does not start. It exits 1 naming
+  //   NO_PROXY and the API host, and neither the API nor the proxy stand-in
+  //   receives a connection.
+  // - The runtime is the judge, so the test names no spelling as on or off
+  //   (Node 26.13 reads `=false` after the flag as the flag given). Only the
+  //   three documented spellings are held to send through the proxy, on a
+  //   Node this package supports.
+  for (const [spelling, nodeOptions, env, documented] of proxySwitchSpellings) {
+    it(`refuses to start where Node sends through the proxy: ${spelling}`, { timeout: 60_000 }, async () => {
+      const throughProxy = await nodeSendsThroughProxy(nodeOptions, env);
+
+      if (documented && Number(process.versions.node.split(".")[0]) >= 26) {
+        assert.equal(throughProxy, true, `Node ${process.version} did not send its own request through the proxy`);
+      }
+
+      const api = await startFakeApi();
+      const proxy = await startProxyStandIn();
+      const companion = spawnCompanion(
+        {
+          PORTFOLIXIR_API_BASE_URL: api.baseUrl,
+          PORTFOLIXIR_API_TOKEN: apiToken,
+          PORTFOLIXIR_MCP_TRANSPORT: "stdio",
+          HTTP_PROXY: proxy.url,
+          NO_PROXY: "localhost",
+          ...env
+        },
+        nodeOptions
+      );
+      const exited = once(companion.child, "close");
+      // A companion that started ends with its input and exits 0.
+      companion.child.stdin.end();
+
+      try {
+        const [code] = await within(exited, 15_000, "the companion's exit");
+        const stderr = companion.stderr();
+
+        assert.deepEqual(api.hits, []);
+        assert.equal(proxy.connections(), 0, "the proxy stand-in received a connection");
+
+        if (throughProxy) {
+          assert.notEqual(code, 0, `the companion started; stderr: ${stderr || "(empty)"}`);
+          assert.equal(code, 1, stderr);
+          assert.match(stderr, /NO_PROXY/);
+          assert.match(stderr, /127\.0\.0\.1/);
+          assert.doesNotMatch(stderr, /^\s+at /m, "no stack trace");
+        }
+      } finally {
+        await companion.stop();
+        await api.close();
+        await proxy.close();
+      }
+    });
+  }
+
+  // Acceptance criteria:
+  // - With the switch off (absent, or NODE_USE_ENV_PROXY=0) the same proxy
+  //   variables stop nothing: the companion starts and its call reaches the
+  //   API directly, the proxy stand-in untouched.
+  for (const [spelling, env] of [
+    ["absent", {}],
+    ["NODE_USE_ENV_PROXY=0", { NODE_USE_ENV_PROXY: "0" }]
+  ] as Array<[string, Record<string, string>]>) {
+    it(`starts and calls the API directly with Node's proxy switch ${spelling}`, { timeout: 60_000 }, async () => {
+      const api = await startFakeApi();
+      const proxy = await startProxyStandIn();
+      const companion = spawnCompanion({
+        PORTFOLIXIR_API_BASE_URL: api.baseUrl,
+        PORTFOLIXIR_API_TOKEN: apiToken,
+        PORTFOLIXIR_MCP_TRANSPORT: "stdio",
+        HTTP_PROXY: proxy.url,
+        NO_PROXY: "localhost",
+        ...env
+      });
+
+      try {
+        const wire = stdioWire(companion);
+        const initialize = await wire.request(1, "initialize", initializeParams);
+        wire.notify("notifications/initialized");
+        const list = await wire.request(2, "tools/list", {});
+        const call = await wire.request(3, "tools/call", { name: toolName, arguments: toolArguments });
+
+        assertConversation({ initialize, list, call }, api, `stdio, switch ${spelling}`);
+        assert.equal(proxy.connections(), 0, "the proxy stand-in received a connection");
+      } finally {
+        await companion.stop();
+        await api.close();
+        await proxy.close();
+      }
+    });
+  }
 });

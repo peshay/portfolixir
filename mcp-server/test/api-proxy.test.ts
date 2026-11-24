@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { apiProxyDecision } from "../src/api-proxy.js";
+import { apiProxyDecision, runtimeEnvProxy } from "../src/api-proxy.js";
 
 // Every proxy address and token here is synthetic; nothing is contacted.
 const base = "http://127.0.0.1:4000";
@@ -110,5 +110,77 @@ describe("the companion's API client and Node's environment proxy", () => {
     assert.equal(decide(base, { NO_PROXY: "localhost 127.0.0.1" }), "direct");
     assert.equal(decide(base, { NO_PROXY: "127.0.0.1:4000" }), "direct");
     assert.equal(decide(base, { NO_PROXY: "*" }), "direct");
+  });
+
+  // User story (security review 2026-11, N-09):
+  // As the operator whose environment switches on Node's proxy,
+  // I want the companion to decide from what Node did with the switch, not
+  // from how it was written,
+  // so that no spelling of it starts the companion behind the proxy.
+  //
+  // Acceptance criteria:
+  // - When the runtime says its environment proxy is on, the companion
+  //   refuses whatever the environment and Node's own options read: with the
+  //   switch written a way the companion does not read itself, or not written
+  //   in either at all (a configuration file).
+  // - The rest of the decision stands: no proxy for the scheme, or a NO_PROXY
+  //   naming the host, is direct.
+  // - The runtime's word is read off Node's global agent: Node builds it with
+  //   `proxyEnv` exactly when the switch is on.
+  // - The companion's own reading of the three common spellings stays as a
+  //   second vote: it can add a refusal, never take one away.
+  it("refuses when the runtime says its proxy is on, however the switch was written", () => {
+    const spellings: Array<[NodeJS.ProcessEnv, string[]]> = [
+      [{}, []],
+      [{ NODE_OPTIONS: "--use_env_proxy" }, []],
+      [{}, ["--use_env_proxy"]],
+      [{ NODE_OPTIONS: '"--use-env-proxy"' }, []],
+      [{ NODE_OPTIONS: '--use-env"-"proxy' }, []],
+      [{ NODE_OPTIONS: "--use-env-proxy=true" }, []],
+      [{}, ["--use-env-proxy=true"]],
+      [{}, ["--use-env-proxy=false"]],
+      [{}, ["--experimental-config-file=node.config.json"]]
+    ];
+
+    for (const [env, execArgv] of spellings) {
+      const decision = apiProxyDecision(base, { ...env, HTTP_PROXY: proxy, NO_PROXY: "localhost" }, execArgv, true);
+      const told = JSON.stringify([env, execArgv]);
+
+      assert.equal(decision.kind, "refuse", told);
+
+      if (decision.kind === "refuse") {
+        assert.match(decision.message, /NO_PROXY/, told);
+        assert.match(decision.message, /127\.0\.0\.1/, told);
+        assert.doesNotMatch(decision.message, /synthetic|proxy\.example\.test/, told);
+      }
+    }
+
+    assert.deepEqual(apiProxyDecision(base, {}, [], true), { kind: "direct" }, "no proxy variable");
+    assert.deepEqual(
+      apiProxyDecision(base, { HTTPS_PROXY: proxy }, [], true),
+      { kind: "direct" },
+      "an https proxy leaves a plain-http base direct"
+    );
+    assert.deepEqual(
+      apiProxyDecision(base, { HTTP_PROXY: proxy, NO_PROXY: "127.0.0.1" }, [], true),
+      { kind: "direct" },
+      "NO_PROXY names the host"
+    );
+
+    assert.equal(
+      apiProxyDecision(base, { NODE_USE_ENV_PROXY: "1", HTTP_PROXY: proxy }, [], false).kind,
+      "refuse",
+      "the companion's own reading still refuses"
+    );
+    assert.deepEqual(apiProxyDecision(base, { HTTP_PROXY: proxy }, [], false), { kind: "direct" });
+  });
+
+  it("reads the runtime's word off the global agent Node built", () => {
+    assert.equal(runtimeEnvProxy({ options: { proxyEnv: { HTTP_PROXY: proxy } } }), true);
+    assert.equal(runtimeEnvProxy({ options: { proxyEnv: {} } }), true);
+    assert.equal(runtimeEnvProxy({ options: { keepAlive: true } }), false);
+    assert.equal(runtimeEnvProxy({ options: { proxyEnv: undefined } }), false);
+    assert.equal(runtimeEnvProxy({}), false);
+    assert.equal(typeof runtimeEnvProxy(), "boolean", "this process's own agent is readable");
   });
 });

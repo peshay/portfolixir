@@ -81,6 +81,34 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
     ])
   end
 
+  # User story (security review 2026-11, N-09):
+  # As an operator whose environment switches Node's proxy on,
+  # I want the agent guide to say that the companion reads the switch from
+  # what Node did with it,
+  # so that I know the refusal to start holds however the switch is written,
+  # a configuration file included.
+  #
+  # Acceptance criteria:
+  # - The EN and DE agent guides keep the K16 sentences (the API calls never
+  #   go through a proxy; exit status 1 naming NO_PROXY) and say the switch is
+  #   read from what Node did with it, however it was given.
+  test "the agent guides say the proxy switch is read from what Node did with it" do
+    assert_fragments([
+      {"docs/integration/connect-an-agent.md",
+       [
+         "The companion's API calls carry the API token, so they never go through a proxy",
+         "the companion stops at start with exit status 1 and a line naming `NO_PROXY`",
+         "It reads the switch from what Node did with it, however the switch was given"
+       ]},
+      {"docs/de/integration/connect-an-agent.md",
+       [
+         "Die API-Aufrufe des Begleitdienstes tragen das API-Token, deshalb laufen sie nie über einen Proxy",
+         "stoppt der Begleitdienst beim Start mit dem Exit-Status 1 und einer Zeile, die `NO_PROXY` nennt",
+         "Er liest den Schalter daran ab, was Node damit gemacht hat, wie auch immer der Schalter gesetzt wurde"
+       ]}
+    ])
+  end
+
   # User story (E25 S7, F22):
   # As an operator running the companion over HTTP,
   # I want the reference to say that a foreign Host is refused first,

@@ -1,3 +1,5 @@
+import { globalAgent } from "node:http";
+
 // Security review 2026-10-12, K16: Node's opt-in environment proxy
 // (NODE_USE_ENV_PROXY=1, NODE_OPTIONS=--use-env-proxy or the --use-env-proxy
 // flag) routes every request Node makes through HTTP_PROXY, the companion's
@@ -6,6 +8,11 @@
 // carry them, it refuses to start, naming NO_PROXY and the host to add. It
 // never reconfigures the proxy itself, so an operator whose API is reachable
 // only through a proxy decides that knowingly.
+//
+// Security review 2026-11, N-09: whether the proxy is on is read from what
+// Node did with the switch, however the switch was given. `runtimeEnvProxy`
+// asks the runtime; the documented spellings are still read as a second
+// vote, which can add a refusal and never take one away.
 
 export type ApiProxyDecision = { kind: "direct" } | { kind: "refuse"; message: string };
 
@@ -13,7 +20,25 @@ function present(value: string | undefined): value is string {
   return value !== undefined && value.trim() !== "";
 }
 
-function envProxyInEffect(env: NodeJS.ProcessEnv, execArgv: readonly string[]): boolean {
+/**
+ * Whether Node's environment proxy is on in this process, as Node itself
+ * resolved it (N-09). With the switch on, however it was given, Node builds
+ * its global agent with `proxyEnv`, the environment its proxy support reads
+ * (Agent's `proxyEnv` option, "Built-in Proxy Support" in Node's http
+ * reference); with the switch off the option is unset. The API calls follow
+ * the same switch. The agent is read, never used: the companion dials
+ * nothing through it.
+ */
+export function runtimeEnvProxy(agent: { options?: unknown } = globalAgent as { options?: unknown }): boolean {
+  const options = agent.options as { proxyEnv?: unknown } | null | undefined;
+
+  return options?.proxyEnv !== undefined && options.proxyEnv !== null;
+}
+
+// The companion's own reading of the three common spellings: the second vote.
+// It keeps the refusal on a Node older than this package supports, which may
+// take the variable without building its agent that way.
+function spelledOn(env: NodeJS.ProcessEnv, execArgv: readonly string[]): boolean {
   const flag = env.NODE_USE_ENV_PROXY?.trim();
   const options = (env.NODE_OPTIONS ?? "").split(/\s+/);
 
@@ -56,14 +81,22 @@ function excluded(noProxy: string, hostname: string, port: number): boolean {
     });
 }
 
+/**
+ * Whether the API calls to `baseUrl` would go through Node's environment
+ * proxy. `runtimeSaysOn` is the runtime's own word on its switch
+ * (`runtimeEnvProxy`); `env` and `execArgv` carry the proxy variables and the
+ * spellings the companion reads itself.
+ */
 export function apiProxyDecision(
   baseUrl: string,
   env: NodeJS.ProcessEnv,
-  execArgv: readonly string[]
+  execArgv: readonly string[],
+  runtimeSaysOn = false
 ): ApiProxyDecision {
   const url = new URL(baseUrl);
+  const inEffect = runtimeSaysOn || spelledOn(env, execArgv);
 
-  if (!envProxyInEffect(env, execArgv) || proxyFor(url.protocol, env) === undefined) {
+  if (!inEffect || proxyFor(url.protocol, env) === undefined) {
     return { kind: "direct" };
   }
 
@@ -103,7 +136,7 @@ export function keepApiOffProxy(baseUrl: string): void {
     NO_PROXY: process.env.NO_PROXY,
     no_proxy: process.env.no_proxy
   };
-  const decision = apiProxyDecision(baseUrl, env, process.execArgv);
+  const decision = apiProxyDecision(baseUrl, env, process.execArgv, runtimeEnvProxy());
 
   if (decision.kind === "refuse") {
     throw new Error(decision.message);
