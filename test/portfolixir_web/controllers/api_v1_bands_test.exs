@@ -341,7 +341,7 @@ defmodule PortfolixirWeb.ApiV1BandsTest do
 
       assert filtered["category_id"] == w.growth.id
       assert filtered["level"] == "category"
-      assert filtered["computation_basis"]["filter"] =~ ~s("Growth" \(id #{w.growth.id}\))
+      assert filtered["computation_basis"]["filter"] =~ "category #{w.growth.id}: the securities"
       assert filtered["computation_basis"]["level"] =~ "kind direct"
 
       assert Enum.map(filtered["bands"], &Map.take(&1, ["key", "kind", "id", "name", "color"])) ==

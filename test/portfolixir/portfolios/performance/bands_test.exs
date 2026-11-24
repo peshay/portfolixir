@@ -1345,7 +1345,8 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
   # so that I can tell a category's sub-categories from the whole scope.
   #
   # Acceptance criteria:
-  # - `computation_basis.filter` names the category by name and id, or the
+  # - `computation_basis.filter` names the category by its kind and id
+  #   (N-10: never by its stored name, which travels as data), or the
   #   unclassified remainder, or says there is none.
   # - `computation_basis.level` says what a band is under the filter: the
   #   direct sub-categories and (direkt), one band for a category without
@@ -1361,7 +1362,8 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
 
     equity = filtered!(f, level: :category, category_id: f.equity.id)
     assert equity.category_id == f.equity.id
-    assert equity.computation_basis.filter =~ ~s("Equity" \(id #{f.equity.id}\))
+    assert equity.computation_basis.filter =~ "category #{f.equity.id}: the securities"
+    refute equity.computation_basis.filter =~ "Equity"
     assert equity.computation_basis.level =~ "direct sub-category"
     assert equity.computation_basis.level =~ "kind direct"
     assert equity.computation_basis.level =~ "no cash"

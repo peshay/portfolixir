@@ -56,8 +56,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             "N-07 (decision D-4): every DELETE under /api/v1 answers 422 for a query " <>
               "parameter or a JSON body key its route does not take, naming it, and deletes " <>
               "nothing; a parameter of a delete is honoured or refused, never ignored. No " <>
-              "endpoint or tool is added."
+              "endpoint or tool is added.",
             # --- N-07 end ---
+            # --- N-10 begin ---
+            "N-10 (ADR-0054 §4): the bands reads name a category and a classification by " <>
+              "kind and id in computation_basis; their names travel as data."
+            # --- N-10 end ---
           ],
           " "
         ),
@@ -78,8 +82,19 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "name by DELETE /api/v1/cash_accounts/:id/former_names and " <>
           "DELETE /api/v1/securities_accounts/:id/former_names; every other DELETE takes " <>
           "none, so dry_run=true asked of one of them is refused, not carried out. The " <>
-          "delete tools send what they sent before"
+          "delete tools send what they sent before",
         # --- N-07 end ---
+        # --- N-10 begin ---
+        "bands reads (GET /api/v1/portfolios/:portfolio_id/performance/bands, " <>
+          "GET /api/v1/views/:view_id/performance/bands, GET /api/v1/performance/bands; " <>
+          "portfolixir.portfolios.bands, portfolixir.views.bands): computation_basis.filter, " <>
+          "level, classification and, on scale=ttwror, reference name a category as " <>
+          "\"category <id>\" and a classification as " <>
+          "\"classification <id>\", where they " <>
+          "quoted the stored name; the names are in data.category.name and " <>
+          "data.classification.name as before, and no figure moves (the performance_bands " <>
+          "and performance_view_bands computation versions moved)"
+        # --- N-10 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

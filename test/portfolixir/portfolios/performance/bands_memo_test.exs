@@ -168,8 +168,9 @@ defmodule Portfolixir.Portfolios.Performance.BandsMemoTest do
   # Acceptance criteria:
   # - `performance_bands` (portfolio basis) and `performance_view_bands`
   #   (global basis) are registered with the default lifetime `:request`, at
-  #   computation version 2 since the walk reads a close of 0 or below as no
-  #   price (#1473; 1 before), with no C3 activation.
+  #   computation version 3 since the basis names a category and a
+  #   classification by kind and id (N-10; 2 since the walk reads a close of
+  #   0 or below as no price, #1473; 1 before), with no C3 activation.
   # - A fixed-period read is memoised under its analytic, keyed as the
   #   contribution table is (scope, walk end date, period, and the base
   #   currency across portfolios) plus the request's level, sort, scale,
@@ -177,8 +178,8 @@ defmodule Portfolixir.Portfolios.Performance.BandsMemoTest do
   # - A custom range, and a calendar year past today, are computed on every
   #   read and never remembered.
   test "the bands are their own request-lifetime analytic per scope, period and request" do
-    assert Registry.computation_version!(:performance_bands) == 2
-    assert Registry.computation_version!(:performance_view_bands) == 2
+    assert Registry.computation_version!(:performance_bands) == 3
+    assert Registry.computation_version!(:performance_view_bands) == 3
     assert Registry.lifetime(:performance_bands) == :request
     assert Registry.lifetime(:performance_view_bands) == :request
 
