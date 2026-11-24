@@ -158,6 +158,21 @@ Start mit dem Exit-Status 1 und einer Zeile, die `NO_PROXY` nennt. Er liest
 den Schalter daran ab, was Node damit gemacht hat, wie auch immer der
 Schalter gesetzt wurde.
 
+Der Begleitdienst spricht auf beiden Seiten unverschlüsseltes HTTP. Eine
+`PORTFOLIXIR_API_BASE_URL` über `http://`, deren Host weder diese Maschine
+(`127.0.0.1`, `localhost`, `[::1]`) noch ein Name ohne Punkt ist (so nennt
+ein Container-Netz einen Nachbarn, wie `app` bei Compose), wird beim Start in
+einer Warnzeile genannt: Jeder API-Aufruf trüge das API-Token unverschlüsselt
+über diese Verbindung, lesbar für jeden, der sie mitlesen kann. Der
+Begleitdienst startet trotzdem; verwenden Sie dort eine `https://`-Basis oder
+betreiben Sie den Begleitdienst auf dem Host oder im Container-Netz der API.
+Für seinen eigenen Listener gibt er keine solche Zeile aus: Mit
+`PORTFOLIXIR_MCP_HOST` über Loopback hinaus gebunden, senden Clients
+`PORTFOLIXIR_MCP_TOKEN` über unverschlüsseltes HTTP, solange kein Proxy
+davorsteht, der TLS terminiert, und in Compose bindet der Listener immer jede
+Schnittstelle des Containers hinter einer Loopback-Portzuordnung, sodass eine
+Zeile beim Start die beiden Fälle nicht unterscheiden könnte.
+
 ## Erste Schritte
 
 Bitten Sie den Agenten, den Prompt `first_setup` auszuführen: Er prüft die

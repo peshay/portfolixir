@@ -3,6 +3,7 @@
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 
 import { createApiClient } from "./api-client.js";
+import { apiLinkWarning } from "./api-link.js";
 import { keepApiOffProxy } from "./api-proxy.js";
 import { mcpHost, mcpTokenWarning, requireMcpPort, requireMcpToken, startHttpServer } from "./http.js";
 import { createPortfolixirMcpServer, profileSwitch } from "./server.js";
@@ -24,6 +25,14 @@ try {
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
+}
+
+// A plain-http base beyond this machine carries the API token unencrypted:
+// named in one line at start, never refused, never with the token (N-93).
+const linkWarning = apiLinkWarning(apiBaseUrl);
+
+if (linkWarning) {
+  console.error(linkWarning);
 }
 
 // The tool profile (A1, #992), read together with the older read-only switch

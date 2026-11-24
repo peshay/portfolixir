@@ -147,6 +147,19 @@ Otherwise the companion stops at start with exit status 1 and a line naming
 `NO_PROXY`. It reads the switch from what Node did with it, however the
 switch was given.
 
+The companion speaks plain HTTP on both sides. A `PORTFOLIXIR_API_BASE_URL`
+over `http://` whose host is neither this machine (`127.0.0.1`, `localhost`,
+`[::1]`) nor a name without a dot (how a container network names a
+neighbour, as Compose's `app`) is named in one warning line at start: every
+API call would carry the API token unencrypted over that link, readable by
+whoever can read it. The companion starts all the same; use an `https://`
+base there, or run the companion on the API's own host or container network.
+It gives no such line for its own listener: bound beyond loopback with
+`PORTFOLIXIR_MCP_HOST`, clients send `PORTFOLIXIR_MCP_TOKEN` over plain HTTP
+unless a proxy that terminates TLS stands in front, and inside Compose the
+listener always binds every container interface behind a loopback port
+mapping, so a line at start could not tell the two apart.
+
 ## First steps
 
 Ask the agent to run the `first_setup` prompt: it checks the instance and the
