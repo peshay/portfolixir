@@ -144,6 +144,20 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- N-13 end ---
 
+    # --- N-15 begin ---
+    assert newest["summary"] =~ "N-15 (ADR-0056 F5):"
+
+    assert ("GET /api/v1/news/health (portfolixir.news.health), added: unfiled, the count " <>
+              "of assigned items in no story that entered their scope more than 120 seconds " <>
+              "ago (0 when every item is filed)") in newest["parameters"]
+
+    assert ("GET /api/v1/news/stories and GET /api/v1/news/digest (portfolixir.news.list, " <>
+              "portfolixir.news.digest), changed: an item filed into a story after its first " <>
+              "sight enters its scope at the filing, so since and a consumer's position read " <>
+              "it as new then") in newest["parameters"]
+
+    # --- N-15 end ---
+
     # Sprint 31's sprint PR (version 31), found by version from the
     # 2026-11 security fixes on. Dated strictly after entry 30, so
     # since=2026-11-15 still returns it. Each story appends its own items

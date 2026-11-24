@@ -90,8 +90,12 @@ defmodule Portfolixir.News.Ingest do
       security (or category) and language
       (`Portfolixir.News.Stories.recluster/4`, B3), each scope once.
 
-  Either step failing leaves the items stored and in no story; the next
-  recluster of their scope reads them as seeds.
+  Either step failing leaves the items stored and in no story. The next
+  recluster of their scope reads them as seeds, and the scheduler's next
+  tick reclusters every scope that holds such an item
+  (`Portfolixir.News.Stories.recluster_unfiled/1`, F5); an item filed late
+  enters its scope when it is filed, and until then the health read counts
+  it (`unfiled`).
   """
 
   import Ecto.Query

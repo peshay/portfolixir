@@ -1359,3 +1359,32 @@ D3 has it free the place of a consumer nobody confirmed.
   raised, or whose task ended, is run again by the first tick an hour
   later: not at every tick, and not only the next day. The run's task
   carries the heap cap, as a fetch's does (F1).
+
+### F5. An item filed late enters its scope when it is filed, and is counted until then (B4, C3, §6; N-15)
+
+An item is stored in one transaction and its story is written in the
+next. When the second fails, the item is assigned and in no story, and the
+reads go through stories: no list and no digest shows it. §6 exists so
+that a gap does not read as calm, and C3 so that `since` loses no item.
+
+- **The scheduler's tick files it.** After its fetches, every tick
+  reclusters each scope and language that holds an assigned item in no
+  story, each scope on its own: one that fails is logged and stops no
+  other, and a sweep in which a scope failed is tried again a quarter of an
+  hour later.
+- **It enters its scope when it is filed.** C3 gave `scope_at` to an item
+  assigned after its first sight. The same holds for one filed after it: a
+  recluster that files an item which sat in no story, at a clock later
+  than the item's `scope_at`, sets `scope_at` to that clock. `since` and a
+  consumer's position read `scope_at` (C3, D3), so a reader that moved on
+  in between still reads the story; retention keeps reading
+  `first_seen_at` (B4), and the 90 days do not restart. **To flip:** none
+  offered; the alternative loses items, as in C3.
+- **Until then it is counted.** `news.health` answers `unfiled`: the
+  assigned items in no story that entered their scope more than a fetch's
+  time ago (120 seconds, the lag the reads already give a fetch).
+- **The human view follows.** The News page's health line does not show
+  the count yet. By the coverage rule (`AGENTS.md`, "API And MCP
+  Coverage") a capability may ship over the API and the companion alone
+  when its view lands in the same or the next sprint; this one ships with
+  a fix that was not to wait for a board.

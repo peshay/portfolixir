@@ -2261,7 +2261,14 @@ only the digest's `unlabeled` grows.
   day's `unassigned`, `ambiguous`, `dropped` (`cap`, `no_source`, `old`)
   and `blocked` counts. A dropped item counts once a server day however
   often it is fetched; a feed that drops more than 1,000 different items
-  in a day is counted past them at every fetch that lists them.
+  in a day is counted past them at every fetch that lists them. Last,
+  `unfiled`: the assigned items that sit in no story although they entered
+  their scope more than two minutes ago. An item is stored before its
+  story is written, and one whose story could not be written is in no list
+  and no digest until the scheduler's next tick files it; it then counts as
+  new from that moment, so a reader that confirmed in between still reads
+  its story. `unfiled` above 0 on two reads a few minutes apart says a
+  scope's stories cannot be written.
 - `GET /api/v1/news/digest` answers what is new, one row per security: with
   `view_id` the securities that view holds, without it the news universe
   (held, carrying a target weight, or watched). `since` (default 24 hours

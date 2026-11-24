@@ -66,6 +66,18 @@ defmodule Portfolixir.News.Health do
       (A3), `no_source` (§2), `old` (B4);
     * `blocked` — that day's items dropped from a blocked domain (§3).
 
+  ## Unfiled items (`unfiled`)
+
+  The assigned items that sit in no story although they entered their
+  scope more than a fetch's time ago
+  (`Portfolixir.News.Reads.fetch_lag_seconds/0`, 120 seconds) — F5,
+  ADR-0056 amendment of 2026-11-24. An item is stored before its story is
+  written, so for a moment every new item is in none; one that stays so is
+  an item whose story could not be written, which no list and no digest
+  shows. The scheduler's next tick files it
+  (`Portfolixir.News.Stories.recluster_unfiled/1`); a count that stays
+  above zero says a scope's stories cannot be written.
+
   The labels of §7 (the unlabelled stories, the last label) are Sprint
   28's and are not reported yet.
   """
@@ -76,6 +88,7 @@ defmodule Portfolixir.News.Health do
   alias Portfolixir.News.Feed
   alias Portfolixir.News.FeedDay
   alias Portfolixir.News.Item
+  alias Portfolixir.News.Reads
   alias Portfolixir.Repo
 
   @day_seconds 24 * 60 * 60
@@ -106,7 +119,12 @@ defmodule Portfolixir.News.Health do
           blocked: non_neg_integer()
         }
 
-  @type t :: %{as_of: DateTime.t(), feeds: [feed_health()], day: day()}
+  @type t :: %{
+          as_of: DateTime.t(),
+          feeds: [feed_health()],
+          day: day(),
+          unfiled: non_neg_integer()
+        }
 
   @doc "The health at the server's clock `now`; see the moduledoc."
   @spec report(DateTime.t()) :: t()
@@ -141,7 +159,20 @@ defmodule Portfolixir.News.Health do
         |> put_yield()
       end)
 
-    %{as_of: now, feeds: feeds, day: day(today, now)}
+    %{as_of: now, feeds: feeds, day: day(today, now), unfiled: unfiled(now)}
+  end
+
+  # F5: assigned, in no story, and in their scope for longer than a fetch
+  # takes to write its stories.
+  defp unfiled(now) do
+    settled = DateTime.add(now, -Reads.fetch_lag_seconds(), :second)
+
+    Repo.aggregate(
+      from(i in Item,
+        where: i.assignment == :assigned and is_nil(i.cluster_id) and i.scope_at <= ^settled
+      ),
+      :count
+    )
   end
 
   # A backoff is in force while its retry_at lies after `now`, as the

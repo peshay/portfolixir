@@ -30,6 +30,14 @@ defmodule Portfolixir.News.Scheduler do
   stops another feed's fetch. One run at a time: a tick that finds the
   last run still going skips.
 
+  **Unfiled items** (F5, ADR-0056 amendment of 2026-11-24). After its
+  fetches every tick reclusters each scope that holds an assigned item in
+  no story (`Portfolixir.News.Stories.recluster_unfiled/1`): an item whose
+  story could not be written when it was fetched is filed within a tick,
+  whether or not its feed brings anything new. A sweep in which a scope
+  failed is logged and tried again by the first tick a quarter of an hour
+  later (`:unfiled_retry_ms`), not at every tick.
+
   **Retention** (§12, N6). The first tick of each server day
   (`Portfolixir.Clock.local_date/1`) also runs the retention
   (`Portfolixir.News.Retention.run/1`), after that tick's fetches and in
@@ -55,12 +63,16 @@ defmodule Portfolixir.News.Scheduler do
   alias Portfolixir.News.Feed
   alias Portfolixir.News.Fetcher
   alias Portfolixir.News.Retention
+  alias Portfolixir.News.Stories
   alias Portfolixir.Repo
 
   @default_tick_ms 60_000
   @task_timeout_ms 120_000
   # How long a failed retention run waits before it is run again.
   @retention_retry_ms 60 * 60_000
+  # How long the sweep of unfiled items waits after one in which a scope
+  # failed.
+  @unfiled_retry_ms 15 * 60_000
   @max_concurrency 8
 
   @type result :: {:ok, map()} | {:error, String.t()}
@@ -73,8 +85,10 @@ defmodule Portfolixir.News.Scheduler do
   Starts the scheduler. Options: `:enabled?` (default false), `:tick_ms`,
   `:fetch_opts` (passed to every fetch), `:name` (nil for an unnamed one),
   `:retention` (the function of the clock a retention run is, default
-  `Portfolixir.News.Retention.run/1`) and `:retention_retry_ms` (how long a
-  failed run waits, default an hour).
+  `Portfolixir.News.Retention.run/1`), `:retention_retry_ms` (how long a
+  failed run waits, default an hour) and `:unfiled_retry_ms` (how long the
+  sweep of unfiled items waits after a scope failed, default a quarter of
+  an hour).
   """
   def start_link(opts) do
     case Keyword.get(opts, :name, __MODULE__) do
@@ -187,6 +201,9 @@ defmodule Portfolixir.News.Scheduler do
       fetch_opts: Keyword.get(opts, :fetch_opts, []),
       retention: Keyword.get(opts, :retention, &Retention.run/1),
       retention_retry_ms: Keyword.get(opts, :retention_retry_ms, @retention_retry_ms),
+      unfiled_retry_ms: Keyword.get(opts, :unfiled_retry_ms, @unfiled_retry_ms),
+      # Monotonic milliseconds before which the sweep is not run again.
+      unfiled_retry_at: nil,
       running: nil,
       # The run under way retains this day, or nil when it does not.
       retaining: nil,
@@ -206,12 +223,14 @@ defmodule Portfolixir.News.Scheduler do
     now = DateTime.utc_now()
     today = Clock.local_date(now)
     retain? = state.retained_on != today and not waiting?(state.retention_retry_at)
+    file? = not waiting?(state.unfiled_retry_at)
 
     task =
       Task.Supervisor.async_nolink(Portfolixir.News.Tasks, fn ->
         HeapCap.cap!()
         results = run_due(now, fetch_opts)
-        {results, if(retain?, do: retain(retention, now), else: :not_due)}
+        filed = if(file?, do: file_unfiled(), else: :not_due)
+        {results, filed, if(retain?, do: retain(retention, now), else: :not_due)}
       end)
 
     schedule_tick(state.tick_ms)
@@ -224,17 +243,39 @@ defmodule Portfolixir.News.Scheduler do
     {:noreply, state}
   end
 
-  def handle_info({ref, {_results, retention}}, %{running: ref} = state) do
+  def handle_info({ref, {_results, filed, retention}}, %{running: ref} = state) do
     Process.demonitor(ref, [:flush])
-    {:noreply, retained(%{state | running: nil}, retention)}
+    {:noreply, %{state | running: nil} |> filed(filed) |> retained(retention)}
   end
 
   def handle_info({:DOWN, ref, :process, _pid, reason}, %{running: ref} = state) do
     Logger.warning("news scheduler run ended: #{inspect(reason)}")
-    {:noreply, retained(%{state | running: nil}, :failed)}
+    # Which part of the run ended it is not known: both wait.
+    {:noreply, %{state | running: nil} |> filed(:failed) |> retained(:failed)}
   end
 
   def handle_info(_message, state), do: {:noreply, state}
+
+  # F5: the sweep reads its own clock, after the tick's fetches, so an item
+  # it files enters its scope after every fetch of this tick.
+  defp file_unfiled do
+    case Stories.recluster_unfiled(DateTime.utc_now()) do
+      %{failed: 0} -> :ok
+      %{failed: _some} -> :failed
+    end
+  rescue
+    exception ->
+      Logger.warning("news unfiled sweep failed: #{Exception.message(exception)}")
+      :failed
+  end
+
+  defp filed(state, :failed) do
+    retry_at = System.monotonic_time(:millisecond) + state.unfiled_retry_ms
+    %{state | unfiled_retry_at: retry_at}
+  end
+
+  defp filed(state, :ok), do: %{state | unfiled_retry_at: nil}
+  defp filed(state, :not_due), do: state
 
   defp retain(retention, now) do
     retention.(now)

@@ -77,7 +77,10 @@ defmodule PortfolixirWeb.ApiV1DossierNewsTest do
       )
       |> Repo.insert!()
 
-    {:ok, _} = Stories.recluster({:security, security.id}, "en", DateTime.utc_now())
+    # At the item's own clock, as the ingest files an item at its fetch's:
+    # one filed by a later clock enters its scope then (ADR-0056 F5), and
+    # this story is to count as `hours` old.
+    {:ok, _} = Stories.recluster({:security, security.id}, "en", at)
     Repo.get!(Cluster, Repo.get!(Item, item.id).cluster_id)
   end
 

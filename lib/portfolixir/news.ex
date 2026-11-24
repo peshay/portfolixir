@@ -907,8 +907,9 @@ defmodule Portfolixir.News do
 
   @doc """
   The news layer's health at the server's clock `now` (ADR-0056 §6, A3):
-  each feed's freshness and 30-day counts, and the day's unassigned, ambiguous,
-  dropped and blocked counts. See `Portfolixir.News.Health`.
+  each feed's freshness and 30-day counts, the day's unassigned, ambiguous,
+  dropped and blocked counts, and the assigned items that sit in no story
+  (`unfiled`, F5). See `Portfolixir.News.Health`.
   """
   @spec health(DateTime.t()) :: Health.t()
   def health(%DateTime{} = now), do: Health.report(now)
