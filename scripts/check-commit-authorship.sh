@@ -12,6 +12,10 @@
 #   * commit-msg hook (default): the only argument is the commit message file.
 #     Validates the pending commit's author/committer identity and message.
 #   * range mode (--range A..B): validates every commit in a range. Used by CI.
+#     A range that does not resolve, or that holds no commit, is an error:
+#     the script answers OK only for commits it has read (N-78).
+#
+# scripts/test_check_commit_authorship.py drives both modes.
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
@@ -124,7 +128,17 @@ mode="${1:-}"
 
 if [[ "$mode" == "--range" ]]; then
   range="${2:?usage: check-commit-authorship.sh --range <git-range>}"
-  for sha in $(git rev-list "$range"); do
+  # The list is resolved in a statement of its own: a command substitution
+  # in a `for` word list hides git's exit status from `set -e`.
+  if ! shas="$(git rev-list "$range")"; then
+    echo "commit-authorship: the commit range does not resolve: $range" >&2
+    exit 1
+  fi
+  if [[ -z "$shas" ]]; then
+    echo "commit-authorship: no commit in the range $range; nothing was checked" >&2
+    exit 1
+  fi
+  for sha in $shas; do
     ref="$(git log -1 --format='%h %s' "$sha")"
     author_email="$(git log -1 --format='%ae' "$sha")"
     check_identity "$ref" author "$(git log -1 --format='%an' "$sha")" "$author_email"

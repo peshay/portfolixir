@@ -1657,9 +1657,134 @@ defmodule Portfolixir.CITest do
     end
   end
 
+  # User story (security review 2026-11, N-78):
+  # As the owner who counts on the server-side authorship check where a local
+  # hook was skipped,
+  # I want the check to answer OK only for commits it has read,
+  # so that a run that could read no commit ends red instead of passing.
+  #
+  # Acceptance criteria:
+  # - The workflow's own step, run with `bash -e` in a scratch checkout as
+  #   the runner runs it, passes a push and a pull request of accountable
+  #   commits and fails one that holds a commit by another identity.
+  # - It ends red, without the OK line, when the event's range does not
+  #   resolve in the checkout, and when the range holds no commit.
+  # - scripts/test_check_commit_authorship.py, which the pre-commit job
+  #   runs, holds the same for the script on its own.
+  test "the commit-authorship step answers OK only for commits it has read" do
+    script = authorship_step_script()
+    unknown = String.duplicate("1", 40)
+
+    for event <- [:push, :pull_request] do
+      assert {log, 0} = run_authorship_step(script, event, "author@example.invalid", :seed)
+      assert log =~ "commit-authorship: OK"
+
+      assert {log, 1} = run_authorship_step(script, event, "other@example.invalid", :seed)
+      assert log =~ "change: author is not an accountable human"
+      refute log =~ "commit-authorship: OK"
+
+      for {email, base} <- [
+            {"other@example.invalid", unknown},
+            {"author@example.invalid", unknown},
+            {"author@example.invalid", :head}
+          ] do
+        {log, status} = run_authorship_step(script, event, email, base)
+
+        assert status != 0,
+               "the #{event} step passed a range it could not read (#{inspect(base)}):\n#{log}"
+
+        refute log =~ "commit-authorship: OK"
+      end
+    end
+
+    assert File.exists?("scripts/test_check_commit_authorship.py")
+  end
+
   defp permission_rank("write"), do: 2
   defp permission_rank("read"), do: 1
   defp permission_rank(_none), do: 0
+
+  defp authorship_step_script do
+    workflow = YamlElixir.read_from_file!(".github/workflows/commit-authorship.yml")
+
+    [script] =
+      for {_job, spec} <- workflow["jobs"],
+          step <- spec["steps"],
+          is_binary(step["run"]),
+          step["run"] =~ "check-commit-authorship.sh",
+          do: step["run"]
+
+    script
+  end
+
+  # Runs the commit-authorship workflow's step in a scratch checkout that
+  # holds the script as it stands here, an allowlist of one synthetic address
+  # and two commits: a seed by that address and a change by `email`. The
+  # event's range runs from `base` (the seed, the head itself, or a commit the
+  # checkout does not hold) to the head, handed over as the runner hands it:
+  # the event's commits in the environment, `bash -e`.
+  defp run_authorship_step(script, event, email, base) do
+    dir = Path.join(System.tmp_dir!(), "authorship-step-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(Path.join(dir, "scripts"))
+    File.mkdir_p!(Path.join(dir, ".github"))
+
+    try do
+      File.cp!(
+        "scripts/check-commit-authorship.sh",
+        Path.join(dir, "scripts/check-commit-authorship.sh")
+      )
+
+      File.write!(
+        Path.join(dir, ".github/commit-authorship-allowlist.txt"),
+        "author@example.invalid\n"
+      )
+
+      git!(dir, ["init", "--quiet"])
+      git!(dir, ["add", "--all"])
+      git!(dir, ["commit", "--quiet", "--message", "seed"])
+      seed = dir |> git!(["rev-parse", "HEAD"]) |> String.trim()
+
+      identity = [
+        {"GIT_AUTHOR_EMAIL", email},
+        {"GIT_COMMITTER_EMAIL", email}
+      ]
+
+      {_, 0} =
+        System.cmd("git", ["commit", "--quiet", "--allow-empty", "--message", "change"],
+          cd: dir,
+          env: Enum.reject(@git_env, fn {name, _} -> name =~ "_EMAIL" end) ++ identity,
+          stderr_to_stdout: true
+        )
+
+      head = dir |> git!(["rev-parse", "HEAD"]) |> String.trim()
+
+      base =
+        case base do
+          :seed -> seed
+          :head -> head
+          sha -> sha
+        end
+
+      commits =
+        case event do
+          :push ->
+            [{"GITHUB_EVENT_NAME", "push"}, {"PUSH_BEFORE_SHA", base}, {"GITHUB_SHA", head}] ++
+              [{"PR_BASE_SHA", ""}, {"PR_HEAD_SHA", ""}]
+
+          :pull_request ->
+            [{"GITHUB_EVENT_NAME", "pull_request"}, {"PR_BASE_SHA", base}] ++
+              [{"PR_HEAD_SHA", head}, {"PUSH_BEFORE_SHA", ""}, {"GITHUB_SHA", head}]
+        end
+
+      System.cmd("bash", ["-e", "-c", script],
+        cd: dir,
+        env: commits ++ @git_env,
+        stderr_to_stdout: true
+      )
+    after
+      File.rm_rf!(dir)
+    end
+  end
 
   defp ci_workflow, do: File.read!(".github/workflows/ci.yml")
 
