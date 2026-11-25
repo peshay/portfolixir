@@ -105,8 +105,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- S32 S2 begin ---
             "Sprint 32, S2 (ADR-0062's amendment of 2026-11-25, point 3): one more size, " <>
               "row („Zeile“), 12 x 1 in the grid and drawn as tall as its content, the size " <>
-              "of a section widget; sale_review takes it. No endpoint or tool is added."
+              "of a section widget; sale_review takes it. No endpoint or tool is added.",
             # --- S32 S2 end ---
+            # --- S32 S4 begin ---
+            "Sprint 32, S4 (ADR-0062's amendment of 2026-11-25, point 5): a template entry " <>
+              "names its gallery group (starter or theme), whether it is a starter, whether " <>
+              "it asks for a scope (asks_scope) and its subtitle; only a template whose kinds " <>
+              "are all built is listed. No endpoint or tool is added."
+            # --- S32 S4 end ---
           ],
           " "
         ),
@@ -198,8 +204,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/widgets (portfolixir.dashboards.list), added: grid.sizes.row (12 x 1, " <>
           "family null) and each grid size's height (fixed, or content for row); sale_review's " <>
           "sizes are L and row",
-        "POST, PUT /api/v1/dashboards (portfolixir.dashboards.put), added: the size row"
+        "POST, PUT /api/v1/dashboards (portfolixir.dashboards.put), added: the size row",
         # --- S32 S2 end ---
+        # --- S32 S4 begin ---
+        "GET /api/v1/dashboards and GET /api/v1/dashboards/template:<key> " <>
+          "(portfolixir.dashboards.list, portfolixir.dashboards.get), added: a template's " <>
+          "group, starter, asks_scope and subtitle"
+        # --- S32 S4 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

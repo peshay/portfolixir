@@ -55,6 +55,7 @@ msgstr ""
 #: lib/portfolixir_web/live/transaction_management_live.ex:2909
 #: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:190
 #: lib/portfolixir_web/live/widgets_live.ex:266
+#: lib/portfolixir_web/live/new_dashboard_live.ex:263
 #, elixir-autogen
 msgid "Close"
 msgstr ""
@@ -242,7 +243,6 @@ msgstr ""
 #: lib/portfolixir_web/live/classifications_live.ex:1207
 #: lib/portfolixir_web/live/classifications_live.ex:3700
 #: lib/portfolixir_web/live/dashboard/period_menu.ex:362
-#: lib/portfolixir_web/live/new_dashboard_live.ex:103
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:94
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:119
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:338
@@ -256,6 +256,7 @@ msgstr ""
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:417
 #: lib/portfolixir_web/live/snapshots_live.ex:599
 #: lib/portfolixir_web/live/snapshots_live.ex:646
+#: lib/portfolixir_web/live/new_dashboard_live.ex:275
 #, elixir-autogen
 msgid "Name"
 msgstr ""
@@ -1080,6 +1081,7 @@ msgstr ""
 #: lib/portfolixir_web/live/transaction_management_live.ex:3198
 #: lib/portfolixir_web/live/transaction_management_live.ex:3503
 #: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:241
+#: lib/portfolixir_web/live/new_dashboard_live.ex:307
 #, elixir-autogen, elixir-format
 msgid "Cancel"
 msgstr ""
@@ -6511,6 +6513,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/buckets_live.ex:106
 #: lib/portfolixir_web/live/journal/row.ex:103
+#: lib/portfolixir_web/live/new_dashboard_live.ex:290
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:611
 #: lib/portfolixir_web/policy_rule_label.ex:29
 #, elixir-autogen, elixir-format
@@ -16906,7 +16909,7 @@ msgstr ""
 msgid "Crashes"
 msgstr ""
 
-#: lib/portfolixir_web/live/new_dashboard_live.ex:142
+#: lib/portfolixir_web/live/new_dashboard_live.ex:309
 #: lib/portfolixir_web/live/risk/crash_section.ex:1359
 #, elixir-autogen, elixir-format
 msgid "Create"
@@ -18522,7 +18525,7 @@ msgctxt "widget kind"
 msgid "Total value"
 msgstr ""
 
-#: lib/portfolixir/dashboards/templates.ex:68
+#: lib/portfolixir/dashboards/templates.ex:98
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "Overview"
@@ -18573,8 +18576,8 @@ msgid "Every depot, whatever the view"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:1053
-#: lib/portfolixir_web/live/new_dashboard_live.ex:54
 #: lib/portfolixir_web/live/widgets_live.ex:361
+#: lib/portfolixir_web/live/new_dashboard_live.ex:86
 #, elixir-autogen, elixir-format
 msgid "Fifty dashboards are stored, the most an instance keeps."
 msgstr ""
@@ -18999,11 +19002,6 @@ msgstr ""
 msgid "%{name} was changed elsewhere since this list was read, so nothing was added. The list shows the dashboards as stored now; choose again."
 msgstr ""
 
-#: lib/portfolixir_web/live/new_dashboard_live.ex:135
-#, elixir-autogen, elixir-format
-msgid "%{template} · more templates come with their widgets"
-msgstr ""
-
 #: lib/portfolixir_web/live/widgets_live.ex:181
 #, elixir-autogen, elixir-format
 msgid "%{widget} was added to %{name}."
@@ -19036,7 +19034,7 @@ msgstr ""
 msgid "Couldn't add the widget."
 msgstr ""
 
-#: lib/portfolixir_web/live/new_dashboard_live.ex:61
+#: lib/portfolixir_web/live/new_dashboard_live.ex:93
 #, elixir-autogen, elixir-format
 msgid "Couldn't create the dashboard."
 msgstr ""
@@ -19046,18 +19044,13 @@ msgstr ""
 msgid "Every widget a dashboard can hold, by topic"
 msgstr ""
 
-#: lib/portfolixir_web/live/new_dashboard_live.ex:133
-#, elixir-autogen, elixir-format
-msgid "From a template"
-msgstr ""
-
 #: lib/portfolixir_web/live/widgets_live.ex:289
 #, elixir-autogen, elixir-format
 msgid "It is placed at the first free place; arrange it on the dashboard."
 msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:693
-#: lib/portfolixir_web/live/new_dashboard_live.ex:91
+#: lib/portfolixir_web/live/new_dashboard_live.ex:152
 #: lib/portfolixir_web/live/widgets_live.ex:285
 #, elixir-autogen, elixir-format
 msgid "New dashboard"
@@ -19093,17 +19086,12 @@ msgstr ""
 msgid "Sizes"
 msgstr ""
 
-#: lib/portfolixir_web/live/new_dashboard_live.ex:118
-#, elixir-autogen, elixir-format
-msgid "Start"
-msgstr ""
-
-#: lib/portfolixir_web/live/new_dashboard_live.ex:121
+#: lib/portfolixir_web/live/new_dashboard_live.ex:164
 #, elixir-autogen, elixir-format
 msgid "Start empty"
 msgstr ""
 
-#: lib/portfolixir_web/live/new_dashboard_live.ex:92
+#: lib/portfolixir_web/live/new_dashboard_live.ex:153
 #, elixir-autogen, elixir-format
 msgid "Start empty or from a template"
 msgstr ""
@@ -19116,11 +19104,6 @@ msgstr ""
 #: lib/portfolixir_web/live/widgets_live.ex:218
 #, elixir-autogen, elixir-format
 msgid "add ›"
-msgstr ""
-
-#: lib/portfolixir_web/live/new_dashboard_live.ex:123
-#, elixir-autogen, elixir-format
-msgid "an empty dashboard; add widgets from All widgets"
 msgstr ""
 
 #: lib/portfolixir_web/live/widgets_live.ex:228
@@ -19825,4 +19808,52 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgctxt "widget size"
 msgid "Row"
+msgstr ""
+
+#: lib/portfolixir_web/live/new_dashboard_live.ex:224
+#, elixir-autogen, elixir-format
+msgid "%{count} widget"
+msgid_plural "%{count} widgets"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/live/new_dashboard_live.ex:319
+#, elixir-autogen, elixir-format
+msgid "Dashboard from “%{template}”"
+msgstr ""
+
+#: lib/portfolixir_web/live/new_dashboard_live.ex:316
+#, elixir-autogen, elixir-format
+msgid "Empty dashboard"
+msgstr ""
+
+#: lib/portfolixir_web/live/new_dashboard_live.ex:166
+#, elixir-autogen, elixir-format
+msgid "Like today's pages · the starter dashboards"
+msgstr ""
+
+#: lib/portfolixir_web/live/new_dashboard_live.ex:292
+#, elixir-autogen, elixir-format
+msgid "None: follows the bar's view"
+msgstr ""
+
+#: lib/portfolixir_web/live/new_dashboard_live.ex:156
+#, elixir-autogen, elixir-format
+msgid "Templates"
+msgstr ""
+
+#: lib/portfolixir_web/live/new_dashboard_live.ex:297
+#, elixir-autogen, elixir-format
+msgid "The view holds for every widget of this dashboard that takes one; a single widget can still name its own in its ⋯ menu. Without one the dashboard follows the view in the bar."
+msgstr ""
+
+#: lib/portfolixir_web/live/new_dashboard_live.ex:170
+#, elixir-autogen, elixir-format
+msgid "Themes"
+msgstr ""
+
+#: lib/portfolixir/dashboards/templates.ex:106
+#, elixir-autogen, elixir-format
+msgctxt "dashboard template"
+msgid "as today's start page"
 msgstr ""

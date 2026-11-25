@@ -147,6 +147,13 @@ defmodule Portfolixir.Invariants.ControlBarLabelledControlsTest do
       reason: @form_field
     },
     %{file: "live/risk/policy_rule_dialog.ex", match: ~s(class="form-grid"), reason: @form_field},
+    # Sprint 32 S4: the gallery's dialog, the name and the scope one under
+    # the other.
+    %{
+      file: "live/new_dashboard_live.ex",
+      match: ~s(id="new-dashboard-form"),
+      reason: @form_field
+    },
     %{
       file: "live/transaction_management_live.ex",
       match: ~s(class="form-grid"),

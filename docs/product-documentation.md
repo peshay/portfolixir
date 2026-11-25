@@ -5150,12 +5150,17 @@ naming the already-booked event) stays inline in the dialog.
   **Income and tax** Income, Fees and taxes, Tax allowance): they are
   shown so you know they are coming, and cannot be added yet — the API
   refuses them in a layout as unknown kinds too.
-- **New dashboard** (`/dashboards/new`) asks for a name and how to start:
-  **Start empty**, an empty dashboard to fill from All widgets (it says so
-  until the edit mode lands), or **From a template**, a copy of
-  **Overview** (more templates come with their widgets). **Create** stores
-  it, one write in the audit journal, and opens it; it joins the end of the
-  menu. A name that is empty, longer than 60 characters or carries a
+- **New dashboard** (`/dashboards/new`, Sprint 32) opens a gallery:
+  **Start empty**, then **Like today's pages · the starter dashboards**
+  (Overview, and each screen of Wealth as its pass lands), then
+  **Themes**. Each card shows its grid in miniature, how many widgets it
+  holds and which; a template whose widgets are not all built is not
+  shown. A click opens a dialog with the name, suggested from the
+  template's title and, where a dashboard of yours already has it, as
+  "… (2)"; a theme that asks for one also asks for its **view**, the
+  dashboard's own (none follows the bar's). **Create** stores it, one write
+  in the audit journal, and opens it (Start empty in the edit mode with the
+  catalogue open); it joins the end of the menu. A name that is empty, longer than 60 characters or carries a
   control character is refused at the field; with 50 dashboards stored,
   the most an instance keeps, a new one is refused with that reason.
 - **On a narrow window** (under 600 px, a phone held upright) the menu is a

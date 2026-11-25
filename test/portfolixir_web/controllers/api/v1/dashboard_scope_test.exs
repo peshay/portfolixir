@@ -119,4 +119,39 @@ defmodule PortfolixirWeb.Api.V1.DashboardScopeTest do
     assert cleared["data"]["view_id"] == nil
     assert cleared["data"]["view_dangling"] == false
   end
+
+  # User story (Sprint 32 S4; board 03 ①):
+  # As the agent composing a dashboard from a template,
+  # I want each template the gallery offers with its group, whether it is a
+  # starter, whether it asks for a scope, and its line,
+  # so that I offer the operator what the gallery offers.
+  #
+  # Acceptance criteria:
+  # - GET /api/v1/dashboards lists every offered template with `group`
+  #   (`starter` or `theme`), `starter`, `asks_scope` and `subtitle`; the
+  #   template read answers the same.
+  test "a template entry names its group, whether it asks for a scope, and its line", %{
+    conn: conn
+  } do
+    listed = conn |> authed() |> get("/api/v1/dashboards") |> json_response(200)
+    templates = Enum.filter(listed["data"], &(&1["type"] == "template"))
+
+    assert Enum.map(templates, & &1["key"]) ==
+             Enum.map(Portfolixir.Dashboards.templates(), & &1.key)
+
+    overview = Enum.find(templates, &(&1["key"] == "overview"))
+
+    assert Map.take(overview, ~w(group starter asks_scope subtitle)) == %{
+             "group" => "starter",
+             "starter" => true,
+             "asks_scope" => false,
+             "subtitle" => "as today's start page"
+           }
+
+    read =
+      conn |> authed() |> get("/api/v1/dashboards/template:overview") |> json_response(200)
+
+    assert read["data"]["group"] == "starter"
+    assert read["data"]["asks_scope"] == false
+  end
 end
