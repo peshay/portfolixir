@@ -18532,7 +18532,7 @@ msgctxt "widget kind"
 msgid "Total value"
 msgstr "Gesamtwert"
 
-#: lib/portfolixir/dashboards/templates.ex:53
+#: lib/portfolixir/dashboards/templates.ex:68
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "Overview"

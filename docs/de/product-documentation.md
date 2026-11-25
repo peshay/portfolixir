@@ -2347,7 +2347,16 @@ des Lesezugriffs, sein Zeitraum-Etikett, ein Menü ⋯ (der eigene Zeitraum
 des Widgets), die Zahlen und eine Fußzeile, die die gelesene Ansicht
 nennt und zum ganzen Screen führt.
 
-- **Eine frische Instanz speichert nichts.** Ohne eigenes Dashboard zeigt
+- **Die Start-Dashboards werden einmal gespeichert** (Sprint 32). Beim
+  ersten Start einer Version, die ein Start-Dashboard mitbringt, speichert
+  die Instanz es einmal als Ihr Dashboard, im Journal unter dem System
+  („dashboard_starters“) festgehalten: Diese Version bringt **Überblick**
+  (gespeichert unter dem englischen Namen „Overview“, umbenennbar). Danach
+  gehört es Ihnen zum Umbenennen, Ändern, Umsortieren oder Löschen, und
+  ein gelöschtes wird nie wieder gespeichert. Eine Instanz, die schon ein
+  eigenes Dashboard speichert, bekommt keinen zweiten Überblick: Er gilt
+  als gespeichert.
+- **Lesen schreibt nie.** Ohne eigenes Dashboard (alle gelöscht) zeigt
   `/` die mitgelieferte Vorlage **Überblick** nur lesend, unter dem Hinweis
   „Vorlage · mitgeliefert, nur lesend“ mit **Anpassen**: Das kopiert die
   Vorlage in ein eigenes Dashboard (ein Schreibvorgang im Journal) und

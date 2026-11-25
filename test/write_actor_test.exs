@@ -217,7 +217,12 @@ defmodule Portfolixir.WriteActorTest do
                   "dashboards",
                   # Sprint 32 T2 (ADR-0062's amendment, point 6): the stored
                   # periods, armed in the migration that creates them.
-                  "saved_periods"
+                  "saved_periods",
+                  # Sprint 32 S3 (ADR-0062's amendment of 2026-11-25, point
+                  # 5): the starters' seed records, armed in the migration
+                  # that creates them, each journaled under the boot's
+                  # system actor.
+                  "dashboard_seeds"
                 ])
 
   # Derived-value tables (ADR-0039): materializations of ledger-derived reads,

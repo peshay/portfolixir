@@ -86,8 +86,14 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
         "only writer of halving events on a security bound to a chain with a source, each " <>
         "write journaled under this label; past halvings from the chain's blocks, the next " <>
         "one as an unconfirmed window at most once a day; it books nothing and writes no " <>
-        "other event kind"
+        "other event kind",
     # --- end Sprint 29 H3 ------------------------------------------------
+    # --- Sprint 32 S3 (ADR-0062's amendment of 2026-11-25, point 5) -------
+    {"Portfolixir.Dashboards.Starters", "dashboard_starters"} =>
+      "stores each starter dashboard once, at boot, as a copy of its template, and " <>
+        "records its key so a deleted starter is never stored again; journaled under " <>
+        "this label; a dashboard is arrangement, it holds no figure and books nothing"
+    # --- end Sprint 32 S3 ------------------------------------------------
   }
 
   # `module => reason`.
