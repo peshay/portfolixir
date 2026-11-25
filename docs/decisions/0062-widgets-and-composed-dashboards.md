@@ -321,6 +321,16 @@ periods too few and too fixed. The boards are
    41st widget, no row left) stand there too. *Why:* the operator expects
    to tidy up after a change, not to delete something first; a message at
    the top of a long page answers a click the operator can no longer see.
+   *Note of 2026-11-25 (Sprint 32, E1): the wording above and board 01 ②
+   differ, and the board is built.* „Moves down to the first row below it“
+   would put „Datenqualität“, „Fällig“ and „Abseits“ under the grown
+   „Gesamtwert“; the board, signed with this amendment, moves them into the
+   free cells beside it. `Portfolixir.Dashboards.Arrange` follows the board:
+   a covered widget moves to the first free place after its own in reading
+   order (on along its row, then the rows below), and so on; then the gaps
+   close. Every other clause stands. *Why the board:* it is the picture the
+   owner chose, and it leaves fewer widgets moved. Flipped by „nur nach
+   unten schieben“.
 2. **§2, the API stays strict.** A stored write is still refused with 422
    on an overlap and nothing is repaired silently; the edit mode sends a
    layout it has already arranged. An agent that wants the arrangement
