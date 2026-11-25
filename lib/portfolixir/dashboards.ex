@@ -23,6 +23,7 @@ defmodule Portfolixir.Dashboards do
 
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.Dashboards.Arrange
   alias Portfolixir.Dashboards.Dashboard
   alias Portfolixir.Dashboards.Layout
   alias Portfolixir.Dashboards.Templates
@@ -87,6 +88,16 @@ defmodule Portfolixir.Dashboards do
   @spec validate_layout(term(), keyword()) ::
           {:ok, [Layout.item()]} | {:error, Layout.refusal()}
   def validate_layout(layout, opts \\ []), do: Layout.validate(layout, opts)
+
+  @doc """
+  The layout arranged after one action (`Portfolixir.Dashboards.Arrange.arrange/3`;
+  ADR-0062's amendment of 2026-11-25, point 1): the item acted on keeps
+  the place it was given, what it covers makes room, then every gap
+  closes. `{:ok, layout}` or `{:error, reason}`; reads and writes nothing.
+  """
+  @spec arrange_layout([Layout.item()], Arrange.action()) ::
+          {:ok, [Layout.item()]} | {:error, Arrange.reason()}
+  def arrange_layout(layout, action), do: Arrange.arrange(layout, action)
 
   @doc "The most dashboards an instance stores (ADR-0062 §2)."
   @spec max_dashboards() :: pos_integer()
