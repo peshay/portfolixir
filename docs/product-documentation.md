@@ -2178,8 +2178,13 @@ screen.
   and 1Y, 3Y, 5Y and Max as 1Y; this month and last month as Month, this
   quarter, last quarter and Q1 to Q4 as Quarter, last year and a year as
   1Y — so at 3M it says **follows · 3M → Quarter**.
-- **A widget may pin its own period.** Its ⋯ menu offers **Set period**
-  with the periods its read takes; the pin is stored in the widget's item
+- **A widget may pin its own period.** Its ⋯ menu offers **Pin a period
+  …**, which opens the same period menu as the bar, for that widget; the
+  period you pick there is the pin. An own period is pinned by reference,
+  so a change to it reaches every widget pinned to it; where it is
+  deleted, the widget reads the bar's period and its footer says **own
+  period deleted · follows 1Y**, and the next save of the dashboard lets
+  the pin go. The pin is stored in the widget's item
   of the layout (`settings.period`, one journaled write, as an agent's
   `PUT /api/v1/dashboards/<id>` would store it) and drawn in the accent,
   **📌 own: Max**, so a pinned figure is never read as the bar's. **Follows

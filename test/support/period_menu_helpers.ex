@@ -23,6 +23,20 @@ defmodule PortfolixirWeb.PeriodMenuHelpers do
     end
   end
 
+  @doc """
+  Pins `period` on the widget `widget` (a selector of its frame) as the
+  operator does (Sprint 32 T5): its ⋯ „Zeitraum festpinnen …“, then the
+  period in the menu it opens.
+  """
+  @spec pin_widget_period(term(), String.t(), String.t()) :: String.t()
+  def pin_widget_period(view, widget, period) do
+    view |> element(widget <> " [data-role='pin-menu']") |> render_click()
+
+    view
+    |> element("#dashboard-period-menu [data-role='period-option'][data-period='#{period}']")
+    |> render_click()
+  end
+
   @doc "The dashboard's active period, as its bar names it."
   @spec active_period(term()) :: String.t() | nil
   def active_period(view) do

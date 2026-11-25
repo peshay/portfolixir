@@ -2405,8 +2405,14 @@ nennt und zum ganzen Screen führt.
   Quartal, Vorquartal und Q1 bis Q4 als Quartal, Vorjahr und ein Jahr als
   1J — bei 3M steht also **folgt · 3M → Quartal**.
 - **Ein Widget kann seinen eigenen Zeitraum festlegen.** Sein Menü ⋯ bietet
-  **Zeitraum festlegen** mit den Zeiträumen, die sein Lesezugriff kennt;
-  die Festlegung steht im Eintrag des Widgets im Layout
+  **Zeitraum festpinnen …**, das dasselbe Zeitraum-Menü wie die Leiste
+  öffnet, für dieses Widget; der Zeitraum, den Sie dort wählen, ist die
+  Festlegung. Ein eigener Zeitraum wird per Verweis festgepinnt, so
+  erreicht eine Änderung an ihm jedes Widget, das auf ihn gepinnt ist; ist
+  er gelöscht, liest das Widget den Zeitraum der Leiste, seine Fußzeile
+  sagt **eigener Zeitraum gelöscht · folgt 1J**, und das nächste Speichern
+  des Dashboards lässt den Pin los. Die Festlegung steht im Eintrag des
+  Widgets im Layout
   (`settings.period`, ein Schreibvorgang im Journal, wie ihn ein Agent mit
   `PUT /api/v1/dashboards/<id>` speichern würde) und erscheint in der
   Akzentfarbe, **📌 eigener: Max**, damit eine festgelegte Zahl nie als die

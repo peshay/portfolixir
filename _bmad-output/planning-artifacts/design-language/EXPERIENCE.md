@@ -1327,3 +1327,15 @@ per browser, the address, the pin, the translation, „ohne Zeitraum“).
 - **A deleted own period leaves the bar**: a chip that named it is gone,
   and the open menu says so in one sentence until the next star stores
   the quick choice without it; an address that named it opens 1J.
+- **A widget's pin opens the same menu** *(Sprint 32 T5; board 04 ③)*:
+  its ⋯ offers „Zeitraum festpinnen …“ (or „Festgepinnt: … — ändern …“),
+  which opens the period menu for that widget, its first line naming the
+  widget, lying over the page (under 600 px, the same sheet); a pick there
+  is the widget's pin, and Escape gives the focus back to the ⋯'s button.
+  An own period is pinned by reference (`saved:<id>`), so a change to it
+  reaches every widget pinned to it. A pin whose own period was deleted
+  dangles: the widget reads the top bar's period, its tag says „folgt ·
+  1J“ and its footer „eigener Zeitraum gelöscht · folgt 1J“; the next save
+  of the dashboard lets the pin go, as it lets a deleted view go. A pin on
+  a quarter or a year that has not begun reads the same way, said as
+  „festgepinnter Zeitraum noch nicht begonnen“.

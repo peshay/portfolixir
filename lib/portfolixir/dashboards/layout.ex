@@ -11,7 +11,7 @@ defmodule Portfolixir.Dashboards.Layout do
 
   `validate/2` refuses the **first** bad item, naming its index (0-based,
   the item's place in the list sent), the field and the reason; nothing is
-  repaired, moved or dropped, save the two exceptions below. A layout of more than `max_items/0` items is
+  repaired, moved or dropped, save the exceptions below. A layout of more than `max_items/0` items is
   refused as a whole, before any item is read, with the index of the first
   item past the cap (40): no item there is bad in itself.
 
@@ -30,6 +30,12 @@ defmodule Portfolixir.Dashboards.Layout do
   pin, a catalogue add or a save that resends the stored layout then goes
   through instead of being refused for an item the operator cannot change.
   Any other unregistered kind is refused, and a create refuses every one.
+
+  **The third, a deleted own period** (Sprint 32 T5): a pin
+  `saved:<id>` whose period was deleted is dropped from its item's
+  settings, not refused, when the stored layout already pins it, as a
+  stale view is; any other pin naming no stored period is refused
+  (`:unknown_period`).
   The dropped item meets no overlap and keeps no place. It is strict: a key the item or its settings
   do not take is refused too, so a layout carries nothing the server does
   not read. Keys are strings (an atom key written in code is read as its
@@ -48,6 +54,8 @@ defmodule Portfolixir.Dashboards.Layout do
 
   alias Portfolixir.Buckets.View
   alias Portfolixir.Dashboards.Widgets
+  alias Portfolixir.Periods
+  alias Portfolixir.Periods.SavedPeriod
   alias Portfolixir.Repo
 
   @max_items 40
@@ -79,6 +87,7 @@ defmodule Portfolixir.Dashboards.Layout do
           | :no_period
           | :unsupported_period
           | :no_room
+          | :unknown_period
 
   @typedoc """
   A refusal: the item's 0-based `index` (`nil` when the layout itself is
@@ -151,7 +160,8 @@ defmodule Portfolixir.Dashboards.Layout do
   @doc """
   Validates `layout`: `{:ok, normalized}` or `{:error, refusal}` naming the
   first bad item. Reads the views table once, for the view ids the layout
-  names, and nothing else.
+  names, and the stored periods once, for the own periods its pins name,
+  and nothing else.
 
   Option `stored:` is the dashboard's layout as stored, when the write
   replaces one: a view id it already holds that names no view any more is
@@ -176,7 +186,9 @@ defmodule Portfolixir.Dashboards.Layout do
         existing: existing_views(layout),
         stored: stored_views(stored),
         retired: retired_kinds(stored),
-        overlaps: Keyword.get(opts, :overlaps, :refuse)
+        overlaps: Keyword.get(opts, :overlaps, :refuse),
+        periods: existing_periods(layout),
+        stored_periods: stored_periods(stored)
       }
 
       layout
@@ -233,6 +245,8 @@ defmodule Portfolixir.Dashboards.Layout do
         "errors",
         "leaves no place up to row 200 for the widgets it would move"
       )
+
+  def message(:unknown_period), do: dgettext_noop("errors", "names no own period")
 
   # --- one item ---------------------------------------------------------
 
@@ -336,7 +350,7 @@ defmodule Portfolixir.Dashboards.Layout do
       raw when is_map(raw) ->
         with {:ok, settings} <- string_keys(raw, @setting_keys, index, &setting_key_refusal/2),
              {:ok, settings} <- view_setting(settings, kind, views, index),
-             :ok <- period_setting(settings, kind, index) do
+             {:ok, settings} <- period_setting(settings, kind, views, index) do
           {:ok, settings}
         end
 
@@ -360,15 +374,39 @@ defmodule Portfolixir.Dashboards.Layout do
 
   defp view_setting(settings, _kind, _views, _index), do: {:ok, settings}
 
-  defp period_setting(%{"period" => period}, kind, index) do
+  defp period_setting(%{"period" => period} = settings, kind, views, index) do
     cond do
-      kind.period == :none -> refuse(index, "settings.period", :no_period)
-      Widgets.takes_period?(kind.key, period) -> :ok
-      true -> refuse(index, "settings.period", :unsupported_period)
+      kind.period == :none ->
+        refuse(index, "settings.period", :no_period)
+
+      not Widgets.takes_period?(kind.key, period) ->
+        refuse(index, "settings.period", :unsupported_period)
+
+      true ->
+        own_period(settings, period, views, index)
     end
   end
 
-  defp period_setting(_settings, _kind, _index), do: :ok
+  defp period_setting(settings, _kind, _views, _index), do: {:ok, settings}
+
+  # An own period by reference (`saved:<id>`, Sprint 32 T5) must be stored;
+  # one the stored layout already pins and whose period was deleted since
+  # is dropped, as a stale view is (ADR-0062's amendment of 2026-11-25,
+  # point 6). Any other key needs no row.
+  defp own_period(settings, period, views, index) do
+    case Periods.saved_id(period) do
+      :error -> {:ok, settings}
+      {:ok, id} -> own_period_id(settings, id, views, index)
+    end
+  end
+
+  defp own_period_id(settings, id, views, index) do
+    cond do
+      MapSet.member?(views.periods, id) -> {:ok, settings}
+      MapSet.member?(views.stored_periods, id) -> {:ok, Map.delete(settings, "period")}
+      true -> refuse(index, "settings.period", :unknown_period)
+    end
+  end
 
   defp view_id?(id), do: is_integer(id) and id >= 1 and id <= @max_bigint
 
@@ -389,6 +427,34 @@ defmodule Portfolixir.Dashboards.Layout do
       ids -> MapSet.new(Repo.all(from(v in View, where: v.id in ^ids, select: v.id)))
     end
   end
+
+  # The own periods the layout's pins name that are stored, read once.
+  defp existing_periods(layout) do
+    ids =
+      for item <- layout,
+          is_map(item),
+          settings = Map.get(item, "settings") || Map.get(item, :settings),
+          is_map(settings),
+          period = Map.get(settings, "period") || Map.get(settings, :period),
+          {:ok, id} <- [Periods.saved_id(period)],
+          uniq: true,
+          do: id
+
+    case ids do
+      [] -> MapSet.new()
+      ids -> MapSet.new(Repo.all(from(p in SavedPeriod, where: p.id in ^ids, select: p.id)))
+    end
+  end
+
+  # The own periods a stored (normalized) layout pins.
+  defp stored_periods(stored) when is_list(stored) do
+    for %{"settings" => %{"period" => period}} <- stored,
+        {:ok, id} <- [Periods.saved_id(period)],
+        into: MapSet.new(),
+        do: id
+  end
+
+  defp stored_periods(_stored), do: MapSet.new()
 
   # The view ids a stored (normalized) layout holds.
   defp stored_views(stored) when is_list(stored) do

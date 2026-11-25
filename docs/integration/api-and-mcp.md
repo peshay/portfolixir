@@ -5399,7 +5399,8 @@ the write: `422` `{"errors": {"layout": [<message>], "layout_item":
 `unsupported_size`, `off_grid`, `overlap` (with `other`, the index of the
 earlier item it meets), `unknown_view`, `no_view` (a view on a kind that
 takes none), `no_period` (a pinned period on a kind without one),
-`unsupported_period`, `unknown_key` (a key an item does not take: an item
+`unsupported_period`, `unknown_period` (a pin `saved:<id>` that names no
+stored own period), `unknown_key` (a key an item does not take: an item
 names no route), `unknown_setting`, `missing`, `not_an_integer`,
 `not_an_object`, `too_many_items` (41 items or more, `index` 40) or
 `not_a_list`. Nothing is repaired or moved. A name of more than 60
@@ -5413,7 +5414,10 @@ dropped by the next save, not refused; every other `view_id` must name a
 view. Likewise, an item whose `kind` a later release no longer registers
 is dropped by the next save when the stored layout already holds that
 kind, so a pin or an add still goes through; every other `kind` must be
-registered. Keys are matched as strings and no atom is made from one; the name
+registered. A pin on an own period (`saved:<id>`) whose period was deleted
+is dropped by the next save the same way; every other `saved:<id>` must
+name a stored period. Until then the widget reads the dashboard's period
+and its footer says so. Keys are matched as strings and no atom is made from one; the name
 is stored as text and drawn escaped.
 
 **MCP.** Four tools call these routes. `portfolixir.dashboards.list` reads

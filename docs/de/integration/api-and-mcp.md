@@ -5894,8 +5894,9 @@ und `reason` eines von `unknown_kind`, `unsupported_size`, `off_grid`,
 `overlap` (mit `other`, dem Index des früheren Elements, auf das es trifft),
 `unknown_view`, `no_view` (eine View an einer Art, die keine nimmt),
 `no_period` (ein angehefteter Zeitraum an einer Art ohne Zeitraum),
-`unsupported_period`, `unknown_key` (ein Schlüssel, den ein Element nicht
-nimmt: Ein Element nennt keine Route), `unknown_setting`, `missing`,
+`unsupported_period`, `unknown_period` (ein Pin `saved:<id>`, der keinen
+gespeicherten eigenen Zeitraum nennt), `unknown_key` (ein Schlüssel, den
+ein Element nicht nimmt: Ein Element nennt keine Route), `unknown_setting`, `missing`,
 `not_an_integer`, `not_an_object`, `too_many_items` (41 Elemente oder mehr,
 `index` 40) oder `not_a_list`. Nichts wird repariert oder verschoben. Ein
 Name über 60 Zeichen, mit einem Steuerzeichen oder leer liefert `422` und
@@ -5909,7 +5910,11 @@ Speichern, statt abzulehnen; jede andere `view_id` muss eine View nennen.
 Ebenso entfernt das nächste Speichern ein Element, dessen `kind` ein
 späteres Release nicht mehr registriert, wenn das gespeicherte Layout diese
 Art schon hält, damit ein Anheften oder Hinzufügen weiter gelingt; jede
-andere `kind` muss registriert sein. Schlüssel werden als Strings verglichen, aus keinem wird ein Atom; der Name
+andere `kind` muss registriert sein. Einen Pin auf einen eigenen Zeitraum
+(`saved:<id>`), dessen Zeitraum gelöscht wurde, entfernt das nächste
+Speichern ebenso; jeder andere `saved:<id>` muss einen gespeicherten
+Zeitraum nennen. Bis dahin liest das Widget den Zeitraum des Dashboards,
+und seine Fußzeile sagt es. Schlüssel werden als Strings verglichen, aus keinem wird ein Atom; der Name
 wird als Text gespeichert und maskiert gezeichnet.
 
 **MCP.** Vier Tools rufen diese Routen. `portfolixir.dashboards.list` liest

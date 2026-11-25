@@ -873,9 +873,7 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
              percent(quarter["ttwror"]) <> " TTWROR · 3M"
 
     # The third item, the second S one (row 3), pinned from its menu.
-    view
-    |> element("#dashboard-performance-3 [data-role='pin-period'][data-period='max']")
-    |> render_click()
+    pin_widget_period(view, "#dashboard-performance-3", "max")
 
     render_async(view)
     doc = view |> render() |> Floki.parse_document!()

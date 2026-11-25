@@ -20,6 +20,10 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
       option has ★ beside it, pressed while the quick choice holds it, that
       adds it or takes it out. Escape, a pick and a click elsewhere close
       it; in the compact class it is a sheet from the bottom edge.
+    * **A widget's pin** (Sprint 32 T5; board 04 ③): its ⋯ „Zeitraum
+      festpinnen …“ opens the same menu for that widget, said in its first
+      line; a pick there is the widget's pin, an own period by reference
+      (`saved:<id>`). It lies over the page, not under the bar.
     * **The dialog** (`dialog/1`): a native dialog element (the
       ModalDialog hook) with Name, Von, Bis „heute“ or a date, „in der Schnellwahl
       zeigen“; „Speichern und anwenden“ stores and applies it.
@@ -44,6 +48,11 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
   attr(:saved, :list, required: true, doc: "the stored periods")
   attr(:open, :boolean, default: false)
   attr(:say, :string, default: nil)
+
+  attr(:pin, :map,
+    default: nil,
+    doc: "the widget the menu pins for (Sprint 32 T5): %{index, kind, title, period}, or nil"
+  )
 
   @doc "The quick choice, the menu's button with its dates, the menu and the status line."
   def bar(assigns) do
@@ -112,10 +121,11 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
       <span :if={@dates} class="dashboard-period-menu__dates" data-role="period-dates"><%= @dates %></span>
       <.panel
         :if={@open}
-        period={@period}
+        period={if @pin, do: @pin.period, else: @period}
         quick={@quick}
         saved={@saved}
         today={@today}
+        pin={@pin}
       />
       <%!-- What a star, a save or a delete did, heard where it was
            done; no whitespace inside, so `:empty` holds. --%>
@@ -130,10 +140,11 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
     """
   end
 
-  attr(:period, :string, required: true)
+  attr(:period, :string, default: nil)
   attr(:quick, :map, required: true)
   attr(:saved, :list, required: true)
   attr(:today, Date, required: true)
+  attr(:pin, :map, default: nil)
 
   defp panel(assigns) do
     year = assigns.today.year
@@ -147,13 +158,21 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
     ~H"""
     <div
       id="dashboard-period-menu"
-      class="dashboard-period-menu__panel"
+      class={["dashboard-period-menu__panel", @pin && "is-pin"]}
       data-role="period-menu"
+      data-pin-kind={@pin && @pin.kind}
+      tabindex="-1"
+      aria-label={@pin && gettext("Pin a period for “%{widget}”", widget: @pin.title)}
       phx-click-away="period_menu"
       phx-value-open="false"
       phx-window-keydown="period_menu_key"
       phx-key="Escape"
     >
+      <%!-- Sprint 32 T5 (board 04 ③): opened from a widget's ⋯, a pick
+           is that widget's pin. --%>
+      <p :if={@pin} class="dashboard-period-menu__pin" data-role="period-pin-head">
+        <%= gettext("Pin a period for “%{widget}”", widget: @pin.title) %>
+      </p>
       <p :if={@dropped > 0} class="dashboard-period-menu__note" data-role="period-quick-dropped">
         <%= ngettext(
           "An own period of the quick choice was deleted; it is no longer in the bar.",
@@ -164,6 +183,7 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
       <.group id="period-group-rolling" title={pgettext("period menu", "Rolling · to today")}>
         <.option
           :for={key <- Periods.rolling()}
+          pin={@pin}
           key={key}
           active={@period == key}
           begun={begun?(key, @today, @saved)}
@@ -174,6 +194,7 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
       <.group id="period-group-calendar" title={pgettext("period menu", "Calendar")}>
         <.option
           :for={key <- Periods.calendar()}
+          pin={@pin}
           key={key}
           active={@period == key}
           begun={begun?(key, @today, @saved)}
@@ -187,7 +208,8 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
           <button
             type="button"
             class={["dashboard-period-menu__own-name", @period == "saved:#{own.id}" && "is-active"]}
-            phx-click="set_period"
+            phx-click={if @pin, do: "pin_period", else: "set_period"}
+            phx-value-index={@pin && @pin.index}
             phx-value-period={"saved:#{own.id}"}
             aria-pressed={to_string(@period == "saved:#{own.id}")}
             data-role="period-option"
@@ -218,6 +240,7 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
       <.group id="period-group-year" title={pgettext("period menu", "Year")}>
         <.option
           :for={key <- @years}
+          pin={@pin}
           key={key}
           active={@period == key}
           begun={begun?(key, @today, @saved)}
@@ -260,6 +283,7 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
   attr(:begun, :boolean, required: true)
   attr(:quick, :map, required: true)
   attr(:saved, :list, required: true)
+  attr(:pin, :map, default: nil)
 
   defp option(assigns) do
     assigns = assign(assigns, :label, Widget.period_label(assigns.key, assigns.saved))
@@ -269,7 +293,8 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
       <button
         type="button"
         class={["dashboard-period-menu__pick", @active && "is-active"]}
-        phx-click="set_period"
+        phx-click={if @pin, do: "pin_period", else: "set_period"}
+        phx-value-index={@pin && @pin.index}
         phx-value-period={@key}
         aria-pressed={to_string(@active)}
         disabled={not @begun}

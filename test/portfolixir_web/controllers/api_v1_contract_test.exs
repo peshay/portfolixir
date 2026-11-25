@@ -114,6 +114,11 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert "PUT /api/v1/periods/quick" in newest["endpoints"]
     # --- S32 T3 end ---
 
+    # --- S32 T5 begin ---
+    assert newest["summary"] =~ "Sprint 32, T5: a dashboard item's pin may name an own period"
+    assert Enum.any?(newest["parameters"], &(&1 =~ "unknown_period"))
+    # --- S32 T5 end ---
+
     # The security review's fixes of 2026-11 (version 32, one PR), found by
     # version from Sprint 32 on. Dated strictly after entry 31, so
     # since=2026-11-21 still returns it. Each row appends its own items
