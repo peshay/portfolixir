@@ -10,16 +10,16 @@ how each would split, whether two code paths compute the same figure, and
 where a read bypasses the derived-value layer (ADR-0039). The review edited,
 committed, pushed and filed nothing. **The evidence, which carries the
 reproductions, is held privately by the owner and is not committed.** Four
-rows are held, as the security triage's "Disclosure handling" orders: they
-stand here by ID and severity only, and each is filed with its fix.
-One owner decision (AD-9) concerns a held row only and is named by its number
-and its row. The complete report, which states the four rows and that
-decision in full, stays private with the evidence; "the private report" below
-is that report.
+rows were held, as the security triage's "Disclosure handling" orders, and
+stood here by ID and severity only, with one owner decision (AD-9) that
+concerns one of them. On 2026-11-25 all four and AD-9 were stated here with
+their fixes, which #1489 merged that day. The complete report stays private
+with the evidence; "the private report" below is that report.
 
 This document is the repository version of the report's sections 1 to 4, 6
 and 8 to 13, under the report's own section numbers. Where a public row
-touches a held one, that part is left to the private report too. Section 5,
+touched a held one, that part was left to the private report too; R-098's
+part is restored with the four rows. Section 5,
 the S1 and S2 in full, is `architecture-review-findings-2026-11-24.md`, and
 section 7, the proposed split per module, is
 `architecture-review-splits-2026-11-24.md`; both lie beside this file.
@@ -43,13 +43,11 @@ among it 46 code files that are new since the audit.
 
 Findings carry an ID (`R-001` to `R-159`, most severe first) and, in
 brackets, the key of the lane that found them. The key is the heading of their
-entry in the private evidence. The four held rows are printed without their
-key.
+entry in the private evidence.
 
 ## 1. Result
 
 - **159 findings confirmed: 10 S1, 19 S2, 130 S3.**
-  Of these, 2 S2 and 2 S3 are held (AD-8).
   28 reader lanes wrote 174 candidates. 15 were duplicates of 13
   findings, each found by two or three lanes, and were merged.
   Six candidates of one gap lane reached a verifier only after the report's review had found them missing from the registry; all six were confirmed. Each finding was confirmed by a second agent that executed
@@ -152,7 +150,7 @@ figures that live in a page and not in the context.
     (R-012 (D2-03)); or when it is stale in one open page only and a save or a reload
     corrects it (R-015 (O4-02), R-026 (O2-04)).
   - **S3** for a gate or pin that is narrower than its claim while nothing
-    passes through it today, the rule lens 1 used for N-85 to N-89. R-144 (M1-01) is
+    passes through it today, the rule lens 1 used for N-78 to N-90. R-144 (M1-01) is
     the nearest to the ladder's "a gate silently checks nothing": it reads 40
     of 166 tools, and all 166 are documented today.
 
@@ -224,15 +222,24 @@ What has changed since ADR-0002 is the word "thin". The companion is 8,623
 lines, of which 979 forward. It now holds rules of its own:
 
 - Five request shapes get another answer from a tool than from the API
-  (R-097 (M1-02)). Every tool's input contract is written twice by hand, and one bound
-  and four date patterns are enforced without being published (R-098 (M1-03)). 28 closed sets
+  (R-097 (M1-02)). Every tool's input contract is written twice by hand, the
+  test between the two compares neither bounds, patterns nor closure, and one
+  bound and four date patterns are enforced without being published
+  (R-098 (M1-03); its closure half fixed in #1489). 28 closed sets
   are typed by hand in the companion; the 24 that have an accessor in the
   application agree with it today, and no test compares one (R-145 (M1-04)).
-- The docs gate reads 40 of the 166 tool declarations (R-144 (M1-01)).
-- What the agent is told is thinner than what the routes do: the contract
+- The single-egress scan has one gap that needs no dependency (R-146 (M1-07),
+  worded by its class here, like lens 1's gate rows; fixed in #1489). The docs
+  gate reads 40 of the 166 tool declarations (R-144 (M1-01)).
+- What the agent is told is thinner than what the routes do: a cap on a word
+  that is no asset class is accepted and answers "no class over cap"
+  (R-018 (G3-02); fixed in #1489); the contract
   read that the first-setup prompt calls as a connection check answers
   241,722 bytes (R-020 (O6-03)); one read states less of its computation
-  basis than the metric rule in AGENTS.md asks (R-095 (G3-01)).
+  basis than the metric rule in AGENTS.md asks (R-095 (G3-01)). On the API
+  itself a malformed filter is dropped and the unfiltered list answered; only
+  a direct caller meets that, because the tool's schema refuses the value
+  first (R-019 (A3-02); fixed in #1489).
 - Coverage, both ways: no test pairs a route with a tool or a screen write
   with a route (R-147 (M2-01)). Section 6's agent theme lists the gaps (R-099 (M1-06), R-100 (M2-02)
   to R-104 (M2-06)); the Transactions figures that have no API twin (R-059 (O4-08)) are in
@@ -355,8 +362,8 @@ Every row was reproduced by a run. The "Finding" column is the audit lead's plai
 | R-015 (O4-02) | S2 | After a tree edit the plan editor keeps its old tree: the sum stays "100 % ✓" while the stored plan is 60 %, or a save stores 110 %. | docs/product-documentation.md:1620-1621 (a live Σ, updating on input); the page's own reload rule at classifications_live.ex:2160-2163 | S | none | not refuted (1) | unchanged |
 | R-016 (G4-03) | S2 | A cash merge that removes a duplicated trade lists no flow across a view's boundary: the view's flow of the day halves while the preview's list of flow changes is empty. | ADR-0050 §16 invariant 9 (:685-687) "the preview lists every flow a collapse removes or moves"; merge_figures.ex:272-279 | S to M | ADR-0050 (dated note under §16 invariant 9) | not refuted (1) | still stands |
 | R-017 (A4-02) | S2 | The security-merge preview says the realized-gains read converts its figures at each close date; for a sale that closes a lot booked in another currency that read takes the cash moved, so the base-currency result is not the preview's figure converted. | AGENTS.md:113-116 (computation basis, review-blocking); merge_json.ex:161-163; ADR-0015 note of 2026-10-31 (0015:423-429) | S | ADR-0015 (a note naming the preview as a reader); ADR-0050 §9 only if … | not refuted (1) | still stands |
-| R-018 | S2 | held; filed with its fix | — | — | — | — | — |
-| R-019 | S2 | held; filed with its fix | — | — | — | — | — |
+| R-018 (G3-02) | S2 | A cap on a word that is no asset class is accepted by the risk read and answers "no class over cap", the same as no cap at all; the caps applied are not echoed. | policy_finding_controller.ex:94-95 ("an unknown one is a 422, never a silently empty list"); sale_hindsight_controller.ex:15-20 (a misspelled value … | S; fixed in #1489 (`f07b0d42`, `baf9c5f9`) | none | not refuted (1) | still stands |
+| R-019 (A3-02) | S2 | A malformed security, depot or tax-year filter is dropped on three API reads, which answer the unfiltered list with 200 where their siblings answer 422. | docs/integration/api-and-mcp.md:138-141 (a malformed id gets a field error); #1301 precedent, graded S2 … | S; fixed in #1489 (`426de12a`) | none | not refuted (1) | unchanged |
 | R-020 (O6-03) | S2 | The contract read without `since` answers the whole manifest, 241,722 bytes, and the first-setup prompt calls it that way as a connection check. | api_v1_contract_test.exs:16-18 ("one cheap read"); contract_controller.ex:8-10; ADR-0044 §8; docs/llms.txt:177-179 | M | ADR-0044 §8 for a summary default; the prompt fix alone (size S) … | not refuted (1) | still stands |
 | R-021 (O1-01) | S2 | A security whose newest close is over a year old reads "1Y 0.0%" on the Overview and in the list, where the Chart tab says "not computable". | price_metrics.ex:269-271 ("no figure", not "0 % over zero days"); ADR-0047:312-315 is silent on the coverage rule | S | ADR-0047 | not refuted (2); the verifier graded it S1 | still stands |
 | R-022 (G2-01) | S2 | For a benchmark whose history starts inside the shown period, the chart tooltip and the table print an anchored level under the benchmark's name (+15.5 % in the run) beside the card's and the API's plain return (+10.0 %). | portfolio_live.ex:4225-4226 (tooltip comment: 'bought-once return on the hovered day'); ADR-0046 §2 (0046:71-72); the table column is a built story … | S | ADR-0046 | not refuted (2); the verifier graded it S1 | still stands |
@@ -469,7 +476,7 @@ Each row was confirmed by something a verifier executed: a scratch test, a count
 | R-095 (G3-01) | One level-(b) read states less of its basis than its siblings: the allocation answers category weights with no read date, no price rule, no word on what its 100 % is and, as a roll-up, no basis key at all | AGENTS.md:113-116 (a metric states its basis in the payload); backlog-triage-2026-09-23.md:279-281 (the allocation is level (b)) | Allocation basis has two keys (drift_value, gaps), no as_of, none as roll-up. | S | none |
 | R-096 (G3-03) | portfolixir.securities.list offers sort as a bare string: the only closed-set one of 486 published top-level arguments with no enum, description or word in its tool description; of its 21 keys 8 are no row field, 7 of them named only in contract changelog entries, 1 nowhere | AGENTS.md:39-40 (everything reachable through API and MCP); api-and-mcp.md:4636-4639 (the tool's schema is its definition); its own practice, five other closed sets with enums (tools.ts:3625-3631) | Registry answered 25 fields, 21 sortable, each sent and answered 200; four wrong keys answered 422 sort is invalid; published property is {type: string}, description has 0 "sort"; rows carry none of the six quote figures; contract read names seven of eight non-field keys. | S | none |
 | R-097 (M1-02) | ADR-0002 promises MCP the same validation as the API; the companion holds rules of its own and five request shapes get another answer from the tool (the sixth claimed, the 1970 year floor, is the API's rule too) | docs/decisions/0002-thin-mcp-over-json-api.md:27-30 ("the same code paths, validation, and authorisation"; "No second data path"); AGENTS.md:223-226 | API half run: unpriced delivery 201, default view without view_id 422, oversized limits 200 capped, empty targets 200, provider quote source stored manual. Year 1969 answers 422 on all eight reads, so row 5 is refuted. Tool half read, not run. | S | ADR-0002 |
-| R-098 (M1-03) | Every tool's input contract is written twice by hand; one bound and four date patterns are enforced without being published | mcp-server/src/server.ts:54-59 | Text scan in the container: targets minItems is unpublished; four date regexes are enforced with no format or pattern published. The companion suite was not run (no Node). | M | none |
+| R-098 (M1-03) | Every tool's input contract is written twice by hand, and the test that holds the two together compares neither bounds, patterns nor closure; one bound and four date patterns are enforced without being published | docs/integration/api-and-mcp.md:4636-4640 ("checks every call against the same properties"); mcp-server/src/server.ts:54-59 | Text scan in the container: targets minItems is unpublished; four date regexes are enforced with no format or pattern published. The companion suite was not run (no Node). | M; the closure half fixed in #1489 (`8d67a199`), with N-08; bounds and patterns open | none |
 | R-099 (M1-06) | Three by-id reads that the reference and one tool description send an agent to have no tool; the four logo routes have none either and are already recorded (issue #1413 and a stated reason) | AGENTS.md:230-231 (coverage runs both ways); docs/integration/api-and-mcp.md:4826-4830; mcp-server/src/tools.ts:4457-4459 | Router table against apiCall: 182 routes, 158 reached directly and 16 by two-form tools; eight unreached: three by-id reads, four logo routes and the deprecated portfolio PATCH, which ADR-0024 decides. Audit lead: Narrower than written: the three logo writes are already issue #1413 (`_bmad-output/planning-artifacts/feedback-triage-2026-11-07.md:60` and `:123`, classed S2 there and accepted by the owner on 2026-11-07), and the missing logo-status tool is stated with the read to use instead (`lib/portfolixir_web/controllers/api/v1/contract.ex:1223`). Item 5 of this entry does not hold. New are the three by-id reads only. | S | none |
 | R-100 (M2-02) | A statement that shows church tax cannot be recorded on the Tax page: the save is refused for a rate the form does not carry, and the taxpayer profile that supplies it is written only over the API | AGENTS.md:230-236; docs/product-documentation.md:3099-3103 and :3116-3120; tax_live.ex:467. ADR-0031 section 6 names no human view. | LiveView run: submitting church tax 72.00 answers 'must be 0 when the church-tax rate is 0', nothing stored; after POST /api/v1/tax/profiles a new statement saves at 0.09, but a row saved earlier keeps rate 0 and its correction is refused. The verifier graded it S2. Audit lead: S3 after the second reading: the agent as the primary write path for tax data is the owner's decision of 2026-08-05; what is left is a refusal that does not say where the rate is set. Audit lead: The verifier's size M is for a Taxpayer block on the Tax page, which would go against the decision of 2026-08-05; the wording fix and the sentence in ADR-0031 §6 (AD-4) are size S. | S | ADR-0031 section 6 |
 | R-101 (M2-03) | Security events, hand-kept quotes and a classification's name can be written only over the API; no record gives a reason or a deadline (the catalog-wide queues are the ADRs' own design) | AGENTS.md:230-236; ADR-0048 title and section 8 ('entered by hand or by an agent'); docs/product-documentation.md:4235-4245 (quotes kept by hand) | LiveView run: the Dates and Quotes panels render no entry control, none of 222 screen events writes an event, quote or classification name; the five API writes answer 201/200/204. The five queue reads are decided by ADR-0044 section 6 and ADR-0048. By the repository's precedent for the mirror case (a route without a tool, _bmad-output/planning-artifacts/feedback-triage-2026-11-07.md:60: S2) the event and quote writes would be S2; kept S3 because no control is dead and the operator's agent completes each write. | L | ADR-0048 (what 'by hand' means); planning lines for quotes and the classification rename |
@@ -521,7 +528,7 @@ Each row was confirmed by something a verifier executed: a scratch test, a count
 | R-137 (O3-03) | Imports.apply/2 books an unseen name the mapping leaves out; the refusal ADR-0050 words as "Apply refuses the name unmapped" is the page's confirm alone, as decided, and nothing written says which page rules a later caller of apply/2 inherits | docs/decisions/0050-lifecycle-merges-under-a-reimport-contract.md:770-771 beside :783-784 and :609-610; lib/portfolixir/imports/applier.ex:100-101 | apply/2 with the renamed name unmapped answered {:ok, _}: 1 account created, 3 bookings, the interest of 2.55 on both accounts. The page's P1 test refuses the same drop. Narrower than written: the placement is decided; the wording and inheritance list are open. | S | ADR-0050 (amendment note: who refuses, and what an import route inherits) |
 | R-138 (O8-06) | Two public functions of these modules have no caller in lib/ and two more are public but called only inside their own module; a doc sentence and an ADR sentence still name one of the dead ones as the performance walk's price source | ledger.ex:2227-2228 (doc names the valuation and the walk as users of latest_trade_prices/1) and ADR-0010:129-130 (names Ledger.latest_trade_prices as the walk's fallback); neither is true. | Greps and the scout table agree: latest_trade_prices/1 and previous_analysis/2 are called by tests only; cross_portfolio_hits/2 only inside its module. A sweep of all public functions adds a fourth the reader missed: Performance.unvalued_cash_accounts/3. | S | ADR-0010 (dated note correcting :129-130) |
 
-### Gates and pins narrower than their claim (13)
+### Gates and pins narrower than their claim (15)
 
 | ID | Finding | Stands against | Evidence | Fix | ADR amendment |
 |---|---|---|---|---|---|
@@ -532,7 +539,9 @@ Each row was confirmed by something a verifier executed: a scratch test, a count
 | R-143 (D5-03) | Format.decimal/3 and Format.plain_decimal/3 still round into a negative zero ("-0.00"), and exact/2, plain_exact/2 and native_amount/2 print one they are handed; the two rounded forms carry 97 call sites, among them the negative-holdings note and the Risk tab's ratios | DESIGN.md:531 ("wherever it is printed"); docs/product-documentation.md:2880-2881 ("anywhere in the app: "0.00", never "-0.00""); lib/portfolixir_web/format.ex:309-310 | Formatter sweep: money, percent and the signed forms print "0.00" for -0.004, decimal and plain_decimal print "-0.00"; Wealth page with a holding of -0.004 reads "Dust Co. (Depot: -0.00 · total across depots -0.00)", German "-0,00". | S | none |
 | R-144 (M1-01) | The docs gate reads 40 of the 166 MCP tool declarations and 170 of the 182 API routes, so a tool or route declared across two lines can ship without a line in the API reference | test/portfolixir/docs_test.exs:297-298 ("every current /api/v1 route, and every current MCP tool"); sprint-workflow.md:113-115 ("a gate silently checks nothing") | A scratch copy of the gate's loop finds 40 of 166 tools and 170 of 182 routes; with the 126 unseen names stripped from the page it still passes, and a control with one seen name stripped fails. Nothing is undocumented today. The verifier graded it S2. Audit lead: S3 after the second reading: all 166 tools and all 182 routes are documented today, and no state of `main` kept a gap through the gate's blind spot. It is the nearest row to the ladder's "a gate silently checks nothing". | S | none |
 | R-145 (M1-04) | 28 closed sets and the bounds beside them are copied by hand from the application into tools.ts; the 24 with a public accessor agree today, and no test on either side compares one of them | mcp-server/src/tools.ts:277-278, :1347-1348, :2558-2559 (comments claiming an exact mirror); mcp-server/test/tools.test.ts:600; ADR-0002:29 | The pin written as a scratch test passes: 24 of the 28 named sets (185 names) and six bounds equal the application's accessors, in the same order; none of 1,373 files under test, lib or mcp-server/test names one of the constants. Also reported as O6-06. | S | none |
+| R-146 (M1-07) | The single-egress scan has one gap that needs no dependency and no import statement, and AGENTS.md names the weaker of the two tests as the rule's pin | test/invariants/scope_b2_outbound_chokepoint_test.exs:56-59 ("imports only registered modules"); ADR-0002:22; AGENTS.md:223-226 | A copy of the scan fed a synthetic source, and a control. Held like lens 1's gate rows until its fix merged: the detail is in the private evidence only. | S; fixed in #1489 (`4eb903d4`) | none |
 | R-147 (M2-01) | No test pairs a route with a tool or a screen write with a route; each list is held only against the manifest and the reference, and the close-out's two-way check is prose | AGENTS.md:230-236 (coverage runs both ways); epics.md:148 (AR-11); sprint-workflow.md:204-208. A pin would amend ADR-0026. | Scratch test over Router.__routes__ and tools.ts: 182 routes, 174 tool paths, 8 routes without a tool, 0 tool paths without a route; both existing gates pass, and stay true on an in-memory copy with a mistyped tool path. | M | ADR-0026 (compensating controls); one sentence in ADR-0002 |
+| R-148 (O1-08) | The raw/1 gate scans the ten render_cell clauses; the asset-class cell is built by three raw/1 calls in a helper it does not follow, under a sobelow_skip, against the test's own story | securities_render_cell_test.exs:208-210 ("no securities cell built by raw/1 … without a skip"); securities_live.ex:4670-4672 | Confirmed by the gate test and a scan per function of the page; the run is in the private evidence. Sprint 26 M1 scoped four clauses only. | S; fixed in #1489 (`b0e4b241`) | none |
 | R-149 (O4-09) | Two event handlers of the tree page (assign_security, unassign) have no sender in the product; six test calls push them, and on the asset-class tree they do not do what the hook's events do | nothing written; the premise of AGENTS.md:56-59 (test first stands in for the owner's read) | Greps: no template or script pushes either event; the hook pushes only assign_securities and unassign_many; 6 test pushes, 2 of 33 clauses. On the asset-class tree the hook's events reclassify, assign_security is refused, unassign does nothing. | S | none |
 | R-150 (O6-04) | The manifest's prose is 80.7 % of contract.ex and is compared with no behaviour; its one pin is a 2,040-line test that repeats it | contract.ex:20-22, :25-27 ("a one-sentence summary"); docs/integration/api-and-mcp.md:4488-4489 ("one sentence per parameter") | Scratch test: 245 parameter items, 180,707 bytes, 157 over 500 characters, longest 2,985; 131 of 131 tool names in prose are real, 11 of 149 route spellings are not the router's; 543 substring assertions, four in-place corrections. | M | ADR-0044 §8 |
 | R-151 (O6-05) | since= compares dates strictly, three pairs of entries share a date and the meta-test accepts equal dates; two pairs shipped in consecutive same-day releases, and the later release answered changed: false | contract.ex:1598-1600, :49-50 (the manifest's own rule); api_v1_contract_meta_test.exs:14-15, :115 | Release manifests compiled from tags: 2026.10.6 polled with 2026.10.5's date answers no entries, changed=false, though it added splits.delete; same for 2026.10.14 after 2026.10.13. Latent at the audited commit. | S | ADR-0044 §8 (a version cursor); tightening the meta-test needs none |
@@ -549,15 +558,6 @@ Each row was confirmed by something a verifier executed: a scratch test, a count
 | R-157 (O7-01) | The x on a Snapshots problem note does nothing: SnapshotsLive renders the shared result slot and has no clause for the dismiss_result event the slot's x sends | lib/portfolixir_web/components/app_shell.ex:554-557 (the dismiss button sends dismiss_result to the parent LiveView, which clears the result assign); DESIGN.md:459 | Scratch LiveView test: the note's own x clicked three times, note still rendered, view alive; same from a stale ?snapshot= address; only a successful selection clears it. 8 of 9 hosts have the clause. Reach small: error path only. The verifier graded it S2. Audit lead: S3 after the second reading: the note needs an address that names no snapshot, which the page's own flows prevent. | S | none |
 | R-158 (O7-02) | The shared chart's hook pushes SecuritiesLive's two zoom events from every page that draws the chart; PortfolioLive (Wealth) and SnapshotsLive have no clause and drop both | lib/portfolixir_web/components/security_chart.ex:57-58 (interactivity is handled at the LiveView level); stale comment lib/portfolixir_web/layout_view.ex:1128-1133; nothing in an ADR | render_hook with the hook's payload: Wealth and Snapshots HTML byte-identical after both events; Securities narrows 365 to 291 points. Wealth's own select_range takes the same payload (41 to 16). Rectangle traced only, no browser in the slot: S3 because nothing is wrong or crashes and Wealth has its own working range control; whether the dead drag reads as a broken control (then S2, the verifier says) is a browser observation still to make. | S | none |
 | R-159 (O7-05) | The sidebar's Views entry still draws the funnel, which the design language gave to filter alone on 2026-08-05; :bookmark, the glyph it assigned to Views, is defined and drawn nowhere | _bmad-output/planning-artifacts/design-language/DESIGN.md:908 (the funnel keeps filter; Views takes :bookmark); EXPERIENCE.md:146, :567 | Scratch LiveView test on /securities: #nav-buckets (Views) draws the funnel path, as do Filter and More filters; 0 bookmark paths; icon: :bookmark and name={:bookmark} occur 0 times. No later record reverses the ruling. | S | none |
-
-### Held (2)
-
-Two S3 rows are held and stand under no theme (AD-8).
-
-| ID | Sev | Finding |
-|---|---|---|
-| R-146 | S3 | Held; filed with its fix. |
-| R-148 | S3 | Held; filed with its fix. |
 
 ## 8. What holds
 
@@ -781,8 +781,8 @@ AD-1 to AD-4 are put to the owner: AD-4 is scope and the owner's by AGENTS.md
 judgment, because in each two recorded rules disagree and either choice moves
 a figure the owner steers by. AD-5 to AD-7 are decided here with their
 reasons; a comment flips any of them. AD-8 is a proposal for the filing and
-waits for the owner's word. AD-9 concerns a held row only: it is named by its
-number and its row, and the owner decides it from the private report.
+waits for the owner's word. AD-9 concerns R-018 only and was held with it; the
+owner decided it on 2026-11-24.
 
 Not needed now, they arrive with the plan that schedules their work: the
 boards for the paged Transactions history, for the merge previews' form and
@@ -1014,16 +1014,35 @@ withheld. Proposed:
     theme, the two-path rows that agree today, and the 5 compile-time rows.
 - **Four held rows get their issue or their line with the merge that fixes
   them**, as the security triage's "Disclosure handling" orders: R-018 and
-  R-019, both S2, and R-146 and R-148, both S3.
-  Until then they live in the private report, which also says where the two
-  lines go; nothing above places them.
+  R-019, both S2 (the class of N-07 and N-08), and R-146 and R-148, both S3
+  (they say what passes a gate). Done with #1489: R-018 and R-019 are filed
+  as issues closed as completed; R-146 gets its checked line with the pins
+  of step 4 and R-148 with the securities page's split in step 5.
 
 Reason: the amendment of 2026-11-01 stopped a full issue and story per
 finding. A line per row keeps "never whether"; a list per piece of work is
 where the plan for that work will look.
 
-**AD-9. Held (R-018).** Decided by the owner from the private report;
-stated here when its fix has merged.
+**AD-9. A cap on a word that is no asset class is refused, and the risk read
+echoes the caps it applied (R-018 (G3-02)). Put to the owner beside D-4 of the
+security triage.** The risk read's `asset_class_caps` refuses a key outside
+the 16 asset-class codes with a 422 naming it, as `status=` and `level=` are
+refused elsewhere; the payload echoes the caps and the lines applied
+(R-095 (G3-01)'s fix); the tool names the codes; the three threshold maps
+refuse an unknown inner key the same way. No ADR amendment: ADR-0049 §7 keeps
+the parameter as it is, a refusal of a value outside its set is the rule the
+API already states, and the new 422 is a contract entry (ADR-0044 §8).
+Lens 1's D-4 as worded covers an argument a route does not take; this is a
+key the route takes and cannot read, so it needs its own yes. It costs
+compatibility as D-4 does: a call that got an empty list gets a 422.
+Recommended: yes, beside D-4.
+
+**Decided 2026-11-24 by the owner: yes, as recommended.** Fixed in #1489
+(`f07b0d42` for the read, `baf9c5f9` for the tool), in contract version 32:
+the read refuses such a key and an unknown inner key of the three threshold
+maps, it echoes the caps it applied, and the tool's description says a cap is
+keyed by an asset class code. Echoing the lines the lens applied stays with
+R-095 (G3-01).
 
 ## 11. Proposed order of work
 
@@ -1048,8 +1067,12 @@ R-020 (O6-03): its small step (the prompt calls the version read instead) can
 ride with Lane C of lens 1's Batch 1; a summary default for the read needs an
 amendment of ADR-0044 §8.
 
-The two held S2 (R-018, R-019) are scheduled from the private report and are
-filed with their fix. AD-9 is decided from the private report as well.
+Two agent-contract S2 (R-018 (G3-02), R-019 (A3-02)) belong in lens 1's first
+sprint, its Batch 1. They are the sibling of its refused instead of
+dropped arguments (N-07, N-08), for a value the route takes but cannot read.
+Lens 1's decision D-4 as worded covers an argument a route does not take, so
+the new refusal of R-018 (G3-02) needs the owner's yes beside it (AD-9). Both
+were fixed in #1489, with lens 1's held rows, on 2026-11-25.
 
 Why this order: a wrong figure that two engines disagree on is met every day
 and by both users, so it comes first. The plan family is next because a save

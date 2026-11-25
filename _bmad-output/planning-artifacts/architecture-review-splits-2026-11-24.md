@@ -13,12 +13,13 @@ triage is `security-review-triage-2026-11-11.md`.
 this planning PR (ADR-0026 step 1 as amended on PR #780: the merge is the
 signature). No split here is scheduled before that.
 
-A finding held under the security triage's "Disclosure handling" appears here
-by its ID and severity only. A held fix is never part of a move commit.
-Whether a held finding meets a split, and at which step, is read from the
-private report before that split's first move; no section of this file says
-so. "The private report" is the complete report of this review or of the
-security review; the owner holds both, and neither is committed.
+A finding held under the security triage's "Disclosure handling" appeared here
+by its ID and severity only, and a held fix is never part of a move commit.
+The held parts that meet a split were fixed in #1489 on 2026-11-25 and are
+named in their sections since: R-148 (O1-08) in the securities page's and
+R-098 (M1-03)'s closure half in the companion's. "The private report" is the
+complete report of this review or of the security review; the owner holds
+both, and neither is committed.
 
 A reproduction or scratch test that a section names lies in the private
 evidence the triage describes, not in the repository.
@@ -90,8 +91,9 @@ Two rules apply to every split:
   The other four: the paging of the Transactions history (R-011 (O4-04)), which is
   no figure fix and stays that split's last step, after a board;
   R-020 (O6-03), whose small step section 11 lets ride with lens 1's
-  Batch 1; and two held S2 (R-018, R-019), which are scheduled from the
-  private report. A split section lists each of the other fixes before its first move, or
+  Batch 1; and the two agent-contract S2 (R-018 (G3-02), R-019 (A3-02)),
+  which section 11 gives to lens 1's first sprint and #1489 fixed on
+  2026-11-25. A split section lists each of the other fixes before its first move, or
   says why not; if the fix has landed by then, that part of the step falls
   away.
 
@@ -136,7 +138,7 @@ one protocol written twice (R-110 (G4-01)), the API's refusal helpers (R-121 (O6
 | `list_url.ex` | plain module | Pure: URL parameters to list state, list state to a path. It takes the list state as a value. | 150 |
 | `columns.ex` | plain module | The column registry and the two row accessors, which three event handlers, the toolbar, the logo patching and the row menu also call. | 140 |
 | `lib/portfolixir_web/security_logo.ex` | function-component module | Logo, fallback and the country table of the flag fallback. | 130 |
-| `list_table.ex` | function-component module | Table rows, phone rows and the cells. | 470 |
+| `list_table.ex` | function-component module | Table rows, phone rows and the cells. The asset-class cell becomes a template first (R-148 (O1-08); done in #1489, `b0e4b241`). | 470 |
 | `filter_chips.ex` | function-component module | Chip rows, phone sheet, counts, and one public data-quality label. Today the label exists twice with different clauses (`:7693-7703`, `lib/portfolixir_web/live/securities/filter_popover.ex:253-266`). | 320 |
 | `sync_result.ex`, `research_form.ex`, `story_promotion.ex` | plain module | Pure halves: the sync's result sentence; form input to attributes and errors, for the research entry and for the story note. Their handlers stay on the page. | 230 |
 | `lib/portfolixir/ledger.ex` | context function | `holdings_for_security/2` (a security's rows per depot) also answers the total and names the rows each figure leaves out (R-024 (O1-02)). | 40 |
@@ -157,10 +159,10 @@ one protocol written twice (R-110 (G4-01)), the API's refusal helpers (R-121 (O6
 4. Move only. `HoldingsTab`, `OverviewTab`. Page at about 5,320.
 5. Move only. `ChartTab`. Zoom and export are checked by hand in a browser, because four names are shared with JavaScript. Page at about 4,890.
 6. Move only. `ListUrl`, with unit tests. Its module description states that it does not carry foreign URL keys. That is today's behaviour: the three keys of the sale-hindsight section (`lib/portfolixir_web/live/sale_hindsight_section.ex:68-70`) are dropped on every URL change the page makes. Carrying them is its own line. Page at about 4,740.
-7. Move only. `SecurityLogo`, `Columns`, `ListTable`, `FilterChips`. Then `SyncResult`, `ResearchForm`, `StoryPromotion`. The row loop stops receiving the page's whole state, so one frame of what the server re-sends is measured before and after. Page at about 3,450.
+7. Move only, except its first commit, which rewrites the asset-class cell as a template (R-148 (O1-08): same markup, not a move). That commit landed in #1489 (`b0e4b241`), so the step is move only now. Then `SecurityLogo`, `Columns`, `ListTable`, `FilterChips`. Then `SyncResult`, `ResearchForm`, `StoryPromotion`. The row loop stops receiving the page's whole state, so one frame of what the server re-sends is measured before and after. Page at about 3,450.
 8. Changes behaviour. The remaining context moves, one story and one test each: the detail read per tab on one pricing pass (R-062 (O1-03)), list options (R-105 (O1-06)), then the small rules of R-052 (O1-07). Page at about 3,100.
 
-**Pins before the first move.** Existing: about 40 test files named for the page under `test/portfolixir_web/live/` (about 350 tests) read rendered ids and survive a move that keeps the markup. By step: `securities_trades_tab_test.exs`, `unconvertible_trade_live_test.exs`, `security_metrics_events_panel_test.exs`, `securities_quote_release_live_test.exs`, `securities_research_tab_test.exs` (3); `security_detail_overview_test.exs`, `zero_cost_basis_screens_test.exs` (4); `securities_cost_basis_overlay_test.exs`, `test/browser/note_pins_phone_test.exs` (5); `securities_url_filters_test.exs`, `live_url_params_test.exs` (6); `securities_filter_chips_test.exs`, `column_picker_convergence_test.exs`, `securities_logo_render_test.exs`, `securities_sync_rearm_test.exs`, `security_stories_tab_test.exs` (7). Across all steps: the event sweeps `live_event_payload_test.exs` and `live_component_payload_test.exs`, and the browser tests `test/browser/securities_polish_test.exs`, `closing_act_layout_test.exs`, `privacy_leak_test.exs`. Two pins name the page's path and change once: `test/invariants/displayed_dates_test.exs:40` (step 3) and `test/portfolixir_web/live/securities_render_cell_test.exs:22` (step 7). Missing, to write first: the failing tests of the four figure fixes (a priced delivery in, for the cost line; two depots with one cost missing; a series frozen for over a year; the 200-day line on a 6M chart, which no test names today); unit tests for each new public helper, with its move; every new file added to the translation scan's list (`test/portfolixir/localization_test.exs:130-136` names five files and stops covering moved code without failing); one measured frame of the list's re-send size before step 7, which no test sees.
+**Pins before the first move.** Existing: about 40 test files named for the page under `test/portfolixir_web/live/` (about 350 tests) read rendered ids and survive a move that keeps the markup. By step: `securities_trades_tab_test.exs`, `unconvertible_trade_live_test.exs`, `security_metrics_events_panel_test.exs`, `securities_quote_release_live_test.exs`, `securities_research_tab_test.exs` (3); `security_detail_overview_test.exs`, `zero_cost_basis_screens_test.exs` (4); `securities_cost_basis_overlay_test.exs`, `test/browser/note_pins_phone_test.exs` (5); `securities_url_filters_test.exs`, `live_url_params_test.exs` (6); `securities_filter_chips_test.exs`, `column_picker_convergence_test.exs`, `securities_logo_render_test.exs`, `securities_sync_rearm_test.exs`, `security_stories_tab_test.exs` (7). Across all steps: the event sweeps `live_event_payload_test.exs` and `live_component_payload_test.exs`, and the browser tests `test/browser/securities_polish_test.exs`, `closing_act_layout_test.exs`, `privacy_leak_test.exs`. Two pins name the page's path and change once: `test/invariants/displayed_dates_test.exs:40` (step 3) and `test/portfolixir_web/live/securities_render_cell_test.exs:22` (step 7, where its scan must also follow the rule instead of the private function heads; since #1489 it reads the whole page). Missing, to write first: the failing tests of the four figure fixes (a priced delivery in, for the cost line; two depots with one cost missing; a series frozen for over a year; the 200-day line on a 6M chart, which no test names today); unit tests for each new public helper, with its move; every new file added to the translation scan's list (`test/portfolixir/localization_test.exs:130-136` names five files and stops covering moved code without failing); one measured frame of the list's re-send size before step 7, which no test sees.
 
 **Do not.**
 
@@ -172,7 +174,7 @@ one protocol written twice (R-110 (G4-01)), the API's refusal helpers (R-121 (O6
 
 **Decision or ADR.** An ADR amendment is needed before step 2: one paragraph in `docs/decisions/0001-modular-phoenix-monolith.md`, which is silent on how a page is organised (`docs/decisions/0001-modular-phoenix-monolith.md:28-31`), because `AGENTS.md` rules "Do not silently change architecture decisions; amend the ADR". Its content: a page keeps its URL, its process messages and its result slot; a tab body is a markup-only module that reads nothing; a figure comes from a context function; state leaves to a LiveComponent only where one job owns it, and a handler that writes stays on the page until component events carry the login re-check. Lane A2's R-078 (A2-08) amends the same ADR; the two belong in one. Step 1 is risk-tier work under `docs/decisions/0036-risk-tier-rides-the-batch.md`; it needs a line in `docs/decisions/0047-derived-metrics-per-security-and-per-view.md` (which coverage rule the list's returns follow; the moving-average series only if the API serves it) and one board line at `_bmad-output/planning-artifacts/design-language/DESIGN.md:7731-7737` for R-024 (O1-02): one rule for the result total on both tabs, either the board's partial sum with a note naming the rows left out, or the Overview's dash. Step 8 needs a line in `docs/decisions/0035-one-pricing-pass-per-read.md` and a decision on which dates a period token means (R-052 (O1-07)). Owner decision, later: the first proposal had three LiveComponents (research form, story note form, logo dialog); the review defers them until the fix of security finding N-57 is built (component events do not pass the login re-check; decided, not yet built). The logo dialog also carries the one image intake and three test pins on file paths.
 
-**Findings that ride along.** R-024 (O1-02), R-021 (O1-01), R-025 (O1-04): fixed in step 1, before the tabs that print them move. R-113 (O1-05): this split is its fix. R-062 (O1-03), R-105 (O1-06), R-052 (O1-07): fixed in step 8. R-009 (A2-02) (the cost line folded in the page): fixed in step 1, risk tier. R-078 (A2-08) (which context modules are public to the web layer): same ADR-0001 amendment. R-081 (A5-02) (the pricing pass is not handed on): with R-062 (O1-03). R-031 (A6-05) (the category read loads every tree): with the category move of R-052 (O1-07). N-57: before any LiveComponent takes a handler that writes.
+**Findings that ride along.** R-024 (O1-02), R-021 (O1-01), R-025 (O1-04): fixed in step 1, before the tabs that print them move. R-148 (O1-08): fixed by the first commit of step 7, landed in #1489 (`b0e4b241`). R-113 (O1-05): this split is its fix. R-062 (O1-03), R-105 (O1-06), R-052 (O1-07): fixed in step 8. R-009 (A2-02) (the cost line folded in the page): fixed in step 1, risk tier. R-078 (A2-08) (which context modules are public to the web layer): same ADR-0001 amendment. R-081 (A5-02) (the pricing pass is not handed on): with R-062 (O1-03). R-031 (A6-05) (the category read loads every tree): with the category move of R-052 (O1-07). N-57: before any LiveComponent takes a handler that writes.
 
 ---
 
@@ -1547,6 +1549,7 @@ Missing, written in step 2. No scan forbids a module from calling a family's rou
 - R-144 (M1-01) (S3): the docs gate reads 40 of the 166 tool names. That half is closed in step 2, before any move; its route half (170 of the 182 routes) and the substring match are not part of this split.
 - R-145 (M1-04): the pin that holds the 28 closed sets copied from the application reads them by constant name through step 2's helper. The sets stay in TypeScript, each in its family.
 - R-097 (M1-02): the five requests the companion answers differently from the API are not changed inside the split. Each family carries its rule word for word; the fixes are their own stories.
+- R-098 (M1-03) and N-08 (the security lens's finding that closed schemas are validated open): step 1 of R-098 (M1-03) (the test that compares schema and validator also compares bounds, patterns and closed objects) is independent and can land first. Its closure half landed with N-08's fix in #1489 (`8d67a199`, `eae876dc`); bounds and patterns are still open. Its step 2 (one definition per tool) changes published bytes and stays out of the split.
 - N-57 (the security lens's finding of a second way in that skips the per-call check), in the companion's form: after the split the families export their route functions, a way to send a request past the checks of `callTool` (`:5049-5065`). Step 2's import check guards it; step 7 removes it.
 - F31 (merge the `views.*` and `portfolios.*` twins): not a precondition. It is triaged with its trigger (`_bmad-output/planning-artifacts/ideas.md:129`) and becomes a change inside `portfolios.ts`.
 - I39 (the tests on trial): whether `mcp-server/test/tools.test.ts` splits is its question, not this split's.

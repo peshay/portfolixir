@@ -1,13 +1,13 @@
 # Architecture review 2026-11: the S1 and S2 findings in full
 
 This file is section 5 of the architecture review of 2026-11: its ten S1 and nineteen S2 findings.
-The ten S1 and seventeen of the S2 stand in full. Two S2, R-018 and R-019, are held, as the "Disclosure handling" of `security-review-triage-2026-11-11.md` orders: they stand here by ID and severity only, and each is filed with its fix.
+The ten S1 and seventeen of the S2 stand in full. Two S2, R-018 and R-019, were held, as the "Disclosure handling" of `security-review-triage-2026-11-11.md` orders, and stood here by ID and severity only until their fix merged; since 2026-11-25 they stand with their class, what they stand against, their fix and the commits of #1489 that made it.
 It belongs to the triage of the same date in this folder, `architecture-review-triage-2026-11-24.md`, which holds sections 1 to 4, 6 and 8 to 13; section 7 is `architecture-review-splits-2026-11-24.md`.
 Its file:line references are at the audited commit `e014f284`.
 
 **Status: PROPOSED** with the triage it belongs to — adopted by the merge of the planning PR that carries both (ADR-0026 step 1 as amended on PR #780: the merge is the signature).
 
-**What is printed here and what is not.** The security triage's "Disclosure handling" does not publish the security report's reproductions. This file reads that rule as follows. The two held entries are withheld whole. For the other 27 the scratch test sources and the run commands are withheld: they are in private evidence held by the owner, not in the repository. What stays is each entry's description of its run and what the run printed, on synthetic fixtures and seeded ledgers only. The 27 are correctness and structure findings that the review does not hold, and a finding about a figure cannot be judged without the figures. That reading is decided here, and the owner can flip it on the planning PR before the merge: a wrong figure in a system with one operator is not a way in, and each fix begins with the test its reproduction describes.
+**What is printed here and what is not.** The security triage's "Disclosure handling" does not publish the security report's reproductions. This file reads that rule as follows. The two held entries were withheld whole; published with their fix, they leave out what is wrong step by step, the run, what it printed, what it costs to leave it and the second reading, which stay in the private evidence. For the other 27 the scratch test sources and the run commands are withheld: they are in private evidence held by the owner, not in the repository. What stays is each entry's description of its run and what the run printed, on synthetic fixtures and seeded ledgers only. The 27 are correctness and structure findings that the review does not hold, and a finding about a figure cannot be judged without the figures. That reading is decided here, and the owner can flip it on the planning PR before the merge: a wrong figure in a system with one operator is not a way in, and each fix begins with the test its reproduction describes.
 
 **Words the entries use.** A "test slot" (or "the slot") is one of the audit's isolated containers, and `test/audit_scratch/` is the scratch directory inside its throwaway copy of the repository. `arch_calls.tsv` is the audit's call table, the compiled call graph of the project's own modules; it is a working file of the audit and not in the repository. Section 2 of the triage describes them. A decision `AD-n` is in section 10 of the triage. An ID `N-nn` is a finding of the security review of the same commit (lens 1 of the audit, "the security lens" in the entries), whose triage is `security-review-triage-2026-11-11.md`.
 
@@ -1597,13 +1597,41 @@ Either (a) the sentence says what the read does, in the three places: "the reali
 
   Not refuted. Lens 1: the fixture is ADR-0015's own pinned walk (an imported euro-booked lot, a booking-form franc sale; ADR-0015:418-423) placed on ADR-0050's situation 5 (:82-83). Preview, merge and read ran over the API, and no guard refuses a same-currency pair. merge_json.ex:161-163 serves the clause live; realized_gains.ex:450-452 contradicts it for that class. Two corrections narrow the reach. The operator's dialog carries no such clause (merge_preview.ex:374-378 names only the currency and the queues), so only an API or MCP reader meets it. No surface serves 161.46 EUR: the evidence's own at_close computes it, while the read names its path per row (realized_base_source) and in computation_basis.realized_base. The preview's own figures and their basis are right, so AGENTS.md's basis rule is not what breaks. Lens 2: ADR-0015's note decides the read and that trade-currency figures are unchanged, not the preview's sentence; ADR-0050 has no paragraph on the restatement; F29, N-52 and N-54 are other merge-preview matters. Severity: S3 is arguable (a cross-reference, no wrong figure), but the repository's own pass graded the same staleness on the realized-gains basis S2 (#1317). S2, low end, agent-only.
 
-### R-018, S2
+### R-018 (G3-02), S2: A cap on a word that is no asset class is accepted by the risk read and answers "no class over cap", key for key the answer to no cap at all (the `metrics` block aside): the map's keys are never held against the 16 asset-class codes, and the answer does not echo the caps it applied
 
-Held (see the head of this file); filed with its fix.
+- **Class:** closed set read open (an argument value that goes nowhere)
+- **Stands against:** the API's own rule for a value outside its set, `lib/portfolixir_web/controllers/api/v1/policy_finding_controller.ex:94-95`: "an unknown one is a 422, never a silently empty list"; `lib/portfolixir_web/controllers/api/v1/sale_hindsight_controller.ex:15-20`: "so a misspelled include value never drops the block silently (Sprint 25's carry-forward 2) [...] and `data.include` echoes the include applied [...] so the missing block is never silent either"; `lib/portfolixir_web/controllers/api/v1/bands_param.ex:4-5`: "read strictly. A value outside its set [...] is refused naming the parameter". Nothing decides it: ADR-0049 §7 (`docs/decisions/0049-policy-rules-as-first-class-objects.md:250-252`) keeps the parameter and says nothing of its keys; D-4 of the security triage closes unknown arguments, not an unknown key inside a map that is open by design
+- **Fix size:** S. **ADR amendment:** none
+- **On the later `main` (read, not run):** still stands.
+- **Second reading:** not refuted (one reading); S2 kept on the precedent of #1301.
+- **Fixed** in #1489, merged on 2026-11-25: `f07b0d42` (the read) and `baf9c5f9` (the tool), as AD-9 decided. Pinned by `test/portfolixir_web/controllers/api_v1_risk_test.exs`.
 
-### R-019, S2
+What is wrong step by step, the run, what it printed, what it costs to leave it and the second reading in full stay in the private evidence (see the head of this file).
 
-Held (see the head of this file); filed with its fix.
+**Proposed fix.**
+
+The caps reader refuses a key outside `AssetClasses.codes/0` with a 422 naming it, as `status=` and `level=` are refused elsewhere; the payload echoes the caps and the lines applied (R-095 (G3-01)'s fix, one map from `Portfolixir.Portfolios.Risk`); the tool's schema names the 16 codes (`propertyNames` with the enum, or one sentence), added to R-145 (M1-04)'s pin. The three threshold maps refuse an unknown inner key the same way. Size S. No ADR amendment: ADR-0049 §7 keeps the parameter as it is, and a refusal of a value outside its set is the rule the API already states; the new 422 is a contract entry (ADR-0044 §8). It costs compatibility as D-4 does (a call that got an empty list gets a 422), so it belongs beside D-4 in the owner's signature.
+
+**As built.** The read refuses such a key and an unknown inner key of the three threshold maps, naming the key, and echoes the caps it applied; the tool's description says a cap is keyed by an asset class code. Echoing the lines applied is left to R-095 (G3-01).
+
+### R-019 (A3-02), S2: A malformed `security_id`, `securities_account_id` or `tax_year` filter is dropped on three reads, which answer the unfiltered list with 200; the sibling reads answer 422, and the trim budget calls a malformed year missing
+
+- **Class:** duplicate rule (per-controller parameter readers that disagree)
+- **Stands against:** `docs/integration/api-and-mcp.md:138-141`: "an id past the bound in a query string or a JSON body (at any depth, as a number or a string) answers `422` naming the key, the same field error a malformed id gets."; `lib/portfolixir_web/controllers/api/v1/target_controller.ex:359-362`: "#1301: a classification_id that is not an id is refused, as the PUT refuses it, instead of dropped: dropped, the read answered for every classification ... as if it was not sent."; `_bmad-output/implementation-artifacts/sprint-plan-2026-11-01-sprint22-severity-pass.md:100`: "| #1301 | S2 | builds in A | Targets reads: a malformed classification_id beside plan_id is silently ignored instead of refused |".
+- **Fix size:** S. **ADR amendment:** none
+- **On the later `main` (read, not run):** unchanged.
+- **Second reading:** not refuted (one reading); S2 kept on the precedent of #1301.
+- **Fixed** in #1489, merged on 2026-11-25: `426de12a`. Pinned by `test/portfolixir_web/controllers/api_v1_malformed_filter_test.exs`.
+
+What is wrong step by step, the run, what it printed, what it costs to leave it and the second reading in full stay in the private evidence (see the head of this file).
+
+**Proposed fix.**
+
+One optional-id reader beside `IdParam` (`IdParam.optional(params, key)` answering `{:ok, id | nil}` or `{:error, key}`; empty stays absent, as on the targets read) and one bounded year reader beside `IntegerParam` (1 to 9999, malformed is `{:error, "tax_year"}`). The holdings read, the two tax lists and the trim budget use them and answer 422 `["is invalid"]` naming the parameter; the trim budget keeps `["is required"]` for an absent year only. The second copy of `parse_year/1` goes.
+
+Size S (hours). No ADR amendment. A contract-manifest entry, as #1301 had, because three reads change an answer from 200 to 422. The companion needs no change: its schemas already refuse these values.
+
+**As built.** `IdParam.optional/2` and `IntegerParam.year/2`, used by the four reads; both copies of `parse_year/1` are gone.
 
 ### R-020 (O6-03), S2: The contract read without `since` answers the whole manifest, 241,722 bytes, more than the full profile's entire tool list is allowed to be, and step 1 of the `first_setup` prompt calls it that way as a connection check
 
