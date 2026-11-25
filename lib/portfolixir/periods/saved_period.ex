@@ -11,6 +11,7 @@ defmodule Portfolixir.Periods.SavedPeriod do
   pin dangling. `from` and `to` are stored as `starts_on` and `ends_on`.
   """
   use Ecto.Schema
+  use Gettext, backend: PortfolixirWeb.Gettext
   import Ecto.Changeset
 
   alias Portfolixir.Clock
@@ -73,9 +74,14 @@ defmodule Portfolixir.Periods.SavedPeriod do
   defp validate_from(changeset) do
     validate_change(changeset, :from, fn :from, from ->
       cond do
-        Date.before?(from, @first_day) -> [from: "must be on or after 1970-01-01"]
-        Date.after?(from, Clock.today()) -> [from: "must not be after today"]
-        true -> []
+        Date.before?(from, @first_day) ->
+          [from: dgettext_noop("errors", "must be on or after 1970-01-01")]
+
+        Date.after?(from, Clock.today()) ->
+          [from: dgettext_noop("errors", "must not be after today")]
+
+        true ->
+          []
       end
     end)
   end
@@ -85,7 +91,10 @@ defmodule Portfolixir.Periods.SavedPeriod do
     to = get_field(changeset, :to)
 
     if from && to && Date.after?(from, to),
-      do: add_error(changeset, :to, "must be on or after from", validation: :span),
+      do:
+        add_error(changeset, :to, dgettext_noop("errors", "must be on or after from"),
+          validation: :span
+        ),
       else: changeset
   end
 

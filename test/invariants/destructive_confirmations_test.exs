@@ -13,7 +13,9 @@ defmodule Portfolixir.Invariants.DestructiveConfirmationsTest do
     {"lib/portfolixir_web/live/portfolio_accounts_live.ex", ~s(phx-click="row_delete")},
     # Sprint 29 C6: a manual crash window, and a crash window's name.
     {"lib/portfolixir_web/live/risk/crash_section.ex", ~s(phx-click="crash_manual_delete")},
-    {"lib/portfolixir_web/live/risk/crash_section.ex", ~s(phx-click="crash_unname")}
+    {"lib/portfolixir_web/live/risk/crash_section.ex", ~s(phx-click="crash_unname")},
+    # Sprint 32 T4: an own period, deleted from the period menu's dialog.
+    {"lib/portfolixir_web/live/dashboard/period_menu.ex", ~s(phx-click="period_delete")}
   ]
 
   # User story:

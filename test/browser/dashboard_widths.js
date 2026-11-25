@@ -71,6 +71,8 @@ const TAP = 44;
 const TAP_TARGETS = [
   "[data-role='dashboard-scope'] > summary",
   "[data-role='dashboard-period'] button",
+  // Sprint 32 T4: the period menu's button.
+  "[data-role='period-menu-toggle']",
   "[data-role='customize']",
   "[data-role='edit-start']",
   "[data-role='edit-reset']",

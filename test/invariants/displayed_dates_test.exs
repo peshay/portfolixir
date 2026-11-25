@@ -48,7 +48,9 @@ defmodule Portfolixir.Invariants.DisplayedDatesTest do
     {"lib/portfolixir_web/live/risk/crash_section.ex", :holdings_link} =>
       "„Im Depot ansehen“: Wealth's from= and to= address values (Sprint 29 C6, F4)",
     {"lib/portfolixir_web/live/dashboard/movers_card.ex", :wealth_href} =>
-      "„In Vermögen ansehen“: Wealth's from= and to= address values (Sprint 30 T3)"
+      "„In Vermögen ansehen“: Wealth's from= and to= address values (Sprint 30 T3)",
+    {"lib/portfolixir_web/live/dashboard_live.ex", :period_dialog} =>
+      "the own period dialog's Von and Bis inputs, ISO text inputs (UX-DR19; Sprint 32 T4)"
   }
 
   # User story:

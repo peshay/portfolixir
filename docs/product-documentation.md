@@ -2138,18 +2138,36 @@ screen.
   remembers stay as they are. A widget of a stored dashboard may read a view
   of its own; where that view has since been deleted, the widget reads the
   dashboard's scope and its footer says "Its view no longer exists · reads …".
-- **One period above every dashboard** (ADR-0062 §5). Beside the scope,
-  **1D · 1W · 1M · 3M · 6M · YTD · 1Y · 3Y · 5Y · Max** (German 1T … 1J,
-  3J, 5J) sets the period every widget that takes one reads; **1Y** is the
-  default, as on Wealth. The address carries it when it is not 1Y
-  (`/?period=3m`) and takes every key of the period vocabulary, the
+- **One period above every dashboard** (ADR-0062 §5, amended 2026-11-25).
+  Beside the scope stands your **quick choice** — **1W · this month · YTD
+  · 1Y · Max** until you change it — and one button, **Period ▾**, that
+  opens the menu with every period: **rolling to today** (1D, 1W, 1M, 3M,
+  6M, 1Y, 3Y, 5Y, Max), **calendar** (this month, last month, this
+  quarter, last quarter, Q1 to Q4 of this year, YTD, last year), your
+  **own periods** and the **years** (this one and the five before). A
+  quarter that has not begun is shown but cannot be picked. The period you
+  pick is the one every widget that takes one reads; **1Y** is the
+  default, as on Wealth. The button names the active period where no chip
+  of the quick choice does, and an own period always, with its dates
+  beside it. **★** beside a period in the menu puts it into the quick
+  choice or takes it out (up to six); the quick choice is stored on the
+  server, so every device shows the same bar. **Create own period …**
+  opens a dialog: a name (up to 40 characters), a first day, and the last
+  day or "today", which grows with every day; **Save and apply** stores
+  it and applies it, and its ⋯ in the menu changes or deletes it. Own
+  periods are stored on the server and journaled (up to 50), and your
+  agent reads and writes them too (`/api/v1/periods`). Escape or a pick
+  closes the menu; under 600 px it is a sheet from the bottom edge. The
+  address carries the active period when it is not 1Y (`/?period=3m`) and
+  takes every key of the period vocabulary, the
   calendar ones too (`/?period=prev_quarter`, "Last quarter"; see "The
   period vocabulary" in the API reference), so a link opens a dashboard on
   its period; a value that is no period, or a quarter or year that has not
-  begun, opens 1Y. Your pick is remembered in this browser (as Wealth's period and the
-  theme are; nothing is stored on the server) and stays when you open
-  another dashboard. Under 600 px the periods are a strip of their own that
-  you swipe sideways.
+  begun, opens 1Y. Your pick is remembered in this browser (as Wealth's
+  period and the theme are; the active period is not stored on the
+  server, so a phone and a desk can show different ones) and stays when
+  you open another dashboard. Under 600 px the quick choice is a strip of
+  its own that you swipe sideways.
 - **Each widget says which period it shows**, quietly beside its ⋯:
   **follows · 3M** while it follows the bar; **no period** for a widget
   whose read has none (Data quality, Due, Off target, Crashes compared,

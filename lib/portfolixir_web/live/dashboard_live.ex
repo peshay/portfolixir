@@ -80,6 +80,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.Components.CycleChart
   alias PortfolixirWeb.Dashboard.Edit
   alias PortfolixirWeb.Dashboard.MoversCard
+  alias PortfolixirWeb.Dashboard.PeriodMenu
   alias PortfolixirWeb.Dashboard.Widget
   alias PortfolixirWeb.Dashboard.Widgets.AllocationDrift, as: AllocationDriftWidget
   alias PortfolixirWeb.Dashboard.Widgets.Crashes, as: CrashesWidget
@@ -111,10 +112,6 @@ defmodule PortfolixirWeb.DashboardLive do
   # #984 (pick G1-A): the Overview's closed-trades card lists the newest five.
   @closed_trades_shown 5
 
-  # The chips of the top bar: the rolling keys and YTD (Sprint 32 T1 adds
-  # 6M and 5J); every other key of the vocabulary opens from the address.
-  @bar_periods ~w(1d 1w 1m 3m 6m ytd 1y 3y 5y max)
-
   # The kinds whose figures come from the view-scoped value and drift read.
   @scoped_kinds ~w(total_value off_target)
 
@@ -142,6 +139,14 @@ defmodule PortfolixirWeb.DashboardLive do
         stale_ttwror: nil,
         period: Widgets.default_period(),
         period_addressed: false,
+        # Sprint 32 T4 (board 04): the own periods and the quick choice,
+        # both stored on the server, read once per mount and again after
+        # a write from this page; the menu and its dialog.
+        saved_periods: Periods.list_saved(),
+        quick: Periods.quick_choice(),
+        period_menu: false,
+        period_dialog: nil,
+        period_say: nil,
         pin_error: nil,
         closed_trades: nil,
         customize_error: nil,
@@ -235,6 +240,124 @@ defmodule PortfolixirWeb.DashboardLive do
       pairs -> uri.path <> "?" <> URI.encode_query(pairs)
     end
   end
+
+  # --- S32 T4 begin ---
+  # A star: the quick choice takes the period or lets it go, stored under
+  # the UI's actor; the status line says which, or why not.
+  defp quick_toggle(socket, key) do
+    keys = socket.assigns.quick.keys
+    on? = key in keys
+    next = if on?, do: List.delete(keys, key), else: keys ++ [key]
+    label = Widget.period_label(key, socket.assigns.saved_periods)
+
+    case Periods.put_quick_choice(Actor.owner_ui(), next) do
+      {:ok, _keys} ->
+        say =
+          if on?,
+            do: gettext("“%{period}” is no longer in the quick choice.", period: label),
+            else: gettext("“%{period}” is in the quick choice.", period: label)
+
+        {:noreply, socket |> assign(:quick, Periods.quick_choice()) |> assign(:period_say, say)}
+
+      {:error, {:too_many, _message}} ->
+        {:noreply,
+         assign(
+           socket,
+           :period_say,
+           gettext("The quick choice holds at most %{max} periods.", max: Periods.max_quick())
+         )}
+
+      {:error, _refusal} ->
+        {:noreply, assign(socket, :period_say, gettext("Couldn't store the quick choice."))}
+    end
+  end
+
+  # A pick: the address follows it, and the browser's memory keeps it.
+  defp apply_period(socket, period) do
+    socket
+    |> assign(:period, period)
+    |> push_event("period-memory", %{period: %{"period" => period}})
+    |> push_patch(to: with_period(socket.assigns.page_address, period))
+  end
+
+  # A menu closed by a pick or Escape gives the focus back to its button.
+  defp close_period_menu(%{assigns: %{period_menu: true}} = socket) do
+    socket
+    |> assign(:period_menu, false)
+    |> push_event("dashboard-edit-focus", %{ids: ["dashboard-period-menu-toggle"]})
+  end
+
+  defp close_period_menu(socket), do: socket
+
+  defp period_dialog(nil, _quick) do
+    %{
+      id: nil,
+      lock_version: nil,
+      name: "",
+      from: "",
+      to_mode: "today",
+      to: "",
+      quick: false,
+      errors: %{},
+      alert: nil
+    }
+  end
+
+  defp period_dialog(%Periods.SavedPeriod{} = own, quick) do
+    %{
+      id: own.id,
+      lock_version: own.lock_version,
+      name: own.name,
+      from: Date.to_iso8601(own.from),
+      to_mode: if(own.to, do: "date", else: "today"),
+      to: if(own.to, do: Date.to_iso8601(own.to), else: ""),
+      quick: "saved:#{own.id}" in quick.keys,
+      errors: %{},
+      alert: nil
+    }
+  end
+
+  defp save_period(%{id: nil}, attrs), do: Periods.create_saved(Actor.owner_ui(), attrs)
+
+  defp save_period(%{id: id, lock_version: version}, attrs),
+    do: Periods.replace_saved(Actor.owner_ui(), id, Map.put(attrs, "lock_version", version))
+
+  # „Speichern und anwenden“: the quick choice takes it or lets it go as
+  # the box says, the dialog closes and the period is applied.
+  defp saved_period(socket, own, quick?) do
+    key = "saved:#{own.id}"
+    keys = socket.assigns.quick.keys
+
+    say =
+      cond do
+        quick? and key not in keys ->
+          case Periods.put_quick_choice(Actor.owner_ui(), keys ++ [key]) do
+            {:ok, _keys} ->
+              nil
+
+            {:error, _full} ->
+              gettext("The quick choice holds at most %{max} periods.", max: Periods.max_quick())
+          end
+
+        not quick? and key in keys ->
+          {:ok, _keys} = Periods.put_quick_choice(Actor.owner_ui(), List.delete(keys, key))
+          nil
+
+        true ->
+          nil
+      end
+
+    socket
+    |> assign(
+      saved_periods: Periods.list_saved(),
+      quick: Periods.quick_choice(),
+      period_dialog: nil
+    )
+    |> assign(:period_say, say || gettext("“%{name}” is stored and applied.", name: own.name))
+    |> apply_period(key)
+  end
+
+  # --- S32 T4 end ---
 
   # A key of the period vocabulary that resolves today (Sprint 32 T1): a
   # quarter or a year not yet begun is no period to show.
@@ -906,13 +1029,132 @@ defmodule PortfolixirWeb.DashboardLive do
     if period?(period) do
       {:noreply,
        socket
-       |> assign(:period, period)
-       |> push_event("period-memory", %{period: %{"period" => period}})
-       |> push_patch(to: with_period(socket.assigns.page_address, period))}
+       |> close_period_menu()
+       |> apply_period(period)}
     else
       {:noreply, socket}
     end
   end
+
+  # --- S32 T4 begin ---
+  # The period menu (board 04 ①, ②; Sprint 32 T4): the button opens and
+  # closes it, a click elsewhere and Escape close it (Escape puts the focus
+  # back on the button); a star adds a period to the quick choice or takes
+  # it out, stored on the server under the UI's actor; the dialog makes,
+  # changes and deletes an own period, each said in the bar's status line.
+  def handle_event("period_menu", params, socket) do
+    {:noreply, assign(socket, :period_menu, Map.get(params, "open") == "true")}
+  end
+
+  def handle_event(
+        "period_menu_key",
+        %{"key" => "Escape"},
+        %{assigns: %{period_menu: true}} = socket
+      ),
+      do: {:noreply, close_period_menu(socket)}
+
+  def handle_event("period_menu_key", _params, socket), do: {:noreply, socket}
+
+  def handle_event("quick_toggle", %{"period" => key}, socket) when is_binary(key) do
+    if Periods.key?(key), do: quick_toggle(socket, key), else: {:noreply, socket}
+  end
+
+  def handle_event("period_dialog", %{"id" => raw}, socket) do
+    id = LiveParam.integer(raw, 1..9_223_372_036_854_775_807)
+
+    dialog =
+      case id && Enum.find(socket.assigns.saved_periods, &(&1.id == id)) do
+        %Periods.SavedPeriod{} = own -> period_dialog(own, socket.assigns.quick)
+        _new -> period_dialog(nil, socket.assigns.quick)
+      end
+
+    {:noreply, socket |> assign(:period_menu, false) |> assign(:period_dialog, dialog)}
+  end
+
+  def handle_event("period_dialog_close", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:period_dialog, nil)
+     |> push_event("dashboard-edit-focus", %{ids: ["dashboard-period-menu-toggle"]})}
+  end
+
+  def handle_event(
+        "period_save",
+        %{"period" => params},
+        %{assigns: %{period_dialog: %{} = dialog}} = socket
+      )
+      when is_map(params) do
+    to_mode = if params["to_mode"] == "date", do: "date", else: "today"
+
+    attrs = %{
+      "name" => LiveParam.string(params["name"]) || "",
+      "from" => LiveParam.string(params["from"]) || "",
+      "to" => if(to_mode == "date", do: LiveParam.string(params["to"]) || "", else: nil)
+    }
+
+    form = %{
+      dialog
+      | name: attrs["name"],
+        from: attrs["from"],
+        to_mode: to_mode,
+        to: LiveParam.string(params["to"]) || "",
+        quick: params["quick"] == "true"
+    }
+
+    case save_period(dialog, attrs) do
+      {:ok, own} ->
+        {:noreply, saved_period(socket, own, form.quick)}
+
+      {:error, :stale, stored} ->
+        alert = gettext("This period was changed elsewhere; the dialog shows it as stored.")
+
+        {:noreply,
+         socket
+         |> assign(:saved_periods, Periods.list_saved())
+         |> assign(:period_dialog, %{period_dialog(stored, socket.assigns.quick) | alert: alert})}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply,
+         assign(socket, :period_dialog, %{form | errors: PeriodMenu.errors(changeset), alert: nil})}
+
+      {:error, :too_many_periods} ->
+        alert = gettext("Fifty own periods are stored, the most an instance keeps.")
+        {:noreply, assign(socket, :period_dialog, %{form | alert: alert})}
+
+      {:error, _refusal} ->
+        {:noreply,
+         assign(socket, :period_dialog, %{form | alert: gettext("Couldn't store the period.")})}
+    end
+  end
+
+  def handle_event("period_delete", %{"id" => raw}, socket) do
+    with id when is_integer(id) <- LiveParam.integer(raw, 1..9_223_372_036_854_775_807),
+         {:ok, own} <- Periods.delete_saved(Actor.owner_ui(), id) do
+      key = "saved:#{own.id}"
+
+      socket =
+        socket
+        |> assign(
+          saved_periods: Periods.list_saved(),
+          quick: Periods.quick_choice(),
+          period_dialog: nil
+        )
+        |> assign(:period_say, gettext("“%{name}” was deleted.", name: own.name))
+        |> push_event("dashboard-edit-focus", %{ids: ["dashboard-period-menu-toggle"]})
+
+      if socket.assigns.period == key,
+        do: {:noreply, apply_period(socket, Widgets.default_period())},
+        else: {:noreply, socket}
+    else
+      _gone ->
+        {:noreply,
+         socket
+         |> assign(saved_periods: Periods.list_saved(), period_dialog: nil)
+         |> assign(:period_say, gettext("This period no longer exists."))}
+    end
+  end
+
+  # --- S32 T4 end ---
 
   # The browser's memory (the PeriodMemory hook) asks for the period it
   # kept, on an address that named none; the page patches to it in place.
@@ -1383,10 +1625,15 @@ defmodule PortfolixirWeb.DashboardLive do
           pin_error={@pin_error}
           period={@period}
           period_addressed={@period_addressed}
+          quick={@quick}
+          saved_periods={@saved_periods}
+          period_menu={@period_menu}
+          period_say={@period_say}
           edit={@edit}
           edit_say={@edit_say}
           catalogue_open={@catalogue_open}
         />
+        <PeriodMenu.dialog :if={@period_dialog} dialog={@period_dialog} />
         <%!-- Sprint 31 D7 („Neues Dashboard“ → „Leer beginnen“): a stored
              dashboard with no widget says so and where widgets come from,
              until the edit mode opens the catalogue itself. --%>
@@ -1429,6 +1676,10 @@ defmodule PortfolixirWeb.DashboardLive do
   attr(:pin_error, :string, default: nil)
   attr(:period, :string, required: true)
   attr(:period_addressed, :boolean, default: false)
+  attr(:quick, :map, required: true)
+  attr(:saved_periods, :list, required: true)
+  attr(:period_menu, :boolean, default: false)
+  attr(:period_say, :string, default: nil)
   attr(:edit, :any, default: nil)
   attr(:edit_say, :string, default: nil)
   attr(:catalogue_open, :boolean, default: false)
@@ -1442,7 +1693,6 @@ defmodule PortfolixirWeb.DashboardLive do
   defp dashboard_bar(assigns) do
     assigns =
       assign(assigns,
-        bar_periods: @bar_periods,
         scope_name: scope_name(assigns.scope_id, assigns.views),
         choices:
           [{"total", gettext("Everything"), is_nil(assigns.scope_id)}] ++
@@ -1471,33 +1721,16 @@ defmodule PortfolixirWeb.DashboardLive do
             ><%= name %></.link>
           </nav>
         </details>
-        <%!-- The compact strip scrolls a chip the keyboard focuses whole
-             into view (Sprint 31 closing act, Y4). --%>
-        <div
-          id="dashboard-period-strip"
-          class="dashboard-period"
-          data-role="dashboard-period-strip"
-          phx-hook="ScrollFocused"
-        >
-          <div
-            class="segmented-control dashboard-period__control"
-            data-role="dashboard-period"
-            role="group"
-            aria-label={gettext("Period")}
-          >
-            <button
-              :for={period <- @bar_periods}
-              type="button"
-              class={["segmented-control__option", @period == period && "is-active"]}
-              phx-click="set_period"
-              phx-value-period={period}
-              aria-pressed={to_string(@period == period)}
-              data-period={period}
-            >
-              <%= Widget.period_label(period) %>
-            </button>
-          </div>
-        </div>
+        <%!-- Sprint 32 T4 (board 04 ①, ②): the quick choice as chips,
+             one button with the active period that opens the menu, and
+             its status line (`PortfolixirWeb.Dashboard.PeriodMenu`). --%>
+        <PeriodMenu.bar
+          period={@period}
+          quick={@quick}
+          saved={@saved_periods}
+          open={@period_menu}
+          say={@period_say}
+        />
         <%!-- The browser's memory of the last period picked (ADR-0062 §5),
              read when the address names none and written at each pick;
              nothing of it reaches the server's storage. --%>

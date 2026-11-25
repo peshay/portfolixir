@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
   use PortfolixirWeb.ConnCase, async: true, group: :dashboards
 
   import Phoenix.LiveViewTest
+  import PortfolixirWeb.PeriodMenuHelpers
   import PortfolixirWeb.PreferenceCookieHelpers
   import Portfolixir.WorldFixtures, only: [base_world: 0, buy!: 3, put_quote!: 3]
 
@@ -56,12 +57,9 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
 
   defp document(view), do: view |> render() |> Floki.parse_document!()
 
-  defp selected(view) do
-    view
-    |> document()
-    |> Floki.find("[data-role='dashboard-period'] [aria-pressed='true']")
-    |> Enum.flat_map(&Floki.attribute(&1, "data-period"))
-  end
+  # Sprint 32 T4: the active period, as the bar names it (a chip of the
+  # quick choice is pressed only for a period the quick choice holds).
+  defp selected(view), do: List.wrap(active_period(view))
 
   defp period_tag(view, kind) do
     view
@@ -74,11 +72,7 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
   defp tag_state(view, kind),
     do: view |> period_tag(kind) |> Floki.attribute("data-period-state") |> List.first()
 
-  defp pick(view, period) do
-    view
-    |> element("[data-role='dashboard-period'] button[data-period='#{period}']")
-    |> render_click()
-  end
+  defp pick(view, period), do: pick_period(view, period)
 
   defp pin(view, kind, period) do
     view
@@ -100,9 +94,10 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
   # so that one click moves every figure to the same span.
   #
   # Acceptance criteria:
-  # - The top bar holds the periods 1T, 1W, 1M, 3M, 6M, YTD, 1J, 3J, 5J,
-  #   Max (board 05 A; 6M and 5J since Sprint 32 T1), 1J pressed on an
-  #   address that names none.
+  # - The top bar holds the quick choice, 1W, lfd. Monat, YTD, 1J, Max by
+  #   default, and the menu every other period (Sprint 32 T4, board 04;
+  #   test/portfolixir_web/live/dashboard_period_menu_test.exs), 1J
+  #   pressed on an address that names none.
   # - A pick moves the address (`?period=3m`; 1J names none) and tells the
   #   browser's memory (`period-memory`, the pick's key).
   # - The page keeps the hook that remembers it per browser.
@@ -115,9 +110,14 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
            |> document()
            |> Floki.find("[data-role='dashboard-period'] button")
            |> Enum.map(&text/1) ==
-             ~w(1T 1W 1M 3M 6M YTD 1J 3J 5J Max)
+             ["1W", "lfd. Monat", "YTD", "1J", "Max"]
 
     assert selected(view) == ["1y"]
+
+    assert view
+           |> document()
+           |> Floki.find("[data-role='dashboard-period'] [aria-pressed='true']")
+           |> Floki.attribute("data-period") == ["1y"]
 
     assert has_element?(
              view,

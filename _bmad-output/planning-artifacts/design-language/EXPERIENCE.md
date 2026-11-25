@@ -1281,3 +1281,49 @@ where they differ.
   load it, so neither edit is lost unseen. Nothing is merged silently.
 - **Refusals name the item**: a layout the server refuses (422) leaves the
   mode open with the edit intact and the first bad item named.
+
+## Amendment 2026-11-25 — The period menu *(Sprint 32 T4, idea I59; ADR-0062's amendment of 2026-11-25, point 6; board `mockups/ux-design-2026-11-25-sprint32/04` ① and ②, A; plan D-5)*
+
+How the periods above a dashboard behave since the operator owns them.
+It replaces the first bullet and the last bullet of „The period: one
+above every dashboard“ above; the rest of that section stands (the memory
+per browser, the address, the pin, the translation, „ohne Zeitraum“).
+
+- **The bar holds the quick choice**, not every period: up to six chips,
+  `1W · lfd. Monat · YTD · 1J · Max` until the operator changes them,
+  stored on the server (`GET/PUT /api/v1/periods/quick`), so every device
+  shows the same bar. A chip is pressed (`aria-pressed`) while its period
+  is active. Under 600 px the chips stay the strip of their own row.
+- **One button after the chips opens the menu** („Zeitraum ▾“). It names
+  the active period where no chip does („3M ▾“), and an own period always
+  („Seit Umschichtung ▾“), filled in the accent; beside an own period
+  stand its dates, its first day to its last or to today's date, so a
+  name never hides what it spans. The button says whether the menu is
+  open (`aria-expanded`) and which element it opens (`aria-controls`).
+- **The menu has four groups**, each a group named by its heading:
+  „Rollierend · bis heute“ (1T, 1W, 1M, 3M, 6M, 1J, 3J, 5J, Max),
+  „Kalender“ (lfd. Monat, Vormonat, lfd. Quartal, Vorquartal, Q1 to Q4 of
+  this year, YTD, Vorjahr), „Eigene · gespeichert“ (each own period with
+  its dates and ⋯, then „＋ Eigenen Zeitraum anlegen …“) and „Jahr“ (this
+  year and the five before). A quarter that has not begun is drawn with a
+  dashed border and cannot be chosen. „lfd. Quartal“ and the current
+  quarter's „Q4 26“ are the same span today; both stand there, because the
+  one runs on tomorrow and the other stays.
+- **★ beside each period** puts it into the quick choice or takes it out
+  (`aria-pressed`, named „Schnellwahl: Vorquartal“). The seventh is
+  refused, and the bar's status line says why. Every change is said in
+  that line, which a screen reader hears.
+- **A pick closes the menu** and puts the focus back on its button; so
+  does Escape, without a pick; a click elsewhere closes it where the
+  click went. Under 600 px the menu is a sheet on the bottom edge, the
+  window's width, every target in it 44 px.
+- **„Eigenen Zeitraum anlegen …“ opens a native dialog**: Name, Von, Bis
+  „heute“ or a date, „in der Schnellwahl zeigen“; „Speichern und
+  anwenden“ stores it (journaled), applies it and closes. A refused field
+  is named under the field and nothing is stored. An own period's ⋯ opens
+  the same dialog filled in, with „Löschen“ (asked once); a change built
+  on an older read is refused with the period as stored. „bis heute“
+  grows by a day every day; a fixed end stays.
+- **A deleted own period leaves the bar**: a chip that named it is gone,
+  and the open menu says so in one sentence until the next star stores
+  the quick choice without it; an address that named it opens 1J.

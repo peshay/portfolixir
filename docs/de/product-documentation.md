@@ -2362,18 +2362,37 @@ nennt und zum ganzen Screen führt.
   gespeicherten Dashboards kann eine eigene Ansicht lesen; ist sie
   inzwischen gelöscht, liest es den Umfang des Dashboards, und seine
   Fußzeile sagt „Seine Ansicht gibt es nicht mehr · liest …“.
-- **Ein Zeitraum über jedem Dashboard** (ADR-0062 §5). Neben dem Umfang
-  setzt **1T · 1W · 1M · 3M · 6M · YTD · 1J · 3J · 5J · Max** den Zeitraum,
-  den jedes Widget mit Zeitraum liest; **1J** ist der Standard, wie auf
-  Vermögen. Die Adresse trägt ihn, wenn er nicht 1J ist (`/?period=3m`),
-  und nimmt jeden Schlüssel des Zeitraum-Vokabulars, auch die des Kalenders
+- **Ein Zeitraum über jedem Dashboard** (ADR-0062 §5, ergänzt am
+  2026-11-25). Neben dem Umfang steht Ihre **Schnellwahl** — **1W · lfd.
+  Monat · YTD · 1J · Max**, bis Sie sie ändern — und ein Knopf,
+  **Zeitraum ▾**, der das Menü mit allen Zeiträumen öffnet: **rollierend
+  bis heute** (1T, 1W, 1M, 3M, 6M, 1J, 3J, 5J, Max), **Kalender** (lfd.
+  Monat, Vormonat, lfd. Quartal, Vorquartal, Q1 bis Q4 dieses Jahres, YTD,
+  Vorjahr), Ihre **eigenen Zeiträume** und die **Jahre** (dieses und die
+  fünf davor). Ein Quartal, das noch nicht begonnen hat, steht da, ist aber
+  nicht wählbar. Der gewählte Zeitraum ist der, den jedes Widget mit
+  Zeitraum liest; **1J** ist der Standard, wie auf Vermögen. Der Knopf
+  nennt den aktiven Zeitraum, wo kein Chip der Schnellwahl ihn zeigt, und
+  einen eigenen Zeitraum immer, mit seinen Daten daneben. **★** neben einem
+  Zeitraum im Menü nimmt ihn in die Schnellwahl oder heraus (bis zu sechs);
+  die Schnellwahl steht auf dem Server, so zeigt jedes Gerät dieselbe
+  Leiste. **Eigenen Zeitraum anlegen …** öffnet einen Dialog: ein Name (bis
+  40 Zeichen), ein erster Tag und der letzte Tag oder „heute“, das jeden
+  Tag mitwächst; **Speichern und anwenden** speichert und wendet ihn an,
+  sein ⋯ im Menü ändert oder löscht ihn. Eigene Zeiträume stehen auf dem
+  Server und im Audit-Journal (bis zu 50), und Ihr Agent liest und
+  schreibt sie auch (`/api/v1/periods`). Escape oder eine Wahl schließt das
+  Menü; unter 600 px ist es ein Blatt vom unteren Rand. Die Adresse trägt
+  den aktiven Zeitraum, wenn er nicht 1J ist (`/?period=3m`), und nimmt
+  jeden Schlüssel des Zeitraum-Vokabulars, auch die des Kalenders
   (`/?period=prev_quarter`, „Vorquartal“; siehe „Das Zeitraum-Vokabular“ in
   der API-Referenz), so öffnet ein Link ein Dashboard auf seinem Zeitraum;
   ein Wert, der kein Zeitraum ist, oder ein Quartal oder Jahr, das noch
-  nicht begonnen hat, öffnet 1J. Ihre Wahl merkt sich dieser Browser (wie den Zeitraum von
-  Vermögen und das Thema; auf dem Server wird nichts gespeichert), und sie
-  bleibt, wenn Sie ein anderes Dashboard öffnen. Unter 600 px sind die
-  Zeiträume eine eigene Leiste, die Sie seitwärts wischen.
+  nicht begonnen hat, öffnet 1J. Ihre Wahl merkt sich dieser Browser (wie
+  den Zeitraum von Vermögen und das Thema; der aktive Zeitraum steht nicht
+  auf dem Server, so können Telefon und Schreibtisch verschiedene zeigen),
+  und sie bleibt, wenn Sie ein anderes Dashboard öffnen. Unter 600 px ist
+  die Schnellwahl eine eigene Leiste, die Sie seitwärts wischen.
 - **Jedes Widget sagt, welchen Zeitraum es zeigt**, leise neben seinem ⋯:
   **folgt · 3M**, solange es der Leiste folgt; **ohne Zeitraum** für ein
   Widget, dessen Lesezugriff keinen hat (Datenqualität, Fällig, Abseits
