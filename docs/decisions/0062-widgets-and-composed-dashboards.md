@@ -381,7 +381,9 @@ periods too few and too fixed. The boards are
    - **„Neues Dashboard“ opens a gallery**: „Leer“, the starters, then the
      themes, each with its grid in miniature and its widgets; a click asks
      for the name and, for a template that names one, a scope. The themes
-     in Sprint 32 are „Krypto Lover“ and „Rücksetzer“; „Performance“ and
+     in Sprint 32 are „Krypto Lover“ and the template for falls (its name
+     the owner's answer: „Buy The Dip“ or another; its two new kinds draw
+     ADR-0058's windows, rankings and the stored closes, no new figure); „Performance“ and
      „Einkommen & Steuer“ follow with their widgets. A template is
      offered only when all its kinds exist, as before.
    - *Why:* the owner wants the screens kept as they are, as dashboards

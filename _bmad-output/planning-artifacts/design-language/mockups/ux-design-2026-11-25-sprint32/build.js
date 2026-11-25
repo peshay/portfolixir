@@ -40,7 +40,7 @@ function pathOf(vals, w, h, y, x0 = 0) {
 function spark(vals, w = 200, h = 34) {
   const y = scale(vals, h, 3);
   const p = pathOf(vals, w, h, y);
-  return `<svg viewBox="0 0 ${w} ${h}" height="${h}" preserveAspectRatio="none"><path class="wd-area" d="${p}L${w},${h}L0,${h}Z"/><path class="wd-line" d="${p}"/></svg>`;
+  return `<svg viewBox="0 0 ${w} ${h}" height="${h}" ><path class="wd-area" d="${p}L${w},${h}L0,${h}Z"/><path class="wd-line" d="${p}"/></svg>`;
 }
 function lineChart(vals, bench, w, h, ticks) {
   const all = bench ? vals.concat(bench) : vals;
@@ -339,7 +339,7 @@ function board02() {
 }
 
 // ---------- write ----------
-const out = { '01-resize': board01(), '02-starter-dashboards': board02(), '03-templates': board03(), '04-periods': board04(), '05-new-widgets': board05(), '06-real-app': board06(), '07-widget-look': board07(), '08-alle-widgets': board08(), '09-groessen-nach-apple': board09(), '10-abstand': board10() };
+const out = { '01-resize': board01(), '02-starter-dashboards': board02(), '03-templates': board03(), '04-periods': board04(), '05-new-widgets': board05(), '06-real-app': board06(), '07-widget-look': board07(), '08-alle-widgets': board08(), '09-groessen-nach-apple': board09(), '10-abstand': board10(), '11-vorlage-ruecksetzer': board11() };
 for (const [name, html] of Object.entries(out)) {
   fs.writeFileSync(path.join(__dirname, name + '.html'), html);
   console.log('wrote ' + name + '.html');
@@ -511,5 +511,69 @@ function board10() {
 <section class="mock-board"><h2>② D im Dunkelmodus ${tag('rec', 'gewählt')}</h2>${img('10-flaeche-dark.png', 'D dunkel: die Haarlinien bleiben sichtbar, die Fläche bleibt ruhig.')}</section>
 <section class="mock-board"><h2>③ B und C im Dunkelmodus</h2>
 <div class="sp-row">${img('10-luftig-dark.png', 'B: die feine Linie hält die Karten auseinander.')}${img('10-apple-dark.png', 'C: ohne Linie verschwimmen Karte und Hintergrund; C bräuchte im Dunkelmodus hellere Karten.')}</div></section>
+`);
+}
+
+// ---------- board 11: the template for falls (the owner's „Buy The Dip“) ----------
+function board11() {
+  // A synthetic benchmark: a year of closes with two past falls and a current one.
+  const r = rng(58);
+  const n = 260, s = [100];
+  for (let i = 1; i < n; i++) {
+    let d = 0.0009 + (r() - 0.5) * 0.016;
+    if (i > 60 && i < 78) d -= 0.009;     // „Herbst-Ausverkauf“
+    if (i > 140 && i < 170) d -= 0.006;   // „Zinsschock“
+    if (i > 238) d -= 0.006;              // the current fall, running
+    s.push(s[i - 1] * (1 + d));
+  }
+  const win = [[60, 95, 'Herbst-Ausverkauf', '−14,8 %'], [140, 196, 'Zinsschock', '−17,6 %'], [236, 259, 'läuft', '−11,2 %']];
+  const chart = (from, w, h, ticks, label) => {
+    const v = s.slice(from), y = scale(v, h - 14, 8), x0 = 34, xi = (i) => x0 + (i * (w - x0)) / (v.length - 1);
+    let g = '';
+    for (const [a, b, nm, dd] of win) {
+      const aa = Math.max(a - from, 0), bb = b - from;
+      if (bb < 0) continue;
+      const cur = nm === 'läuft';
+      g += `<rect x="${xi(aa).toFixed(1)}" y="0" width="${(xi(bb) - xi(aa)).toFixed(1)}" height="${h - 14}" style="fill:color-mix(in oklab, var(--color-danger) ${cur ? 16 : 9}%, transparent)"/>`;
+      if (label) g += `<text class="wd-axis" x="${(xi(aa) + 3).toFixed(1)}" y="11" style="font-weight:700;fill:${cur ? 'var(--color-danger)' : 'var(--color-text-muted)'}">${nm} ${dd}</text>`;
+    }
+    for (let k = 0; k <= 3; k++) { const vv = Math.min(...v) + ((Math.max(...v) - Math.min(...v)) * k) / 3, yy = y(vv).toFixed(1); g += `<line class="wd-gridl" x1="${x0}" x2="${w}" y1="${yy}" y2="${yy}"/><text class="wd-axis" x="0" y="${(+yy + 3).toFixed(1)}">${nf(0).format(vv)}</text>`; }
+    const p = v.map((vv, i) => `${i ? 'L' : 'M'}${xi(i).toFixed(1)},${y(vv).toFixed(1)}`).join('');
+    g += `<path class="wd-line" style="stroke:var(--color-text);stroke-width:1.4" d="${p}"/>`;
+    g += ticks.map((t, i) => `<text class="wd-axis" x="${(x0 + (i * (w - x0 - 30)) / (ticks.length - 1)).toFixed(0)}" y="${h - 1}">${t}</text>`).join('');
+    return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:${h}px">${g}</svg>`;
+  };
+  const bar = (v, max) => `<span class="g7bar"><i class="${v >= 0 ? 'p' : 'n'}" style="width:${(Math.abs(v) / max * 45).toFixed(1)}%"></i></span>`;
+  const rowb = (nm, v, max, mark) => `<li style="display:block"><span style="display:flex;gap:8px"><span class="wd-sp"><b style="font-weight:600">${nm}</b>${mark ? ' <span class="pd-pin" style="font-size:9.5px">mehrfach</span>' : ''}</span><span class="${v >= 0 ? 'pos' : 'neg'}" style="font-weight:650">${v > 0 ? '+' : '−'}${nf(1).format(Math.abs(v))} %</span></span>${bar(v, max)}</li>`;
+  const hd = (t, pin, extra = '') => `<div class="wd-h" style="font-size:13px"><span class="wd-t">${t}</span><span class="wd-i">i</span>${pin ? `<span class="${pin.startsWith('📌') ? 'pd-pin' : 'pd-follow'}">${pin}</span>` : ''}<span class="wd-sp"></span>${extra}<span class="wd-more">⋯</span></div>`;
+  const ft = (l, a) => `<div class="wd-foot" style="border-top:1px solid var(--color-border);padding-top:6px;margin-top:auto"><span>${l}</span>${a ? `<a>${a} →</a>` : ''}</div>`;
+  const cell = (c, r, w, h, inner) => `<section class="d11" style="grid-column:${c} / span ${w};grid-row:${r} / span ${h}">${inner}</section>`;
+  const list = (items, max) => `<ul class="wd-list g7l">${items.map(([nm, v, m]) => rowb(nm, v, max, m)).join('')}</ul>`;
+  const crashTab = `<table class="wd-tab"><tr><th>Fenster</th><th class="num">Benchmark</th><th class="num">Depot</th><th class="num">Tage</th><th class="num">erholt nach</th></tr>${[['läuft seit 28.10.', -11.2, -9.4, 20, '–'], ['Zinsschock', -17.6, -15.1, 56, '94 Tagen'], ['Herbst-Ausverkauf', -14.8, -13.0, 35, '41 Tagen'], ['Pandemie-Crash', -33.9, -29.5, 33, '148 Tagen']].map(([nm, b, d, t, e], i) => `<tr${i === 0 ? ' style="background:color-mix(in oklab, var(--color-danger) 7%, transparent)"' : ''}><td>${i === 0 ? '<b>' + nm + '</b>' : nm}</td><td class="num neg">${pct(b)}</td><td class="num neg">${pct(d)}</td><td class="num">${t}</td><td class="num">${e}</td></tr>`).join('')}</table>`;
+  const grid = `<div class="d11grid">
+${cell(1, 1, 12, 4, `${hd('Crash-Chart · Benchmark Welt-ETF', 'folgt · 1J')}<div class="wd-body">${chart(0, 1080, 270, ['Dez', 'Feb', 'Apr', 'Jun', 'Aug', 'Okt', 'Nov'], true)}</div>${ft('rot: Crash-Fenster nach ADR-0058 (ab −10 % vom Hoch) · der laufende kräftiger', 'Alle Fenster')}`)}
+${cell(1, 5, 6, 4, `${hd('Crash-Chart · Benchmark Welt-ETF', '📌 eigener: 1M')}<div class="wd-body">${chart(238, 520, 250, ['28.10.', '04.11.', '11.11.', '18.11.', '25.11.'], false)}</div>${ft('−11,2 % vom Hoch am 28.10. · läuft', '')}`)}
+${cell(7, 5, 6, 4, `${hd('Crashes im Vergleich', '', '<span class="wd-chips"><span class="on">Im Depot</span><span>Katalog</span></span>')}${crashTab}<div class="sub" style="font-size:11.5px;color:var(--color-text-muted);margin-top:8px">Benchmark Welt-ETF · Preise, ohne Urteil</div>${ft('der laufende Fall zuerst', 'Alle Fenster')}`)}
+${cell(1, 9, 6, 4, `${hd('Tops und Flops', '📌 eigener: 1W', '<span class="wd-chips"><span class="on">Kursrendite</span><span>Beitrag</span></span>')}<div class="wd-two"><div><h4>Niedrigste</h4>${list([['Autobauer Süd', -8.4], ['Halbleiter AG', -6.1], ['Bank West', -4.9], ['Rohstoff-ETC', -3.2]], 8.4)}</div><div><h4>Höchste</h4>${list([['Netz Versorger', 2.1], ['Pharma Nord', 1.4], ['Gold-ETC', 0.9]], 8.4)}</div></div>${ft('Ansicht Alles', 'Bestände')}`)}
+${cell(7, 9, 6, 4, `${hd('Tops und Flops', '📌 eigener: 1M', '<span class="wd-chips"><span class="on">Kursrendite</span><span>Beitrag</span></span>')}<div class="wd-two"><div><h4>Niedrigste</h4>${list([['Halbleiter AG', -14.2], ['Autobauer Süd', -12.9], ['Krypto-Münze', -11.0], ['Bank West', -7.3]], 14.2)}</div><div><h4>Höchste</h4>${list([['Netz Versorger', 4.8], ['Gold-ETC', 3.1], ['Pharma Nord', 0.6]], 14.2)}</div></div>${ft('Ansicht Alles', 'Bestände')}`)}
+${cell(1, 13, 12, 4, `${hd('Erholer nach den letzten Crashes', '', '<span class="wd-chips"><span class="on">Im Depot</span><span>Katalog</span></span>')}<div class="wd-two" style="grid-template-columns:1fr 1fr 1fr;gap:18px"><div><h4>nach „Zinsschock“ · Tief bis +3 Monate</h4>${list([['Halbleiter AG', 31.2, 1], ['Krypto-Münze', 27.5, 1], ['Welt-ETF', 12.8], ['Autobauer Süd', 9.1]], 31.2)}</div><div><h4>nach „Herbst-Ausverkauf“</h4>${list([['Krypto-Münze', 24.9, 1], ['Halbleiter AG', 18.3, 1], ['Bank West', 11.6], ['Welt-ETF', 9.4]], 31.2)}</div><div><h4>nach „Pandemie-Crash“</h4>${list([['Halbleiter AG', 44.0, 1], ['Pharma Nord', 22.1], ['Krypto-Münze', 19.8, 1], ['Netz Versorger', 6.2]], 31.2)}</div></div>${ft('Anstieg vom eigenen Tief bis drei Monate danach (ADR-0058 §5) · nur, was heute im Katalog ist · keine Prognose', 'Alle Fenster')}`)}
+</div>`;
+  return page('Sprint 32 · Board 11 — die Vorlage für Rücksetzer', `
+<style>
+.d11grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));grid-auto-rows:66px;gap:1px;background:var(--color-border);border:1px solid var(--color-border);border-radius:16px;overflow:hidden}
+.d11{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:var(--color-bg-elevated);padding:14px 18px}
+.d11 .wd-body{flex:1;min-height:0}
+.g7l li{padding:6px 0;font-size:12.5px}
+.g7bar{display:block;position:relative;height:5px;border-radius:999px;background:var(--color-bg-muted);margin:5px 0 1px;overflow:hidden}
+.g7bar::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--color-border-strong)}
+.g7bar i{position:absolute;top:0;bottom:0;border-radius:999px}
+.g7bar i.p{left:50%;background:var(--color-positive)} .g7bar i.n{right:50%;background:var(--color-danger)}
+</style>
+<header class="mock-board mock-head" style="max-width:1160px"><h1>Sprint 32 · Board 11 — die Vorlage für Rücksetzer, wie du sie beschreibst ${SYN}</h1>
+<p class="mock-note">Deine Beschreibung vom 25.11.: „auf die Vorlage die Crash-Beispiele und die Tops und Flops im kurzen Zeitraum. Einfach dass man sieht im Vergleich zu anderen Crashes im 1-Jahr-Chart und Zoom auf aktuelle Woche oder Monat, und dann was die eigenen Flops gerade sind, was da gut lief, was bei den letzten Crashes sich am besten wiederholt hat.“ Gezeichnet auf Apples Größen (Board 09) und als eine Fläche (Board 10, deine Wahl D).</p></header>
+<section class="mock-board" style="max-width:1160px"><div class="mock-pickbar"><p><b>Was die Vorlage zeigt:</b> ① der Crash-Chart: die Benchmark über 1J, jedes Crash-Fenster rot hinterlegt und benannt, der laufende Fall kräftiger; ② derselbe Chart auf 1M festgepinnt, der Zoom; ③ die Crashes im Vergleich, der laufende Fall zuerst, mit Tiefe, Dauer und nach wie vielen Tagen erholt; ④ deine Tops und Flops in 1W und 1M, mit Balken; ⑤ die Erholer nach den letzten drei Crashes nebeneinander, wer in mehreren Listen steht, ist markiert („mehrfach“).</p>
+<p><b>Was neu gebaut wird, ohne neue Zahl:</b> zwei Widget-Arten. Der <b>Crash-Chart</b> zeichnet die gespeicherten Schlusskurse der Crash-Benchmark und die Fenster aus <code>GET /api/v1/crashes</code>. Die <b>Erholer</b> zeichnen <code>GET /api/v1/crashes/:key/rankings?list=rebounders</code> der letzten Fenster (ADR-0058 §5, Stufe (b)). „erholt nach“ in ③ ist das Ende des Fensters aus derselben Lesung. Die Markierung „mehrfach“ vergleicht nur Namen.</p>
+<p><b>Was bewusst nicht drin ist:</b> eine Kennzahl „erholt sich bei Crashes am besten“ über alle Fenster. Das wäre eine neue Zahl, und sie läse sich als Signal für den nächsten Crash, was ADR-0058 §8 ausschließt („No list says what to buy in the next crash“). Nebeneinander siehst du die Wiederholung selbst; eine solche Kennzahl bräuchte ihre eigene Entscheidung.</p></div></section>
+<section class="mock-board" style="max-width:1160px"><h2>Die Vorlage <small>Name offen: „Buy The Dip“ oder ein anderer</small></h2>${grid}</section>
 `);
 }
