@@ -193,7 +193,15 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
        %{conn: conn} do
     %{"data" => fresh} = conn |> authed() |> get("/api/v1/dashboards") |> json_response(200)
 
-    assert fresh == [
+    # The starter in the menu; the themes (Sprint 32 S5) never are.
+    assert [overview | themes] = fresh
+
+    assert Enum.map(themes, &{&1["key"], &1["group"], &1["in_menu"]}) == [
+             {"krypto_lover", "theme", false},
+             {"pullbacks", "theme", false}
+           ]
+
+    assert [overview] == [
              %{
                "type" => "template",
                "id" => nil,
@@ -218,7 +226,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
 
     %{"data" => listed} = conn |> authed() |> get("/api/v1/dashboards") |> json_response(200)
 
-    assert [one, two, template] = listed
+    assert [one, two, template | _themes] = listed
     assert {one["id"], two["id"]} == {first.id, second.id}
 
     assert Map.drop(two, ["inserted_at", "updated_at"]) == %{
@@ -316,7 +324,12 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
 
     for path <- ["/api/v1/dashboards/template:nope", "/api/v1/dashboards/template:"] do
       assert conn |> authed() |> get(path) |> json_response(404) ==
-               %{"errors" => %{"detail" => "not found: names no template; overview is offered"}},
+               %{
+                 "errors" => %{
+                   "detail" =>
+                     "not found: names no template; offered: overview, krypto_lover, pullbacks"
+                 }
+               },
              path
     end
 
@@ -496,7 +509,11 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
            |> authed()
            |> post("/api/v1/dashboards", %{"dashboard" => %{"template" => "income"}})
            |> json_response(422) ==
-             %{"errors" => %{"template" => ["names no template: overview is offered"]}}
+             %{
+               "errors" => %{
+                 "template" => ["names no template; offered: overview, krypto_lover, pullbacks"]
+               }
+             }
 
     assert conn
            |> authed()

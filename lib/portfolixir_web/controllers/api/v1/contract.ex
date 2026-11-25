@@ -120,7 +120,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "benchmark's quotes over the period with the crash windows of GET /api/v1/crashes; " <>
               "its period rule answers every dashboard period as a from/to range; the kind " <>
               "rebounders, the list=rebounders rankings of the last three ended windows side " <>
-              "by side. No endpoint or tool is added."
+              "by side; the themes krypto_lover (asks_scope) and pullbacks, offered beside the " <>
+              "starter and never in the menu (in_menu false). No endpoint or tool is added."
             # --- S32 S5 end ---
           ],
           " "
@@ -222,7 +223,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         # --- S32 S4 end ---
         # --- S32 S5 begin ---
         "GET /api/v1/widgets (portfolixir.dashboards.list), added: the kinds " <>
-          "distance_to_high, crash_chart and rebounders"
+          "distance_to_high, crash_chart and rebounders",
+        "GET /api/v1/dashboards and GET /api/v1/dashboards/template:<key> " <>
+          "(portfolixir.dashboards.list, portfolixir.dashboards.get), added: the templates " <>
+          "krypto_lover and pullbacks, group theme; POST /api/v1/dashboards " <>
+          "(portfolixir.dashboards.put) copies them; an unknown template's refusal lists " <>
+          "every key offered"
         # --- S32 S5 end ---
       ],
       removed_endpoints: [],

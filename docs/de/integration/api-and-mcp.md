@@ -5842,7 +5842,7 @@ Elements und speichert keines von beiden, damit ein Layout so
 zurückgeschickt werden kann, wie es gelesen wurde. Eine unbekannte id, ein
 Schlüssel ohne Vorlage und eine id, die keines von beiden ist, liefern
 `404`; ein Schlüssel ohne Vorlage nennt die angebotenen Schlüssel (`"not
-found: names no template; overview is offered"`).
+found: names no template; offered: overview, krypto_lover, pullbacks"`).
 
 **`POST /api/v1/dashboards`** legt eines aus `{"dashboard": {"name",
 "layout", "view_id"}}` an (das Layout ist ohne Angabe leer, die Ansicht

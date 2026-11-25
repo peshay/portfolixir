@@ -821,6 +821,19 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
       assert verdict_words(text) == [], "#{locale}: #{inspect(verdict_words(text))}"
     end
 
+    # The themes that carry it (Sprint 32 S5), as the API answers them.
+    for key <- ~w(krypto_lover pullbacks) do
+      %{"data" => template} =
+        build_conn()
+        |> put_req_header("accept", "application/json")
+        |> put_req_header("authorization", "Bearer test-api-token")
+        |> get("/api/v1/dashboards/template:#{key}")
+        |> json_response(200)
+
+      assert offenders(template) == [], key
+      assert verdict_words(template["name"] <> " " <> template["subtitle"]) == [], key
+    end
+
     assert verdict_words("Eine Kaufchance") == ["kauf", "chance"]
     assert offenders(%{"buy_signal" => 1}) != []
   end

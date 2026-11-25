@@ -5731,7 +5731,12 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
 - **Neues Dashboard** (`/dashboards/new`, Sprint 32) öffnet eine Galerie:
   **Leer beginnen**, dann **Wie die bisherigen Seiten · die
   Start-Dashboards** (Überblick, und jede Seite von Vermögen, sobald ihr
-  Durchgang kommt), dann **Themen**. Jede Karte zeigt ihr Raster im
+  Durchgang kommt), dann **Themen**: **Krypto Lover** (Bitcoin-Zyklus,
+  Wertentwicklung, Tops und Flops, Abstand zum Hoch und Crashes im
+  Vergleich; es fragt nach Ihrer Krypto-Ansicht) und **Rücksetzer** (der
+  Crash-Chart über das Jahr und auf 1M festgepinnt, Crashes im Vergleich,
+  Tops und Flops auf 1W und auf 1M festgepinnt und die Erholer nach den
+  letzten Crashes). Jede Karte zeigt ihr Raster im
   Kleinen, wie viele Widgets sie hält und welche; eine Vorlage, deren
   Widgets nicht alle gebaut sind, erscheint nicht. Ein Klick öffnet einen
   Dialog mit dem Namen, vorgeschlagen aus dem Titel der Vorlage und, wo

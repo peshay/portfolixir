@@ -86,9 +86,14 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
         stored = Dashboards.list_dashboards()
         templates_in_menu = stored == []
 
+        # A theme is never in the menu; a starter only while no dashboard is
+        # stored (Sprint 32 S4, S5).
         data =
           Enum.map(stored, &DashboardJSON.entry(&1, true)) ++
-            Enum.map(Dashboards.templates(), &DashboardJSON.entry(&1, templates_in_menu))
+            Enum.map(
+              Dashboards.templates(),
+              &DashboardJSON.entry(&1, templates_in_menu and &1.starter)
+            )
 
         json(conn, %{data: data})
 
@@ -103,7 +108,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
       json(conn, %{data: payload(found)})
     else
       {:error, :no_template} ->
-        not_found(conn, "names no template; #{offered_templates()} is offered")
+        not_found(conn, "names no template; offered: #{offered_templates()}")
 
       {:error, :not_found} ->
         not_found(conn)
@@ -181,7 +186,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
            Map.delete(attrs, "template")
          ) do
       {:error, :not_found} ->
-        {:error, %{template: ["names no template: #{offered_templates()} is offered"]}}
+        {:error, %{template: ["names no template; offered: #{offered_templates()}"]}}
 
       result ->
         result
@@ -212,7 +217,9 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
     end
   end
 
-  defp payload({:template, template}), do: DashboardJSON.dashboard(template, menu_template?())
+  defp payload({:template, template}),
+    do: DashboardJSON.dashboard(template, template.starter and menu_template?())
+
   defp payload(%Dashboard{} = dashboard), do: DashboardJSON.dashboard(dashboard)
 
   defp menu_template?, do: Dashboards.list_dashboards() == []
