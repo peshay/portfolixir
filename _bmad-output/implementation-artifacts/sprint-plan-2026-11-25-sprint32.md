@@ -5,7 +5,7 @@ The merge is the signature (ADR-0026 step 1, as amended on 2026-10-08). It
 signs [ADR-0062's amendment of
 2026-11-25](../../docs/decisions/0062-widgets-and-composed-dashboards.md)
 (ideas I57 to I59 and I61, the owner's review of Sprint 31's first slice),
-the decisions below, and the planning boards 01 to 05 in
+the decisions below, and the planning boards 01 to 07 in
 `design-language/mockups/ux-design-2026-11-25-sprint32/`. No change moves a
 stored figure: every widget draws a read that exists today, and a layout,
 a saved period and a seed record hold no money data. A fresh implementation
@@ -32,6 +32,15 @@ rule of ADR-0026's amendment of 2026-11-01 applies unchanged.
    - **„Vorlagen zur Auswahl“** (I61, D-6, board 03): „Neues Dashboard“
      opens a gallery with the starters and the themes „Krypto Lover“ and
      „Rücksetzer“.
+   - **„Das Kennzahlen-Widget sieht nicht übersichtlich aus“** (board
+     06): you picked **A** („Ja, A sieht super aus“): the total with its
+     split into securities and cash, three return figures on one line
+     (Ergebnis, TTWROR, IRR), the value bridge Anfang + Nettoflüsse +
+     Ergebnis = heute below, one ⓘ for the widget (D-12).
+   - **„den Look von allen Widgets prüfen“** (board 07): all eleven kinds
+     in all 21 sizes photographed and checked; nine findings and one
+     widget anatomy derived from A, built as Lane L before the Wealth
+     widgets, so they are born in it (D-12).
    - **Zeiträume** (I59, D-5, board 04): a quick choice of up to six that
      you pick with ★, one button with the menu (rolling, calendar with
      MTD, quarters Q1 to Q4 and the rest, years, your own), your own
@@ -98,7 +107,10 @@ precondition, D-8), #1484 and #1485 (the audit's step 2 carries them).
     (`portfolio_live.ex`'s private `table_summary/1` slices the walk for
     the table only). Hence I60 waits for its decision (D-8).
 - **Boards:** planning boards 01 to 05, drawn on 2026-11-25 on the shipped
-  `app.css`, every name and figure invented.
+  `app.css`, every name and figure invented; boards 06 and 07 from the
+  running app on the synthetic review seed, rearranged in the browser
+  (06) and photographed kind by kind (07), the scripts in the board's
+  `real-app/` folder.
 
 ## State of play, in five lines
 
@@ -133,7 +145,7 @@ precondition, D-8), #1484 and #1485 (the audit's step 2 carries them).
   #1070, #1220, #1177, #328, #354 and #1451 to #1456 keep their standing
   reasons.
 
-## Lanes (two stacked PRs: M, E, T, S, then W)
+## Lanes (two stacked PRs: M, E, L, T, S, then W)
 
 **Lane M, maintenance (first).**
 
@@ -149,6 +161,18 @@ precondition, D-8), #1484 and #1485 (the audit's step 2 carries them).
 | E2 | amendment 1 | **the edit mode uses it**: resize, move (pointer and arrow keys) and add arrange instead of refusing; the moved widgets are marked until the next action; the feedback stands at the acted-on widget, announced (`aria-live`), with „Rückgängig“ for that step and Ctrl+Z; „Zurücksetzen“ as before; the top flash carries no edit message any more. Browser test: board 01 ①'s click at the page's foot shows its feedback in the viewport | 01 ①, ③ | 2–3 |
 | E3 | amendment 2 | **`arrange: "push"` on `PUT /api/v1/dashboards/:id`** with the changed item's index, applied before validation; without it an overlap is still 422; the MCP `portfolixir.dashboards.put` takes the same flag; contract entry and docs (English and German) | — | 1 |
 | E4 | amendment 3, „each size shows more of the same“ | **the size rule checked on every kind**: `total_value` takes S, W and M as board 01 ④ draws them (W three key figures, M the figure and its course, the four-cell strip gone; the IRR, cash and quote figures stay on Bestände's Kennzahlen); every other kind read against the rule, a size that breaks it removed (a stored item of a removed size is read as the kind's nearest size and saved so, the retired-size counterpart of Sprint 31's C4, pinned by a test); `DESIGN.md` gains the rule | 01 ④ | 2–3 |
+
+**Lane L, one look for every widget** (I62; board 07; D-12). The anatomy
+of board 07 ② on the eleven registered kinds, before Lane W builds the
+Wealth widgets in it. Each story is test-first: a functional test per
+finding it fixes, seen failing for that finding's reason; the figures each
+widget draws stay equal to its route's (the existing per-kind tests).
+
+| Story | Source | What it does | Board | Commits |
+|---|---|---|---|---|
+| L1 | board 07 ② | **the anatomy as shared components**: the widget head on one line (title, ⓘ, the period mark „1J“ or „📌 …“, the widget's switch, ⋯), the headline figure (label over figure; S 28, W and M 34, secondary 24 px; colour only for plus and minus), the list row (name, figure, a second muted line; numbers never cut), the warning line, the one-line footer (scope left, one link named for its target); `DESIGN.md` gains the anatomy and its measures; a browser walk fails a widget whose head wraps, whose figure is clipped or which carries a warning box | 07 ② | 2–3 |
+| L2 | board 07 ① 1–5, 7–9 | **the eleven kinds on the anatomy**: findings 1 to 5 and 7 to 9 fixed kind by kind (Gesamtwert, Datenqualität, Fällig, Abseits des Ziels, Wertentwicklung, Tops und Flops, Snapshots, Allokation und Drift with „≈ zum Soll“ as a column, Crashes, Bitcoin-Zyklus, Verkaufsrückblick); the basis sentences move behind ⓘ (I1's rule), the warning boxes become footer lines, the Overview's template keeps its layout | 07 ③ | 3–4 |
+| L3 | board 07 ① 6; amendment 3 | **the sizes that add nothing**: Tops und Flops S a list lower than M; Bitcoin-Zyklus L draws the existing cycle chart; Crashes L and Allokation und Drift T removed (with E4's rule for stored items of a removed size) | 07 ③ | 1–2 |
 
 **Lane T, the periods** (I59; amendment 6; board 04).
 
@@ -181,7 +205,7 @@ its compact form (the section's narrow layout) and its catalogue entry.
 
 | Story | Source | What it does | Board | Commits |
 |---|---|---|---|---|
-| W1 | board 02 ①, ② | **Bestände**: the kinds Kennzahlen (Zeile; also S and W as amendment 3 allows), Datenhinweise (Zeile, drawn only when a note exists), Performance (Zeile: the % or value toggle, the level, the benchmark picker and „Daten als Tabelle“; its period the top bar's, Wealth's custom range now an own period), Beitrag je Position (Zeile, M, L), Positionen (Zeile, with its column picker), Verrechnungskonten (Zeile, S); the starter „Bestände“ | 02 ① | 7–8 |
+| W1 | board 02 ①, ②; board 06 ① A | **Bestände**: the kinds Kennzahlen (Zeile, drawn as board 06's variant A: the total with its securities-to-cash bar, Ergebnis, TTWROR and IRR on one line, the value bridge Anfang + Nettoflüsse + Ergebnis = heute with the multiplier, which must add up to the cent from the reads' own figures, pinned by a test; also S and W as amendment 3 allows), Datenhinweise (Zeile, drawn only when a note exists), Performance (Zeile: the % or value toggle, the level, the benchmark picker and „Daten als Tabelle“; its period the top bar's, Wealth's custom range now an own period), Beitrag je Position (Zeile, M, L), Positionen (Zeile, with its column picker), Verrechnungskonten (Zeile, S); the starter „Bestände“ | 02 ① | 7–8 |
 | W2 | board 02 ② | **Allokation & Ziele**: Kennzahlen-Zeile (the summary line), Allokation (Zeile: tree or positions, the sunburst, the drift table, the display-only hints of ADR-0023, the classification choice); the starter | 02 ② | 3–4 |
 | W3 | board 02 ②; amendment 7 | **Snapshots**: Vergleich gegen einen Snapshot (Zeile), Snapshot-Liste (Zeile, with „Neuer Snapshot →“ linking to the page that keeps the form); the starter | 02 ② | 3 |
 | W4 | board 02 ② | **Risiko**: Eigene Regeln (Zeile; the rule dialog stays on the page, linked), Kennzahlen des Portfolios (Zeile, W), Crashes (Zeile: today's full section; the existing „Crashes im Vergleich“ stays as its compact relative), Größte Einzelpositionen, Klumpenrisiko (S), Anlageklassen-Obergrenzen; the starter | 02 ② | 6–7 |
@@ -194,8 +218,10 @@ its compact form (the section's narrow layout) and its catalogue entry.
 1. **A resize or a move never asks you to delete anything**: E1's property
    holds, the feedback stands at the widget, „Rückgängig“ undoes one step;
    the API refuses an overlap unless asked to arrange.
-2. **Every size of every kind passes the size rule**, Gesamtwert as board
-   01 ④ draws it.
+2. **Every size of every kind passes the size rule and board 07's
+   anatomy**, Gesamtwert as board 01 ④ draws it, the Kennzahlen as board
+   06's A; the browser walk finds no wrapped head, clipped figure or
+   warning box in any widget.
 3. **Bestände, Allokation & Ziele, Snapshots and Risiko look like their
    tabs**: the same sections in the same order, each a widget whose
    figures equal its route's; each starter is stored once and then yours.
@@ -223,7 +249,8 @@ under its own planning PR; this plan moves to Sprint 33 unchanged).
 
 ### D-3: the order of the work (recommended)
 
-M first; then E (E1 before E2 and E3, E4 after E2), T (T1 before the rest,
+M first; then E (E1 before E2 and E3, E4 after E2), L after E4 (L1
+before L2 and L3), T (T1 before the rest,
 T2 before T3 and T5, T4 after T2 and T3) and S (S1 and S2 before S3, S4,
 S5) beside each other, at most two story agents running tests at once
 (Sprint 30's carry-forward 3); the first PR's closing act; then W on the
@@ -294,11 +321,12 @@ with its boards, to the second PR).
 
 ### D-9: two stacked PRs (recommended)
 
-Estimate: M 1–3, E 7–9, T 10–11, S 10–12, W 22–25 build commits; the closing
-act at about one and a half fixes per build commit on a new surface (E, T,
-S) and about a half on moved code (W): about 45 and 12. **PR 1** (M, E, T, S
-and their closing act) about 75 commits; **PR 2** (W, its closing act, the
-close-out and the retrospective) about 45. The second branch is
+Estimate: M 1–3, E 7–9, L 6–9, T 10–11, S 10–12, W 22–25 build commits;
+the closing act at about one and a half fixes per build commit on a new
+surface (E, T, S) and about a half on reworked or moved code (L, W): about
+45 and 16. **PR 1** (M, E, L, T, S and their closing act) about 88 commits;
+**PR 2** (W, its closing act, the close-out and the retrospective) about
+45. Should PR 1 pass 90 at its close, L moves to the head of PR 2. The second branch is
 `<the first>-pr2`, based on the first; both merged in order in one sitting.
 Every story's commits whole, so a stop at the weekly usage limit loses
 nothing (Sprint 31's carry-forward 10). **To flip:** „ein PR“ (only if the
@@ -327,3 +355,19 @@ their story.
   decision gate (ADR-0063), so the next plan finds it.
 - `epics.md`'s FR-60 line already points at the amendment (this PR); the
   idea rows I57 to I61 are on this PR.
+
+### D-12: one look for every widget, and the Kennzahlen as A (your picks of 2026-11-25; boards 06, 07)
+
+You found the Kennzahlen widget cluttered and picked variant A on board 06;
+then you asked to check the look of every widget. Board 07 photographs all
+eleven kinds in all 21 sizes in the running app and finds nine things
+(the period on its own line, basis sentences in the body, warning boxes,
+a card inside a card with clipped figures, five headline sizes, sizes
+that add nothing, nine footer wordings, a paragraph where a column
+belongs, switches in two places). The anatomy of board 07 ② answers them
+all, from A's measures. *Why before Lane W:* the sixteen Wealth widgets are
+then built in it once, not redrawn after. *Why not wait for I48:* the
+anatomy decides structure and type, not colour; I48's colour question
+stays open and touches none of it. „Ergebnis“, not „Gewinn“, because
+„Beitrag je Position“ already names that figure so. **To flip:** „Look
+erst nach Vermögen“ (L moves after W), „Kennzahlen B“ (board 06 ① B).
