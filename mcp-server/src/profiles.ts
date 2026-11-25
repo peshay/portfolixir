@@ -263,8 +263,14 @@ export const ADMIN_TOOLS: ReadonlyMap<string, string> = new Map([
   [
     "portfolixir.dashboards.delete",
     "Removes a stored dashboard; putting its layout again makes a new dashboard under a new id."
-  ]
+  ],
   // --- S31 D2 end ---
+  // --- S32 T2 begin ---
+  [
+    "portfolixir.periods.put",
+    "Its delete removes a stored period, and the pins on it dangle; putting it again makes a new period under a new id."
+  ]
+  // --- S32 T2 end ---
 ]);
 
 // THE OVERWRITES `book` KEEPS — the replace-shaped tools that carry

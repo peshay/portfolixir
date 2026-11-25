@@ -20,7 +20,7 @@ msgid "Cash account created"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:3793
-#: lib/portfolixir_web/live/journal/row.ex:186
+#: lib/portfolixir_web/live/journal/row.ex:188
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:343
 #: lib/portfolixir_web/live/portfolio_live.ex:3547
 #, elixir-autogen
@@ -128,7 +128,7 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard_live.ex:3797
 #: lib/portfolixir_web/live/imports_live.ex:376
 #: lib/portfolixir_web/live/imports_live.ex:1291
-#: lib/portfolixir_web/live/journal/row.ex:187
+#: lib/portfolixir_web/live/journal/row.ex:189
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:342
 #, elixir-autogen
 msgid "Depots"
@@ -331,7 +331,7 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard_live.ex:3789
 #: lib/portfolixir_web/live/imports_live.ex:366
 #: lib/portfolixir_web/live/imports_live.ex:1283
-#: lib/portfolixir_web/live/journal/row.ex:188
+#: lib/portfolixir_web/live/journal/row.ex:190
 #: lib/portfolixir_web/live/news_live.ex:435
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:207
 #: lib/portfolixir_web/live/portfolio_live.ex:1858
@@ -14308,7 +14308,7 @@ msgstr ""
 msgid "without what-if scenarios"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal/row.ex:119
+#: lib/portfolixir_web/live/journal/row.ex:121
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Allowance order"
@@ -14332,7 +14332,7 @@ msgctxt "journal kind"
 msgid "Depot buckets"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal/row.ex:121
+#: lib/portfolixir_web/live/journal/row.ex:123
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Merge"
@@ -14344,7 +14344,7 @@ msgctxt "journal kind"
 msgid "Position buckets"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal/row.ex:116
+#: lib/portfolixir_web/live/journal/row.ex:118
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Recorded statement"
@@ -14356,7 +14356,7 @@ msgctxt "journal kind"
 msgid "Research note"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal/row.ex:122
+#: lib/portfolixir_web/live/journal/row.ex:124
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Retired import row"
@@ -14374,7 +14374,7 @@ msgctxt "journal kind"
 msgid "Security event"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal/row.ex:120
+#: lib/portfolixir_web/live/journal/row.ex:122
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Setting"
@@ -14398,13 +14398,13 @@ msgctxt "journal kind"
 msgid "Target weight"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal/row.ex:118
+#: lib/portfolixir_web/live/journal/row.ex:120
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Tax parameters"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal/row.ex:117
+#: lib/portfolixir_web/live/journal/row.ex:119
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Tax profile"
@@ -18419,97 +18419,97 @@ msgstr ""
 msgid "only securities the view holds today."
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:505
+#: lib/portfolixir/dashboards/widgets.ex:534
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Allocation"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:507
+#: lib/portfolixir/dashboards/widgets.ex:536
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Analyses"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:503
+#: lib/portfolixir/dashboards/widgets.ex:532
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Overview"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:504
+#: lib/portfolixir/dashboards/widgets.ex:533
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Performance"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:506
+#: lib/portfolixir/dashboards/widgets.ex:535
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Risk"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:495
+#: lib/portfolixir/dashboards/widgets.ex:524
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Allocation and drift"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:497
+#: lib/portfolixir/dashboards/widgets.ex:526
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Bitcoin cycle"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:496
+#: lib/portfolixir/dashboards/widgets.ex:525
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Crashes compared"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:489
+#: lib/portfolixir/dashboards/widgets.ex:518
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Data quality"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:490
+#: lib/portfolixir/dashboards/widgets.ex:519
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Due"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:491
+#: lib/portfolixir/dashboards/widgets.ex:520
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Off target"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:492
+#: lib/portfolixir/dashboards/widgets.ex:521
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Performance"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:498
+#: lib/portfolixir/dashboards/widgets.ex:527
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Sale review"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:494
+#: lib/portfolixir/dashboards/widgets.ex:523
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Snapshots"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:493
+#: lib/portfolixir/dashboards/widgets.ex:522
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Tops and flops"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:488
+#: lib/portfolixir/dashboards/widgets.ex:517
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Total value"
@@ -18538,7 +18538,7 @@ msgstr ""
 msgid "Couldn't copy the template."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:486
+#: lib/portfolixir_web/live/dashboard/widget.ex:511
 #: lib/portfolixir_web/live/dashboard_live.ex:1582
 #, elixir-autogen, elixir-format
 msgid "Customize"
@@ -18623,38 +18623,38 @@ msgstr ""
 msgid "Couldn't store the widget's period."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:476
-#: lib/portfolixir_web/live/dashboard/widget.ex:500
+#: lib/portfolixir_web/live/dashboard/widget.ex:501
+#: lib/portfolixir_web/live/dashboard/widget.ex:525
 #, elixir-autogen, elixir-format
 msgid "Follows the dashboard (%{period})"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:505
+#: lib/portfolixir_web/live/dashboard/widget.ex:530
 #, elixir-autogen, elixir-format
 msgid "Set period"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:473
+#: lib/portfolixir_web/live/dashboard/widget.ex:498
 #, elixir-autogen, elixir-format
 msgid "This widget has no period."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:200
+#: lib/portfolixir_web/live/dashboard/widget.ex:225
 #, elixir-autogen, elixir-format
 msgid "follows · %{period}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:197
+#: lib/portfolixir_web/live/dashboard/widget.ex:222
 #, elixir-autogen, elixir-format
 msgid "no period"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:203
+#: lib/portfolixir_web/live/dashboard/widget.ex:228
 #, elixir-autogen, elixir-format
 msgid "own: %{period}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:489
+#: lib/portfolixir_web/live/dashboard/widget.ex:514
 #, elixir-autogen, elixir-format
 msgid "A template is read-only; only its copy takes a period of its own per widget."
 msgstr ""
@@ -19332,20 +19332,20 @@ msgstr ""
 msgid "Load the stored version"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:372
-#: lib/portfolixir_web/live/dashboard/widget.ex:374
+#: lib/portfolixir_web/live/dashboard/widget.ex:397
+#: lib/portfolixir_web/live/dashboard/widget.ex:399
 #, elixir-autogen, elixir-format
 msgid "Move %{widget}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:361
-#: lib/portfolixir_web/live/dashboard/widget.ex:362
+#: lib/portfolixir_web/live/dashboard/widget.ex:386
+#: lib/portfolixir_web/live/dashboard/widget.ex:387
 #, elixir-autogen, elixir-format
 msgid "Move %{widget} down"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:350
-#: lib/portfolixir_web/live/dashboard/widget.ex:351
+#: lib/portfolixir_web/live/dashboard/widget.ex:375
+#: lib/portfolixir_web/live/dashboard/widget.ex:376
 #, elixir-autogen, elixir-format
 msgid "Move %{widget} up"
 msgstr ""
@@ -19355,13 +19355,13 @@ msgstr ""
 msgid "No changes to save."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:384
-#: lib/portfolixir_web/live/dashboard/widget.ex:385
+#: lib/portfolixir_web/live/dashboard/widget.ex:409
+#: lib/portfolixir_web/live/dashboard/widget.ex:410
 #, elixir-autogen, elixir-format
 msgid "Remove %{widget}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:434
+#: lib/portfolixir_web/live/dashboard/widget.ex:459
 #, elixir-autogen, elixir-format
 msgid "Size of %{widget}"
 msgstr ""
@@ -19478,13 +19478,13 @@ msgstr ""
 msgid "Categories ±%{pp} pp or more off their target weight, at every tree level."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:259
+#: lib/portfolixir_web/live/dashboard/widget.ex:284
 #, elixir-autogen, elixir-format
 msgid "About “%{widget}”"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:465
-#: lib/portfolixir_web/live/dashboard/widget.ex:466
+#: lib/portfolixir_web/live/dashboard/widget.ex:490
+#: lib/portfolixir_web/live/dashboard/widget.ex:491
 #, elixir-autogen, elixir-format
 msgid "Menu for “%{widget}”"
 msgstr ""
@@ -19570,7 +19570,7 @@ msgstr[1] ""
 msgid "Last step undone"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:418
+#: lib/portfolixir_web/live/dashboard/widget.ex:443
 #, elixir-autogen, elixir-format
 msgid "Undo"
 msgstr ""
@@ -19619,4 +19619,16 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgctxt "period"
 msgid "This quarter"
+msgstr ""
+
+#: lib/portfolixir_web/live/journal/row.ex:117
+#, elixir-autogen, elixir-format
+msgctxt "journal kind"
+msgid "Period"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard/widget.ex:206
+#, elixir-autogen, elixir-format
+msgctxt "period"
+msgid "Own period deleted"
 msgstr ""

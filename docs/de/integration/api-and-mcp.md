@@ -5913,9 +5913,10 @@ andere `kind` muss registriert sein. Schlüssel werden als Strings verglichen, a
 wird als Text gespeichert und maskiert gezeichnet.
 
 **MCP.** Vier Tools rufen diese Routen. `portfolixir.dashboards.list` liest
-`GET /api/v1/dashboards` und `GET /api/v1/widgets` und liefert beides als
-`{"data": {"dashboards", "widgets"}}`: das Menü und den Katalog in einem
-Aufruf, sodass der Katalog kein eigenes Tool braucht.
+`GET /api/v1/dashboards`, `GET /api/v1/widgets` und `GET /api/v1/periods`
+und liefert sie als `{"data": {"dashboards", "widgets", "periods"}}`: das
+Menü, den Katalog und die eigenen Zeiträume in einem Aufruf, sodass der
+Katalog kein eigenes Tool braucht.
 `portfolixir.dashboards.get` liest ein Dashboard per `id` oder eine Vorlage
 per `template` (ihr Schlüssel). Beide sind Lesungen in jedem Profil und
 antworten kompaktes JSON. `portfolixir.dashboards.put` schreibt: ohne `id`
@@ -5966,6 +5967,42 @@ Betreiber dasselbe Dashboard am Bildschirm gespeichert hat, liefert `409`:
 ```
 
 Eine Anfrage ohne das Token liefert `401`, wie jede Route unter `/api/v1`.
+
+### Eigene Zeiträume (Ergänzung von ADR-0062 vom 2026-11-25, Punkt 6)
+
+Die eigenen Zeiträume stehen auf dem Server, so sehen jedes Gerät und der
+Agent dieselben. Jeder ist der Schlüssel `saved:<id>`, wo ein Schlüssel
+des Zeitraum-Vokabulars genommen wird: `period=` bei Performance,
+Benchmark, Beitrag und Bändern, die Adresse der Dashboards und der Pin
+eines Widgets (`settings.period`). Eine Änderung erreicht jedes Widget, das
+auf ihn gepinnt ist; ein gelöschter löst sich nicht mehr auf (`422` bei
+`period`), und ein auf ihn gepinntes Widget liest den Zeitraum des
+Dashboards.
+
+- `GET /api/v1/periods` listet sie in der Reihenfolge, in der sie angelegt
+  wurden: `{"data": [{"id", "key", "name", "from", "to", "lock_version"}]}`,
+  `to` ist `null` für einen Zeitraum „bis heute“, der am Tag des Lesens
+  endet.
+- `POST /api/v1/periods` mit `{"period": {"name", "from", "to"?}}` legt
+  einen an (`201`). Der Name hat 1 bis 40 Zeichen, getrimmt, eine Zeile,
+  ohne Steuer- oder unsichtbare Zeichen; `from` ist ein ISO-Datum ab 1970,
+  nicht nach heute; `to`, wenn angegeben, liegt am oder nach `from`.
+  Höchstens 50 werden gespeichert: der 51. liefert `422` mit `code`
+  `too_many_periods`.
+- `PUT /api/v1/periods/:id` mit `{"period": {"name", "from", "to",
+  "lock_version"}}` ersetzt einen; eine `lock_version`, die ein anderer
+  Schreibvorgang überholt hat, liefert `409` mit `code` `stale` und dem
+  gespeicherten Zeitraum unter `errors.stored`.
+- `DELETE /api/v1/periods/:id` liefert `204`.
+
+Ein Feld oder Parameter, den eine Anfrage nicht nimmt, liefert `422` mit
+seinem Namen; jeder Schreibvorgang wird unter dem Token protokolliert
+(Ressourcentyp `period`). **MCP:** `portfolixir.dashboards.list` liefert
+die gespeicherten Zeiträume als `data.periods`; `portfolixir.periods.put`
+schreibt: `period` ohne `id` legt an, mit `id` ersetzt, und `id` mit
+`delete: true` löscht. Weil es einen Zeitraum entfernen kann, ist es
+Admin (das Profil `full`); der Companion prüft die Form (ein Name mit
+höchstens 40 Zeichen, ISO-Daten), die API den Rest.
 
 ## Importe
 
@@ -6345,6 +6382,9 @@ weil eine Wiederholung ohne Schlüssel ein weiteres Fenster anfügt;
 oder `PATCH` (ein Umbenennen oder Verschieben) und ohne über `POST` (ein
 neues Dashboard oder die Kopie einer Vorlage) und ist deshalb destruktiv und
 nicht idempotent, weil eine Wiederholung ohne id ein weiteres Dashboard
+anlegt; `portfolixir.periods.put` läuft mit `delete: true` über `DELETE`,
+mit einer id über `PUT` und ohne über `POST` und ist deshalb destruktiv und
+nicht idempotent, weil eine Wiederholung ohne id einen weiteren Zeitraum
 anlegt;
 `openWorldHint` ist wahr für
 `portfolixir.securities.search_online`, `portfolixir.quotes.sync` und

@@ -210,8 +210,11 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.dashboards.list",
       "portfolixir.dashboards.get",
       "portfolixir.dashboards.put",
-      "portfolixir.dashboards.delete"
+      "portfolixir.dashboards.delete",
       // --- S31 D2 end ---
+      // --- S32 T2 begin ---
+      "portfolixir.periods.put"
+      // --- S32 T2 end ---
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");

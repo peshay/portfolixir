@@ -48,7 +48,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardJSON do
       # forms (`Portfolixir.Periods`).
       periods: %{
         values: Widgets.periods(),
-        keyed: ["year:YYYY"],
+        keyed: ["year:YYYY", "saved:<id>"],
         default: Widgets.default_period()
       },
       max_dashboards: Dashboards.max_dashboards(),
@@ -88,7 +88,17 @@ defmodule PortfolixirWeb.Api.V1.DashboardJSON do
   defp period(:none), do: "none"
 
   defp period(rule) do
-    Map.take(rule, [:periods, :param, :values, :ranges, :years, :keyed, :translated])
+    Map.take(rule, [
+      :periods,
+      :param,
+      :values,
+      :ranges,
+      :years,
+      :keyed,
+      :spans,
+      :spans_else,
+      :translated
+    ])
   end
 
   @doc """

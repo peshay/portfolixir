@@ -73,13 +73,31 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             "Sprint 32, T1 (I59; ADR-0062's amendment of 2026-11-25, point 6): period= on " <>
               "every read of the performance family takes the period vocabulary, resolved " <>
               "against today, from and to keeping their precedence; the widget catalogue " <>
-              "and the dashboard pins take it too. No endpoint or tool is added."
+              "and the dashboard pins take it too. No endpoint or tool is added.",
             # --- S32 T1 end ---
+            # --- S32 T2 begin ---
+            "Sprint 32, T2: the operator's own periods, stored and journaled — GET, POST, " <>
+              "PUT (with lock_version, 409 when stale) and DELETE /api/v1/periods, at most " <>
+              "50, a name of 1 to 40 characters, from and to or until today; each is the key " <>
+              "saved:<id> wherever a period key is taken. portfolixir.periods.put creates, " <>
+              "replaces or deletes one, admin; dashboards.list answers them as data.periods."
+            # --- S32 T2 end ---
           ],
           " "
         ),
-      endpoints: [],
-      tools: [],
+      endpoints: [
+        # --- S32 T2 begin ---
+        "GET /api/v1/periods",
+        "POST /api/v1/periods",
+        "PUT /api/v1/periods/:id",
+        "DELETE /api/v1/periods/:id"
+        # --- S32 T2 end ---
+      ],
+      tools: [
+        # --- S32 T2 begin ---
+        "portfolixir.periods.put"
+        # --- S32 T2 end ---
+      ],
       parameters: [
         # --- S32 E3 begin ---
         "PUT /api/v1/dashboards/:id (portfolixir.dashboards.put), added: dashboard.arrange " <>
@@ -116,8 +134,16 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "month, qtd, prev_quarter and q1 to q4 to quarter, 6m to quarter, 5y, prev_year " <>
           "and year:YYYY to 1y. PUT and POST /api/v1/dashboards (portfolixir.dashboards.put): " <>
           "settings.period takes every key of the vocabulary; the tool checks its shape " <>
-          "(a string of at most 25 characters), the API the key"
+          "(a string of at most 25 characters), the API the key",
         # --- S32 T1 end ---
+        # --- S32 T2 begin ---
+        "portfolixir.dashboards.list: data.periods, the stored periods as GET " <>
+          "/api/v1/periods answers them; period on the performance family's reads and " <>
+          "tools, and settings.period on a dashboard's item, take saved:<id> (a deleted " <>
+          "one answers 422 on period); GET /api/v1/widgets: periods.keyed adds " <>
+          "\"saved:<id>\", the performance rule reads it as a range and tops and flops by its " <>
+          "length (spans)"
+        # --- S32 T2 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

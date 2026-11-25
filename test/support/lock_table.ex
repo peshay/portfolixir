@@ -8,7 +8,8 @@ defmodule Portfolixir.LockTable do
   (the matcher against a security's delete too) and a setting's write
   against another of the same setting, since Sprint 31 a recluster of a
   scope's stories against the security merge, and a security's delete
-  against the merge and another delete, and a dashboard's write against another, with
+  against the merge and another delete, and a dashboard's write against another,
+  since Sprint 32 a stored period's write against another, with
   the locks it takes in the order it takes them (Sprint 21's D-7;
   Sprint 20's retrospective). The lock-race harness (`Portfolixir.LockRace`)
   pins the pairs that meet; this table is what a new lock is checked
@@ -85,6 +86,7 @@ defmodule Portfolixir.LockTable do
   | 28 | **A recluster** (`News.Stories.recluster/4`: a fetch's after its commit, row 23, the matcher's, row 26, the scheduler's sweep of assigned items in no story, one transaction a scope (`Stories.recluster_unfiled/1`, N-15), a merge's of its target, row 13, an assignment's, row 21, a rating's, row 22, a security delete's of the securities its items fall to (`News.forget_security/2`); `Stories.remove/5`: retention and a rating's block; `Stories.lock/2`: an assignment, a rating, a promotion; ADR-0056 B3, S31 K1) | the scope's parent, its security or its category, `KS` (#1470; none when it no longer exists) → `adv(story scope)` of the scope and language → `remove/5` only: the doomed items `U`, then their `cluster_id` cleared, emptied stories deleted (`U`) and the others' representatives rewritten, the items deleted → the plain reads of the scope's items and stories → each story's UPDATE (the row `NKU`; a changed representative `FK`: the item `KS`) or INSERT (`FK` on the parent, held `KS`, and on the representative item, `KS`) → the items moved into the stories, UPDATE (`NKU`; `FK` on the story `KS`) → the merged stories' DELETE (`U`). A caller that already holds the parent (rows 13, 21, 22, a promotion) takes it again at no wait. Locks no booking. |
   | 29 | **A security's delete** (`Lifecycle.Delete.delete/2` for a security: `Catalog.delete_security/2`, API, MCP, the screen; S31 K1's attack lens) | the depots its position overrides name `NKU`, id order → an unlocked read of the securities its news items fall to (the other candidate of each item ambiguous between it and one more, `News.forget_security_heirs/1`) → in one pass, id order: the security `U` and each of those `KS` → that read again under the locks (one changed in between rolls the attempt back, releasing all of it, and runs again, at most three times, then `:raced`) → the late-override check and the reference count (plain reads) → the memberships, each row `U` → `News.forget_security/2`: the items listing it, UPDATE (`NKU`; an item assigned `FK` on its new security, held `KS`) → the reclusters of the securities they fell to (row 28; their parent held `KS`) → DELETE, journaled. Locks no booking. |
   | 30 | **A dashboard's write** (`Dashboards.create_dashboard/2`, `copy_template/3`, `replace_dashboard/3`, `rename_dashboard/3`, `reposition_dashboard/3`, `update_dashboard/3`, `delete_dashboard/2`: API, MCP, the dashboard page, „Alle Widgets“ (the catalogue's add) and „Neues Dashboard“; ADR-0062 §2, Sprint 31 D1, D2) | A create or a template's copy: `adv(dashboards count)` `X` → the count and the highest position (plain reads) → INSERT (no foreign key). A replace, rename, reposition or update (the PATCH's rename and reposition in one write): the dashboard `NKU` (the journal's lock step) → a replace, and an update sent a lock_version, compares it under it (a stale one rolls back, writing nothing) → UPDATE. A delete: the dashboard `U` (the journal's lock step) → DELETE. The layout's views are a plain read: under the row's lock for a replace (the changeset validates inside the update), before the count lock for a create. Locks no other table's rows, so it meets only another dashboard write: two creates queue on the count lock, two writes of one dashboard on its row (`test/portfolixir/lock_race/dashboards_race_test.exs`). |
+  | 31 | **A stored period's write** (`Periods.create_saved/2`, `replace_saved/3`, `delete_saved/2`: API, MCP's `periods.put`, the period menu's dialog; ADR-0062's amendment of 2026-11-25, point 6, Sprint 32 T2) | A create: `adv(periods count)` `X` → the count (a plain read) → INSERT (no foreign key). A replace: the period `NKU` (the journal's lock step) → its lock_version compared under it (a stale one rolls back, writing nothing) → UPDATE. A delete: the period `U` (the journal's lock step) → DELETE. Locks no other table's rows, so it meets only another period write: two creates queue on the count lock, two writes of one period on its row (`test/portfolixir/lock_race/periods_race_test.exs`). A pin that names a period, and the quick choice (a setting, row 27), read it with a plain read and take none of its locks. |
 
   ## Where two rows meet
 
@@ -330,6 +332,11 @@ defmodule Portfolixir.LockTable do
     * Rows 14 and 15 against row 12: the depot merge takes the securities'
       split rows `U` after its depots and bookings and the security only
       `KS`; the split's `KS` does not conflict with it.
+    * Row 31 against row 31: two creates meet at `adv(periods count)`
+      before any row, so the later counts what the earlier committed and
+      the 51st is refused; two writes of one period meet at its row. Row 31
+      against every other row: none takes the count key or a period's row,
+      and row 31 takes no other row, so it closes no cycle.
     * Row 27 against row 27: two writes of one setting meet at its key
       before any row, so the later reads the row the earlier committed and
       journals it as its before; writes of different settings take

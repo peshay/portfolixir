@@ -361,3 +361,8 @@ msgstr "lässt bis Zeile 200 keinen Platz für die Widgets, die es verschieben w
 #, elixir-autogen, elixir-format
 msgid "is not a size this widget kind takes: the sizes are the families S, M, L and XL"
 msgstr "ist keine Größe, die diese Widget-Art kennt: die Größen sind die Familien S, M, L und XL"
+
+#: lib/portfolixir/periods.ex:364
+#, elixir-autogen, elixir-format
+msgid "must be the whole number the period was read with"
+msgstr "muss die ganze Zahl sein, mit der der Zeitraum gelesen wurde"

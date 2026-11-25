@@ -249,6 +249,18 @@ function routedMethodsFromSource(): Map<string, string> {
   }
   // --- S31 D2 end ---
 
+  // --- S32 T2 begin ---
+  // periods.put routes three ways: DELETE with delete: true, else POST
+  // without an id and PUT with one. Its route is the delete's, the one the
+  // companion's own derivation reads with every argument set; it is admin,
+  // and REPLACING_POSTS below names its hints.
+  for (const [, name, method] of source.matchAll(
+    /case "(portfolixir\.[a-z0-9_.]+)":\s*return args\.delete\s*\?\s*client\.request\(\s*"([A-Z]+)"/g
+  )) {
+    routes.set(name, method);
+  }
+  // --- S32 T2 end ---
+
   return routes;
 }
 
@@ -298,8 +310,13 @@ const REPLACING_POSTS = [
   // --- S31 D2 begin ---
   // PUT or PATCH with an id (overwrites a layout, a name or a place), POST
   // without one (adds a dashboard): destructive, and not idempotent.
-  "portfolixir.dashboards.put"
+  "portfolixir.dashboards.put",
   // --- S31 D2 end ---
+  // --- S32 T2 begin ---
+  // DELETE with delete: true, PUT with an id (overwrites a period), POST
+  // without one (adds a period): destructive, and not idempotent.
+  "portfolixir.periods.put"
+  // --- S32 T2 end ---
 ];
 
 const OPEN_WORLD = [

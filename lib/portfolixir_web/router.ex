@@ -568,6 +568,15 @@ defmodule PortfolixirWeb.Router do
 
     # --- S31 D2 end ---
 
+    # --- S32 T2 begin ---
+    # ADR-0062's amendment of 2026-11-25, point 6 (Sprint 32, T2): the
+    # operator's own periods, journaled, a replace with lock_version.
+    get("/periods", PeriodController, :index)
+    post("/periods", PeriodController, :create)
+    put("/periods/:id", PeriodController, :replace)
+    delete("/periods/:id", PeriodController, :delete)
+    # --- S32 T2 end ---
+
     put("/securities_accounts/:id/buckets", BucketAssignmentController, :set_depot_buckets)
     put("/cash_accounts/:id/buckets", BucketAssignmentController, :set_cash_account_buckets)
 

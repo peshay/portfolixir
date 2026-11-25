@@ -187,6 +187,31 @@ defmodule PortfolixirWeb.Dashboard.Widget do
 
   def period_label("year:" <> year), do: year
 
+  # An own period (Sprint 32 T2) is named by its name; one no longer
+  # stored by what it was.
+  def period_label("saved:" <> _id = key), do: period_label(key, :stored)
+
+  @doc """
+  The label of `key` where an own period (`saved:<id>`) is looked up in
+  `saved` (the page's list of `Portfolixir.Periods.SavedPeriod`, or
+  `:stored` to read it): its name, „eigener Zeitraum gelöscht“ for one no
+  longer there; every other key as `period_label/1` names it.
+  """
+  @spec period_label(String.t(), :stored | [Periods.SavedPeriod.t()]) :: String.t()
+  def period_label("saved:" <> _id = key, saved) do
+    with {:ok, id} <- Periods.saved_id(key),
+         %{name: name} <- saved_period(id, saved) do
+      name
+    else
+      _gone -> pgettext("period", "Own period deleted")
+    end
+  end
+
+  def period_label(key, _saved), do: period_label(key)
+
+  defp saved_period(id, :stored), do: Periods.get_saved(id)
+  defp saved_period(id, saved) when is_list(saved), do: Enum.find(saved, &(&1.id == id))
+
   @doc """
   The period tag's words for an item `with_period/3` gave its period:
   „folgt · 3M“, „📌 eigener: Max“, „ohne Zeitraum“, each followed by

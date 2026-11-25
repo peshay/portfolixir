@@ -54,8 +54,6 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # between its own markers.
     assert newest["version"] == 33
     assert newest["date"] == "2026-11-25"
-    assert newest["endpoints"] == []
-    assert newest["tools"] == []
 
     # --- S32 E3 begin ---
     assert newest["summary"] =~ "Sprint 32, E3 (ADR-0062's amendment of 2026-11-25, point 2): "
@@ -96,6 +94,18 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert line =~ "year:YYYY"
     assert line =~ "not yet"
     # --- S32 T1 end ---
+
+    # --- S32 T2 begin ---
+    # T2: the stored periods, four endpoints and one tool.
+    assert newest["summary"] =~ "Sprint 32, T2: the operator's own periods"
+
+    for endpoint <- ~w(GET POST) |> Enum.map(&(&1 <> " /api/v1/periods")),
+        do: assert(endpoint in newest["endpoints"])
+
+    assert "PUT /api/v1/periods/:id" in newest["endpoints"]
+    assert "DELETE /api/v1/periods/:id" in newest["endpoints"]
+    assert newest["tools"] == ["portfolixir.periods.put"]
+    # --- S32 T2 end ---
 
     # The security review's fixes of 2026-11 (version 32, one PR), found by
     # version from Sprint 32 on. Dated strictly after entry 31, so

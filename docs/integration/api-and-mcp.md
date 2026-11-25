@@ -5417,9 +5417,10 @@ registered. Keys are matched as strings and no atom is made from one; the name
 is stored as text and drawn escaped.
 
 **MCP.** Four tools call these routes. `portfolixir.dashboards.list` reads
-`GET /api/v1/dashboards` and `GET /api/v1/widgets` and answers both as
-`{"data": {"dashboards", "widgets"}}`: the menu and the catalogue in one
-call, so the catalogue needs no tool of its own. `portfolixir.dashboards.get`
+`GET /api/v1/dashboards`, `GET /api/v1/widgets` and `GET /api/v1/periods`
+and answers them as `{"data": {"dashboards", "widgets", "periods"}}`: the
+menu, the catalogue and the own periods in one call, so the catalogue
+needs no tool of its own. `portfolixir.dashboards.get`
 reads one dashboard by `id`, or a template by `template` (its key). Both
 are reads in every profile and answer compact JSON.
 `portfolixir.dashboards.put` writes: without `id`, it creates from
@@ -5468,6 +5469,39 @@ the same dashboard on the screen answers `409`:
 ```
 
 A request without the token answers `401`, as every `/api/v1` route does.
+
+### Own periods (ADR-0062's amendment of 2026-11-25, point 6)
+
+The operator's own periods are stored on the server, so every device and
+the agent see the same ones. Each is the key `saved:<id>` wherever a key
+of the period vocabulary is taken: `period=` on the performance,
+benchmark, contribution and bands reads, the dashboards' address and a
+widget's pin (`settings.period`). A change to a period reaches every
+widget pinned to it; a deleted one stops resolving (`422` on `period`),
+and a widget pinned to it reads the dashboard's period.
+
+- `GET /api/v1/periods` lists them in the order they were made:
+  `{"data": [{"id", "key", "name", "from", "to", "lock_version"}]}`, `to`
+  `null` for a period "until today", which ends on the day it is read.
+- `POST /api/v1/periods` with `{"period": {"name", "from", "to"?}}` stores
+  one (`201`). The name is 1 to 40 characters, trimmed, one line, without
+  control or invisible characters; `from` is an ISO date from 1970, not
+  after today; `to`, when given, is on or after `from`. At most 50 are
+  stored: the 51st answers `422` with `code` `too_many_periods`.
+- `PUT /api/v1/periods/:id` with `{"period": {"name", "from", "to",
+  "lock_version"}}` replaces one; a `lock_version` another write has
+  passed answers `409` with `code` `stale` and the period as stored under
+  `errors.stored`.
+- `DELETE /api/v1/periods/:id` answers `204`.
+
+A field or a parameter a request does not take answers `422` naming it;
+every write is journaled under the token (resource type `period`).
+**MCP:** `portfolixir.dashboards.list` answers the stored periods as
+`data.periods`; `portfolixir.periods.put` writes: `period` without `id`
+creates, with `id` replaces, and `id` with `delete: true` deletes. Since
+it can remove a period, it is admin (the `full` profile); the companion
+checks the shape (a name of at most 40 characters, ISO dates) and the API
+the rest.
 
 ## Imports
 
@@ -5802,6 +5836,9 @@ and not idempotent, since a repeat without a key adds another window;
 (a rename or a move) with an id and through `POST` without one (a new
 dashboard or a template's copy), so it is destructive, and not idempotent,
 since a repeat without an id adds another dashboard;
+`portfolixir.periods.put` is routed through `DELETE` with `delete: true`,
+`PUT` with an id and `POST` without one, so it is destructive, and not
+idempotent, since a repeat without an id adds another period;
 `openWorldHint` is true for
 `portfolixir.securities.search_online`, `portfolixir.quotes.sync` and
 `portfolixir.exchange_rates.sync`, which reach an external provider, and for

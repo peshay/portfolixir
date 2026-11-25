@@ -227,7 +227,9 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     assert movers.period.keyed == %{"year:YYYY" => "1y"}
     assert movers.period.ranges == []
     assert movers.period.years == []
-    assert movers.period.translated == (Widgets.periods() -- ~w(ytd 1y)) ++ ["year:YYYY"]
+
+    assert movers.period.translated ==
+             (Widgets.periods() -- ~w(ytd 1y)) ++ ["year:YYYY", "saved:<id>"]
 
     for {_period, window} <- movers.period.values,
         do: assert(window in Movers.windows())
@@ -245,7 +247,7 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
            }
 
     assert performance.period.ranges ==
-             ~w(1d 1w 1m 3m 6m mtd prev_month qtd prev_quarter q1 q2 q3 q4)
+             ~w(1d 1w 1m 3m 6m mtd prev_month qtd prev_quarter q1 q2 q3 q4 saved:<id>)
 
     assert performance.period.years == ~w(prev_year year:YYYY)
     assert performance.period.keyed == %{}
@@ -256,7 +258,9 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
 
     # Every fixed key is answered exactly once by each rule.
     for rule <- [movers.period, performance.period] do
-      answered = Map.keys(rule.values) ++ rule.ranges ++ (rule.years -- ["year:YYYY"])
+      answered =
+        Map.keys(rule.values) ++ (rule.ranges -- ["saved:<id>"]) ++ (rule.years -- ["year:YYYY"])
+
       assert Enum.sort(answered) == Enum.sort(Widgets.periods())
     end
 
@@ -363,5 +367,68 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     refute Widgets.translated?("performance", "mtd")
     refute Widgets.translated?("performance", "year:2024")
     refute Widgets.translated?("crashes", "1y")
+  end
+
+  # User story (Sprint 32 T2):
+  # As the operator pinning a widget to „Seit Umschichtung“,
+  # I want each kind to read my own period by its stated rule,
+  # so that Wertentwicklung reads exactly its span and Tops und Flops the
+  # window nearest to it, and says so.
+  #
+  # Acceptance criteria:
+  # - saved:<id> is taken by every kind with a period, by its form.
+  # - Performance reads its from and to (to today for an open one).
+  # - Tops und Flops read the window by the span's days: Tag up to 1, Woche
+  #   up to 7, Monat up to 31, Quartal up to 184, else 1J; translated.
+  # - A deleted period is no period any kind answers.
+  test "a saved period is read by its span, tops and flops by its length" do
+    {:ok, movers} = Widgets.fetch("movers")
+
+    assert movers.period.spans == [
+             %{window: "day", up_to_days: 1},
+             %{window: "week", up_to_days: 7},
+             %{window: "month", up_to_days: 31},
+             %{window: "quarter", up_to_days: 184}
+           ]
+
+    assert "saved:<id>" in movers.period.translated
+    {:ok, performance} = Widgets.fetch("performance")
+    assert "saved:<id>" in performance.period.ranges
+    assert performance.period.spans == []
+
+    today = ~D[2026-11-25]
+
+    saved = fn name, from, to ->
+      %Portfolixir.Periods.SavedPeriod{
+        id: System.unique_integer([:positive]),
+        name: name,
+        from: from,
+        to: to
+      }
+    end
+
+    week = saved.("Woche", ~D[2026-11-19], ~D[2026-11-25])
+    month = saved.("Monat", ~D[2026-10-26], nil)
+    summer = saved.("Sommer", ~D[2026-06-01], ~D[2026-08-31])
+    long = saved.("Seit Umschichtung", ~D[2025-03-01], nil)
+    stored = [week, month, summer, long]
+
+    params = &Widgets.source_params(&1, "saved:#{&2.id}", today, stored)
+
+    assert params.("performance", summer) ==
+             {:ok, %{"from" => "2026-06-01", "to" => "2026-08-31"}}
+
+    assert params.("performance", long) == {:ok, %{"from" => "2025-03-01", "to" => "2026-11-25"}}
+    assert params.("movers", week) == {:ok, %{"window" => "week"}}
+    assert params.("movers", month) == {:ok, %{"window" => "month"}}
+    assert params.("movers", summer) == {:ok, %{"window" => "quarter"}}
+    assert params.("movers", long) == {:ok, %{"window" => "1y"}}
+
+    assert Widgets.takes_period?("movers", "saved:#{week.id}")
+    assert Widgets.translated?("movers", "saved:#{week.id}")
+    refute Widgets.translated?("performance", "saved:#{week.id}")
+
+    assert Widgets.source_params("performance", "saved:#{week.id}", today, []) ==
+             {:error, :unknown_period}
   end
 end

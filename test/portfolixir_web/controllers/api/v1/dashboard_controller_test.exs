@@ -103,7 +103,14 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
                "ranges" => [],
                "years" => [],
                "keyed" => %{"year:YYYY" => "1y"},
-               "translated" => (Periods.keys() -- ~w(ytd 1y)) ++ ["year:YYYY"]
+               "spans" => [
+                 %{"window" => "day", "up_to_days" => 1},
+                 %{"window" => "week", "up_to_days" => 7},
+                 %{"window" => "month", "up_to_days" => 31},
+                 %{"window" => "quarter", "up_to_days" => 184}
+               ],
+               "spans_else" => "1y",
+               "translated" => (Periods.keys() -- ~w(ytd 1y)) ++ ["year:YYYY", "saved:<id>"]
              },
              "scope" => "view",
              "compact" => true
@@ -149,7 +156,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
 
     assert data["periods"] == %{
              "values" => Periods.keys(),
-             "keyed" => ["year:YYYY"],
+             "keyed" => ["year:YYYY", "saved:<id>"],
              "default" => "1y"
            }
 
