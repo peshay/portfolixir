@@ -12,7 +12,7 @@ const V = {
 (async () => {
   const b = await chromium.launch();
   const p = await b.newPage({ viewport: { width: 1280, height: 1250 }, deviceScaleFactor: 1, locale: 'de-DE' });
-  const jobs = Object.keys(V).map((k) => [k, 'light']).concat([['luftig', 'dark'], ['apple', 'dark']]);
+  const jobs = (process.argv[2] ? [[process.argv[2], process.argv[3]]] : Object.keys(V).map((k) => [k, 'light']).concat([['luftig', 'dark'], ['apple', 'dark']]));
   for (const [name, theme] of jobs) {
     await p.goto('http://127.0.0.1:4003/dashboards/3?locale=de', { waitUntil: 'networkidle' });
     await p.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);

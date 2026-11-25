@@ -48,11 +48,11 @@ rule of ADR-0026's amendment of 2026-11-01 applies unchanged.
      every widget in every size, light and dark, is on board 08, and the
      templates with widgets on them, today and on Apple's tiles, on board
      09 (D-13).
-   - **„Mir gefällt der Widget-Abstand nicht“** (board 10): today the gap
-     between widgets (12 px) is smaller than their inner padding (16 px),
-     so the cards look glued together. Recommended B „Luftig“: 20 px
-     between, 18 × 20 px inside, corners 16 px, a fine line and a soft
-     shadow; it holds in light and dark (D-14).
+   - **„Mir gefällt der Widget-Abstand nicht“** (board 10): you picked
+     **D „Eine Fläche“** for the web app („Ich will da nicht so viel Platz
+     verschwenden“): a dashboard is one surface, its widgets separated by
+     hairlines instead of gaps; separate cards stay for native widgets
+     later (D-14).
    - **Zeiträume** (I59, D-5, board 04): a quick choice of up to six that
      you pick with ★, one button with the menu (rolling, calendar with
      MTD, quarters Q1 to Q4 and the rest, years, your own), your own
@@ -185,7 +185,7 @@ widget draws stay equal to its route's (the existing per-kind tests).
 
 | Story | Source | What it does | Board | Commits |
 |---|---|---|---|---|
-| L1 | board 07 ②; board 10 B | **the anatomy as shared components**: the card and the grid by board 10 B (20 px between widgets at the wide class, 18 × 20 px inside, radius 16 px, the border at 60 % of `--color-border` and a soft shadow, 32 px side margin; the medium and compact classes scaled down in proportion, never a gap smaller than the padding), as tokens in `app.css`; the widget head on one line (title, ⓘ, the period mark „1J“ or „📌 …“, the widget's switch, ⋯), the headline figure (label over figure; S 28, W and M 34, secondary 24 px; colour only for plus and minus), the list row (name, figure, a second muted line; numbers never cut), the bar under a row of comparable figures (the contribution table's: centre 0, the largest listed fills 45 %, kept in the compact forms, where `.drift-bar` hides it under 560 px today), the warning line, the one-line footer (scope left, one link named for its target); `DESIGN.md` gains the anatomy and its measures; a browser walk fails a widget whose head wraps, whose figure is clipped or which carries a warning box | 07 ② | 2–3 |
+| L1 | board 07 ②; board 10 B | **the anatomy as shared components**: the surface by board 10 D (the dashboard one surface with one frame of radius 16 px; its widgets separated by 1 px hairlines in `--color-border`, no gap, no card border, no shadow; 16 × 18 px inside; the same in the medium class, and in the compact class one surface with a hairline between the compact forms), as tokens in `app.css`; the edit mode's dashed outline and handles sit inside each cell; the widget head on one line (title, ⓘ, the period mark „1J“ or „📌 …“, the widget's switch, ⋯), the headline figure (label over figure; S 28, W and M 34, secondary 24 px; colour only for plus and minus), the list row (name, figure, a second muted line; numbers never cut), the bar under a row of comparable figures (the contribution table's: centre 0, the largest listed fills 45 %, kept in the compact forms, where `.drift-bar` hides it under 560 px today), the warning line, the one-line footer (scope left, one link named for its target); `DESIGN.md` gains the anatomy and its measures; a browser walk fails a widget whose head wraps, whose figure is clipped or which carries a warning box | 07 ② | 2–3 |
 | L2 | board 07 ① 1–5, 7–10 | **the eleven kinds on the anatomy**: findings 1 to 5 and 7 to 10 fixed kind by kind (Gesamtwert, Datenqualität, Fällig, Abseits des Ziels, Wertentwicklung, Tops und Flops with its bars in both views and both columns, as the old Overview card drew them, Snapshots, Allokation und Drift with „≈ zum Soll“ as a column, Crashes, Bitcoin-Zyklus, Verkaufsrückblick); the basis sentences move behind ⓘ (I1's rule), the warning boxes become footer lines, the Overview's template keeps its layout | 07 ③ | 3–4 |
 | L3 | board 07 ① 6; board 09 | **each kind fills its tiles**: Tops und Flops S a list of four that fits its tile; Bitcoin-Zyklus XL draws the existing cycle chart; Crashes keeps L only; Allokation und Drift takes L; the templates „Überblick“, „Krypto Lover“ and „Rücksetzer“ set on the families and photographed against board 09 before the story closes | 07 ③; 09 ②, ③ | 2–3 |
 | L4 | D-13; the owner, 2026-11-25 („das brauchen wir auch für die Doku“) | **the widget gallery for the docs**: a script in the repository (beside the browser walks) that stores a throwaway dashboard of every kind in every family on the review seed and photographs each, light and dark, at 2×, into `docs/assets/widgets/<kind>-<size>-<theme>.png`; run once at the close-out, after Lane L, and again by any later story that changes a widget; the docs' widget catalogue page (English and German) shows each kind with its sizes, what it draws and its source route | 08 | 2 |
@@ -406,16 +406,16 @@ needed: fixed tiles alone calm the grid but cut or empty today's content.
 *Why Apple's:* they are a tested size system, and the native widgets of
 I53 can then take the same families. **To flip:** „Größen wie bisher“.
 
-### D-14: the space between widgets (your question of 2026-11-25; board 10)
+### D-14: one surface with hairlines (your pick of 2026-11-25; board 10)
 
-You did not like the spacing. Board 10 sets the template „Überblick“ on
-Apple's tiles in four spacings, in the running app. Today's gap between
-widgets (12 px) is smaller than their inner padding (16 px), so the cards
-read as one crowded surface. **Recommended B „Luftig“:** 20 px between,
-18 × 20 px inside, corners 16 px, a fine line and a soft shadow; the rule
-behind it is that the gap is never smaller than the padding. *Why not C
-„Apple“* (24 px, corners 22 px, no line): in dark mode the cards dissolve
-into the background, and at 1280 px it costs width. *Why not D „Eine
-Fläche“* (hairlines instead of gaps): densest, but the widget stops
-reading as a unit. Built in L1 as tokens. **To flip:** „Abstand C“,
-„Abstand D“, „Abstand wie bisher“.
+You did not like the spacing. Board 10 set the template „Überblick“ on
+Apple's tiles in four spacings, in the running app; today's gap (12 px) is
+smaller than the inner padding (16 px), so the cards look glued together.
+The plan recommended B „Luftig“; **you picked D „Eine Fläche“** for the
+web app: „Ich will da nicht so viel Platz verschwenden. Widgets als
+einzelnes Element auf iOS wäre was anderes für später.“ A dashboard is one
+surface with one rounded frame, its widgets separated by 1 px hairlines,
+without gaps, card borders or shadows; checked in light and dark on board
+10. Separate cards with gaps stay for the native widgets of I53. Built in
+L1 as tokens. **To flip:** „Abstand B“, „Abstand C“, „Abstand wie
+bisher“.
