@@ -10,12 +10,15 @@ defmodule PortfolixirWeb.DashboardLive do
     the first by position and `/dashboards/:id` the one named; an unknown
     id opens `/`. **A read never writes**: rendering a template stores
     nothing.
-  * **The scope.** The dashboard reads the user's default view, Everything
-    when none is set, as the Overview did; `?scope=` (a view's id, or
-    `total`) picks another for this address only, never stored. An item's
-    `settings.view_id` overrides it for that widget; a view that no longer
-    exists reads the dashboard's scope and the widget's footer says so
-    (§2).
+  * **The scope.** A dashboard with a view of its own reads it
+    (ADR-0062's amendment of 2026-11-25, point 4; Sprint 32 S1), and the
+    bar names it as the dashboard's, with no menu; one whose own view was
+    deleted reads as one without and the bar says so. Without one the
+    dashboard reads the user's default view, Everything when none is set,
+    as the Overview did; `?scope=` (a view's id, or `total`) picks another
+    for this address only, never stored. An item's `settings.view_id`
+    overrides either for that widget; a view that no longer exists reads
+    the dashboard's scope and the widget's footer says so (§2).
   * **The widgets.** Each item of the layout is drawn by its kind in the
     frame of `PortfolixirWeb.Dashboard.Widget`, in reading order, placed
     on the 12-column grid in the wide class and in one or two columns of
@@ -128,6 +131,7 @@ defmodule PortfolixirWeb.DashboardLive do
         board: nil,
         items: [],
         scope_id: nil,
+        own_view: :none,
         load_key: nil,
         cards: %{},
         attention: %{},
@@ -182,12 +186,13 @@ defmodule PortfolixirWeb.DashboardLive do
         {:noreply, push_navigate(socket, to: "/")}
 
       board ->
-        scope_id = scope_id(params, socket.assigns.views)
+        own_view = own_view(board)
+        scope_id = scope_id(own_view, params, socket.assigns.views)
         {period, kept?} = address_period(params, socket, board)
 
         socket =
           socket
-          |> assign(period: period, pin_error: nil)
+          |> assign(period: period, pin_error: nil, own_view: own_view)
           |> say_dropped_edit(board)
           |> first_arrival(Map.has_key?(params, "period"))
           |> show(board, scope_id)
@@ -459,10 +464,22 @@ defmodule PortfolixirWeb.DashboardLive do
       path: "/"
     }
 
-  # The dashboard's scope: `?scope=` for this address (a view's id or
-  # `total`), else the default view the Overview always read, Everything
-  # when none is set. An id that names no view reads the default; nothing
-  # is stored.
+  # The dashboard's own view (Sprint 32 S1): `{:own, id}`, `{:dangling,
+  # id}` once its view was deleted, `:none` for a template or a dashboard
+  # without one.
+  defp own_view(%{dashboard: %Dashboards.Dashboard{} = dashboard}),
+    do: Dashboards.own_view(dashboard)
+
+  defp own_view(_board), do: :none
+
+  # The dashboard's scope: its own view where it holds one that exists
+  # (read before the address's, ADR-0062's amendment of 2026-11-25, point
+  # 4); else `?scope=` for this address (a view's id or `total`), else the
+  # default view the Overview always read, Everything when none is set. An
+  # id that names no view reads the default; nothing is stored.
+  defp scope_id({:own, id}, _params, _views), do: id
+  defp scope_id(_own_view, params, views), do: scope_id(params, views)
+
   defp scope_id(%{"scope" => "total"}, _views), do: nil
 
   defp scope_id(%{"scope" => raw}, views) do
@@ -1681,6 +1698,7 @@ defmodule PortfolixirWeb.DashboardLive do
           :if={@board}
           board={@board}
           scope_id={@scope_id}
+          own_view={@own_view}
           views={@views}
           customize_error={@customize_error}
           pin_error={@pin_error}
@@ -1733,6 +1751,7 @@ defmodule PortfolixirWeb.DashboardLive do
 
   attr(:board, :map, required: true)
   attr(:scope_id, :any, required: true)
+  attr(:own_view, :any, default: :none)
   attr(:views, :list, required: true)
   attr(:customize_error, :string, default: nil)
   attr(:pin_error, :string, default: nil)
@@ -1769,7 +1788,24 @@ defmodule PortfolixirWeb.DashboardLive do
       aria-label={gettext("Dashboard")}
     >
       <div class="dashboard-bar__row">
-        <details class="dashboard-scope" id="dashboard-scope" data-role="dashboard-scope">
+        <%!-- Sprint 32 S1 (board 03 ②): a dashboard's own view is its
+             scope wherever it is opened from, so the bar names it and
+             offers no menu; the view is changed where the dashboard is. --%>
+        <p
+          :if={match?({:own, _id}, @own_view)}
+          class="dashboard-scope dashboard-scope--own"
+          id="dashboard-scope"
+          data-role="dashboard-scope-own"
+        >
+          <span data-role="dashboard-scope-name"><%= @scope_name %></span>
+          <span class="dashboard-scope__note"><%= gettext("this dashboard's view") %></span>
+        </p>
+        <details
+          :if={not match?({:own, _id}, @own_view)}
+          class="dashboard-scope"
+          id="dashboard-scope"
+          data-role="dashboard-scope"
+        >
           <summary aria-label={gettext("Scope: %{name}", name: @scope_name)}>
             <span data-role="dashboard-scope-name"><%= @scope_name %></span>
             <span aria-hidden="true">▾</span>
@@ -1784,6 +1820,15 @@ defmodule PortfolixirWeb.DashboardLive do
             ><%= name %></.link>
           </nav>
         </details>
+        <p
+          :if={match?({:dangling, _id}, @own_view)}
+          class="hint dashboard-scope-dangling"
+          data-role="dashboard-scope-dangling"
+        >
+          <%= gettext("This dashboard's own view no longer exists · reads %{scope}",
+            scope: @scope_name
+          ) %>
+        </p>
         <%!-- Sprint 32 T4 (board 04 ①, ②): the quick choice as chips,
              one button with the active period that opens the menu, and
              its status line (`PortfolixirWeb.Dashboard.PeriodMenu`). --%>

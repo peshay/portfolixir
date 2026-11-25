@@ -14673,6 +14673,27 @@ dialog.merge-dialog {
   position: relative;
 }
 
+/* Sprint 32 S1 (board 03 ②): a dashboard's own view, named in the bar
+   without a menu, and the line that says a deleted one is read as the
+   default. */
+.dashboard-scope--own {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  font-weight: 600;
+}
+
+.dashboard-scope__note {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.dashboard-scope-dangling {
+  margin: 0;
+}
+
 .dashboard-scope > summary {
   display: inline-flex;
   align-items: center;

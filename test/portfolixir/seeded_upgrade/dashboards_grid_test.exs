@@ -64,6 +64,11 @@ defmodule Portfolixir.SeededUpgrade.DashboardsGridTest do
 
     assert stored == @sprint31_overview
 
+    # The context reads today's schema (Sprint 32 S1 added the dashboard's
+    # own view and origin after this migration), so the read runs on the
+    # head; no later migration rewrites a layout.
+    ScratchDatabase.migrate!(upgrade, SeededUpgrade.head(), upgrade.migrations)
+
     read = ScratchDatabase.run(upgrade, fn -> Dashboards.get_dashboard(copy) end)
     {:ok, template} = Templates.fetch("overview")
     assert read.layout == template.layout

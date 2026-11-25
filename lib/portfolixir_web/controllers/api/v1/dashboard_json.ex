@@ -104,7 +104,9 @@ defmodule PortfolixirWeb.Api.V1.DashboardJSON do
   @doc """
   A menu entry of `Portfolixir.Dashboards.entries/0`'s kind, or a template
   offered beside the stored dashboards: its type, its id (a stored one) or
-  key (a template), its name, `read_only`, `in_menu` and its item count.
+  key (a template), its name, `read_only`, `in_menu` and its item count; a
+  stored one also its own view (`view_id`, `view_dangling`) and its
+  origin (`template_key`).
   """
   @spec entry(Dashboard.t() | Templates.t(), boolean()) :: map()
   def entry(%Dashboard{} = dashboard, _in_menu) do
@@ -115,6 +117,12 @@ defmodule PortfolixirWeb.Api.V1.DashboardJSON do
       name: dashboard.name,
       position: dashboard.position,
       lock_version: dashboard.lock_version,
+      # Sprint 32 S1: the own view, dangling once its view was deleted
+      # (read as the default until the next save drops it), and the
+      # template it was copied from.
+      view_id: dashboard.view_id,
+      view_dangling: match?({:dangling, _id}, Dashboards.own_view(dashboard)),
+      template_key: dashboard.template_key,
       read_only: false,
       in_menu: true,
       item_count: length(dashboard.layout),

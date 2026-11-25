@@ -92,8 +92,16 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- S32 T5 begin ---
             "Sprint 32, T5: a dashboard item's pin may name an own period by reference " <>
               "(saved:<id>); one that names no stored period is refused, one whose period " <>
-              "was deleted is dropped by the next save, as a deleted view is."
+              "was deleted is dropped by the next save, as a deleted view is.",
             # --- S32 T5 end ---
+            # --- S32 S1 begin ---
+            "Sprint 32, S1 (ADR-0062's amendment of 2026-11-25, point 4): a dashboard may " <>
+              "hold a view of its own, view_id, read before the address's scope and the " <>
+              "default view and overridden by an item's own; written on POST (a create, a " <>
+              "template's copy) and PATCH, null clearing it; a view that names none is 422; " <>
+              "read back with view_dangling once its view was deleted, and template_key, the " <>
+              "template a copy came from. No endpoint or tool is added."
+            # --- S32 S1 end ---
           ],
           " "
         ),
@@ -171,8 +179,16 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "saved:<id> naming no stored own period answers 422 layout_item reason " <>
           "unknown_period on settings.period; a saved:<id> the stored layout already pins " <>
           "and whose period was deleted is dropped from the item, not refused; until then " <>
-          "GET /api/v1/dashboards/:id answers the stored pin as it is"
+          "GET /api/v1/dashboards/:id answers the stored pin as it is",
         # --- S32 T5 end ---
+        # --- S32 S1 begin ---
+        "POST /api/v1/dashboards and PATCH /api/v1/dashboards/:id " <>
+          "(portfolixir.dashboards.put), added: dashboard.view_id, the dashboard's own view " <>
+          "(null clears it on PATCH)",
+        "GET /api/v1/dashboards and GET /api/v1/dashboards/:id (portfolixir.dashboards.list, " <>
+          "portfolixir.dashboards.get), added: view_id, view_dangling and template_key on a " <>
+          "stored dashboard"
+        # --- S32 S1 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

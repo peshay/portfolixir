@@ -158,6 +158,20 @@ defmodule Portfolixir.Dashboards do
     end
   end
 
+  @doc """
+  The dashboard's own scope (ADR-0062's amendment of 2026-11-25, point 4):
+  `{:own, view_id}` while its view exists, `{:dangling, view_id}` once that
+  view was deleted (read as the default and said, dropped by the next
+  save), `:none` without one. Reads the views table once when a view is
+  stored; writes nothing.
+  """
+  @spec own_view(Dashboard.t()) :: {:own, pos_integer()} | {:dangling, pos_integer()} | :none
+  def own_view(%Dashboard{view_id: nil}), do: :none
+
+  def own_view(%Dashboard{view_id: id}) do
+    if Dashboard.view_exists?(id), do: {:own, id}, else: {:dangling, id}
+  end
+
   # The row as stored, its layout unread: the before-image a write
   # journals.
   defp stored(id) when is_integer(id) and id >= 1 and id <= @max_id, do: Repo.get(Dashboard, id)
@@ -170,8 +184,10 @@ defmodule Portfolixir.Dashboards do
 
   @doc """
   Creates a dashboard on behalf of `actor` from `attrs`, which take only
-  `name` and `layout` (string or atom keys; the layout defaults to the
-  empty one). It is placed at the end of the menu (one past the highest
+  `name`, `layout` and `view_id` (string or atom keys; the layout defaults
+  to the empty one, the view to none). `view_id` is the dashboard's own
+  scope (ADR-0062's amendment of 2026-11-25, point 4): a view that exists,
+  or `nil`. It is placed at the end of the menu (one past the highest
   position) with lock_version 1, journaled as a create.
 
   `{:error, :too_many_dashboards}` when `max_dashboards/0` are stored: the
@@ -180,28 +196,42 @@ defmodule Portfolixir.Dashboards do
   """
   @spec create_dashboard(Actor.t(), map()) :: {:ok, Dashboard.t()} | {:error, refusal()}
   def create_dashboard(%Actor{} = actor, attrs) when is_map(attrs) do
-    with :ok <- closed(attrs, ~w(name layout), "a dashboard's create") do
-      changeset = Dashboard.changeset(%Dashboard{}, string_attrs(attrs))
-
-      if changeset.valid?,
-        do: insert(actor, changeset),
-        else: {:error, Map.put(changeset, :action, :insert)}
+    with :ok <- closed(attrs, ~w(name layout view_id), "a dashboard's create") do
+      create(actor, string_attrs(attrs), nil)
     end
+  end
+
+  defp create(actor, attrs, template_key) do
+    changeset =
+      %Dashboard{}
+      |> Dashboard.changeset(Map.take(attrs, ~w(name layout)))
+      |> Dashboard.scope_changeset(attrs)
+      |> Dashboard.origin_changeset(template_key)
+
+    if changeset.valid?,
+      do: insert(actor, changeset),
+      else: {:error, Map.put(changeset, :action, :insert)}
   end
 
   @doc """
   Copies the template `key` into a stored dashboard on behalf of `actor`
-  („Anpassen“, ADR-0062 §3): its layout, under `attrs`' `name`, or the
-  template's title in the current locale when none is given. `attrs` take
-  only `name`. Journaled as a create, under the same limit; an unknown key
-  is `{:error, :not_found}`. The template stays as shipped.
+  („Anpassen“, „Anlegen“ in the gallery; ADR-0062 §3): its layout, under
+  `attrs`' `name`, or the template's title in the current locale when none
+  is given, and `attrs`' `view_id`, the dashboard's own scope, when given.
+  `attrs` take only `name` and `view_id`. The copy records the template's
+  key (`template_key`). Journaled as a create, under the same limit; an
+  unknown key is `{:error, :not_found}`. The template stays as shipped.
   """
   @spec copy_template(Actor.t(), term(), map()) :: {:ok, Dashboard.t()} | {:error, refusal()}
   def copy_template(%Actor{} = actor, key, attrs) when is_map(attrs) do
     with {:ok, template} <- template_or_not_found(key),
-         :ok <- closed(attrs, ~w(name), "a template's copy") do
-      name = Map.get(string_attrs(attrs), "name", Templates.title(template.key))
-      create_dashboard(actor, %{"name" => name, "layout" => template.layout})
+         :ok <- closed(attrs, ~w(name view_id), "a template's copy") do
+      attrs = string_attrs(attrs)
+
+      attrs
+      |> Map.put_new("name", Templates.title(template.key))
+      |> Map.put("layout", template.layout)
+      |> then(&create(actor, &1, template.key))
     end
   end
 
@@ -247,7 +277,11 @@ defmodule Portfolixir.Dashboards do
           else: {:error, current}
       end)
       |> Multi.update(:dashboard, fn %{current: current} ->
-        Dashboard.changeset(current, Map.take(attrs, ~w(name layout)))
+        current
+        |> Dashboard.changeset(Map.take(attrs, ~w(name layout)))
+        # A deleted view the dashboard held is dropped by its save, as an
+        # item's is (ADR-0062 §2; the amendment of 2026-11-25, point 4).
+        |> Dashboard.drop_dangling_view()
       end)
       |> journal(actor, :update, prior)
       |> Repo.transaction()
@@ -280,10 +314,12 @@ defmodule Portfolixir.Dashboards do
   end
 
   @doc """
-  Renames and/or moves the dashboard `id` in one write on behalf of `actor`
-  (`PATCH /api/v1/dashboards/:id`, ADR-0062 §8). `attrs` take `name` and
-  `position`, at least one of them, under the rules of `rename_dashboard/3`
-  and `reposition_dashboard/3`, and optionally `lock_version`, the one the
+  Renames, moves and/or rescopes the dashboard `id` in one write on behalf
+  of `actor` (`PATCH /api/v1/dashboards/:id`, ADR-0062 §8). `attrs` take
+  `name`, `position` and `view_id`, at least one of them, under the rules of
+  `rename_dashboard/3`, `reposition_dashboard/3` and the dashboard's own
+  view (`Portfolixir.Dashboards.Dashboard.scope_changeset/2`: a view that
+  exists, or `nil` to clear it), and optionally `lock_version`, the one the
   caller read: sent, and under the row's lock another than the stored one,
   the write answers `{:error, :stale, stored}` and writes nothing, so a
   rename racing a save is never lost unseen; not sent, it applies to the
@@ -293,9 +329,9 @@ defmodule Portfolixir.Dashboards do
   @spec update_dashboard(Actor.t(), term(), map()) ::
           {:ok, Dashboard.t()} | {:error, :stale, Dashboard.t()} | {:error, refusal()}
   def update_dashboard(%Actor{} = actor, id, attrs) when is_map(attrs) do
-    with :ok <- closed(attrs, ~w(name position lock_version), "a dashboard's update"),
+    with :ok <- closed(attrs, ~w(name position view_id lock_version), "a dashboard's update"),
          attrs = string_attrs(attrs),
-         :ok <- one_of(attrs, ~w(name position), "a dashboard's update"),
+         :ok <- one_of(attrs, ~w(name position view_id), "a dashboard's update"),
          {:ok, read_version} <- optional_lock_version(attrs),
          {:ok, prior} <- fetch(id) do
       Multi.new()
@@ -422,7 +458,10 @@ defmodule Portfolixir.Dashboards do
   # lock_version to the same one past the stored, so either or both raise
   # it once.
   defp patch_changeset(current, attrs) do
-    named = Dashboard.changeset(current, Map.take(attrs, ["name"]))
+    named =
+      current
+      |> Dashboard.changeset(Map.take(attrs, ["name"]))
+      |> Dashboard.scope_changeset(attrs)
 
     case Map.fetch(attrs, "position") do
       {:ok, position} ->
@@ -561,7 +600,7 @@ defmodule Portfolixir.Dashboards do
     if Enum.any?(fields, &Map.has_key?(attrs, &1)) do
       :ok
     else
-      message = "is required: #{write} takes #{Enum.join(fields, ", ")} or both"
+      message = "is required: #{write} takes at least one of #{Enum.join(fields, ", ")}"
       {:error, {:missing_fields, Map.new(fields, &{&1, [message]})}}
     end
   end

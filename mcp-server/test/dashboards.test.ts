@@ -334,3 +334,51 @@ describe("the dashboard tools", () => {
     );
   });
 });
+
+// --- S32 S1 begin ---
+describe("a dashboard's own view (Sprint 32 S1)", () => {
+  // User story (ADR-0062's amendment of 2026-11-25, point 4):
+  // As the agent composing a dashboard for one part of the operator's
+  // holdings,
+  // I want put to give it a view of its own on a create, a template's copy
+  // and a rename, and to clear it with null,
+  // so that I compose what the operator's gallery composes.
+  //
+  // Acceptance criteria:
+  // - put sends view_id inside dashboard on POST (a create, a copy) and on
+  //   PATCH (no layout), null as null.
+  // - Before any request: view_id beside a layout on a replace (the PUT
+  //   takes none), a view_id that is no positive whole number.
+  // - put's description names view_id.
+  it("sends view_id on a create, a copy and a rename, and refuses it on a replace", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await callTool(client, PUT, { dashboard: { name: "Krypto", layout: [], view_id: 7 } });
+    await callTool(client, PUT, { template: "overview", dashboard: { view_id: 7 } });
+    await callTool(client, PUT, { id: 4, dashboard: { view_id: 8 } });
+    await callTool(client, PUT, { id: 4, dashboard: { view_id: null } });
+
+    assert.deepEqual(
+      requests.map((request) => [request.method, request.path, request.body]),
+      [
+        ["POST", "/api/v1/dashboards", { dashboard: { name: "Krypto", layout: [], view_id: 7 } }],
+        ["POST", "/api/v1/dashboards", { dashboard: { template: "overview", view_id: 7 } }],
+        ["PATCH", "/api/v1/dashboards/4", { dashboard: { view_id: 8 } }],
+        ["PATCH", "/api/v1/dashboards/4", { dashboard: { view_id: null } }]
+      ]
+    );
+
+    for (const args of [
+      { id: 4, dashboard: { name: "N", layout: [], lock_version: 1, view_id: 7 } },
+      { dashboard: { name: "N", layout: [], view_id: 0 } },
+      { dashboard: { name: "N", layout: [], view_id: "7" } }
+    ]) {
+      const before = requests.length;
+      await assert.rejects(callTool(client, PUT, args as any), JSON.stringify(args));
+      assert.equal(requests.length, before, JSON.stringify(args));
+    }
+
+    assert.match(tool(PUT)?.description ?? "", /view_id/);
+  });
+});
+// --- S32 S1 end ---

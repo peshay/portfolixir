@@ -2362,6 +2362,16 @@ nennt und zum ganzen Screen führt.
   gespeicherten Dashboards kann eine eigene Ansicht lesen; ist sie
   inzwischen gelöscht, liest es den Umfang des Dashboards, und seine
   Fußzeile sagt „Seine Ansicht gibt es nicht mehr · liest …“.
+- **Die eigene Ansicht eines Dashboards** (Sprint 32). Ein Dashboard kann
+  eine eigene Ansicht halten, gewählt beim Anlegen aus einer Vorlage, die
+  danach fragt (oder von Ihrem Agenten gesetzt): Dann liest jedes Widget
+  darauf diese Ansicht, wo immer Sie es öffnen, die Leiste nennt sie mit
+  „Ansicht dieses Dashboards“ und bietet kein Menü für den Umfang, und ein
+  Widget mit eigener Ansicht liest weiter seine. Ist diese Ansicht
+  inzwischen gelöscht, liest das Dashboard Ihre Standard-Ansicht, die Leiste
+  sagt „Die eigene Ansicht dieses Dashboards gibt es nicht mehr · liest …“
+  und bietet das Menü wieder, und das nächste Speichern des Dashboards
+  vergisst sie.
 - **Ein Zeitraum über jedem Dashboard** (ADR-0062 §5, ergänzt am
   2026-11-25). Neben dem Umfang steht Ihre **Schnellwahl** — **1W · lfd.
   Monat · YTD · 1J · Max**, bis Sie sie ändern — und ein Knopf,
