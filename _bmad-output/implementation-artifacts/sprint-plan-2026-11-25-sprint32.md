@@ -5,7 +5,7 @@ The merge is the signature (ADR-0026 step 1, as amended on 2026-10-08). It
 signs [ADR-0062's amendment of
 2026-11-25](../../docs/decisions/0062-widgets-and-composed-dashboards.md)
 (ideas I57 to I59 and I61, the owner's review of Sprint 31's first slice),
-the decisions below, and the planning boards 01 to 07 in
+the decisions below, and the planning boards 01 to 09 in
 `design-language/mockups/ux-design-2026-11-25-sprint32/`. No change moves a
 stored figure: every widget draws a read that exists today, and a layout,
 a saved period and a seed record hold no money data. A fresh implementation
@@ -41,6 +41,13 @@ rule of ADR-0026's amendment of 2026-11-01 applies unchanged.
      in all 21 sizes photographed and checked; ten findings and one
      widget anatomy derived from A, built as Lane L before the Wealth
      widgets, so they are born in it (D-12).
+   - **„Verfolgen wir Apples Empfehlungen für die Sizes?“** (boards 08,
+     09): today only half, and that is what makes dashboards look
+     chaotic: rows grow with their content, and L and T are no multiple of
+     S. The sizes become Apple's families S, M, L, XL with fixed heights;
+     every widget in every size, light and dark, is on board 08, and the
+     templates with widgets on them, today and on Apple's tiles, on board
+     09 (D-13).
    - **Zeiträume** (I59, D-5, board 04): a quick choice of up to six that
      you pick with ★, one button with the menu (rolling, calendar with
      MTD, quarters Q1 to Q4 and the rest, years, your own), your own
@@ -109,8 +116,10 @@ precondition, D-8), #1484 and #1485 (the audit's step 2 carries them).
 - **Boards:** planning boards 01 to 05, drawn on 2026-11-25 on the shipped
   `app.css`, every name and figure invented; boards 06 and 07 from the
   running app on the synthetic review seed, rearranged in the browser
-  (06) and photographed kind by kind (07), the scripts in the board's
-  `real-app/` folder.
+  (06) and photographed kind by kind (07); board 08 every kind in every
+  size, light and dark; board 09 three dashboards today and on Apple's
+  tiles, simulated in the browser; the scripts in the board's `real-app/`
+  folder.
 
 ## State of play, in five lines
 
@@ -145,7 +154,7 @@ precondition, D-8), #1484 and #1485 (the audit's step 2 carries them).
   #1070, #1220, #1177, #328, #354 and #1451 to #1456 keep their standing
   reasons.
 
-## Lanes (two stacked PRs: M, E, L, T, S, then W)
+## Lanes (two stacked PRs: M, E, T, S, then L and W)
 
 **Lane M, maintenance (first).**
 
@@ -160,11 +169,12 @@ precondition, D-8), #1484 and #1485 (the audit's step 2 carries them).
 | E1 | amendment 1 | **the arrangement as a pure function in the context**: `Portfolixir.Dashboards.Arrange` (or the name the conventions give) takes a validated layout and one action (resize, move, add) and returns the arranged layout: the acted-on item keeps its place, what it covers moves down in reading order, then every item floats up; the result always validates. Tests first: board 01 ②'s case to the cell, a chain of three pushed items, a „Zeile“ item in the way, the 40-item and row-200 refusals; a property test over generated layouts (no overlap, no item above where it could float, the acted-on item unmoved) | 01 ② | 2 |
 | E2 | amendment 1 | **the edit mode uses it**: resize, move (pointer and arrow keys) and add arrange instead of refusing; the moved widgets are marked until the next action; the feedback stands at the acted-on widget, announced (`aria-live`), with „Rückgängig“ for that step and Ctrl+Z; „Zurücksetzen“ as before; the top flash carries no edit message any more. Browser test: board 01 ①'s click at the page's foot shows its feedback in the viewport | 01 ①, ③ | 2–3 |
 | E3 | amendment 2 | **`arrange: "push"` on `PUT /api/v1/dashboards/:id`** with the changed item's index, applied before validation; without it an overlap is still 422; the MCP `portfolixir.dashboards.put` takes the same flag; contract entry and docs (English and German) | — | 1 |
-| E4 | amendment 3, „each size shows more of the same“ | **the size rule checked on every kind**: `total_value` takes S, W and M as board 01 ④ draws them (W three key figures, M the figure and its course, the four-cell strip gone; the IRR, cash and quote figures stay on Bestände's Kennzahlen); every other kind read against the rule, a size that breaks it removed (a stored item of a removed size is read as the kind's nearest size and saved so, the retired-size counterpart of Sprint 31's C4, pinned by a test); `DESIGN.md` gains the rule | 01 ④ | 2–3 |
+| E4 | amendment 3, Apple's families and „each size shows more of the same“ | **the sizes become S, M, L, XL with fixed heights** (board 09): the registry's dimensions (S 3 × 2, M 6 × 2, L 6 × 4, XL 12 × 4, plus „Zeile“ from S2), a fixed 7 rem row at the wide class, the compact class with two S side by side; stored layouts read with S → S, W → M, M → L, T → L, L → XL and the rows doubled, arranged by E1 on the next save (a test reads Sprint 31's stored „Überblick“ and finds no overlap and no item lost); the API and MCP catalogue name the families; `total_value` takes S, M and L as board 01 ④ draws them (its W, M); every kind's sizes read against the rule, a size that adds nothing removed; `DESIGN.md` gains the families and the rule | 01 ④; 09 ① | 3–4 |
 
-**Lane L, one look for every widget** (I62; board 07; D-12). The anatomy
-of board 07 ② on the eleven registered kinds, before Lane W builds the
-Wealth widgets in it. Each story is test-first: a functional test per
+**Lane L, one look for every widget** (I62; boards 07 to 09; D-12, D-13;
+the head of the second PR). The anatomy of board 07 ② on the eleven
+registered kinds, each with its own layout per family (a fixed tile shows
+what fits), before Lane W builds the Wealth widgets in it. Each story is test-first: a functional test per
 finding it fixes, seen failing for that finding's reason; the figures each
 widget draws stay equal to its route's (the existing per-kind tests).
 
@@ -172,7 +182,8 @@ widget draws stay equal to its route's (the existing per-kind tests).
 |---|---|---|---|---|
 | L1 | board 07 ② | **the anatomy as shared components**: the widget head on one line (title, ⓘ, the period mark „1J“ or „📌 …“, the widget's switch, ⋯), the headline figure (label over figure; S 28, W and M 34, secondary 24 px; colour only for plus and minus), the list row (name, figure, a second muted line; numbers never cut), the bar under a row of comparable figures (the contribution table's: centre 0, the largest listed fills 45 %, kept in the compact forms, where `.drift-bar` hides it under 560 px today), the warning line, the one-line footer (scope left, one link named for its target); `DESIGN.md` gains the anatomy and its measures; a browser walk fails a widget whose head wraps, whose figure is clipped or which carries a warning box | 07 ② | 2–3 |
 | L2 | board 07 ① 1–5, 7–10 | **the eleven kinds on the anatomy**: findings 1 to 5 and 7 to 10 fixed kind by kind (Gesamtwert, Datenqualität, Fällig, Abseits des Ziels, Wertentwicklung, Tops und Flops with its bars in both views and both columns, as the old Overview card drew them, Snapshots, Allokation und Drift with „≈ zum Soll“ as a column, Crashes, Bitcoin-Zyklus, Verkaufsrückblick); the basis sentences move behind ⓘ (I1's rule), the warning boxes become footer lines, the Overview's template keeps its layout | 07 ③ | 3–4 |
-| L3 | board 07 ① 6; amendment 3 | **the sizes that add nothing**: Tops und Flops S a list lower than M; Bitcoin-Zyklus L draws the existing cycle chart; Crashes L and Allokation und Drift T removed (with E4's rule for stored items of a removed size) | 07 ③ | 1–2 |
+| L3 | board 07 ① 6; board 09 | **each kind fills its tiles**: Tops und Flops S a list of four that fits its tile; Bitcoin-Zyklus XL draws the existing cycle chart; Crashes keeps L only; Allokation und Drift takes L; the templates „Überblick“, „Krypto Lover“ and „Rücksetzer“ set on the families and photographed against board 09 before the story closes | 07 ③; 09 ②, ③ | 2–3 |
+| L4 | D-13; the owner, 2026-11-25 („das brauchen wir auch für die Doku“) | **the widget gallery for the docs**: a script in the repository (beside the browser walks) that stores a throwaway dashboard of every kind in every family on the review seed and photographs each, light and dark, at 2×, into `docs/assets/widgets/<kind>-<size>-<theme>.png`; run once at the close-out, after Lane L, and again by any later story that changes a widget; the docs' widget catalogue page (English and German) shows each kind with its sizes, what it draws and its source route | 08 | 2 |
 
 **Lane T, the periods** (I59; amendment 6; board 04).
 
@@ -205,10 +216,10 @@ its compact form (the section's narrow layout) and its catalogue entry.
 
 | Story | Source | What it does | Board | Commits |
 |---|---|---|---|---|
-| W1 | board 02 ①, ②; board 06 ① A | **Bestände**: the kinds Kennzahlen (Zeile, drawn as board 06's variant A: the total with its securities-to-cash bar, Ergebnis, TTWROR and IRR on one line, the value bridge Anfang + Nettoflüsse + Ergebnis = heute with the multiplier, which must add up to the cent from the reads' own figures, pinned by a test; also S and W as amendment 3 allows), Datenhinweise (Zeile, drawn only when a note exists), Performance (Zeile: the % or value toggle, the level, the benchmark picker and „Daten als Tabelle“; its period the top bar's, Wealth's custom range now an own period), Beitrag je Position (Zeile, M, L), Positionen (Zeile, with its column picker), Verrechnungskonten (Zeile, S); the starter „Bestände“ | 02 ① | 7–8 |
+| W1 | board 02 ①, ②; board 06 ① A | **Bestände**: the kinds Kennzahlen (Zeile, drawn as board 06's variant A: the total with its securities-to-cash bar, Ergebnis, TTWROR and IRR on one line, the value bridge Anfang + Nettoflüsse + Ergebnis = heute with the multiplier, which must add up to the cent from the reads' own figures, pinned by a test; also S and M as amendment 3 allows), Datenhinweise (Zeile, drawn only when a note exists), Performance (Zeile: the % or value toggle, the level, the benchmark picker and „Daten als Tabelle“; its period the top bar's, Wealth's custom range now an own period), Beitrag je Position (Zeile, L, XL), Positionen (Zeile, with its column picker), Verrechnungskonten (Zeile, S); the starter „Bestände“ | 02 ① | 7–8 |
 | W2 | board 02 ② | **Allokation & Ziele**: Kennzahlen-Zeile (the summary line), Allokation (Zeile: tree or positions, the sunburst, the drift table, the display-only hints of ADR-0023, the classification choice); the starter | 02 ② | 3–4 |
 | W3 | board 02 ②; amendment 7 | **Snapshots**: Vergleich gegen einen Snapshot (Zeile), Snapshot-Liste (Zeile, with „Neuer Snapshot →“ linking to the page that keeps the form); the starter | 02 ② | 3 |
-| W4 | board 02 ② | **Risiko**: Eigene Regeln (Zeile; the rule dialog stays on the page, linked), Kennzahlen des Portfolios (Zeile, W), Crashes (Zeile: today's full section; the existing „Crashes im Vergleich“ stays as its compact relative), Größte Einzelpositionen, Klumpenrisiko (S), Anlageklassen-Obergrenzen; the starter | 02 ② | 6–7 |
+| W4 | board 02 ② | **Risiko**: Eigene Regeln (Zeile; the rule dialog stays on the page, linked), Kennzahlen des Portfolios (Zeile, M), Crashes (Zeile: today's full section; the existing „Crashes im Vergleich“ stays as its compact relative), Größte Einzelpositionen, Klumpenrisiko (S), Anlageklassen-Obergrenzen; the starter | 02 ② | 6–7 |
 | W5 | amendment 5, 7; ADR-0022 amendment | **the menu and the polish**: the four starters in the menu after „Überblick“; Wealth's tab bar links each passed tab to its dashboard, the page stays under „Entdecken“ for the three not passed; **Wealth's polish list (#1366) fixed in the widgets that carry its lines**, one functional test per line seen failing first, each line ticked; `DESIGN.md` (the size „Zeile“, the section widget), `EXPERIENCE.md` (the edit mode's arrangement, the period menu); the docs' navigation and screenshots (English and German) | 02 | 3 |
 
 ## Decisions
@@ -218,8 +229,8 @@ its compact form (the section's narrow layout) and its catalogue entry.
 1. **A resize or a move never asks you to delete anything**: E1's property
    holds, the feedback stands at the widget, „Rückgängig“ undoes one step;
    the API refuses an overlap unless asked to arrange.
-2. **Every size of every kind passes the size rule and board 07's
-   anatomy**, Gesamtwert as board 01 ④ draws it, the Kennzahlen as board
+2. **Every size of every kind is one of Apple's families with a fixed
+   height, and passes the size rule and board 07's anatomy**, Gesamtwert as board 01 ④ draws it, the Kennzahlen as board
    06's A; the browser walk finds no wrapped head, clipped figure or
    warning box in any widget.
 3. **Bestände, Allokation & Ziele, Snapshots and Risiko look like their
@@ -249,13 +260,12 @@ under its own planning PR; this plan moves to Sprint 33 unchanged).
 
 ### D-3: the order of the work (recommended)
 
-M first; then E (E1 before E2 and E3, E4 after E2), L after E4 (L1
-before L2 and L3), T (T1 before the rest,
+M first; then E (E1 before E2 and E3, E4 after E2), T (T1 before the rest,
 T2 before T3 and T5, T4 after T2 and T3) and S (S1 and S2 before S3, S4,
 S5) beside each other, at most two story agents running tests at once
-(Sprint 30's carry-forward 3); the first PR's closing act; then W on the
-second PR, W1 to W4 in parallel pairs once S2 and T1 are on its base, W5
-last; the second PR's closing act and the close-out. Every story agent
+(Sprint 30's carry-forward 3); the first PR's closing act; then on the second PR L (L1 before L2
+and L3, L4 after them), then W, W1 to W4 in parallel pairs once L1 is on
+its base, W5 last; the second PR's closing act and the close-out. Every story agent
 names the test files it ran, and the orchestrator re-runs them at
 integration and reads every gate's exit directly (Sprint 31's
 carry-forward 7). No gate ships with a baseline or exemption
@@ -321,12 +331,12 @@ with its boards, to the second PR).
 
 ### D-9: two stacked PRs (recommended)
 
-Estimate: M 1–3, E 7–9, L 6–9, T 10–11, S 10–12, W 22–25 build commits;
-the closing act at about one and a half fixes per build commit on a new
-surface (E, T, S) and about a half on reworked or moved code (L, W): about
-45 and 16. **PR 1** (M, E, L, T, S and their closing act) about 88 commits;
-**PR 2** (W, its closing act, the close-out and the retrospective) about
-45. Should PR 1 pass 90 at its close, L moves to the head of PR 2. The second branch is
+Estimate: M 1–3, E 8–10, T 10–11, S 10–12, L 9–12, W 22–25 build
+commits; the closing act at about one and a half fixes per build commit on
+a new surface (E, T, S) and about a half on reworked or moved code (L, W):
+about 45 and 18. **PR 1** (M, E, T, S and their closing act) about 80
+commits; **PR 2** (L, W, their closing act, the close-out and the
+retrospective) about 70. The second branch is
 `<the first>-pr2`, based on the first; both merged in order in one sitting.
 Every story's commits whole, so a stop at the weekly usage limit loses
 nothing (Sprint 31's carry-forward 10). **To flip:** „ein PR“ (only if the
@@ -373,3 +383,20 @@ anatomy decides structure and type, not colour; I48's colour question
 stays open and touches none of it. „Ergebnis“, not „Gewinn“, because
 „Beitrag je Position“ already names that figure so. **To flip:** „Look
 erst nach Vermögen“ (L moves after W), „Kennzahlen B“ (board 06 ① B).
+
+### D-13: Apple's widget families, fixed heights, and a gallery for the docs (your questions of 2026-11-25; boards 08, 09)
+
+You asked whether the sizes follow Apple's recommendations and whether the
+templates still look good with widgets on them. Board 08 shows every kind
+in every size, light and dark; board 09 sets three dashboards on today's
+sizes and, simulated in the browser, on Apple's tiles. Today the sizes
+follow the pattern only half: W is two S, M two W, but S is not square,
+L (8 columns) and T (4) are no multiple of S, and no size has a fixed
+height, so a row grows to its tallest widget (Tops und Flops S is 593 px)
+and a dashboard looks ragged. **Recommended:** Apple's families S, M, L,
+XL with fixed heights (amendment 3), each kind with its own layout per
+family (Lane L), and the gallery of board 08 rebuilt by a script for the
+docs after Lane L (L4). Board 09's right column shows why both halves are
+needed: fixed tiles alone calm the grid but cut or empty today's content.
+*Why Apple's:* they are a tested size system, and the native widgets of
+I53 can then take the same families. **To flip:** „Größen wie bisher“.

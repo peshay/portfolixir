@@ -337,11 +337,27 @@ periods too few and too fixed. The boards are
      of today's screens as the screen draws it, from the read that section
      reads today (§1's one existing read). Its compact form is the narrow
      layout that section already has.
+   - **The grid sizes are Apple's widget families** (WidgetKit; board 09,
+     the owner's question of 2026-11-25): one square unit, every size a
+     multiple of it, **every size of a fixed height**: **S** (small, 3
+     columns × 2 rows, about 240 × 236 px at the wide class), **M** (medium,
+     6 × 2), **L** (large, 6 × 4), **XL** (extra large, 12 × 4). A row is a
+     fixed 7 rem; no row grows with its content, so a widget draws its own
+     layout per size and shows what fits (the top rows, „Alle anzeigen“),
+     as Apple asks of a widget. Stored layouts are read with S as S, W as M,
+     M as L, T as L, L as XL, the rows doubled, and are arranged by rule 1
+     on their next save. In the compact class two S stand side by side and
+     M, L and XL take the full width, as on a phone's home screen; native
+     widgets (I53) take the same families. *Why:* today's sizes follow the
+     pattern only half (S is not square, L and T are no multiple of S, no
+     size has a fixed height), which leaves empty columns, ragged rows and
+     an S widget 593 px tall (boards 08, 09).
    - **Each size shows more of the same, never something else.** S one
-     figure, W the figure with two or three companions, M the figure with
-     its course, L the figure, its course and a breakdown. A size that adds
-     nothing readable is not offered. „Gesamtwert“ takes S, W and M by this
-     rule (board 01 ④); Sprint 32 checks every registered kind against it.
+     figure, M the figure with two or three companions, L the figure with
+     its course, XL the figure, its course and a breakdown. A size that
+     adds nothing readable is not offered. „Gesamtwert“ takes S, M and L
+     by this rule (board 01 ④ draws them as S, W and M, today's names);
+     Sprint 32 checks every registered kind against it.
 4. **§2, a dashboard may hold a scope of its own** (I61; board 03 ②):
    an optional `view_id`, validated as an item's is, read before the
    address's scope and the default view, overridden by an item's own. A
@@ -412,6 +428,7 @@ periods too few and too fixed. The boards are
    | Refuse an overlap, push down, or push down and close the gaps | **Answered**: push down and close the gaps (1), the API strict unless asked (2) |
    | Where a refusal stands | **Answered**: at the widget (1) |
    | How a section of today's screens becomes a widget | **Answered**: a section widget in the size „Zeile“ (3) |
+   | Do the sizes follow Apple's recommendations | **Answered**: they become Apple's families S, M, L, XL with fixed heights (3; board 09) |
    | Starters stored once, or shown until changed | **Answered**: stored once, with a seed record (5) |
    | Which periods, and in what menu | **Answered**: the vocabulary, the quick choice and the menu (6) |
    | The period on the server (#1482) | **Answered** in the shape of 6: own periods and the quick choice on the server, the active period per browser |
@@ -426,5 +443,6 @@ periods too few and too fixed. The boards are
 | The API arranges only when asked (2) | „API ordnet immer“ |
 | Starters stored once (5) | „Start-Dashboards erst beim Ändern speichern“ (board 02 B) |
 | A quick choice and a menu (6) | „alle Tasten zeigen“ (board 04 B) |
+| Apple's families with fixed heights (3) | „Größen wie bisher“ |
 | The active period per browser (6) | „aktiver Zeitraum auf dem Server“ |
 | „Rücksetzer“ (8) | „Buy The Dip heißt Buy The Dip“ |
