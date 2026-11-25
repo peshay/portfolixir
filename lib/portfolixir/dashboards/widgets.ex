@@ -401,6 +401,30 @@ defmodule Portfolixir.Dashboards.Widgets do
       period: @crash_chart_period,
       scope: :none,
       compact: true
+    },
+    %{
+      key: "rebounders",
+      title: "Rebounders after crashes",
+      group: "risk",
+      # Sprint 32 S5 (I61; board 11 ⑤; D-15): the rebounders' lists of the
+      # last three ended crash windows side by side; L three rows, XL five.
+      sizes: ~w(L XL),
+      source: %{
+        routes: [
+          "GET /api/v1/crashes",
+          "GET /api/v1/crashes/:key/rankings",
+          "GET /api/v1/views/:view_id/valuation"
+        ],
+        function: {Portfolixir.Crashes, :rankings, 3},
+        note:
+          "The three newest windows of GET /api/v1/crashes whose fall has ended, each its " <>
+            "list=rebounders over universe=view:<id> (the widget's view; held without one) " <>
+            "or universe=catalogue, limit=5; a name in more than one list is marked by name " <>
+            "only, nothing scored across the windows."
+      },
+      period: :none,
+      scope: :view,
+      compact: true
     }
     # --- S32 S5 end ---
   ]
@@ -637,6 +661,7 @@ defmodule Portfolixir.Dashboards.Widgets do
   def title("sale_review"), do: pgettext("widget kind", "Sale review")
   def title("distance_to_high"), do: pgettext("widget kind", "Distance to high")
   def title("crash_chart"), do: pgettext("widget kind", "Crash chart")
+  def title("rebounders"), do: pgettext("widget kind", "Rebounders after crashes")
   def title(_key), do: nil
 
   @doc "The group's title in the current locale; `nil` for an unknown group."

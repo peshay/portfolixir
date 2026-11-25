@@ -3,7 +3,9 @@ defmodule PortfolixirWeb.DashboardCrashChartWidgetTest do
   # owner's description of 2026-11-25): the widget „Crash-Chart“ — the
   # crash benchmark's closes over the period with every crash window
   # shaded and named, the running one stronger — and „Crashes im
-  # Vergleich“ with the running fall first and „erholt nach“, each figure
+  # Vergleich“ with the running fall first and „erholt nach“, and
+  # „Erholer nach Crashes“, the rebounders of the last ended windows side
+  # by side, each figure
   # compared with the crash routes and the quotes route for the same
   # period. Every name and figure is synthetic.
   #
@@ -23,6 +25,7 @@ defmodule PortfolixirWeb.DashboardCrashChartWidgetTest do
   alias PortfolixirWeb.Dashboard.Widget
   alias PortfolixirWeb.Dashboard.Widgets.CrashChart
   alias PortfolixirWeb.Dashboard.Widgets.Crashes, as: CrashesWidget
+  alias PortfolixirWeb.Dashboard.Widgets.Rebounders
   alias PortfolixirWeb.Format
 
   defp day(offset), do: Date.add(Portfolixir.Clock.today(), offset)
@@ -63,7 +66,8 @@ defmodule PortfolixirWeb.DashboardCrashChartWidgetTest do
   end
 
   # The index falls three times — two windows recovered, the third
-  # running — and a held security falls with it.
+  # running —, a held security falls with it through both, and one only in
+  # the catalogue through the second.
   defp crash_world! do
     world = base_world()
     index = create_security!(name: "Synthetic Crash Index", ticker: "SCI")
@@ -80,7 +84,22 @@ defmodule PortfolixirWeb.DashboardCrashChartWidgetTest do
     ])
 
     held = create_security!(name: "Synthetic Holding", ticker: "SHD")
-    put_quotes!(held, [{day(-700), "50"}, {day(-600), "35"}, {day(-60), "60"}, {day(-5), "50"}])
+
+    put_quotes!(held, [
+      {day(-700), "50"},
+      {day(-650), "30"},
+      {day(-600), "35"},
+      {day(-560), "45"},
+      {day(-512), "48"},
+      {day(-60), "60"},
+      {day(-50), "52"},
+      {day(-5), "58"}
+    ])
+
+    # Only in the catalogue, and only through the second window.
+    outsider = create_security!(name: "Synthetic Outsider", ticker: "SOU")
+    put_quotes!(outsider, [{day(-60), "12"}, {day(-50), "9"}, {day(-5), "11"}])
+
     deposit!(world, "10000", day(-720))
     buy!(world, held, quantity: "10", price: "45", date: day(-720))
     {:ok, _} = Settings.set_crash_benchmark(Actor.owner_ui(), index.id)
@@ -221,6 +240,91 @@ defmodule PortfolixirWeb.DashboardCrashChartWidgetTest do
         end
 
       assert text(Floki.find(row, "[data-role='crash-recovered']")) == expected
+    end
+  end
+
+  # User story (board 11 ⑤; D-15):
+  # As the operator who wants to see what came back after the last
+  # crashes,
+  # I want the rebounders' lists of the last ended windows side by side,
+  # over my holdings or the catalogue, a name in more than one list marked
+  # by its name,
+  # so that I see the repetition myself, with no score across crashes.
+  #
+  # Acceptance criteria:
+  # - The lists are the ended windows (the running one left out), newest
+  #   first, at most three; each list's names and rises equal GET
+  #   /api/v1/crashes/:key/rankings?list=rebounders&universe=held&limit=5
+  #   (L shows three, XL five).
+  # - „Katalog“ reads universe=catalogue.
+  # - A name in more than one list carries „mehrfach“; one in one list
+  #   does not; no figure is drawn that no list holds.
+  # - Its ⓘ names the span (three months from the trough) and
+  #   survivorship.
+  test "„Erholer nach Crashes“ shows the last ended windows' rebounders side by side" do
+    crash_world!()
+    windows = api("/api/v1/crashes")
+
+    ended =
+      (windows["detected"] ++ windows["manual"])
+      |> Enum.reject(& &1["provisional"])
+      |> Enum.sort_by(& &1["start"], :desc)
+      |> Enum.take(3)
+      |> Enum.map(& &1["key"])
+
+    for {universe, size, shown} <- [{"held", "XL", 5}, {"catalogue", "L", 3}] do
+      read = Rebounders.read(universe)
+
+      doc =
+        draw(&Rebounders.widget/1,
+          item: item("rebounders", size, "1y"),
+          universe: universe,
+          card: read
+        )
+
+      lists = Floki.find(doc, "[data-role='rebounders-list']")
+      assert Enum.map(lists, &hd(Floki.attribute(&1, "data-key"))) == ended
+
+      names_per_list =
+        for list <- lists do
+          key = hd(Floki.attribute(list, "data-key"))
+
+          ranking =
+            api(
+              "/api/v1/crashes/#{URI.encode_www_form(key)}/rankings?list=rebounders" <>
+                "&universe=#{universe}&limit=5"
+            )
+
+          expected = Enum.take(ranking["entries"], shown)
+          rows = Floki.find(list, "[data-role='rebounder']")
+          assert length(rows) == length(expected)
+
+          for {row, entry} <- Enum.zip(rows, expected) do
+            assert text(Floki.find(row, "bdi")) == entry["security"]["name"]
+
+            assert text(Floki.find(row, "[data-role='rebounder-return']")) ==
+                     percent(entry["return"])
+          end
+
+          Enum.map(expected, & &1["security"]["name"])
+        end
+
+      counts = names_per_list |> List.flatten() |> Enum.frequencies()
+
+      for row <- Floki.find(doc, "[data-role='rebounder']") do
+        name = text(Floki.find(row, "bdi"))
+        marked? = Floki.find(row, "[data-role='rebounder-repeated']") != []
+        assert marked? == counts[name] > 1, name
+
+        if marked?,
+          do: assert(text(Floki.find(row, "[data-role='rebounder-repeated']")) == "mehrfach")
+      end
+
+      assert Enum.any?(counts, fn {_name, count} -> count > 1 end)
+
+      info = doc |> Floki.find("[data-role='section-info']") |> text()
+      assert info =~ "drei Kalendermonate"
+      assert info =~ "Survivorship"
     end
   end
 end

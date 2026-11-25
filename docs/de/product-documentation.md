@@ -2504,6 +2504,16 @@ nennt und zum ganzen Screen führt.
   festgepinnte Kopie ist also der Zoom. Seine Fenster sind die von `GET
   /api/v1/crashes`, seine Linie die bereinigten Schlusskurse der
   Kurs-Route.
+- **Erholer nach Crashes** (Sprint 32, L und XL; für das Thema
+  Rücksetzer) zeigt die Erholer-Listen der letzten drei Crash-Fenster,
+  deren Fall beendet ist, nebeneinander, über die Bestände des Dashboards
+  („Im Depot“, die seiner Ansicht) oder den ganzen Katalog: der Anstieg
+  jedes Wertpapiers von seinem eigenen Tief im Fenster bis drei Monate nach
+  dem Tief des Fensters, der höchste zuerst, wie `GET
+  /api/v1/crashes/<key>/rankings?list=rebounders` ihn liefert. Ein Name in
+  mehr als einer Liste ist nur nach seinem Namen „mehrfach“ markiert: Über
+  die Crashes hinweg wird nichts addiert oder gereiht. Sein ⓘ nennt
+  Survivorship: Was scheiterte und entfernt wurde, steht in keiner Liste.
 - **Crashes im Vergleich** zeigt den laufenden Fall zuerst, dann die
   anderen, neueste zuerst, und sagt seit Sprint 32 für jedes erholte
   Fenster, nach wie vielen Tagen ab seinem Tief die Benchmark wieder auf

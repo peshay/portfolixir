@@ -91,6 +91,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.Dashboard.Widgets.DistanceToHigh, as: DistanceToHighWidget
   alias PortfolixirWeb.Dashboard.Widgets.Line
   alias PortfolixirWeb.Dashboard.Widgets.Performance, as: PerformanceWidget
+  alias PortfolixirWeb.Dashboard.Widgets.Rebounders, as: ReboundersWidget
   alias PortfolixirWeb.Dashboard.Widgets.Snapshots, as: SnapshotsWidget
   alias PortfolixirWeb.ExcludedSales
   alias PortfolixirWeb.Format
@@ -761,7 +762,8 @@ defmodule PortfolixirWeb.DashboardLive do
         crash_universe: Map.get(socket.assigns, :crash_universe, "held"),
         # --- S32 S5 begin ---
         distance_to_high: %{},
-        crash_chart: %{}
+        crash_chart: %{},
+        rebounders: %{}
         # --- S32 S5 end ---
       )
 
@@ -852,6 +854,17 @@ defmodule PortfolixirWeb.DashboardLive do
       once.(:crash_chart, item_periods(items, "crash_chart", period)),
       :crash_chart,
       &CrashChartWidget.read/1
+    )
+    |> start_each(
+      once.(
+        :rebounders,
+        Enum.map(
+          scopes.("rebounders"),
+          &ReboundersWidget.universe(socket.assigns.crash_universe, &1)
+        )
+      ),
+      :rebounders,
+      &ReboundersWidget.read/1
     )
 
     # --- S32 S5 end ---
@@ -1049,7 +1062,8 @@ defmodule PortfolixirWeb.DashboardLive do
               :allocation_drift,
               :crashes,
               :distance_to_high,
-              :crash_chart
+              :crash_chart,
+              :rebounders
             ] do
     answer =
       case result do
@@ -2242,7 +2256,8 @@ defmodule PortfolixirWeb.DashboardLive do
       :crashes,
       :crash_universe,
       :distance_to_high,
-      :crash_chart
+      :crash_chart,
+      :rebounders
     ])
   end
 
@@ -2794,6 +2809,15 @@ defmodule PortfolixirWeb.DashboardLive do
 
     ~H"""
     <CrashChartWidget.widget item={@item} card={@card} />
+    """
+  end
+
+  defp widget(%{item: %{kind: "rebounders"} = item} = assigns) do
+    universe = ReboundersWidget.universe(assigns.crash_universe, item.scope)
+    assigns = assign(assigns, :card, Map.get(assigns.rebounders, universe))
+
+    ~H"""
+    <ReboundersWidget.widget item={@item} universe={@crash_universe} card={@card} />
     """
   end
 

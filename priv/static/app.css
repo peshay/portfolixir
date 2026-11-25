@@ -16520,6 +16520,55 @@ a.widget-row:hover .widget-row__name {
   font-weight: 600;
 }
 
+/* „Erholer nach Crashes“ (board 11 ⑤): the last windows' lists side by
+   side, one column each; a name in more than one list marked quietly. */
+.widget-rebounders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-3);
+}
+
+.widget-rebounders__window {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.widget-rebounders__rows {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.widget-rebounders__rows > li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.widget-rebounders__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.widget-rebounders__repeated {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .crash-chart__summary {
   display: flex;
   flex-wrap: wrap;

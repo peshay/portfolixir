@@ -2262,6 +2262,15 @@ screen.
   period's first and last close, its low and its high. It follows the
   dashboard's period, so a copy pinned to 1M is the zoom. Its windows are
   `GET /api/v1/crashes`'s, its line the quotes route's adjusted closes.
+- **Rebounders after crashes** (Sprint 32, L and XL; for the theme
+  Pullbacks) shows the rebounders' lists of the last three crash windows
+  whose fall has ended side by side, over the dashboard's holdings
+  ("In depot", its view's) or the whole catalogue: each security's rise
+  from its own low in the window to three months after the window's low,
+  highest first, as `GET /api/v1/crashes/<key>/rankings?list=rebounders`
+  answers it. A name in more than one list is marked "several" by its
+  name only: nothing is added up or ranked across the crashes. Its ⓘ
+  names survivorship: what failed and was removed is in no list.
 - **Crashes compared** lists the running fall first, then the others
   newest first, and since Sprint 32 says for each recovered window after
   how many days from its low the benchmark was back at its high

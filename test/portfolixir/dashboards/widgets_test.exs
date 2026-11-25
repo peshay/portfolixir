@@ -29,7 +29,8 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     "sale_review" => {~w(L row), "analyses", "Verkaufsrückblick"},
     # Sprint 32 S5 (I61): the themes' kinds.
     "distance_to_high" => {~w(L XL), "analyses", "Abstand zum Hoch"},
-    "crash_chart" => {~w(L XL), "risk", "Crash-Chart"}
+    "crash_chart" => {~w(L XL), "risk", "Crash-Chart"},
+    "rebounders" => {~w(L XL), "risk", "Erholer nach Crashes"}
   }
 
   # User story:
@@ -40,7 +41,8 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   #
   # Acceptance criteria:
   # - The registry holds exactly the kinds: eleven of Sprint 31 and
-  #   Sprint 32 S5's „Abstand zum Hoch“ and „Crash-Chart“, each with the
+  #   Sprint 32 S5's „Abstand zum Hoch“, „Crash-Chart“ and „Erholer nach
+  #   Crashes“, each with the
   #   sizes and the group the board draws, in the catalogue's order.
   # - Every kind is registered with its compact form (ADR-0062 §1).
   # - Lookup is by string key; an unknown string, an atom or another term
@@ -48,7 +50,7 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   test "the registry holds every kind with its sizes and group" do
     assert Widgets.keys() == ~w(total_value data_quality due off_target performance movers
                                 snapshots allocation_drift crashes bitcoin_cycle sale_review
-                                distance_to_high crash_chart)
+                                distance_to_high crash_chart rebounders)
 
     for {key, {sizes, group, _german}} <- @slice do
       assert {:ok, kind} = Widgets.fetch(key)
