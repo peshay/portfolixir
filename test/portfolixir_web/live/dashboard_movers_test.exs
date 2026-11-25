@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
 
   import ExUnit.CaptureLog
   import Phoenix.LiveViewTest
+  import PortfolixirWeb.PeriodMenuHelpers
   import PortfolixirWeb.PreferenceCookieHelpers
 
   import Portfolixir.WorldFixtures,
@@ -264,9 +265,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
         if window == "1y" do
           doc
         else
-          view
-          |> element("[data-role='dashboard-period'] button[data-period='#{period}']")
-          |> render_click()
+          pick_period(view, period)
 
           assert_patch(view, "/?period=#{period}")
           loaded(view, window)
@@ -579,9 +578,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     assert doc |> Floki.find("[data-role='movers-wealth-link']") |> text() ==
              "In Vermögen ansehen →"
 
-    view
-    |> element("[data-role='dashboard-period'] button[data-period='3m']")
-    |> render_click()
+    pick_period(view, "3m")
 
     doc = loaded(view, "quarter")
 

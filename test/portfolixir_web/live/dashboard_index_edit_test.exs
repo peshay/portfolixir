@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.DashboardIndexEditTest do
   use PortfolixirWeb.ConnCase, async: true, group: :dashboards
 
   import Phoenix.LiveViewTest
+  import PortfolixirWeb.PeriodMenuHelpers
   import PortfolixirWeb.PreferenceCookieHelpers
   import Portfolixir.WorldFixtures, only: [base_world: 0, buy!: 3, put_quote!: 3]
 
@@ -73,7 +74,7 @@ defmodule PortfolixirWeb.DashboardIndexEditTest do
 
     {:ok, _} = Dashboards.update_dashboard(Actor.api_token_rw("agent"), a.id, %{"position" => 5})
     assert hd(Dashboards.list_dashboards()).id == b.id
-    view |> element("[data-role='dashboard-period'] [data-period='3m']") |> render_click()
+    pick_period(view, "3m")
 
     assert has_element?(view, "[data-role='edit-handle']")
     assert has_element?(view, "#app-topbar-title", "A")
@@ -85,7 +86,7 @@ defmodule PortfolixirWeb.DashboardIndexEditTest do
     view = editing(conn, "en")
 
     :ok = delete!(a)
-    view |> element("[data-role='dashboard-period'] [data-period='3m']") |> render_click()
+    pick_period(view, "3m")
 
     refute has_element?(view, "[data-role='edit-handle']")
     assert status(view) =~ "deleted elsewhere; the edit ended unsaved"

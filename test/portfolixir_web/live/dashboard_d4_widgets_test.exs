@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
   use PortfolixirWeb.ConnCase, async: true, group: :dashboards
 
   import Phoenix.LiveViewTest
+  import PortfolixirWeb.PeriodMenuHelpers
   import Portfolixir.WorldFixtures
   import PortfolixirWeb.PreferenceCookieHelpers
 
@@ -848,7 +849,7 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
 
-    view |> element("[data-role='dashboard-period'] [data-period='3m']") |> render_click()
+    pick_period(view, "3m")
     render_async(view)
 
     from = today |> Date.shift(month: -3) |> Date.add(1) |> Date.to_iso8601()

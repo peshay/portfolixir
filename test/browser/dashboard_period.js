@@ -48,28 +48,26 @@ async function open(page, path) {
   await settle(page);
 }
 
+// The active period as the bar names it (Sprint 32 T4: a chip of the
+// quick choice is pressed only for a period the quick choice holds).
 function pressed(page) {
-  return page.evaluate(() =>
-    [...document.querySelectorAll("[data-role='dashboard-period'] button[aria-pressed='true']")].map(
-      (b) => b.dataset.period
-    )
-  );
+  return page.evaluate(() => document.querySelector("[data-role='period-menu-root']").dataset.activePeriod);
 }
 
-// Waits until the address names `period` (none for 1J), the selector
-// presses it and the performance widget follows it.
+// Waits until the address names `period` (none for 1J), the bar names
+// it and the performance widget follows it.
 async function onPeriod(page, path, period, tag) {
   try {
     await page.waitForFunction(
       ([p, period, tag]) => {
         const named = new URLSearchParams(location.search).get("period");
-        const button = document.querySelector("[data-role='dashboard-period'] button[aria-pressed='true']");
+        const root = document.querySelector("[data-role='period-menu-root']");
         const perf = document.querySelector("[data-widget-kind='performance'] [data-role='widget-period']");
         return (
           location.pathname === p &&
           named === (period === "1y" ? null : period) &&
-          button !== null &&
-          button.dataset.period === period &&
+          root !== null &&
+          root.dataset.activePeriod === period &&
           perf !== null &&
           perf.textContent.trim() === tag
         );
@@ -83,8 +81,16 @@ async function onPeriod(page, path, period, tag) {
   }
 }
 
+// A chip of the quick choice where the bar shows one, else the menu's
+// button and the period in the menu (Sprint 32 T4).
 async function pick(page, period) {
-  await page.click("[data-role='dashboard-period'] button[data-period='" + period + "']");
+  const chip = "[data-role='dashboard-period'] button[data-period='" + period + "']";
+  if ((await page.$(chip)) !== null) {
+    await page.click(chip);
+  } else {
+    await page.click("[data-role='period-menu-toggle']");
+    await page.click("[data-role='period-option'][data-period='" + period + "']");
+  }
 }
 
 (async () => {

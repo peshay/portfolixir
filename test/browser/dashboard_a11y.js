@@ -179,8 +179,9 @@ async function periodStrip(browser) {
     const ctx = await browser.newContext({ viewport: { width, height: 852 } });
     const page = await ctx.newPage();
     await open(page, board);
-    // The chip before the last (5J since Sprint 32 T1), then Tab to Max.
-    await page.focus("[data-period='5y']");
+    // The chip before the last of the quick choice (1J by default since
+    // Sprint 32 T4), then Tab to Max.
+    await page.focus("[data-role='dashboard-period'] button:nth-last-child(2)");
     await page.keyboard.press("Tab");
     await page.waitForTimeout(400);
     const r = await page.evaluate(() => {

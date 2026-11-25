@@ -366,3 +366,18 @@ msgstr "ist keine Größe, die diese Widget-Art kennt: die Größen sind die Fam
 #, elixir-autogen, elixir-format
 msgid "must be the whole number the period was read with"
 msgstr "muss die ganze Zahl sein, mit der der Zeitraum gelesen wurde"
+
+#: lib/portfolixir/periods/saved_period.ex:78
+#, elixir-autogen, elixir-format
+msgid "must be on or after 1970-01-01"
+msgstr "muss am oder nach dem 01.01.1970 liegen"
+
+#: lib/portfolixir/periods/saved_period.ex:95
+#, elixir-autogen, elixir-format
+msgid "must be on or after from"
+msgstr "muss am oder nach dem ersten Tag liegen"
+
+#: lib/portfolixir/periods/saved_period.ex:81
+#, elixir-autogen, elixir-format
+msgid "must not be after today"
+msgstr "darf nicht nach heute liegen"

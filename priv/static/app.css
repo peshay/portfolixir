@@ -15294,6 +15294,220 @@ a.widget-row:hover .widget-row__name {
   margin-left: auto;
 }
 
+/* Sprint 32 T4 (ADR-0062's amendment of 2026-11-25, point 6; board
+   ux-design-2026-11-25-sprint32/04 ① and ②): after the quick choice, one
+   button that opens the period menu, named for the active period where the
+   quick choice does not hold it and for an own period always, its dates
+   beside it; the menu in four groups (rolling, calendar, own, year), each
+   option with ★ beside it; in the compact class a sheet from the bottom
+   edge. */
+.dashboard-period-menu {
+  position: relative;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.dashboard-period-menu__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 32px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dashboard-period-menu__toggle.is-active {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.dashboard-period-menu__toggle:focus-visible,
+.dashboard-period-menu__pick:focus-visible,
+.dashboard-period-menu__star:focus-visible,
+.dashboard-period-menu__own-name:focus-visible,
+.dashboard-period-menu__edit:focus-visible,
+.dashboard-period-menu__add:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.dashboard-period-menu__dates {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-period-menu__say {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.dashboard-period-menu__say:empty {
+  display: none;
+}
+
+.dashboard-period-menu__panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  display: grid;
+  gap: var(--space-3);
+  width: min(30rem, calc(100vw - 2 * var(--space-4)));
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-panel);
+}
+
+.dashboard-period-menu__group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.dashboard-period-menu__head {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dashboard-period-menu__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.dashboard-period-menu__list {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.dashboard-period-menu__option {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+}
+
+.dashboard-period-menu__option.is-off {
+  border-style: dashed;
+}
+
+.dashboard-period-menu__pick,
+.dashboard-period-menu__own-name {
+  min-height: 28px;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dashboard-period-menu__pick.is-active,
+.dashboard-period-menu__own-name.is-active {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.dashboard-period-menu__pick:disabled {
+  color: var(--color-text-subtle);
+  cursor: not-allowed;
+}
+
+.dashboard-period-menu__star,
+.dashboard-period-menu__edit {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.dashboard-period-menu__star.is-on {
+  color: var(--color-warning);
+}
+
+.dashboard-period-menu__own {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.dashboard-period-menu__own-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.dashboard-period-menu__own-dates {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dashboard-period-menu__add {
+  justify-self: start;
+  min-height: 28px;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dashboard-period-menu__note {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-muted);
+  font-size: 12px;
+}
+
+.period-dialog__to {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.period-dialog__choice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 @media (width < 600px) {
   .dashboard-period {
     flex: 1 0 100%;
@@ -15313,6 +15527,31 @@ a.widget-row:hover .widget-row__name {
     padding-inline: var(--space-3);
     font-size: 15px;
     scroll-snap-align: start;
+  }
+  /* The menu as a sheet from the bottom edge, its targets thumb-sized. */
+  .dashboard-period-menu__panel {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    max-height: 80vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .dashboard-period-menu__toggle,
+  .dashboard-period-menu__pick,
+  .dashboard-period-menu__own-name,
+  .dashboard-period-menu__star,
+  .dashboard-period-menu__edit,
+  .dashboard-period-menu__add {
+    min-height: 44px;
+  }
+
+  .dashboard-period-menu__star,
+  .dashboard-period-menu__edit {
+    min-width: 44px;
   }
 }
 
