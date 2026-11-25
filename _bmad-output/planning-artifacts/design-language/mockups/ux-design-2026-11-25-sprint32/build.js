@@ -339,8 +339,88 @@ function board02() {
 }
 
 // ---------- write ----------
-const out = { '01-resize': board01(), '02-starter-dashboards': board02(), '03-templates': board03(), '04-periods': board04(), '05-new-widgets': board05() };
+const out = { '01-resize': board01(), '02-starter-dashboards': board02(), '03-templates': board03(), '04-periods': board04(), '05-new-widgets': board05(), '06-real-app': board06(), '07-widget-look': board07() };
 for (const [name, html] of Object.entries(out)) {
   fs.writeFileSync(path.join(__dirname, name + '.html'), html);
   console.log('wrote ' + name + '.html');
+}
+
+// ---------- board 06: the real app, rearranged ----------
+function board06() {
+  const img = (f, cap) => `<figure class="mock-fig"><img src="${f}" style="width:100%;border:1px solid var(--color-border-strong);border-radius:10px" alt=""><p class="sp-cap">${cap}</p></figure>`;
+  return page('Sprint 32 · Board 06 — die echte App als Dashboard', `
+<header class="mock-board mock-head"><h1>Sprint 32 · Board 06 — die echte App, als Dashboard angeordnet ${SYN}</h1>
+<p class="mock-note">Gezeigt auf deine Frage vom 25.11. („Zeig mir mal Beispiel, wie die jetzige Vermögensübersicht und Allokation als Dashboard aussehen würden“). Keine Zeichnung: die laufende App auf dem synthetischen Review-Seed (<code>priv/demo/finding_surfaces_seed.exs</code>), deren Seiten im Browser so umgestellt wurden, wie Board 02 es vorsieht. Zahlen, Diagramme und Bedienelemente sind echt, nur die Anordnung ist der Entwurf; nichts ist gespeichert. Die Skripte liegen in <code>real-app/</code>.</p></header>
+<section class="mock-board"><div class="mock-pickbar"><p><b>Deine Wahl vom 25.11.: Kennzahlen A</b> („Ja, A sieht super aus“): der Gesamtwert mit dem Balken Wertpapiere zu Cash, drei gleich gebaute Spalten (Ergebnis, TTWROR, IRR), darunter die Wertbrücke Anfang + Nettoflüsse + Ergebnis = heute, ein ⓘ für das ganze Widget. „Ergebnis“ statt „Gewinn“, weil die Tabelle „Beitrag je Position“ dieselbe Zahl so nennt.</p></div></section>
+<section class="mock-board"><h2>① Kennzahlen: heute ${tag('before', 'vorher')}, A ${tag('rec', 'gewählt')}, B ${tag('alt', 'B')}</h2>
+${img('06-kpi-heute.png', 'Heute: sieben Kacheln in zwei Reihen ungleicher Größe, ein ⓘ an jeder, Unterzeilen in drei Stilen.')}
+${img('06-kpi-A.png', 'A: Gesamtwert und Aufteilung, drei Renditezahlen auf einer Linie, die Wertbrücke geht auf den Cent auf (76.617,17 + 4.341,20 + 7.348,65 = 88.307,02).')}
+${img('06-kpi-A-dark.png', 'A im Dunkelmodus.')}
+${img('06-kpi-B.png', 'B: fünf Spalten in einer Zeile; Anfangswert, Nettoflüsse und Multiplikator hinter „weitere Kennzahlen“.')}</section>
+<section class="mock-board"><h2>② Das Start-Dashboard „Bestände“ <small>mit den heutigen Kennzahlen; A ersetzt sie beim Bau</small></h2>
+<div class="sp-row">${img('06-real-bestaende.png', 'Wie es mitkommt: jeder Abschnitt des Tabs ein Widget, Positionen und Verrechnungskonten zeigen die ersten Zeilen und „Alle anzeigen“.')}${img('06-real-bestaende-angepasst.png', 'Nach einer Minute „Bearbeiten“: drei Hauptzahlen, die Datenhinweise als kleines M-Widget daneben, Positionen und Konten nebeneinander; rund ein Drittel kürzer.')}</div>
+<div class="sp-row">${img('06-real-bestaende-bearbeiten.png', 'Bearbeiten: Griff, Größen (S, W, Zeile), × an jedem Widget; „Widget hinzufügen“, „Zurücksetzen“, „Fertig“.')}${img('06-real-allokation.png', 'Das Start-Dashboard „Allokation & Ziele“: Kennzahlen-Zeile und die Allokation als ein Widget.')}</div></section>
+`);
+}
+
+// ---------- board 07: one look for every widget ----------
+function board07() {
+  const F = [
+    ['1', 'Kopf', '„folgt · 1J“ steht auf einer eigenen Zeile unter dem Titel und kostet jedem Widget eine Zeile.', '#0, #1, #7, #8, #9, #10, #11'],
+    ['2', 'Grundlage im Inhalt', 'Erklärsätze oben im Inhalt: Tops und Flops (drei Zeilen, in S ein Viertel der Fläche), Abseits des Ziels, Allokation, Verkaufsrückblick; der Bitcoin-Zyklus endet mit einem Absatz. Die Grundlage gehört hinter ⓘ (ADR-0062 §1, I1).', '#6, #10, #11, #14, #15, #18–#20'],
+    ['3', 'Warnkästen', 'Ein großer ACHTUNG-Kasten oben drückt die eigentliche Zahl nach unten (Gesamtwert M, Verkaufsrückblick); Gesamtwert S schneidet seine Warnung ab („Nicht in der Sum…“); Datenqualität M ist ein roter Fließtext voller Links.', '#0, #1, #3, #20'],
+    ['4', 'Karte in der Karte', 'Gesamtwert M zeichnet eine Kachel mit Farbstreifen und eine Vierer-Leiste in seiner Karte; zwei Zahlen sind abgeschnitten („25.11.202“, „LETZTE BUCHUNG“ läuft über).', '#1'],
+    ['5', 'Zahlengrößen', 'Die Hauptzahl ist mal 26, mal 30, mal 24 px, mal grün, mal schwarz, mal ein Datum; Labels mal in Großbuchstaben, mal nicht.', '#0, #1, #5, #7, #12'],
+    ['6', 'Größen ohne Sinn', 'Tops und Flops S ist höher als M (593 zu 412 px) und kürzt jeden Namen; Crashes L und Bitcoin-Zyklus L zeigen dasselbe wie M mit Leerraum; Allokation T ist M, nur schmaler.', '#10, #11, #15, #17, #19'],
+    ['7', 'Fußzeile', 'Neun verschiedene Linktexte, mal mit, mal ohne Ansicht links, Gesamtwert S mit zwei Fußzeilen.', 'alle'],
+    ['8', 'Fließtext statt Spalte', '„Rechnerisch zum Soll“ ist ein Absatz mit fünf Beträgen hinter der Drift-Tabelle, statt einer Spalte in ihr.', '#14, #15'],
+    ['9', 'Schalter im Widget', 'Kursrendite/Beitrag und Im Depot/Katalog stehen mal unter dem Erklärtext, mal als volle Leiste.', '#10, #11, #16, #17'],
+  ];
+  const rules = [
+    ['Kopf, eine Zeile', 'Titel · ⓘ · Zeitraum als kleine Marke („1J“, „📌 Max“, „ohne Zeitraum“ entfällt) · rechts der Schalter des Widgets · ⋯'],
+    ['Eine Hauptzahl-Form', 'Label klein über der Zahl; Zahl S 28 px, W und M als Held 34 px, Nebenzahlen 24 px; darunter eine kurze graue Zeile. Farbe nur für Plus und Minus. Keine Karte in der Karte, kein Farbstreifen im Widget (der Rest der Farbfrage bleibt I48).'],
+    ['Listen wie der Verkaufsrückblick', 'Name links (eine Zeile, voller Name im Tooltip), Zahl rechts, eine zweite graue Zeile wo nötig. Zahlen werden nie gekürzt; was nicht passt, fällt in der kleineren Größe weg.'],
+    ['Grundlage hinter ⓘ', 'Im Inhalt höchstens eine kurze Zeile (Ansicht · Zeitraum); Methode, Ausschlüsse, „keine Prognose“ stehen im ⓘ.'],
+    ['Warnung als Zeile', 'Im Widget nie ein Kasten: eine Zeile „⚠ 3 nicht in der Summe“ im Fuß, mit Link; der Kasten gehört in Datenhinweise und in die ganze Ansicht.'],
+    ['Fuß, eine Zeile', 'links die Ansicht (wo es eine gibt), rechts ein Link, benannt nach seinem Ziel („Bestände →“, „Alle Trades →“).'],
+    ['Größenregel', 'jede Größe zeigt mehr vom Gleichen (Änderung vom 25.11., 3). Eine Größe, die nichts hinzufügt, entfällt.'],
+  ];
+  const k = (l, v, cls = '', s = '') => `<div><div class="lab">${l}</div><div class="${cls}">${v}</div>${s ? `<div class="sub">${s}</div>` : ''}</div>`;
+  const hd = (t, extra = '') => `<div class="wd-h" style="font-size:13px"><span class="wd-t">${t}</span><span class="wd-i">i</span><span class="pd-follow">1J</span><span class="wd-sp"></span>${extra}<span class="wd-more">⋯</span></div>`;
+  const ft = (l, a) => `<div class="wd-foot" style="border-top:1px solid var(--color-border);padding-top:6px"><span>${l}</span><a>${a} →</a></div>`;
+  const row = (n, s, v, cls) => `<li><span class="wd-sp"><b style="font-weight:600">${n}</b>${s ? `<br><span class="wd-muted">${s}</span>` : ''}</span><span class="${cls}" style="font-weight:650">${v}</span></li>`;
+  const after = `
+<div class="g7">
+<section class="wd" style="grid-column:span 3">${hd('Gesamtwert')}<div class="g7k"><div class="big2">88.307,02 <small>EUR</small></div><div class="sub"><span class="pos">+8,0 %</span> TTWROR · <span class="pos">+7.348,65</span> EUR</div></div><div class="wd-body" style="justify-content:flex-end">${spark(total.slice(-120), 200, 26)}</div>${ft('⚠ 3 nicht in der Summe', 'Bestände')}</section>
+<section class="wd" style="grid-column:span 3">${hd('Tops und Flops')}<ul class="wd-list g7l">${row('Allianz SE', '', '+31,4 %', 'pos')}${row('Apple Inc.', '', '+25,3 %', 'pos')}${row('iShares Core MSCI World', '', '−0,6 %', 'neg')}${row('Vanguard FTSE All-World', '', '+0,3 %', 'pos')}</ul>${ft('Ansicht Alles', 'Bestände')}</section>
+<section class="wd" style="grid-column:span 6">${hd('Datenqualität', '<span class="pd-na" style="border-style:solid">3 Probleme · 1 Achtung</span>').replace('<span class="pd-follow">1J</span>', '')}<ul class="wd-list g7l">${row('<span class="wd-dot" style="background:var(--color-danger);margin-right:6px"></span>3 Anleihen auf zwei Preisskalen', 'zählen hundertfach zu hoch oder zu niedrig', '3', '')}${row('<span class="wd-dot" style="background:var(--color-danger);margin-right:6px"></span>1 Kursreihe passt nicht zu ihren Buchungen', 'Tamarisk Systems Inc.', '1', '')}${row('<span class="wd-dot" style="background:var(--color-warning);margin-right:6px"></span>19 Kurse älter als 7 Tage', 'gehaltene Wertpapiere', '19', '')}${row('<span class="wd-dot" style="background:var(--color-warning);margin-right:6px"></span>1 ohne Anlageklasse', 'Ostsee Logistik 4,10 % 2028/2033', '1', '')}</ul>${ft('über alle Depots', 'Wertpapiere prüfen')}</section>
+<section class="wd" style="grid-column:span 6">${hd('Tops und Flops', '<span class="wd-chips"><span class="on">Kursrendite</span><span>Beitrag</span></span>')}<div class="wd-two"><div><h4>Höchste</h4><ul class="wd-list g7l">${row('Allianz SE vinkulierte Namens-Aktien', '', '+31,4 %', 'pos')}${row('Apple Inc.', '', '+25,3 %', 'pos')}${row('NVIDIA Corporation', '', '+19,9 %', 'pos')}${row('Microsoft Corporation', '', '+17,1 %', 'pos')}</ul></div><div><h4>Niedrigste</h4><ul class="wd-list g7l">${row('iShares Core MSCI World', '', '−0,6 %', 'neg')}${row('Vanguard FTSE All-World', '', '+0,3 %', 'pos')}${row('Bitcoin', '', '+12,3 %', 'pos')}</ul></div></div>${ft('Ansicht Alles · 28 ohne Kursrendite', 'Bestände')}</section>
+<section class="wd" style="grid-column:span 6">${hd('Allokation und Drift').replace('<span class="pd-follow">1J</span>', '')}<table class="wd-tab"><tr><th>Kategorie</th><th class="num">Ist</th><th class="num">Soll</th><th class="num">Drift</th><th class="num">≈ zum Soll</th></tr>${[['Stability', '9,3', '15,0', '−5,7', '+4.243,67'], ['Growth', '35,1', '65,0', '−29,9', '+22.452,23'], ['Crypto', '3,4', '5,0', '−1,6', ''], ['Cash', '21,6', '20,0', '+1,6', '']].map(([n, i, s, d, z]) => `<tr><td>${n}</td><td class="num">${i} %</td><td class="num">${s} %</td><td class="num ${Math.abs(parseFloat(d.replace('−', '-').replace(',', '.'))) >= 5 ? 'neg' : 'wd-muted'}">${d} pp</td><td class="num">${z}</td></tr>`).join('')}</table><div class="sub" style="margin-top:6px">≈ zum Soll: nur Anzeige, kein Auftrag (ADR-0023)</div>${ft('Plan „Plan“ auf Strategies · Ansicht Alles', 'Ziele')}</section>
+<section class="wd" style="grid-column:span 6">${hd('Verkaufsrückblick').replace('<span class="pd-follow">1J</span>', '')}<ul class="wd-list g7l">${row('Brightwater Utilities plc', 'verkauft 16.10.2026 · 460 Tage', '+30,00 EUR', 'pos')}${row('Tamarisk Mining Ltd', 'verkauft 17.08.2026 · 600 Tage', '−400,00 EUR', 'neg')}${row('Kestrel Bay Resources Inc.', 'verkauft 28.07.2026 · 80 Tage', '+151,00 EUR', 'pos')}${row('Wrenfield Gardens AG', 'verkauft 28.07.2026 · 780 Tage', '+420,00 EUR', 'pos')}</ul>${ft('⚠ 2 Verkäufe ohne vollständige Daten · alle Depots', 'Alle Trades')}</section>
+</div>`;
+  return page('Sprint 32 · Board 07 — ein Look für jedes Widget', `
+<style>
+.g7{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;align-items:start}
+.g7 .wd{padding:12px 16px}
+.g7 .lab{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--color-text-muted)}
+.g7 .big2{font-size:28px;font-weight:760;letter-spacing:-.015em;font-variant-numeric:tabular-nums;line-height:1.1}
+.g7 .big2 small{font-size:13px;font-weight:600;color:var(--color-text-muted)}
+.g7 .sub{font-size:12px;color:var(--color-text-muted);margin-top:3px}
+.g7l li{padding:6px 0;font-size:12.5px;align-items:baseline}
+.g7 .wd-foot{font-size:11.5px}
+table.f7{width:100%;border-collapse:collapse;font-size:12.5px}
+table.f7 th,table.f7 td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--color-border);vertical-align:top}
+table.f7 th{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--color-text-muted)}
+table.f7 td:first-child{font-weight:800;color:var(--color-accent);width:24px}
+</style>
+<header class="mock-board mock-head"><h1>Sprint 32 · Board 07 — ein Look für jedes Widget ${SYN}</h1>
+<p class="mock-note">Dein Vorschlag vom 25.11.: „Vielleicht sollten wir einmal den Look von allen Widgets prüfen?“ Geprüft: alle elf Widget-Arten in allen ihren Rastergrößen (21), fotografiert in der laufenden App auf dem synthetischen Review-Seed, auf einem Wegwerf-Dashboard, das jede Art in jeder Größe hält (<code>real-app/all_sizes.exs</code>, <code>real-app/widgets.js</code>). Die Nummern unten (#0 bis #20) stehen auf den beiden Kontaktbögen.</p></header>
+<section class="mock-board"><div class="mock-pickbar"><p><b>Empfehlung:</b> eine Widget-Anatomie für alle, abgeleitet aus deiner Wahl A für die Kennzahlen (Board 06): ein Kopf auf einer Zeile, eine Form für Hauptzahlen, Listen wie der Verkaufsrückblick, die Grundlage hinter ⓘ, Warnungen als eine Zeile, ein Fuß auf einer Zeile, die Größenregel. Sprint 32 setzt sie als eigene Lane L auf allen elf Arten um, bevor Lane W die neuen Widgets von Vermögen baut, damit diese gleich so entstehen. <b>Umschalten:</b> „Look erst nach Vermögen“.</p></div></section>
+<section class="mock-board"><h2>① Was die Prüfung findet</h2><div class="mock-frame"><table class="f7"><tr><th>#</th><th>Thema</th><th>Befund</th><th>Widgets</th></tr>${F.map(([n, t, b, w]) => `<tr><td>${n}</td><td><b>${t}</b></td><td>${b}</td><td class="wd-muted">${w}</td></tr>`).join('')}</table>
+<p class="sp-cap">Nebenbei aufgefallen, kein Look-Thema: in Wertentwicklung und Gesamtwert fällt der Wertverlauf an einem einzelnen Tag tief ab (#0, #8, #9). Der Review-Seed enthält absichtlich Tage ohne Kurs und Wechselkurs; ob der Abfall genau das ist, prüft Lane W's Vergleichstest gegen die Route, bevor jemand ihn für einen Fehler hält.</p></div></section>
+<section class="mock-board"><h2>② Die Anatomie ${tag('rec', 'empfohlen')}</h2><div class="mock-frame"><table class="f7">${rules.map(([t, r], i) => `<tr><td>${i + 1}</td><td style="width:200px"><b>${t}</b></td><td>${r}</td></tr>`).join('')}</table></div></section>
+<section class="mock-board"><h2>③ Sechs Widgets nach der Anatomie ${tag('rec', 'nachher')} <small>dieselben synthetischen Zahlen wie auf den Kontaktbögen</small></h2>${after}
+<p class="mock-note" style="margin-top:10px">Gesamtwert S: die Warnung als Zeile im Fuß. Tops und Flops S: eine Liste, ohne Erklärtext, niedriger als M. Datenqualität M: die Liste von S mit Zählern und je einer erklärenden Zeile statt des roten Fließtexts. Tops und Flops M: der Schalter im Kopf. Allokation und Drift: „≈ zum Soll“ als Spalte. Verkaufsrückblick: der Warnkasten wird eine Fußzeile, die Liste bleibt, sie ist schon das Vorbild. Bitcoin-Zyklus L bekommt das Zyklus-Diagramm, das es als Komponente schon gibt; Crashes L und Allokation T entfallen nach der Größenregel (gespeicherte Widgets dieser Größen werden als M gelesen).</p></section>
+<section class="mock-board"><h2>④ Heute ${tag('before', 'vorher')} <small>alle 21, Kontaktbögen</small></h2><img src="07-heute-1.png" style="width:100%;border:1px solid var(--color-border-strong);border-radius:10px" alt=""><img src="07-heute-2.png" style="width:100%;margin-top:12px;border:1px solid var(--color-border-strong);border-radius:10px" alt=""></section>
+`);
 }

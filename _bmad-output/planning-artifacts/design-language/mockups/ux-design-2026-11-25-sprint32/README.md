@@ -1,7 +1,8 @@
 # Planning boards: Sprint 32, the widget pass after the owner's feedback
 
 Drawn on 2026-11-25 after the owner's feedback on Sprint 31's first slice
-of I56 („Im letzten großen Sprint hast du das ja hingeklatscht, aber das
+of I56 (boards 06 and 07 the same day, after the owner's questions on the
+first five) („Im letzten großen Sprint hast du das ja hingeklatscht, aber das
 sieht scheiße aus. Total unübersichtlich.“). The owner asked for five
 things, each drawn here with its recommendation; the ideas are I57 to I61
 in `../../../ideas.md`, the decisions ADR-0062's amendment of 2026-11-25 and
@@ -14,6 +15,9 @@ the Sprint 32 plan (`sprint-plan-2026-11-25-sprint32.md`).
 | `03-templates.html` → `03-templates--light.png`, `--dark.png` | „Neues Dashboard“ opens a gallery: „Leer“, the starter dashboards, then themes (Performance, Krypto Lover, Rücksetzer, Einkommen & Steuer), each card with its grid in miniature and its widgets (①); the dialog after the click, with a name and, where the template needs one, a view the dashboard stores as its own scope (②). The owner's question: may a shipped template be called „Buy The Dip“. |
 | `04-periods.html` → `04-periods--light.png`, `--dark.png` | The period: a quick choice of up to six (the operator's ★) and one button that opens a menu in four groups, rolling, calendar, year and the operator's own saved periods (①, ②); the same menu pins a widget's period, with the table of how each kind answers a calendar period (③); for contrast, every choice as a chip (④, not recommended). |
 | `05-new-widgets.html` → `05-new-widgets--light.png`, `--dark.png` | A preview for the next widget pass: the monthly-return heatmap and the trading activity, both ladder level (a) with their basis; both are new figures and get their own decision (ADR-0063) on that pass's planning PR. „Abstand zum Hoch“, which needs no new figure, comes in Sprint 32 for the two theme templates. |
+| `06-real-app.html` → `06-real-app--light.png`, `--dark.png`, with `06-*.png` | Drawn after the owner asked to see Wealth and Allocation as dashboards: the running app on the synthetic review seed, its pages rearranged in the browser as board 02 proposes (the starter „Bestände“ as delivered, after a minute of editing, in the edit mode, and „Allokation & Ziele“), and three forms of the Kennzahlen widget: today, A (the owner's pick: the total with its split, Ergebnis, TTWROR and IRR on one line, the value bridge), B (one row of five). |
+| `07-widget-look.html` → `07-widget-look--light.png`, `--dark.png`, with `07-heute-1.png`, `07-heute-2.png` | Drawn after the owner asked to check the look of every widget: all eleven kinds in all 21 sizes photographed in the running app (the two contact sheets), nine findings, the widget anatomy derived from A, and six widgets redrawn by it. |
+| `real-app/` | The scripts behind boards 06 and 07: `dash.js` and `kpi.js` rearrange the running app's pages (nothing is stored, the LiveView socket is cut first), `all_sizes.exs` stores a throwaway dashboard with every kind in every size **on a throwaway review database only**, `widgets.js` photographs each widget. They need a local instance on the review seed at port 4003 (`priv/demo/README.md`). |
 | `board.css` | The shared `mock-*` and `wd-*` rules of the I56 idea board, then this board's `sp-*` rules. |
 | `build.js` | Generates the synthetic series (the I56 board's helpers) and writes the five boards. |
 | `render.js` | Renders the boards to PNG at 1x, light and dark, reduced to 256 colours. |
