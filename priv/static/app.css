@@ -16728,11 +16728,6 @@ a.widget-row:hover .widget-row__name {
 
 .widget-card__add:focus-visible,
 .widget-add-dialog__choice:focus-visible,
-.new-dashboard__start:has(input:focus-visible) {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-}
-
 /* A kind a later pass brings: dashed, quiet, and nothing to press. */
 .widget-card--later {
   border-style: dashed;
@@ -16807,46 +16802,92 @@ a.widget-row:hover .widget-row__name {
   font-weight: 400;
 }
 
-.new-dashboard__starts {
+/* Sprint 32 S4 (board 03 ①): the gallery of „Neues Dashboard“: „Leer
+   beginnen“, the starters, the themes, each card its grid in miniature,
+   its title, its line and its widgets. */
+.dashboard-gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+
+.gallery-group {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.gallery-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: var(--space-3);
   margin: 0;
   padding: 0;
-  border: 0;
+  list-style: none;
 }
 
-.new-dashboard__start {
-  position: relative;
+.gallery-card {
   display: grid;
+  align-content: start;
   gap: var(--space-1);
+  width: 100%;
   min-height: 44px;
   padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-elevated);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
-.new-dashboard__start input {
-  position: absolute;
-  opacity: 0;
-}
-
-.new-dashboard__start:has(input:checked) {
+.gallery-card:hover {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 1px var(--color-accent);
 }
 
-.new-dashboard__start-title {
-  color: var(--color-text);
+.gallery-card:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.gallery-card--empty {
+  justify-items: center;
+  align-content: center;
+  max-width: 260px;
+  min-height: 96px;
+  border-style: dashed;
+  color: var(--color-accent);
   font-weight: 700;
 }
 
-.new-dashboard__start-sub {
+/* The template's grid in miniature: twelve columns, a row of 6 px for
+   each grid row, every widget one cell at its place. */
+.gallery-card__grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: 6px;
+  gap: 3px;
+  margin-bottom: var(--space-2);
+}
+
+.gallery-card__cell {
+  grid-column: var(--cell-col) / span var(--cell-w);
+  grid-row: var(--cell-row) / span var(--cell-h);
+  border-radius: 3px;
+  background: var(--color-bg-muted);
+}
+
+.gallery-card__title {
+  font-size: 15px;
+}
+
+.gallery-card__sub,
+.gallery-card__widgets {
   color: var(--color-text-muted);
   font-size: 12px;
-  font-weight: 400;
 }
 
 .dashboard-empty {

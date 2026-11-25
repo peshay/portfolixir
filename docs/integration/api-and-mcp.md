@@ -5324,7 +5324,11 @@ without reading the code: `{"data": {"widgets", "groups", "grid",
 order (by `position`, then `id`), then the templates. Each entry is marked
 by `type` (`dashboard` or `template`) and carries `id` (a stored one's, else
 `null`), `key` (a template's, else `null`), `name`, `read_only` (`true` for
-a template), `in_menu` and `item_count`; a stored one also `position`,
+a template), `in_menu` and `item_count`; a template also `group`
+(`starter`, today's screens shipped as starter dashboards, or `theme`),
+`starter`, `asks_scope` (`true` when its copy should be given a `view_id`,
+as the gallery asks for one) and `subtitle`, and only a template whose
+kinds are all built is listed; a stored one also `position`,
 `lock_version`, `view_id`, `view_dangling`, `template_key`, `inserted_at`
 and `updated_at`. A template is `in_menu`
 only while no dashboard is stored, and the read never writes. Since

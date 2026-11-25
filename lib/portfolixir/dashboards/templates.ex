@@ -15,6 +15,8 @@ defmodule Portfolixir.Dashboards.Templates do
 
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Dashboards.Widgets
+
   # Board 09's „Überblick“ on Apple's tiles (Sprint 32 E4): Sprint 31's
   # layout read on the families (S → S, M → L, T → L, L → XL, the rows
   # doubled) and arranged, as `Portfolixir.Dashboards.Grid` reads every
@@ -25,6 +27,7 @@ defmodule Portfolixir.Dashboards.Templates do
     # Sprint 32 S3: stored once on the first start of this release
     # (`Portfolixir.Dashboards.Starters`).
     starter: true,
+    asks_scope: false,
     layout: [
       %{"kind" => "total_value", "size" => "S", "col" => 1, "row" => 1, "settings" => %{}},
       %{"kind" => "data_quality", "size" => "S", "col" => 4, "row" => 1, "settings" => %{}},
@@ -43,7 +46,13 @@ defmodule Portfolixir.Dashboards.Templates do
   @templates [@overview]
   @by_key Map.new(@templates, &{&1.key, &1})
 
-  @type t :: %{key: String.t(), title: String.t(), starter: boolean(), layout: [map()]}
+  @type t :: %{
+          key: String.t(),
+          title: String.t(),
+          starter: boolean(),
+          asks_scope: boolean(),
+          layout: [map()]
+        }
 
   @doc "The templates this release offers, in the menu's order."
   @spec templates() :: [t()]
@@ -58,6 +67,27 @@ defmodule Portfolixir.Dashboards.Templates do
   @spec starters() :: [t()]
   def starters, do: Enum.filter(@templates, & &1.starter)
 
+  @doc """
+  Of `templates`, the ones the gallery and the menu may offer (ADR-0062
+  §3; the amendment of 2026-11-25, point 5): each whose kinds are all
+  registered (`Portfolixir.Dashboards.Widgets`), in the order given. A
+  template naming a kind its release does not build is left out.
+  """
+  @spec offered([t()]) :: [t()]
+  def offered(templates) when is_list(templates) do
+    Enum.filter(templates, fn template ->
+      Enum.all?(template.layout, &match?({:ok, _}, Widgets.fetch(&1["kind"])))
+    end)
+  end
+
+  @doc """
+  The gallery's group of a template (board 03 ①): `"starter"`, a screen of
+  today shipped as a starter dashboard, or `"theme"`.
+  """
+  @spec group(t()) :: String.t()
+  def group(%{starter: true}), do: "starter"
+  def group(_template), do: "theme"
+
   @doc "The template under `key`, matched as a string, or `:error`."
   @spec fetch(term()) :: {:ok, t()} | :error
   def fetch(key) when is_binary(key), do: Map.fetch(@by_key, key)
@@ -67,4 +97,12 @@ defmodule Portfolixir.Dashboards.Templates do
   @spec title(term()) :: String.t() | nil
   def title("overview"), do: pgettext("dashboard template", "Overview")
   def title(_key), do: nil
+
+  @doc """
+  The template's line under its title in the gallery (board 03 ①), in the
+  current locale; `nil` for an unknown key.
+  """
+  @spec subtitle(term()) :: String.t() | nil
+  def subtitle("overview"), do: pgettext("dashboard template", "as today's start page")
+  def subtitle(_key), do: nil
 end

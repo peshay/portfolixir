@@ -72,9 +72,9 @@ defmodule Portfolixir.Dashboards do
   @spec fetch_widget(term()) :: {:ok, Widgets.kind()} | :error
   def fetch_widget(key), do: Widgets.fetch(key)
 
-  @doc "The templates this release offers."
+  @doc "The templates this release offers: each whose kinds are all built."
   @spec templates() :: [Templates.t()]
-  def templates, do: Templates.templates()
+  def templates, do: Templates.offered(Templates.templates())
 
   @doc "The template under `key`, matched as a string, or `:error`."
   @spec fetch_template(term()) :: {:ok, Templates.t()} | :error
@@ -134,15 +134,38 @@ defmodule Portfolixir.Dashboards do
 
   @doc """
   The menu's dashboard entries, each marked: the stored dashboards in
-  their order, or, while none is stored, the templates (ADR-0062 §3: the
-  first entry of a fresh instance is „Überblick“, read-only). Writes
-  nothing.
+  their order, or, while none is stored, the starter templates (ADR-0062
+  §3: the first entry is „Überblick“, read-only; the themes are offered in
+  the gallery, not the menu, Sprint 32 S4). Writes nothing.
   """
   @spec entries() :: [entry()]
   def entries do
     case list_dashboards() do
-      [] -> Enum.map(Templates.templates(), &%{type: :template, template: &1})
+      [] -> Enum.map(Templates.offered(Templates.starters()), &%{type: :template, template: &1})
       stored -> Enum.map(stored, &%{type: :dashboard, dashboard: &1})
+    end
+  end
+
+  @doc """
+  The name the gallery's dialog suggests for a new dashboard called `name`
+  (ADR-0062's amendment of 2026-11-25, point 5; board 03 ②): `name` when
+  no stored dashboard holds it (trimmed, compared as stored), else
+  `"name (n)"` with the first free `n` from 2, the name cut so the whole
+  stays within `name_max/0`. Reads the names; writes nothing.
+  """
+  @spec suggested_name(String.t()) :: String.t()
+  def suggested_name(name) when is_binary(name) do
+    name = String.trim(name)
+    taken = MapSet.new(Repo.all(from(d in Dashboard, select: d.name)))
+
+    if MapSet.member?(taken, name) do
+      Enum.find_value(Stream.iterate(2, &(&1 + 1)), fn n ->
+        suffix = " (#{n})"
+        candidate = String.slice(name, 0, Dashboard.name_max() - String.length(suffix)) <> suffix
+        if not MapSet.member?(taken, candidate), do: candidate
+      end)
+    else
+      name
     end
   end
 

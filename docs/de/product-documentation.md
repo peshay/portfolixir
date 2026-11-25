@@ -5695,12 +5695,18 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   Steuern, Freibetrag): Sie stehen dort, damit man weiß, dass sie kommen,
   und lassen sich noch nicht hinzufügen — auch die API lehnt sie in einem
   Layout als unbekannte Art ab.
-- **Neues Dashboard** (`/dashboards/new`) fragt nach einem Namen und dem
-  Beginn: **Leer beginnen**, ein leeres Dashboard, das sich aus „Alle
-  Widgets“ füllt (es sagt das, bis der Bearbeitungsmodus kommt), oder
-  **Aus Vorlage**, eine Kopie von **Überblick** (weitere Vorlagen kommen
-  mit ihren Widgets). **Anlegen** speichert es, ein Schreibvorgang im
-  Audit-Journal, und öffnet es; es steht am Ende des Menüs. Ein Name, der
+- **Neues Dashboard** (`/dashboards/new`, Sprint 32) öffnet eine Galerie:
+  **Leer beginnen**, dann **Wie die bisherigen Seiten · die
+  Start-Dashboards** (Überblick, und jede Seite von Vermögen, sobald ihr
+  Durchgang kommt), dann **Themen**. Jede Karte zeigt ihr Raster im
+  Kleinen, wie viele Widgets sie hält und welche; eine Vorlage, deren
+  Widgets nicht alle gebaut sind, erscheint nicht. Ein Klick öffnet einen
+  Dialog mit dem Namen, vorgeschlagen aus dem Titel der Vorlage und, wo
+  eines Ihrer Dashboards ihn schon trägt, als „… (2)“; ein Thema, das
+  danach fragt, fragt auch nach seiner **Ansicht**, der eigenen des
+  Dashboards (keine folgt der in der Leiste). **Anlegen** speichert es, ein
+  Schreibvorgang im Audit-Journal, und öffnet es (Leer beginnen im
+  Bearbeitungsmodus mit offenem Katalog); es steht am Ende des Menüs. Ein Name, der
   leer ist, länger als 60 Zeichen oder ein Steuerzeichen trägt, wird am
   Feld abgelehnt; mit 50 gespeicherten Dashboards, mehr hält eine Instanz
   nicht, wird ein neues mit diesem Grund abgelehnt.

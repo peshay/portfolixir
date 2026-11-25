@@ -114,6 +114,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardJSON do
   A menu entry of `Portfolixir.Dashboards.entries/0`'s kind, or a template
   offered beside the stored dashboards: its type, its id (a stored one) or
   key (a template), its name, `read_only`, `in_menu` and its item count; a
+  template also its `group`, `starter`, `asks_scope` and `subtitle`; a
   stored one also its own view (`view_id`, `view_dangling`) and its
   origin (`template_key`).
   """
@@ -140,12 +141,19 @@ defmodule PortfolixirWeb.Api.V1.DashboardJSON do
     }
   end
 
-  def entry(%{key: key, layout: layout}, in_menu) do
+  def entry(%{key: key, layout: layout} = template, in_menu) do
     %{
       type: "template",
       id: nil,
       key: key,
       name: Templates.title(key),
+      # Sprint 32 S4 (board 03 ①): the gallery's group, whether the boot
+      # stores it once (a starter), whether it asks for a scope (the
+      # dashboard's own view_id on its copy), and its line.
+      group: Templates.group(template),
+      starter: template.starter,
+      asks_scope: template.asks_scope,
+      subtitle: Templates.subtitle(key),
       read_only: true,
       in_menu: in_menu,
       item_count: length(layout)

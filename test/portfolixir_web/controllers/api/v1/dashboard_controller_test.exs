@@ -199,6 +199,10 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
                "id" => nil,
                "key" => "overview",
                "name" => "Overview",
+               "group" => "starter",
+               "starter" => true,
+               "asks_scope" => false,
+               "subtitle" => "as today's start page",
                "read_only" => true,
                "in_menu" => true,
                "item_count" => 11

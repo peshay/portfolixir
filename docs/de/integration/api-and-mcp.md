@@ -5811,7 +5811,11 @@ Reihenfolge des Menüs (nach `position`, dann `id`), danach die Vorlagen.
 Jeder Eintrag ist mit `type` markiert (`dashboard` oder `template`) und
 trägt `id` (die eines gespeicherten, sonst `null`), `key` (der einer
 Vorlage, sonst `null`), `name`, `read_only` (`true` für eine Vorlage),
-`in_menu` und `item_count`; ein gespeichertes zusätzlich `position`,
+`in_menu` und `item_count`; eine Vorlage zusätzlich `group` (`starter`,
+die heutigen Seiten als Start-Dashboards, oder `theme`), `starter`,
+`asks_scope` (`true`, wenn ihre Kopie eine `view_id` bekommen sollte, wie
+die Galerie danach fragt) und `subtitle`, und nur eine Vorlage, deren
+Arten alle gebaut sind, wird gelistet; ein gespeichertes zusätzlich `position`,
 `lock_version`, `view_id`, `view_dangling`, `template_key`, `inserted_at`
 und `updated_at`. Eine Vorlage ist nur
 `in_menu`, solange kein Dashboard gespeichert ist, und die Lesung schreibt
