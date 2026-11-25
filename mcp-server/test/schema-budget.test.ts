@@ -852,8 +852,21 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     book: 205_389,
     full: 243_517,
     raisedBy: { tools: ["portfolixir.periods.put"], read: 0, book: 0, full: 1_470 }
-  }
+  },
   // --- S32 T2 end ---
+  // --- S32 S1 begin ---
+  {
+    since: "2026-11-25",
+    why:
+      "Sprint 32 S1 (ADR-0062's amendment of 2026-11-25, point 4): dashboards.put takes " +
+      "view_id, the dashboard's own view, on a create, a copy and a rename, paid for by " +
+      "tightening its own description; each ceiling is lowered to the figure measured: " +
+      "book 205,385 and full 243,513; read unchanged at 124,375",
+    read: 124_375,
+    book: 205_385,
+    full: 243_513
+  }
+  // --- S32 S1 end ---
 ];
 
 describe("the schema budget", () => {

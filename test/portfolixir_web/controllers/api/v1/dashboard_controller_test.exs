@@ -218,6 +218,9 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
              "name" => "Zweites",
              "position" => 3,
              "lock_version" => 2,
+             "view_id" => nil,
+             "view_dangling" => false,
+             "template_key" => nil,
              "read_only" => false,
              "in_menu" => true,
              "item_count" => 1
@@ -468,11 +471,11 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
 
     for {body, field, message} <- [
           {%{"dashboard" => %{"name" => "N", "position" => 3}}, "position",
-           "is unknown: dashboard takes only name, layout"},
+           "is unknown: dashboard takes only name, layout, view_id"},
           {%{"dashboard" => %{"name" => "N"}, "name" => "N"}, "name",
            "is unknown: this write takes its fields under dashboard"},
           {%{"dashboard" => %{"template" => "overview", "layout" => []}}, "layout",
-           "is unknown: dashboard takes only template, name"}
+           "is unknown: dashboard takes only template, name, view_id"}
         ] do
       assert conn |> authed() |> post("/api/v1/dashboards", body) |> json_response(422) ==
                %{"errors" => %{field => [message]}},

@@ -13,8 +13,11 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
     * `GET /api/v1/dashboards/:id` — a stored dashboard, or a template as
       `template:<key>`, with its layout, each item with the registry's
       title and source for its kind.
-    * `POST /api/v1/dashboards` — `{"dashboard": {name, layout}}` creates;
-      `{"dashboard": {template, name?}}` copies a template (201).
+    * `POST /api/v1/dashboards` — `{"dashboard": {name, layout, view_id?}}`
+      creates; `{"dashboard": {template, name?, view_id?}}` copies a
+      template (201), recording its key in `template_key`. `view_id` is the
+      dashboard's own scope (ADR-0062's amendment of 2026-11-25, point 4):
+      a view that exists, read before the address's and the default view.
     * `PUT /api/v1/dashboards/:id` — `{"dashboard": {name, layout,
       lock_version}}` replaces; a stale lock_version answers 409 with the
       dashboard as stored under `errors.stored`. With `arrange: "push"` and
@@ -22,8 +25,9 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
       is validated: that item keeps its place, the others make room
       (`Portfolixir.Dashboards.Arrange`); without them an overlap is 422.
     * `PATCH /api/v1/dashboards/:id` — `{"dashboard": {name?, position?,
-      lock_version?}}` renames and/or moves; a lock_version sent and stale
-      answers 409 the same way.
+      view_id?, lock_version?}}` renames, moves and/or sets the own view
+      (`null` clears it); a lock_version sent and stale answers 409 the
+      same way.
     * `DELETE /api/v1/dashboards/:id` — 204; `dry_run=true` answers what it
       would remove (`PortfolixirWeb.Api.V1.DryRunParam`): the one dashboard.
 
@@ -54,12 +58,14 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
     "dashboard" when action in [:create, :replace, :update]
   )
 
-  @create_fields ~w(name layout)
-  @copy_fields ~w(template name)
+  # `view_id`: the dashboard's own scope (ADR-0062's amendment of
+  # 2026-11-25, point 4; Sprint 32 S1).
+  @create_fields ~w(name layout view_id)
+  @copy_fields ~w(template name view_id)
   # `arrange` and `arranged_index`: the arrangement on request (ADR-0062's
   # amendment of 2026-11-25, point 2; Sprint 32 E3).
   @replace_fields ~w(name layout lock_version arrange arranged_index)
-  @update_fields ~w(name position lock_version)
+  @update_fields ~w(name position view_id lock_version)
 
   # What a read adds to an item from the registry (`DashboardJSON`): read-only,
   # dropped from a sent item before validation, never stored (§11).

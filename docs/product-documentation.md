@@ -2138,6 +2138,14 @@ screen.
   remembers stay as they are. A widget of a stored dashboard may read a view
   of its own; where that view has since been deleted, the widget reads the
   dashboard's scope and its footer says "Its view no longer exists · reads …".
+- **A dashboard's own view** (Sprint 32). A dashboard may hold a view of
+  its own, chosen when it is made from a template that asks for one (or
+  set by your agent): then every widget on it reads that view wherever you
+  open it from, the bar names it with "this dashboard's view" and offers
+  no scope menu, and a widget with a view of its own still reads that one.
+  Where that view has since been deleted, the dashboard reads your default
+  view, the bar says "This dashboard's own view no longer exists · reads
+  …" and offers the menu again, and the dashboard's next save forgets it.
 - **One period above every dashboard** (ADR-0062 §5, amended 2026-11-25).
   Beside the scope stands your **quick choice** — **1W · this month · YTD
   · 1Y · Max** until you change it — and one button, **Period ▾**, that

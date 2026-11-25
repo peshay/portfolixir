@@ -5808,7 +5808,8 @@ Jeder Eintrag ist mit `type` markiert (`dashboard` oder `template`) und
 trägt `id` (die eines gespeicherten, sonst `null`), `key` (der einer
 Vorlage, sonst `null`), `name`, `read_only` (`true` für eine Vorlage),
 `in_menu` und `item_count`; ein gespeichertes zusätzlich `position`,
-`lock_version`, `inserted_at` und `updated_at`. Eine Vorlage ist nur
+`lock_version`, `view_id`, `view_dangling`, `template_key`, `inserted_at`
+und `updated_at`. Eine Vorlage ist nur
 `in_menu`, solange kein Dashboard gespeichert ist: Eine frische Instanz
 zeigt „Überblick“ schreibgeschützt und speichert nichts, und die Lesung
 schreibt nie.
@@ -5830,20 +5831,34 @@ Schlüssel ohne Vorlage und eine id, die keines von beiden ist, liefern
 found: names no template; overview is offered"`).
 
 **`POST /api/v1/dashboards`** legt eines aus `{"dashboard": {"name",
-"layout"}}` an (das Layout ist ohne Angabe leer) oder kopiert eine Vorlage
-aus `{"dashboard": {"template": "overview", "name"}}` (der Name ist ohne
-Angabe der Titel der Vorlage). Die Antwort ist `201` mit dem Dashboard, wie
-die Lesung es liefert, am Ende des Menüs, mit `lock_version` 1.
+"layout", "view_id"}}` an (das Layout ist ohne Angabe leer, die Ansicht
+keine) oder kopiert eine Vorlage aus `{"dashboard": {"template":
+"overview", "name", "view_id"}}` (der Name ist ohne Angabe der Titel der
+Vorlage). Die Antwort ist `201` mit dem Dashboard, wie die Lesung es
+liefert, am Ende des Menüs, mit `lock_version` 1; eine Kopie hält den
+Schlüssel der Vorlage in `template_key` fest, den kein Schreibzugriff nimmt
+und der nichts liest.
+
+**Die eigene Ansicht eines Dashboards** (Sprint 32; Änderung von ADR-0062
+vom 25.11.2026, Punkt 4). `view_id` ist die Ansicht, die jedes Widget des
+Dashboards liest, vor der Ansicht der Adresse und der Standardansicht; die
+eigene `settings.view_id` eines Elements geht für dieses Widget weiter
+vor. Sie muss eine Ansicht nennen (sonst `422` `{"errors": {"view_id":
+["names no view"]}}`) und ist kein Fremdschlüssel: Ist ihre Ansicht
+gelöscht, liefert die Lesung die gespeicherte id mit `view_dangling:
+true`, der Bildschirm liest die Standardansicht und sagt es in seiner
+Leiste, und das nächste Ersetzen entfernt sie, wie die eines Elements.
+`PATCH` setzt oder ändert sie, `null` entfernt sie.
 
 **`PUT /api/v1/dashboards/:id`** ersetzt Namen und Layout:
 `{"dashboard": {"name", "layout", "lock_version"}}`, alle drei Pflicht,
 `lock_version` die, mit der das Dashboard gelesen wurde. Die Antwort ist
 `200` mit einer um eins höheren `lock_version`; ein Ersetzen, das nichts
 ändert, schreibt und journalisiert nichts. **`PATCH
-/api/v1/dashboards/:id`** benennt um und/oder verschiebt im Menü:
-`{"dashboard": {"name", "position", "lock_version"}}`, `name` oder
-`position` (eine ganze Zahl von 1 bis 10.000) oder beide, `lock_version`
-optional; ohne sie gilt die Änderung für das Dashboard, wie es gespeichert
+/api/v1/dashboards/:id`** benennt um, verschiebt im Menü und/oder setzt
+die eigene Ansicht: `{"dashboard": {"name", "position", "view_id",
+"lock_version"}}`, mindestens eines von `name`, `position` (eine ganze
+Zahl von 1 bis 10.000) und `view_id`, `lock_version` optional; ohne sie gilt die Änderung für das Dashboard, wie es gespeichert
 ist. Eine `lock_version`, die nicht die gespeicherte ist, liefert bei beiden
 Schreibzugriffen **`409`** `{"errors": {"code": "stale", "detail",
 "stored"}}`, `stored` das Dashboard, wie die Lesung es liefert, und schreibt
@@ -5926,10 +5941,12 @@ Katalog kein eigenes Tool braucht.
 `portfolixir.dashboards.get` liest ein Dashboard per `id` oder eine Vorlage
 per `template` (ihr Schlüssel). Beide sind Lesungen in jedem Profil und
 antworten kompaktes JSON. `portfolixir.dashboards.put` schreibt: ohne `id`
-legt es aus `dashboard` `{name, layout}` an oder kopiert `template` unter
-`dashboard.name`; mit `id` und einem `layout` ersetzt es (`PUT`, mit
-`lock_version`), mit `id` ohne Layout benennt es um oder verschiebt es
-(`PATCH`, `lock_version` optional). `portfolixir.dashboards.put` nimmt
+legt es aus `dashboard` `{name, layout, view_id}` an oder kopiert
+`template` unter `dashboard.name` und `view_id`; mit `id` und einem
+`layout` ersetzt es (`PUT`, mit `lock_version`; eine `view_id` neben einem
+Layout wird vor jeder Anfrage abgelehnt), mit `id` ohne Layout benennt es
+um, verschiebt es oder setzt die eigene Ansicht (`PATCH`, `lock_version`
+optional, `view_id: null` entfernt sie). `portfolixir.dashboards.put` nimmt
 `arrange` und `arranged_index` wie das Ersetzen, und nur beim Ersetzen. Es ist ein Schreibzugriff in `book` und
 `full` und bleibt dort, weil der vorige Name, das vorige Layout oder der
 vorige Platz, wieder gesendet, sie wiederherstellt.

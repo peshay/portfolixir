@@ -5321,7 +5321,8 @@ order (by `position`, then `id`), then the templates. Each entry is marked
 by `type` (`dashboard` or `template`) and carries `id` (a stored one's, else
 `null`), `key` (a template's, else `null`), `name`, `read_only` (`true` for
 a template), `in_menu` and `item_count`; a stored one also `position`,
-`lock_version`, `inserted_at` and `updated_at`. A template is `in_menu`
+`lock_version`, `view_id`, `view_dangling`, `template_key`, `inserted_at`
+and `updated_at`. A template is `in_menu`
 only while no dashboard is stored: a fresh instance shows „Überblick“
 read-only and stores nothing, and the read never writes.
 
@@ -5340,19 +5341,31 @@ unknown id, a key that names no template and an id that is neither answer
 found: names no template; overview is offered"`).
 
 **`POST /api/v1/dashboards`** creates one from `{"dashboard": {"name",
-"layout"}}` (the layout defaults to empty) or copies a template from
-`{"dashboard": {"template": "overview", "name"}}` (the name defaults to the
-template's title). It answers `201` with the dashboard as the read answers
-it, placed at the end of the menu with `lock_version` 1.
+"layout", "view_id"}}` (the layout defaults to empty, the view to none) or
+copies a template from `{"dashboard": {"template": "overview", "name",
+"view_id"}}` (the name defaults to the template's title). It answers `201`
+with the dashboard as the read answers it, placed at the end of the menu
+with `lock_version` 1; a copy records the template's key in
+`template_key`, which no write takes and which reads nothing.
+
+**A dashboard's own view** (Sprint 32; ADR-0062's amendment of
+2026-11-25, point 4). `view_id` is the view every widget of the dashboard
+reads, before the address's scope and the default view; an item's own
+`settings.view_id` still overrides it for that widget. It must name a
+view (`422` `{"errors": {"view_id": ["names no view"]}}` otherwise) and is
+no foreign key: once its view is deleted the read answers the stored id
+with `view_dangling: true`, the screen reads the default view and says so
+in its top bar, and the next replace drops it, as it drops an item's.
+`PATCH` sets or changes it, and `null` clears it.
 
 **`PUT /api/v1/dashboards/:id`** replaces the name and the layout:
 `{"dashboard": {"name", "layout", "lock_version"}}`, all three required,
 `lock_version` the one the dashboard was read with. It answers `200` with
 `lock_version` one higher; a replace that changes nothing writes and
-journals nothing. **`PATCH /api/v1/dashboards/:id`** renames and/or moves
-it in the menu: `{"dashboard": {"name", "position", "lock_version"}}`,
-`name` or `position` (a whole number from 1 to 10,000) or both, and
-`lock_version` optional; without it the change applies to the dashboard
+journals nothing. **`PATCH /api/v1/dashboards/:id`** renames, moves it
+in the menu and/or sets its own view: `{"dashboard": {"name", "position",
+"view_id", "lock_version"}}`, at least one of `name`, `position` (a whole
+number from 1 to 10,000) and `view_id`, and `lock_version` optional; without it the change applies to the dashboard
 as stored. A `lock_version` that is not the stored one, on either write,
 answers **`409`** `{"errors": {"code": "stale", "detail", "stored"}}`, with
 `stored` the dashboard as the read answers it, and writes nothing, so a
@@ -5429,10 +5442,11 @@ no tool of its own. `portfolixir.dashboards.get`
 reads one dashboard by `id`, or a template by `template` (its key). Both
 are reads in every profile and answer compact JSON.
 `portfolixir.dashboards.put` writes: without `id`, it creates from
-`dashboard` `{name, layout}`, or copies `template` under `dashboard.name`;
-with `id` and a `layout` it replaces (`PUT`, with `lock_version`), and
-with `id` and no layout it renames or moves (`PATCH`, `lock_version`
-optional). `portfolixir.dashboards.put` takes `arrange` and `arranged_index`
+`dashboard` `{name, layout, view_id}`, or copies `template` under
+`dashboard.name` and `view_id`; with `id` and a `layout` it replaces
+(`PUT`, with `lock_version`; a `view_id` beside a layout is refused before
+any request), and with `id` and no layout it renames, moves or sets the
+own view (`PATCH`, `lock_version` optional, `view_id: null` clears it). `portfolixir.dashboards.put` takes `arrange` and `arranged_index`
 as the replace does, and only on a replace. It is a write in `book` and `full`, kept there because putting
 the previous name, layout or place back restores them.
 `portfolixir.dashboards.delete` takes `id` and `dry_run`; it is admin.
