@@ -43,7 +43,7 @@ jobs:
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           elixir-version: '1.19.7'
-          otp-version: '27.3.4.19'
+          otp-version: '27.3.4.20'
 
       - name: Install dependencies
         run: mix deps.get
@@ -103,7 +103,7 @@ jobs:
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           elixir-version: '1.19.7'
-          otp-version: '27.3.4.19'
+          otp-version: '27.3.4.20'
 
       - name: Install dependencies
         run: mix deps.get
@@ -154,7 +154,7 @@ jobs:
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           elixir-version: '1.19.7'
-          otp-version: '27.3.4.19'
+          otp-version: '27.3.4.20'
 
       - name: Install dependencies
         run: mix deps.get
@@ -228,9 +228,9 @@ jobs:
         id: plt-cache
         with:
           path: priv/plts
-          key: ${{ runner.os }}-plt-otp27.3.4.19-elixir1.19.7-${{ hashFiles('**/mix.lock') }}
+          key: ${{ runner.os }}-plt-otp27.3.4.20-elixir1.19.7-${{ hashFiles('**/mix.lock') }}
           restore-keys: |
-            ${{ runner.os }}-plt-otp27.3.4.19-elixir1.19.7-
+            ${{ runner.os }}-plt-otp27.3.4.20-elixir1.19.7-
 
       - name: Build PLT
         if: steps.plt-cache.outputs.cache-hit != 'true'
@@ -262,7 +262,7 @@ jobs:
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           elixir-version: '1.19.7'
-          otp-version: '27.3.4.19'
+          otp-version: '27.3.4.20'
 
       - name: Install dependencies
         run: mix deps.get
@@ -357,7 +357,7 @@ jobs:
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           elixir-version: '1.19.7'
-          otp-version: '27.3.4.19'
+          otp-version: '27.3.4.20'
 
       - name: Setup Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -465,7 +465,7 @@ jobs:
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           elixir-version: '1.19.7'
-          otp-version: '27.3.4.19'
+          otp-version: '27.3.4.20'
 
       - name: Install dependencies
         run: mix deps.get
