@@ -36,17 +36,18 @@ defmodule PortfolixirWeb.WidgetsLive do
   alias PortfolixirWeb.StoredText
 
   # Board ②'s dashed cards: what each later screen's pass brings, with the
-  # sizes the board draws. Keys name them on this page only; none is a
-  # registered kind (`widget_catalogue_test.exs` holds that).
+  # sizes the board draws, read on Apple's families as a stored layout is
+  # (Sprint 32 E4: W → M, M → L, L → XL). Keys name them on this page only;
+  # none is a registered kind (`widget_catalogue_test.exs` holds that).
   @later [
-    %{key: "contribution", group: "performance", sizes: ~w(M L)},
-    %{key: "allocation", group: "allocation", sizes: ~w(M)},
-    %{key: "key_figures", group: "risk", sizes: ~w(S M)},
+    %{key: "contribution", group: "performance", sizes: ~w(L XL)},
+    %{key: "allocation", group: "allocation", sizes: ~w(L)},
+    %{key: "key_figures", group: "risk", sizes: ~w(S L)},
     %{key: "concentration", group: "risk", sizes: ~w(S)},
-    %{key: "asset_class_limits", group: "risk", sizes: ~w(M)},
-    %{key: "predictions", group: "analyses", sizes: ~w(S M)},
-    %{key: "income", group: "income_tax", sizes: ~w(W M)},
-    %{key: "fees_and_taxes", group: "income_tax", sizes: ~w(M)},
+    %{key: "asset_class_limits", group: "risk", sizes: ~w(L)},
+    %{key: "predictions", group: "analyses", sizes: ~w(S L)},
+    %{key: "income", group: "income_tax", sizes: ~w(M L)},
+    %{key: "fees_and_taxes", group: "income_tax", sizes: ~w(L)},
     %{key: "tax_allowance", group: "income_tax", sizes: ~w(S)}
   ]
 

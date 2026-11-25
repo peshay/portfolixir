@@ -22,7 +22,7 @@ defmodule Portfolixir.Dashboards.AttackNoAtomTest do
 
   defp attempt do
     agent = Actor.api_token_rw("mcp")
-    base = %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 1}
+    base = %{"kind" => "movers", "size" => "L", "col" => 1, "row" => 1}
 
     layouts = [
       [Map.merge(base, many("item"))],

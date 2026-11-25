@@ -176,19 +176,20 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
   end
 
   # User story:
-  # As the operator who placed „Wertentwicklung“ at S and at M,
-  # I want the S figure and the M line to be the performance read's,
+  # As the operator who placed „Wertentwicklung“ at S and at L (Sprint 31's
+  # M, read as L since Sprint 32 E4),
+  # I want the S figure and the L line to be the performance read's,
   # so that each size shows the agent's figures.
   #
   # Acceptance criteria:
   # - S: the TTWROR equals GET /api/v1/performance?period=1y, with a
   #   sparkline of the period's value.
-  # - M: the TTWROR and the end value equal the same answer; the line's
+  # - L: the TTWROR and the end value equal the same answer; the line's
   #   first and last date are its start_date and end_date, its lowest and
   #   highest label the series' lowest and highest value.
-  test "„Wertentwicklung“ S and M draw the performance read", %{conn: conn} do
+  test "„Wertentwicklung“ S and L draw the performance read", %{conn: conn} do
     seed()
-    store!([{"performance", "S", 1, 1}, {"performance", "M", 4, 1}])
+    store!([{"performance", "S", 1, 1}, {"performance", "L", 4, 1}])
     doc = loaded(conn)
 
     perf = api("/api/v1/performance?period=1y&series=true")
@@ -248,10 +249,10 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
     assert %{result: result} = PerformanceWidget.read(nil, "ytd", "EUR")
     assert Decimal.equal?(result.ttwror, Decimal.new(ytd["ttwror"]))
 
-    assert PerformanceWidget.wealth_href("3m", "M") ==
+    assert PerformanceWidget.wealth_href("3m", "L") ==
              "/portfolio?from=#{from}&to=#{Date.to_iso8601(today)}"
 
-    assert PerformanceWidget.wealth_href("ytd", "L") == "/portfolio?level=category&period=ytd"
+    assert PerformanceWidget.wealth_href("ytd", "XL") == "/portfolio?level=category&period=ytd"
     assert PerformanceWidget.wealth_href("1y", "S") == "/portfolio"
   end
 
@@ -304,7 +305,7 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
   # chart.
   #
   # Acceptance criteria:
-  # - At 1T (one point) M draws no value line and L no stacked chart; each
+  # - At 1T (one point) L draws no value line and XL no stacked chart; each
   #   says „One day: no line“ quietly.
   # - The TTWROR figure stays at both sizes.
   test "1T draws no plot and says so; the figure stays", %{conn: conn} do
@@ -319,7 +320,7 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
       {today, "121"}
     ])
 
-    store!([{"performance", "M", 1, 1}, {"performance", "L", 1, 3}])
+    store!([{"performance", "L", 1, 1}, {"performance", "XL", 1, 5}])
     doc = loaded(conn, "/?period=1d")
 
     for id <- ["dashboard-performance", "dashboard-performance-2"] do
@@ -422,7 +423,7 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
   # so that the widget shows what the Snapshots page compares.
   #
   # Acceptance criteria:
-  # - S (the template's) and W: the latest as-of date and the count equal
+  # - S (the template's) and M (Sprint 31's W): the latest as-of date and the count equal
   #   GET /api/v1/snapshots; „seitdem“ equals real_ttwror of
   #   GET /api/v1/portfolios/:id/snapshots/:id/comparison.
   # - Compact: the count and the date, the change beside the date.
@@ -438,7 +439,7 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
         })
     end
 
-    store!([{"snapshots", "S", 1, 1}, {"snapshots", "W", 4, 1}])
+    store!([{"snapshots", "S", 1, 1}, {"snapshots", "M", 4, 1}])
     doc = loaded(conn)
 
     list = api("/api/v1/snapshots")["snapshots"]
@@ -484,87 +485,95 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
              latest["name"]
   end
 
-  # User story (Sprint 31 D4, the orchestrator's follow-up 1; board ② S M):
-  # As the operator who placed „Gesamtwert“ at M,
-  # I want today's key figures under the total, each the API's,
-  # so that the larger size answers the morning's four questions.
+  # User story (Sprint 32 E4; board ux-design-2026-11-25-sprint32/01 ④;
+  # the owner, 2026-11-25: „Gesamtwert auf M ist total unübersichtlich“):
+  # As the operator who places „Gesamtwert“ larger than S,
+  # I want each larger size to show more of the same figure, never a
+  # second widget in its frame,
+  # so that the larger tile is read as quickly as the small one.
   #
   # Acceptance criteria:
-  # - M follows the item's period as its head says (Sprint 31 closing act,
-  #   F1): the change under the total and the strip's TTWROR and IRR equal
-  #   GET /api/v1/performance for that period, each labelled with it — 1J
-  #   by default, 3M on ?period=3m; its cash quote and cash GET
-  #   /api/v1/valuation, its quote date the valuation's newest_quote_date.
-  # - S (the template's) draws no strip: dashboard_widget_figures_test.exs.
-  test "„Gesamtwert“ at M draws the strip from the valuation and performance", %{conn: conn} do
+  # - M: the total with two companions side by side, each the API's for
+  #   the item's period — the value (GET /api/v1/valuation), the period's
+  #   TTWROR and its result, end value less start value less net external
+  #   flows of GET /api/v1/performance for the same period — 1J by
+  #   default, 3M on ?period=3m; no chart, no strip.
+  # - L: the total, its change over the period (the same TTWROR) and the
+  #   value's course over the period as a line; no strip.
+  # - Sprint 31's strip of four answers is drawn at no size.
+  # - S (the template's): dashboard_widget_figures_test.exs.
+  test "„Gesamtwert“ at M draws three figures and at L the figure with its course",
+       %{conn: conn} do
     seed()
-    store!([{"total_value", "M", 1, 1}])
+    store!([{"total_value", "M", 1, 1}, {"total_value", "L", 7, 1}])
     doc = loaded(conn)
 
     valuation = api("/api/v1/valuation?include_positions=false")
     one_year = api("/api/v1/performance?period=1y")
 
-    wide = wide(doc, "dashboard-wealth")
-    assert text(Floki.find(wide, "[data-count-digits]")) == money(valuation["total_with_cash"])
+    result = fn read ->
+      read["end_value"]
+      |> Decimal.new()
+      |> Decimal.sub(Decimal.new(read["start_value"]))
+      |> Decimal.sub(Decimal.new(read["net_external_flows"]))
+      |> Format.signed_decimal(2)
+    end
 
-    assert text(Floki.find(wide, "[data-role='card-period-change']")) ==
+    m = wide(doc, "dashboard-wealth")
+
+    assert text(Floki.find(m, "[data-role='total-figure-value']")) ==
+             money(valuation["total_with_cash"]) <> " " <> valuation["base_currency"]
+
+    assert text(Floki.find(m, "[data-role='total-figure-ttwror']")) == percent(one_year["ttwror"])
+
+    assert text(Floki.find(m, "[data-role='total-figure-result']")) ==
+             result.(one_year) <> " " <> one_year["base_currency"]
+
+    assert text(Floki.find(m, "dt")) == "Value TTWROR · 1Y Result · 1Y"
+    assert Floki.find(m, "svg") == []
+    assert Floki.find(doc, "#dashboard-kpi-strip, [data-role^='kpi-']") == []
+
+    l = wide(doc, "dashboard-wealth-2")
+    assert text(Floki.find(l, "[data-count-digits]")) == money(valuation["total_with_cash"])
+
+    assert text(Floki.find(l, "[data-role='card-period-change']")) ==
              percent(one_year["ttwror"]) <> " TTWROR · 1Y"
 
-    assert Floki.find(wide, "[data-role='card-ttwror']") == []
-
-    assert text(Floki.find(wide, "[data-role='kpi-ttwror'] .kpi-strip__label")) == "TTWROR · 1Y"
-
-    assert text(Floki.find(wide, "[data-role='kpi-ttwror'] strong")) ==
-             percent(one_year["ttwror"])
-
-    assert text(Floki.find(wide, "[data-role='kpi-ttwror'] small")) ==
-             "IRR " <> percent(one_year["irr"])
-
-    assert text(Floki.find(wide, "[data-role='kpi-cash-quote'] strong")) ==
-             Format.percent(Decimal.new(valuation["cash_quote"])) <> "%"
-
-    assert text(Floki.find(wide, "[data-role='kpi-cash-quote'] small")) =~
-             money(valuation["total_cash"])
-
-    assert text(Floki.find(wide, "[data-role='kpi-freshness'] strong")) ==
-             Format.date(Date.from_iso8601!(valuation["newest_quote_date"]))
+    assert [_line] = Floki.find(l, "svg[id^='dashboard-wealth-line']")
 
     today = Clock.today()
     from = today |> Date.shift(month: -3) |> Date.add(1) |> Date.to_iso8601()
     quarter = api("/api/v1/performance?from=#{from}&to=#{Date.to_iso8601(today)}")
     doc = loaded(conn, "/?period=3m")
-    wide = wide(doc, "dashboard-wealth")
-    compact = compact(doc, "dashboard-wealth")
+    m = wide(doc, "dashboard-wealth")
 
-    assert text(Floki.find(wide, "[data-role='card-period-change']")) ==
+    assert text(Floki.find(m, "[data-role='total-figure-ttwror']")) == percent(quarter["ttwror"])
+
+    assert text(Floki.find(m, "[data-role='total-figure-result']")) ==
+             result.(quarter) <> " " <> quarter["base_currency"]
+
+    assert text(Floki.find(wide(doc, "dashboard-wealth-2"), "[data-role='card-period-change']")) ==
              percent(quarter["ttwror"]) <> " TTWROR · 3M"
 
-    assert text(Floki.find(wide, "[data-role='kpi-ttwror'] .kpi-strip__label")) == "TTWROR · 3M"
-
-    assert text(Floki.find(wide, "[data-role='kpi-ttwror'] strong")) ==
-             percent(quarter["ttwror"])
-
-    assert text(Floki.find(wide, "[data-role='kpi-ttwror'] small")) ==
-             "MWR " <> percent(quarter["mwr"])
-
-    assert text(Floki.find(wide, "[data-role='kpi-strip-basis']")) =~ "return over 3M"
-
-    assert text(Floki.find(compact, "[data-compact-role='total'] .widget-total__sub")) ==
+    assert text(
+             Floki.find(
+               compact(doc, "dashboard-wealth"),
+               "[data-compact-role='total'] .widget-total__sub"
+             )
+           ) ==
              percent(quarter["ttwror"]) <> " TTWROR · 3M"
-
-    assert text(Floki.find(compact, "[data-compact-role='kpi-ttwror']")) =~ "TTWROR · 3M"
   end
 
   # User story (Sprint 31 D4, the orchestrator's follow-up 2; board ①):
   # As the operator glancing at „Datenqualität“,
   # I want each finding as one short counted line at S and the full
-  # sentences at M,
+  # sentences at L (Sprint 31's M),
   # so that the small widget is read at a glance and the larger one
   # explains.
   #
   # Acceptance criteria:
   # - S: one link per finding, its count and a short noun, the same list
-  #   behind it as at M; the footer „Check →“.
+  #   behind it as at L; the footer „Check →“.
   # - M: the line's full sentences, as the Overview drew them.
   # User story (Sprint 31 closing act, DS1's follow-up; board
   # ux-design-2026-11-21-sprint31/02 ⑨):
@@ -601,7 +610,7 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
     buy!(world, plain, quantity: "5", price: "20", date: Date.add(world.today, -40))
     put_quote!(plain, world.today, "21")
 
-    store!([{"data_quality", "S", 1, 1}, {"data_quality", "M", 4, 1}])
+    store!([{"data_quality", "S", 1, 1}, {"data_quality", "L", 4, 1}])
     doc = loaded(conn)
 
     small = wide(doc, "dashboard-data-quality")
@@ -627,10 +636,10 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
     assert text(Floki.find(doc, "#dashboard-data-quality-2 [data-role='widget-scope']")) == ""
   end
 
-  test "„Datenqualität“ is short at S and in full sentences at M", %{conn: conn} do
+  test "„Datenqualität“ is short at S and in full sentences at L", %{conn: conn} do
     world = seed()
     put_quote!(world.beta, Date.add(world.today, -20), "51")
-    store!([{"data_quality", "S", 1, 1}, {"data_quality", "M", 4, 1}])
+    store!([{"data_quality", "S", 1, 1}, {"data_quality", "L", 4, 1}])
     doc = loaded(conn)
 
     small = wide(doc, "dashboard-data-quality")
@@ -730,7 +739,8 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
   # Acceptance criteria:
   # - S (the template's): one line with the left-out groups' counts and
   #   „Details in Wealth →“, no full note naming the accounts.
-  # - M: the full note, as the Overview drew it.
+  # - L: the full note, as the Overview drew it (Sprint 31's M, read as L;
+  #   M, the three figures, keeps the short line).
   test "„Gesamtwert“ says what the total leaves out in one line at S", %{conn: conn} do
     world = seed()
 
@@ -757,7 +767,7 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
     assert Floki.find(doc, "#dashboard-wealth [data-role='wealth-card-excluded']") == []
     refute text(Floki.find(doc, "#dashboard-wealth")) =~ "USD Settlement"
 
-    store!([{"total_value", "M", 1, 1}])
+    store!([{"total_value", "L", 1, 1}])
     doc = loaded(conn)
 
     assert text(Floki.find(doc, "#dashboard-wealth [data-role='wealth-card-excluded']")) =~
@@ -825,7 +835,7 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
           %{"kind" => "performance", "size" => "S", "col" => 1, "row" => 1},
           %{
             "kind" => "performance",
-            "size" => "M",
+            "size" => "L",
             "col" => 4,
             "row" => 1,
             "settings" => %{"period" => "max"}

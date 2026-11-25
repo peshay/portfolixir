@@ -19,8 +19,8 @@ defmodule PortfolixirWeb.DashboardEditRebaseTest do
 
   @layout [
     %{"kind" => "performance", "size" => "L", "col" => 1, "row" => 1},
-    %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 4},
-    %{"kind" => "crashes", "size" => "M", "col" => 7, "row" => 4}
+    %{"kind" => "movers", "size" => "L", "col" => 7, "row" => 1},
+    %{"kind" => "crashes", "size" => "L", "col" => 1, "row" => 5}
   ]
 
   defp seed do
@@ -103,15 +103,16 @@ defmodule PortfolixirWeb.DashboardEditRebaseTest do
   end
 
   # Acceptance criteria:
-  # - After „Weiter bearbeiten“, an edit made equal to the layout read
-  #   before the stale save differs from the stored version, so „Fertig“
-  #   stores it („Fertig“ replaces the stored version).
+  # - After „Weiter bearbeiten“, an edit stepped back toward the layout
+  #   read before the stale save (its „Tops und Flops“ still at L) differs
+  #   from the stored version, so „Fertig“ stores it („Fertig“ replaces
+  #   the stored version).
   test "an edit that differs from the stored version is stored on „Fertig“", %{conn: conn} do
     {view, dashboard} = kept_after_stale(conn, "B")
 
     key(view, "performance", "ArrowLeft")
     view |> element("[data-role='edit-done']") |> render_click()
 
-    assert Enum.at(Dashboards.get_dashboard(dashboard.id).layout, 1)["size"] == "M"
+    assert Enum.at(Dashboards.get_dashboard(dashboard.id).layout, 1)["size"] == "L"
   end
 end

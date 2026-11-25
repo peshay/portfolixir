@@ -14,6 +14,7 @@ defmodule Portfolixir.Dashboards.Dashboard do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Dashboards.Grid
   alias Portfolixir.Dashboards.Layout
   alias Portfolixir.Input.Text
 
@@ -25,6 +26,7 @@ defmodule Portfolixir.Dashboards.Dashboard do
           position: pos_integer() | nil,
           layout: [map()],
           lock_version: pos_integer(),
+          grid: pos_integer(),
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
         }
@@ -36,6 +38,9 @@ defmodule Portfolixir.Dashboards.Dashboard do
     # cast item by item.
     field(:layout, {:array, :map}, default: [])
     field(:lock_version, :integer, default: 1)
+    # The grid the layout was written on (`Portfolixir.Dashboards.Grid`):
+    # every write of a layout stores the current one.
+    field(:grid, :integer, default: 2)
 
     timestamps(type: :utc_datetime_usec)
   end
@@ -109,7 +114,9 @@ defmodule Portfolixir.Dashboards.Dashboard do
         # whose view is gone (ADR-0062 §2); a create has none stored.
         case Layout.validate(raw, stored: changeset.data.layout) do
           {:ok, layout} ->
-            put_change(changeset, :layout, layout)
+            changeset
+            |> put_change(:layout, layout)
+            |> put_change(:grid, Grid.current())
 
           {:error, refusal} ->
             add_error(

@@ -58,8 +58,8 @@ defmodule PortfolixirWeb.Browser.DashboardA11yTest do
 
     layout = [
       %{"kind" => "performance", "size" => "L", "col" => 1, "row" => 1},
-      %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 4},
-      %{"kind" => "crashes", "size" => "M", "col" => 7, "row" => 4}
+      %{"kind" => "movers", "size" => "L", "col" => 7, "row" => 1},
+      %{"kind" => "crashes", "size" => "L", "col" => 1, "row" => 5}
     ]
 
     {:ok, dashboard} =

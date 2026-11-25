@@ -12,8 +12,9 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
   use PortfolixirWeb.ConnCase
 
   # Sprint 31 D4: the template draws „Gesamtwert“ and „Datenqualität“ at S;
-  # this module pins the strip, the year-to-date change and the line's
-  # full sentences, which M draws, so `/` opens the Overview at M.
+  # this module pins the total's exclusion line, its change and the line's
+  # full sentences, which L draws (Sprint 31's M; Sprint 32 E4), so `/`
+  # opens the Overview at L.
   setup {Portfolixir.DashboardFixtures, :overview_at_m}
 
   import Phoenix.LiveViewTest

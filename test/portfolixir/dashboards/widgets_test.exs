@@ -10,21 +10,22 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Performance.Movers
 
-  # The slice's kinds and sizes (planning board 01 ②, the Sprint 31 brief of
-  # Lane D), with the German titles the boards draw.
+  # The slice's kinds (planning board 01 ②, the Sprint 31 brief of Lane
+  # D), with the German titles the boards draw, and their sizes on Apple's
+  # families since Sprint 32 E4 (families_test.exs holds why each).
   @slice %{
-    "total_value" => {~w(S M), "overview", "Gesamtwert"},
-    "data_quality" => {~w(S M), "overview", "Datenqualität"},
+    "total_value" => {~w(S M L), "overview", "Gesamtwert"},
+    "data_quality" => {~w(S L), "overview", "Datenqualität"},
     "due" => {~w(S), "overview", "Fällig"},
-    # M since the closing act (DS1): the list, S the count.
-    "off_target" => {~w(S M), "overview", "Abseits des Ziels"},
-    "performance" => {~w(S M L full), "performance", "Wertentwicklung"},
-    "movers" => {~w(S M), "performance", "Tops und Flops"},
-    "snapshots" => {~w(S W), "performance", "Snapshots"},
-    "allocation_drift" => {~w(M T), "allocation", "Allokation und Drift"},
-    "crashes" => {~w(M L), "risk", "Crashes im Vergleich"},
-    "bitcoin_cycle" => {~w(M L full), "analyses", "Bitcoin-Zyklus"},
-    "sale_review" => {~w(M), "analyses", "Verkaufsrückblick"}
+    # The list since the closing act (DS1), S the count.
+    "off_target" => {~w(S L), "overview", "Abseits des Ziels"},
+    "performance" => {~w(S L XL full), "performance", "Wertentwicklung"},
+    "movers" => {~w(S L), "performance", "Tops und Flops"},
+    "snapshots" => {~w(S M), "performance", "Snapshots"},
+    "allocation_drift" => {~w(L), "allocation", "Allokation und Drift"},
+    "crashes" => {~w(L), "risk", "Crashes im Vergleich"},
+    "bitcoin_cycle" => {~w(L XL full), "analyses", "Bitcoin-Zyklus"},
+    "sale_review" => {~w(L), "analyses", "Verkaufsrückblick"}
   }
 
   # User story:
@@ -59,14 +60,13 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   end
 
   test "the sizes are the grid's, and full is a page, not a grid size" do
-    assert Widgets.sizes() == ~w(S W M T L full)
-    assert Widgets.dimensions("S") == {:ok, {3, 1}}
-    assert Widgets.dimensions("W") == {:ok, {6, 1}}
+    assert Widgets.sizes() == ~w(S M L XL full)
+    assert Widgets.dimensions("S") == {:ok, {3, 2}}
     assert Widgets.dimensions("M") == {:ok, {6, 2}}
-    assert Widgets.dimensions("T") == {:ok, {4, 3}}
-    assert Widgets.dimensions("L") == {:ok, {8, 3}}
+    assert Widgets.dimensions("L") == {:ok, {6, 4}}
+    assert Widgets.dimensions("XL") == {:ok, {12, 4}}
     assert Widgets.dimensions("full") == :error
-    assert Widgets.dimensions("XL") == :error
+    assert Widgets.dimensions("W") == :error
     assert Widgets.dimensions(nil) == :error
   end
 

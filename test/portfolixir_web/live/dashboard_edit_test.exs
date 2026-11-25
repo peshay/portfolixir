@@ -25,10 +25,12 @@ defmodule PortfolixirWeb.DashboardEditTest do
   alias Portfolixir.Dashboards
   alias Portfolixir.Journal
 
+  # On Apple's families (Sprint 32 E4): Wertentwicklung and Tops und
+  # Flops side by side at L, Crashes im Vergleich under the first.
   @layout [
     %{"kind" => "performance", "size" => "L", "col" => 1, "row" => 1},
-    %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 4},
-    %{"kind" => "crashes", "size" => "M", "col" => 7, "row" => 4}
+    %{"kind" => "movers", "size" => "L", "col" => 7, "row" => 1},
+    %{"kind" => "crashes", "size" => "L", "col" => 1, "row" => 5}
   ]
 
   defp seed do
@@ -138,7 +140,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert view
            |> document()
            |> Floki.find("[data-role='edit-add'][data-kind='performance'] .widget-size")
-           |> Enum.map(&text/1) == ~w(S M L)
+           |> Enum.map(&text/1) == ~w(S L XL)
 
     refute has_element?(view, "[data-role='edit-start']")
     assert has_element?(view, "[data-role='edit-reset']", "Zurücksetzen")
@@ -171,9 +173,10 @@ defmodule PortfolixirWeb.DashboardEditTest do
       |> Enum.map(&{text(&1), Floki.attribute(&1, "aria-pressed")})
     end
 
-    assert sizes.("performance") == [{"S", ["false"]}, {"M", ["false"]}, {"L", ["true"]}]
-    assert sizes.("movers") == [{"S", ["false"]}, {"M", ["true"]}]
-    assert sizes.("crashes") == [{"M", ["true"]}, {"L", ["false"]}]
+    assert sizes.("performance") == [{"S", ["false"]}, {"L", ["true"]}, {"XL", ["false"]}]
+    assert sizes.("movers") == [{"S", ["false"]}, {"L", ["true"]}]
+    # One size, no switch (Crashes im Vergleich takes L only, Sprint 32 E4).
+    assert sizes.("crashes") == []
 
     assert doc |> Floki.find("[data-role='edit-catalogue'] h2") |> text() == "Widget hinzufügen"
 
@@ -186,7 +189,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
 
     assert doc
            |> Floki.find("[data-role='edit-add'][data-kind='performance']")
-           |> text() =~ ~r/Wertentwicklung\s+S M L/
+           |> text() =~ ~r/Wertentwicklung\s+S L XL/
 
     assert journal_count() == 1
   end
@@ -214,93 +217,94 @@ defmodule PortfolixirWeb.DashboardEditTest do
     seed()
     dashboard = dashboard!()
     view = open_editing(conn, dashboard)
-    perf = item_key(view, "performance")
+    crashes = item_key(view, "crashes")
 
-    key(view, "performance", "ArrowRight")
-    assert place(view, "performance") == {2, 1, "L"}
-    assert announced(view) == "Wertentwicklung nach rechts verschoben, Spalte 2, Zeile 1"
+    key(view, "crashes", "ArrowRight")
+    assert place(view, "crashes") == {2, 5, "L"}
+    assert announced(view) == "Crashes im Vergleich nach rechts verschoben, Spalte 2, Zeile 5"
 
     assert_push_event(view, "dashboard-edit-focus", %{
-      ids: ["dashboard-edit-handle-" <> ^perf | _]
+      ids: ["dashboard-edit-handle-" <> ^crashes | _]
     })
 
-    key(view, "performance", "ArrowLeft")
-    assert place(view, "performance") == {1, 1, "L"}
-    assert announced(view) == "Wertentwicklung nach links verschoben, Spalte 1, Zeile 1"
+    key(view, "crashes", "ArrowLeft")
+    assert place(view, "crashes") == {1, 5, "L"}
+    assert announced(view) == "Crashes im Vergleich nach links verschoben, Spalte 1, Zeile 5"
 
-    key(view, "performance", "ArrowLeft")
-    assert place(view, "performance") == {1, 1, "L"}
+    key(view, "crashes", "ArrowLeft")
+    assert place(view, "crashes") == {1, 5, "L"}
 
     assert announced(view) ==
-             "Wertentwicklung kann nicht nach links: Es verließe das Raster."
+             "Crashes im Vergleich kann nicht nach links: Es verließe das Raster."
 
     key(view, "performance", "ArrowUp")
     assert place(view, "performance") == {1, 1, "L"}
     assert announced(view) == "Wertentwicklung kann nicht nach oben: Es verließe das Raster."
 
+    # Down onto Crashes im Vergleich: it moves on beside, under Tops und
+    # Flops; up again, nothing needs to move.
     key(view, "performance", "ArrowDown")
     assert place(view, "performance") == {1, 2, "L"}
+    assert place(view, "crashes") == {7, 5, "L"}
 
     assert announced(view) ==
-             "Wertentwicklung nach unten verschoben, Spalte 1, Zeile 2 · 2 Widgets sind nachgerückt"
+             "Wertentwicklung nach unten verschoben, Spalte 1, Zeile 2 · 1 Widget ist nachgerückt"
 
     key(view, "performance", "ArrowUp")
     assert place(view, "performance") == {1, 1, "L"}
-
-    key(view, "movers", "ArrowDown")
-    assert place(view, "movers") == {1, 5, "M"}
-    assert announced(view) == "Tops und Flops nach unten verschoben, Spalte 1, Zeile 5"
-
-    key(view, "movers", "ArrowUp")
-    assert announced(view) == "Tops und Flops nach oben verschoben, Spalte 1, Zeile 4"
+    assert announced(view) == "Wertentwicklung nach oben verschoben, Spalte 1, Zeile 1"
 
     # A key the handle does not answer changes nothing.
     key(view, "movers", "a")
-    assert place(view, "movers") == {1, 4, "M"}
+    assert place(view, "movers") == {7, 1, "L"}
 
-    # The size switch: Tops und Flops to S, then back to M.
+    # The size switch: Tops und Flops to S, and Crashes im Vergleich floats
+    # up into the room it leaves; back to L, and it gives way again.
     view
     |> element("[data-widget-kind='movers'] [data-role='edit-size'][data-size='S']")
     |> render_click()
 
-    assert place(view, "movers") == {1, 4, "S"}
-    assert announced(view) == "Tops und Flops auf Größe S gestellt, Spalte 1, Zeile 4"
+    assert place(view, "movers") == {7, 1, "S"}
+    assert place(view, "crashes") == {7, 3, "L"}
+
+    assert announced(view) ==
+             "Tops und Flops auf Größe S gestellt, Spalte 7, Zeile 1 · 1 Widget ist nachgerückt"
 
     assert has_element?(
              view,
              "[data-widget-kind='movers'] [data-role='edit-size'][data-size='S'][aria-pressed='true']"
            )
 
-    # Crashes im Vergleich at L (8 wide) from column 7: moved left to
-    # column 5 to stay on the grid; Tops und Flops is 3 wide now, so it fits.
     view
-    |> element("[data-widget-kind='crashes'] [data-role='edit-size'][data-size='L']")
+    |> element("[data-widget-kind='movers'] [data-role='edit-size'][data-size='L']")
     |> render_click()
 
-    assert place(view, "crashes") == {5, 4, "L"}
-    assert announced(view) == "Crashes im Vergleich auf Größe L gestellt, Spalte 5, Zeile 4"
-
-    # Tops und Flops back to M covers it: Crashes im Vergleich moves on
-    # below.
-    view
-    |> element("[data-widget-kind='movers'] [data-role='edit-size'][data-size='M']")
-    |> render_click()
-
-    assert place(view, "movers") == {1, 4, "M"}
-    assert place(view, "crashes") == {1, 6, "L"}
+    assert place(view, "movers") == {7, 1, "L"}
+    assert place(view, "crashes") == {1, 5, "L"}
 
     assert announced(view) ==
-             "Tops und Flops auf Größe M gestellt, Spalte 1, Zeile 4 · 1 Widget ist nachgerückt"
+             "Tops und Flops auf Größe L gestellt, Spalte 7, Zeile 1 · 1 Widget ist nachgerückt"
+
+    # Wertentwicklung to XL covers Tops und Flops, which moves on under it,
+    # and Crashes im Vergleich, whose place that is, beside it.
+    view
+    |> element("[data-widget-kind='performance'] [data-role='edit-size'][data-size='XL']")
+    |> render_click()
+
+    assert place(view, "performance") == {1, 1, "XL"}
+    assert place(view, "movers") == {1, 5, "L"}
+    assert place(view, "crashes") == {7, 5, "L"}
+
+    assert announced(view) ==
+             "Wertentwicklung auf Größe XL gestellt, Spalte 1, Zeile 1 · 2 Widgets sind nachgerückt"
 
     assert Dashboards.get_dashboard(dashboard.id).lock_version == dashboard.lock_version
     assert journal_count() == 1
 
     # Delete removes; Backspace (the Mac's delete key) does too.
-    crashes = item_key(view, "crashes")
     key(view, "movers", "Delete")
     refute has_element?(view, "[data-widget-kind='movers']")
-    assert place(view, "crashes") == {1, 4, "L"}
-    assert announced(view) == "Tops und Flops entfernt · 1 Widget ist nachgerückt"
+    assert announced(view) == "Tops und Flops entfernt"
 
     assert_push_event(view, "dashboard-edit-focus", %{
       ids: ["dashboard-edit-handle-" <> ^crashes | _]
@@ -322,7 +326,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
   # Acceptance criteria:
   # - The hook's `edit_place` (the cell under the dragged widget's corner)
   #   moves the widget there and says so: „Tops und Flops an Spalte 7,
-  #   Zeile 6 gesetzt“.
+  #   Zeile 9 gesetzt“.
   # - A place on another widget is taken, the other making room (Sprint 32
   #   E2); a place that leaves the grid is refused and said; a place that
   #   is not a whole number, or an item that does not exist, changes
@@ -334,26 +338,28 @@ defmodule PortfolixirWeb.DashboardEditTest do
     view = open_editing(conn, dashboard)
     movers = item_key(view, "movers")
 
-    render_hook(view, "edit_place", %{"item" => movers, "col" => 7, "row" => 6})
-    assert place(view, "movers") == {7, 6, "M"}
-    assert announced(view) == "Tops und Flops an Spalte 7, Zeile 6 gesetzt"
+    render_hook(view, "edit_place", %{"item" => movers, "col" => 7, "row" => 9})
+    assert place(view, "movers") == {7, 9, "L"}
+    assert announced(view) == "Tops und Flops an Spalte 7, Zeile 9 gesetzt"
 
-    render_hook(view, "edit_place", %{"item" => movers, "col" => 7, "row" => 4})
-    assert place(view, "movers") == {7, 4, "M"}
-    assert place(view, "crashes") == {1, 4, "M"}
+    # Onto Crashes im Vergleich: it gives way, then floats up into the
+    # place Tops und Flops left.
+    render_hook(view, "edit_place", %{"item" => movers, "col" => 1, "row" => 5})
+    assert place(view, "movers") == {1, 5, "L"}
+    assert place(view, "crashes") == {7, 1, "L"}
 
     assert announced(view) ==
-             "Tops und Flops an Spalte 7, Zeile 4 gesetzt · 1 Widget ist nachgerückt"
+             "Tops und Flops an Spalte 1, Zeile 5 gesetzt · 1 Widget ist nachgerückt"
 
     render_hook(view, "edit_place", %{"item" => movers, "col" => 8, "row" => 9})
-    assert place(view, "movers") == {7, 4, "M"}
+    assert place(view, "movers") == {1, 5, "L"}
 
     assert announced(view) ==
              "Tops und Flops kann nicht an Spalte 8, Zeile 9: Es verließe das Raster."
 
     render_hook(view, "edit_place", %{"item" => movers, "col" => "x", "row" => 1})
     render_hook(view, "edit_place", %{"item" => "999", "col" => 1, "row" => 9})
-    assert place(view, "movers") == {7, 4, "M"}
+    assert place(view, "movers") == {1, 5, "L"}
 
     view |> element("[data-widget-kind='crashes'] [data-role='edit-remove']") |> render_click()
     refute has_element?(view, "[data-widget-kind='crashes']")
@@ -371,7 +377,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
   # Acceptance criteria:
   # - A catalogue entry adds its kind in its smallest grid size at the
   #   first free place (row by row, column by column) and says where:
-  #   „Snapshots hinzugefügt, Spalte 9, Zeile 1, Größe S“.
+  #   „Snapshots hinzugefügt, Spalte 7, Zeile 5, Größe S“.
   # - The added widget reads its source (its body is drawn, not a hole),
   #   and the focus goes to its handle.
   # - A kind the registry does not hold changes nothing.
@@ -382,14 +388,14 @@ defmodule PortfolixirWeb.DashboardEditTest do
     view = open_editing(conn, dashboard)
 
     view |> element("[data-role='edit-add'][data-kind='snapshots']") |> render_click()
-    assert place(view, "snapshots") == {9, 1, "S"}
-    assert announced(view) == "Snapshots hinzugefügt, Spalte 9, Zeile 1, Größe S"
+    assert place(view, "snapshots") == {7, 5, "S"}
+    assert announced(view) == "Snapshots hinzugefügt, Spalte 7, Zeile 5, Größe S"
     assert_push_event(view, "dashboard-edit-focus", %{ids: ["dashboard-edit-handle-" <> _ | _]})
 
     view |> element("[data-role='edit-add'][data-kind='allocation_drift']") |> render_click()
-    # M is 6 wide: no room beside Wertentwicklung, the first free place is
-    # under the row of Tops und Flops and Crashes.
-    assert place(view, "allocation_drift") == {1, 6, "M"}
+    # L is 6 wide and 4 rows tall: no room beside Snapshots, the first
+    # free place is under it.
+    assert place(view, "allocation_drift") == {7, 7, "L"}
 
     render_async(view)
     assert has_element?(view, "[data-widget-kind='snapshots'] [data-form='wide']")
@@ -419,10 +425,10 @@ defmodule PortfolixirWeb.DashboardEditTest do
 
     key(view, "performance", "ArrowRight")
     key(view, "performance", "ArrowRight")
-    render_hook(view, "edit_place", %{"item" => movers, "col" => 1, "row" => 8})
+    render_hook(view, "edit_place", %{"item" => movers, "col" => 1, "row" => 13})
 
     view
-    |> element("[data-widget-kind='crashes'] [data-role='edit-size'][data-size='L']")
+    |> element("[data-widget-kind='movers'] [data-role='edit-size'][data-size='S']")
     |> render_click()
 
     view
@@ -442,10 +448,12 @@ defmodule PortfolixirWeb.DashboardEditTest do
     stored = Dashboards.get_dashboard(dashboard.id)
     assert stored.lock_version == dashboard.lock_version + 1
 
+    # Removing Wertentwicklung closed its gap: Crashes im Vergleich and Tops
+    # und Flops floated up; Snapshots took the first free place.
     assert stored.layout == [
-             %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 4, "settings" => %{}},
-             %{"kind" => "crashes", "size" => "L", "col" => 5, "row" => 1, "settings" => %{}},
-             %{"kind" => "snapshots", "size" => "S", "col" => 1, "row" => 1, "settings" => %{}}
+             %{"kind" => "movers", "size" => "S", "col" => 1, "row" => 1, "settings" => %{}},
+             %{"kind" => "crashes", "size" => "L", "col" => 7, "row" => 1, "settings" => %{}},
+             %{"kind" => "snapshots", "size" => "S", "col" => 4, "row" => 1, "settings" => %{}}
            ]
 
     refute has_element?(view, "[data-role='edit-handle']")
@@ -481,7 +489,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
 
     view |> element("[data-role='edit-reset']") |> render_click()
     assert place(view, "performance") == {1, 1, "L"}
-    assert place(view, "movers") == {1, 4, "M"}
+    assert place(view, "movers") == {7, 1, "L"}
     assert has_element?(view, "[data-role='edit-handle']")
     assert bar(view) == "Ungespeicherte Änderungen verworfen."
 
@@ -640,15 +648,15 @@ defmodule PortfolixirWeb.DashboardEditTest do
 
     assert shown == [
              "Wertentwicklung L · Spalte 1, Zeile 1",
-             "Crashes im Vergleich M · Spalte 7, Zeile 4",
-             "Tops und Flops M · Spalte 1, Zeile 7"
+             "Crashes im Vergleich L · Spalte 1, Zeile 5",
+             "Tops und Flops L · Spalte 7, Zeile 7"
            ]
 
     view |> element("[data-role='edit-load-stored']") |> render_click()
     assert_push_event(view, "dashboard-edit-focus", %{ids: ["dashboard-edit-start"]})
     refute has_element?(view, "[data-role='edit-handle']")
     refute has_element?(view, "[data-role='edit-stale']")
-    assert place(view, "movers") == {1, 7, "M"}
+    assert place(view, "movers") == {7, 7, "L"}
     assert place(view, "performance") == {1, 1, "L"}
 
     # Again, and this time keep editing: the next save replaces knowingly.
@@ -670,7 +678,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert Enum.at(stored.layout, 0)["col"] == 2
     # The edit's own: the step closed the agent's gap above row 7, and the
     # agent's later row 8 was not taken over.
-    assert Enum.at(stored.layout, 1)["row"] == 4
+    assert Enum.at(stored.layout, 1)["row"] == 5
     assert journal_count() == 4
   end
 
@@ -705,8 +713,8 @@ defmodule PortfolixirWeb.DashboardEditTest do
 
     crashes = item_key(view, "crashes")
     reorder.("crashes", "up")
-    assert place(view, "crashes") == {1, 4, "M"}
-    assert place(view, "movers") == {7, 4, "M"}
+    assert place(view, "crashes") == {7, 1, "L"}
+    assert place(view, "movers") == {1, 5, "L"}
     assert announced(view) == "Crashes im Vergleich nach oben verschoben, Position 2 von 3"
 
     assert_push_event(view, "dashboard-edit-focus", %{
@@ -714,9 +722,9 @@ defmodule PortfolixirWeb.DashboardEditTest do
     })
 
     reorder.("crashes", "up")
-    assert place(view, "crashes") == {1, 1, "M"}
-    assert place(view, "performance") == {1, 3, "L"}
-    assert place(view, "movers") == {1, 6, "M"}
+    assert place(view, "crashes") == {1, 1, "L"}
+    assert place(view, "performance") == {7, 1, "L"}
+    assert place(view, "movers") == {1, 5, "L"}
     assert announced(view) == "Crashes im Vergleich nach oben verschoben, Position 1 von 3"
 
     reorder.("crashes", "up")
@@ -726,7 +734,8 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert announced(view) == "Tops und Flops steht schon an letzter Stelle."
 
     reorder.("performance", "down")
-    assert place(view, "movers") == {1, 3, "M"}
+    assert place(view, "movers") == {7, 1, "L"}
+    assert place(view, "performance") == {1, 5, "L"}
     assert announced(view) == "Wertentwicklung nach unten verschoben, Position 3 von 3"
 
     view |> element("[data-role='edit-done']") |> render_click()

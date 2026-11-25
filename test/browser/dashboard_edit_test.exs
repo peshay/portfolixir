@@ -62,8 +62,8 @@ defmodule PortfolixirWeb.Browser.DashboardEditTest do
 
     layout = [
       %{"kind" => "performance", "size" => "L", "col" => 1, "row" => 1},
-      %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 4},
-      %{"kind" => "crashes", "size" => "M", "col" => 7, "row" => 4}
+      %{"kind" => "movers", "size" => "L", "col" => 7, "row" => 1},
+      %{"kind" => "crashes", "size" => "L", "col" => 1, "row" => 5}
     ]
 
     {:ok, dashboard} =
@@ -119,9 +119,9 @@ defmodule PortfolixirWeb.Browser.DashboardEditTest do
     assert stored.lock_version == dashboard.lock_version + 1
 
     assert [
-             %{"kind" => "performance", "col" => 2, "row" => 1},
-             %{"kind" => "movers", "col" => 1, "row" => movers_row},
-             %{"kind" => "crashes", "col" => 7, "row" => 4}
+             %{"kind" => "performance", "col" => 1, "row" => 1},
+             %{"kind" => "movers", "col" => 7, "row" => movers_row},
+             %{"kind" => "crashes", "col" => 7, "row" => 1}
            ] = stored.layout
 
     assert movers_row > 5

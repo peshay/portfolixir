@@ -23,10 +23,12 @@ defmodule PortfolixirWeb.DashboardEditArrangeTest do
   alias Portfolixir.Dashboards
   alias Portfolixir.Journal
 
+  # On Apple's families (Sprint 32 E4): Wertentwicklung and Tops und
+  # Flops side by side at L, Crashes im Vergleich under the first.
   @layout [
     %{"kind" => "performance", "size" => "L", "col" => 1, "row" => 1},
-    %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 4},
-    %{"kind" => "crashes", "size" => "M", "col" => 7, "row" => 4}
+    %{"kind" => "movers", "size" => "L", "col" => 7, "row" => 1},
+    %{"kind" => "crashes", "size" => "L", "col" => 1, "row" => 5}
   ]
 
   defp seed do
@@ -127,14 +129,15 @@ defmodule PortfolixirWeb.DashboardEditArrangeTest do
   # answer at the top of the page.
   #
   # Acceptance criteria:
-  # - „Crashes im Vergleich“ to L covers „Tops und Flops“: the size is
-  #   taken (moved left to stay on the grid), „Tops und Flops“ moves below
-  #   it and is marked as moved; nothing is refused.
-  # - The note stands at „Crashes im Vergleich“, in a polite live region,
-  #   with the step and how many made room: „… auf Größe L gestellt,
-  #   Spalte 5, Zeile 4 · 1 Widget ist nachgerückt“, „Rückgängig“ beside
-  #   it; no other widget says anything, and the bar's status line says
-  #   nothing.
+  # - „Wertentwicklung“ to XL covers „Tops und Flops“: the size is taken,
+  #   „Tops und Flops“ moves on to the next free place after its own in
+  #   reading order, the first under it, and „Crashes im Vergleich“, whose
+  #   place that is, moves on beside it; both are marked as moved; nothing
+  #   is refused.
+  # - The note stands at „Wertentwicklung“, in a polite live region, with
+  #   the step and how many made room: „… auf Größe XL gestellt, Spalte 1,
+  #   Zeile 1 · 1 Widget ist nachgerückt“, „Rückgängig“ beside it; no
+  #   other widget says anything, and the bar's status line says nothing.
   # - „Rückgängig“ takes back that one step: the layout as before, said at
   #   the same widget, and no second „Rückgängig“. Ctrl+Z (the hook's
   #   `edit_undo`) does the same after the next step.
@@ -145,51 +148,52 @@ defmodule PortfolixirWeb.DashboardEditArrangeTest do
     dashboard = dashboard!()
     view = open_editing(conn, dashboard)
 
-    size(view, "crashes", "L")
+    size(view, "performance", "XL")
 
-    assert place(view, "crashes") == {5, 4, "L"}
-    assert place(view, "movers") == {1, 7, "M"}
-    assert place(view, "performance") == {1, 1, "L"}
-    assert moved(view) == ["movers"]
+    assert place(view, "performance") == {1, 1, "XL"}
+    assert place(view, "movers") == {1, 5, "L"}
+    assert place(view, "crashes") == {7, 5, "L"}
+    assert moved(view) == ["crashes", "movers"]
 
-    assert note(view, "crashes") ==
-             {"Crashes im Vergleich auf Größe L gestellt, Spalte 5, Zeile 4 · 1 Widget ist nachgerückt",
+    assert note(view, "performance") ==
+             {"Wertentwicklung auf Größe XL gestellt, Spalte 1, Zeile 1 · 2 Widgets sind nachgerückt",
               true}
 
-    assert [{"crashes", _}] = notes(view)
+    assert [{"performance", _}] = notes(view)
     assert bar(view) == ""
 
-    crashes = item_key(view, "crashes")
+    performance = item_key(view, "performance")
 
     assert has_element?(
              view,
-             "[data-widget-kind='crashes'] #dashboard-edit-note-#{crashes}[role='status'][aria-live='polite']"
+             "[data-widget-kind='performance'] #dashboard-edit-note-#{performance}[role='status'][aria-live='polite']"
            )
 
     assert has_element?(
              view,
-             "#dashboard-edit-handle-#{crashes}[aria-describedby~='dashboard-edit-note-#{crashes}']"
+             "#dashboard-edit-handle-#{performance}[aria-describedby~='dashboard-edit-note-#{performance}']"
            )
 
-    view |> element("[data-widget-kind='crashes'] [data-role='edit-undo']") |> render_click()
+    view |> element("[data-widget-kind='performance'] [data-role='edit-undo']") |> render_click()
 
-    assert place(view, "crashes") == {7, 4, "M"}
-    assert place(view, "movers") == {1, 4, "M"}
-    assert note(view, "crashes") == {"Letzter Schritt rückgängig gemacht", false}
-    assert moved(view) == ["movers"]
+    assert place(view, "performance") == {1, 1, "L"}
+    assert place(view, "movers") == {7, 1, "L"}
+    assert place(view, "crashes") == {1, 5, "L"}
+    assert note(view, "performance") == {"Letzter Schritt rückgängig gemacht", false}
+    assert moved(view) == ["crashes", "movers"]
     assert bar(view) == ""
 
     # The next step clears the marks; Ctrl+Z takes it back.
-    key(view, "performance", "ArrowRight")
-    assert place(view, "performance") == {2, 1, "L"}
+    key(view, "crashes", "ArrowRight")
+    assert place(view, "crashes") == {2, 5, "L"}
     assert moved(view) == []
     render_hook(view, "edit_undo", %{})
-    assert place(view, "performance") == {1, 1, "L"}
-    assert note(view, "performance") == {"Letzter Schritt rückgängig gemacht", false}
+    assert place(view, "crashes") == {1, 5, "L"}
+    assert note(view, "crashes") == {"Letzter Schritt rückgängig gemacht", false}
 
     # One step only: a second undo changes nothing.
     render_hook(view, "edit_undo", %{})
-    assert place(view, "performance") == {1, 1, "L"}
+    assert place(view, "crashes") == {1, 5, "L"}
 
     assert Dashboards.get_dashboard(dashboard.id).layout == dashboard.layout
     assert journal_count() == 1
@@ -201,12 +205,12 @@ defmodule PortfolixirWeb.DashboardEditArrangeTest do
   # so that a move onto another widget is never refused.
   #
   # Acceptance criteria:
-  # - ArrowDown on „Wertentwicklung“ moves it a row down; „Tops und Flops“
-  #   and „Crashes im Vergleich“ below make room, said at „Wertentwicklung“
-  #   with „· 2 Widgets sind nachgerückt“; ArrowUp brings it back and the
-  #   two float up again.
+  # - ArrowDown on „Wertentwicklung“ moves it a row down; „Crashes im
+  #   Vergleich“ below it makes room, moving on beside it, said at
+  #   „Wertentwicklung“ with „· 1 Widget ist nachgerückt“; ArrowUp brings
+  #   it back, and nothing needs to move.
   # - A drop of „Tops und Flops“ onto „Crashes im Vergleich“ lands there
-  #   and „Crashes im Vergleich“ gives way.
+  #   and „Crashes im Vergleich“ gives way, then floats up into the gap.
   # - Only a step off the grid is refused, said at the widget, without
   #   „Rückgängig“; the bar's status line stays silent.
   test "the arrow keys and a drop arrange; only a step off the grid is refused",
@@ -217,18 +221,18 @@ defmodule PortfolixirWeb.DashboardEditArrangeTest do
 
     key(view, "performance", "ArrowDown")
     assert place(view, "performance") == {1, 2, "L"}
-    assert place(view, "movers") == {1, 5, "M"}
-    assert place(view, "crashes") == {7, 5, "M"}
-    assert moved(view) == ["crashes", "movers"]
+    assert place(view, "crashes") == {7, 5, "L"}
+    assert place(view, "movers") == {7, 1, "L"}
+    assert moved(view) == ["crashes"]
 
     assert note(view, "performance") ==
-             {"Wertentwicklung nach unten verschoben, Spalte 1, Zeile 2 · 2 Widgets sind nachgerückt",
+             {"Wertentwicklung nach unten verschoben, Spalte 1, Zeile 2 · 1 Widget ist nachgerückt",
               true}
 
     key(view, "performance", "ArrowUp")
     assert place(view, "performance") == {1, 1, "L"}
-    assert place(view, "movers") == {1, 4, "M"}
-    assert place(view, "crashes") == {7, 4, "M"}
+    assert place(view, "crashes") == {7, 5, "L"}
+    assert moved(view) == []
 
     key(view, "performance", "ArrowLeft")
     assert place(view, "performance") == {1, 1, "L"}
@@ -239,12 +243,12 @@ defmodule PortfolixirWeb.DashboardEditArrangeTest do
     assert bar(view) == ""
 
     movers = item_key(view, "movers")
-    render_hook(view, "edit_place", %{"item" => movers, "col" => 7, "row" => 4})
-    assert place(view, "movers") == {7, 4, "M"}
-    assert place(view, "crashes") == {1, 4, "M"}
+    render_hook(view, "edit_place", %{"item" => movers, "col" => 7, "row" => 5})
+    assert place(view, "movers") == {7, 5, "L"}
+    assert place(view, "crashes") == {1, 5, "L"}
 
     assert note(view, "movers") ==
-             {"Tops und Flops an Spalte 7, Zeile 4 gesetzt · 1 Widget ist nachgerückt", true}
+             {"Tops und Flops an Spalte 7, Zeile 5 gesetzt · 1 Widget ist nachgerückt", true}
 
     assert bar(view) == ""
   end
@@ -266,7 +270,7 @@ defmodule PortfolixirWeb.DashboardEditArrangeTest do
             "kind" => "due",
             "size" => "S",
             "col" => 1 + rem(n, 4) * 3,
-            "row" => 1 + div(n, 4)
+            "row" => 1 + div(n, 4) * 2
           }
 
     dashboard = dashboard!(forty)

@@ -603,12 +603,12 @@ defmodule PortfolixirWeb.DashboardLive do
   # „Wertentwicklung“ item's own period (its pin, else the dashboard's,
   # Sprint 31 D5), and „Gesamtwert“'s, whose change it draws at every
   # size and whose strip it fills at M (Sprint 31 closing act, F1).
-  # `large: true` keeps the L items alone (their bands).
+  # `large: true` keeps the XL items alone (their bands).
   defp performance_keys(items, period, opts \\ []) do
     large? = Keyword.get(opts, :large, false)
 
     for item <- items,
-        (item.kind == "performance" and (not large? or item.size == "L")) or
+        (item.kind == "performance" and (not large? or item.size == "XL")) or
           (item.kind == "total_value" and not large?) do
       item = Widget.with_period(item, period, false)
       {{item.scope, read_slot(item)}, {item.scope, item.period}}
@@ -1878,10 +1878,14 @@ defmodule PortfolixirWeb.DashboardLive do
       |> assign(:card, Map.get(assigns.cards, assigns.item.scope))
       |> assign(:stale, assigns.item.scope == assigns.scope_id && assigns.stale_ttwror)
       |> assign(:uid, assigns.item.uid)
-      # Sprint 31 D4 (board ①): at S the total, its change over the
-      # item's period and the period's value line; at M the total, the
-      # same change and the strip, whose return is the item's period's
-      # too, as its head says (Sprint 31 closing act, F1).
+      # Sprint 32 E4 (board ux-design-2026-11-25-sprint32/01 ④; each size
+      # more of the same): at S the total, its change over the item's
+      # period and the period's value line; at M the total with two
+      # companions, the period's TTWROR and its result; at L the total,
+      # the same change and the value's course over the period. Sprint
+      # 31's strip of four answers (TTWROR with IRR, cash quote, last
+      # booking, newest quote) is gone: it was a second widget in this
+      # one's frame.
       |> assign(
         :change,
         Map.get(assigns.performance, {assigns.item.scope, assigns.item.period})
@@ -1915,19 +1919,20 @@ defmodule PortfolixirWeb.DashboardLive do
              total leaves nothing out (UX-DR2: no all-clear). No whitespace
              inside it, so `:empty` holds. --%>
         <div id={"dashboard-wealth-card-status" <> @uid} role="status" class="wealth-card-status"><.wealth_card_excluded
-            :if={@card && @item.size != "S"}
+            :if={@card && @item.size == "L"}
             uid={@uid}
             valuation={@card.valuation}
             card={@card}
             active_view={@active_view}
             wealth_href={@wealth_href}
           /><.wealth_card_excluded_short
-            :if={@card && @item.size == "S"}
+            :if={@card && @item.size in ["S", "M"]}
             valuation={@card.valuation}
             wealth_href={@wealth_href}
           /></div>
       </:shared>
       <.wealth_value
+        :if={@item.size != "M"}
         card={@card}
         stale={@stale}
         error={@error}
@@ -1941,14 +1946,18 @@ defmodule PortfolixirWeb.DashboardLive do
         values={Enum.map(@change.result.series, & &1.value)}
         role="total-spark"
       />
-      <.kpi_strip
-        :if={@item.size != "S"}
+      <.total_value_figures
+        :if={@item.size == "M"}
         card={@card}
-        data_quality={@data_quality}
-        last_booking={@last_booking}
         uid={@uid}
         change={{@change, @item.period}}
         wealth_href={@wealth_href}
+      />
+      <Line.chart
+        :if={@item.size == "L" && is_map(@change) && length(@change.result.series) > 1}
+        id={"dashboard-wealth-line" <> @uid}
+        points={@change.result.series}
+        currency={@change.result.base_currency}
       />
       <:compact>
         <.total_value_compact
@@ -2520,6 +2529,57 @@ defmodule PortfolixirWeb.DashboardLive do
     """
   end
 
+  attr(:card, :any, required: true)
+  attr(:uid, :string, required: true)
+  attr(:change, :any, required: true)
+  attr(:wealth_href, :string, required: true)
+
+  # Sprint 32 E4 (board ux-design-2026-11-25-sprint32/01 ④, its W, our
+  # M): the total with two companions, side by side, no chart — the value
+  # (the valuation read's), the period's TTWROR and the period's result,
+  # the performance read's end value less its start value and its net
+  # external flows (`GET /api/v1/performance` for the item's period: the
+  # same three figures, so the result reproduces from the read). Each slot
+  # holds its place while its read runs.
+  defp total_value_figures(%{change: {read, period}} = assigns) do
+    assigns = assign(assigns, read: read, label: Widget.period_label(period))
+
+    ~H"""
+    <dl class="widget-total-figures" data-role="total-figures">
+      <div>
+        <dt><%= gettext("Value") %></dt>
+        <dd>
+          <a :if={@card} href={@wealth_href} class="num" data-role="total-figure-value"><%= Format.money(@card.valuation.total_with_cash) %> <small class="value-suffix"><%= @card.valuation.base_currency %></small></a>
+          <span :if={is_nil(@card)} class="value-skeleton" aria-hidden="true"></span>
+        </dd>
+      </div>
+      <div>
+        <dt><%= gettext("TTWROR · %{period}", period: @label) %></dt>
+        <dd class="num" data-role="total-figure-ttwror"><.change_figure read={@read} /></dd>
+      </div>
+      <div>
+        <dt><%= gettext("Result · %{period}", period: @label) %></dt>
+        <dd class="num" data-role="total-figure-result">
+          <%= if is_map(@read) do %>
+            <span class={money_sign_class(period_result(@read.result))}><%= Format.signed_decimal(period_result(@read.result), 2) %></span> <small class="value-suffix"><%= @read.result.base_currency %></small>
+          <% else %>
+            <span :if={is_nil(@read)} class="value-skeleton" aria-hidden="true"></span>
+            <span :if={@read == :error}>—</span>
+          <% end %>
+        </dd>
+      </div>
+    </dl>
+    """
+  end
+
+  # The period's result as the performance read's own figures give it: its
+  # end value less its start value and its net external flows.
+  defp period_result(result),
+    do:
+      result.end_value
+      |> Decimal.sub(result.start_value)
+      |> Decimal.sub(result.net_external_flows)
+
   attr(:change, :any, required: true)
 
   # Sprint 31 D4 (board ①; ADR-0062 §5): the total's change at S, the
@@ -2549,126 +2609,6 @@ defmodule PortfolixirWeb.DashboardLive do
       <span :if={is_nil(@read)} class="value-skeleton" aria-hidden="true"></span>
       <span :if={@read == :error}>—</span>
     <% end %>
-    """
-  end
-
-  attr(:card, :any, required: true)
-  attr(:data_quality, :any, required: true)
-  attr(:last_booking, :any, required: true)
-  attr(:uid, :string, required: true)
-
-  attr(:change, :any,
-    required: true,
-    doc: "`{read, period}`, the item's period's performance read"
-  )
-
-  attr(:wealth_href, :string, required: true)
-
-  # #798 (UX-DR2 as amended 2026-09-14): the four questions of the morning
-  # on one strip — return, cash quote, last booking, quote freshness — each
-  # cell stating its basis and linking to the surface that owns the figure.
-  # In the widget „Gesamtwert“ under the value it explains (ADR-0062 §12:
-  # the Overview's value block is one widget). The return is the item's
-  # period's, labelled with it (Sprint 31 closing act, F1).
-  defp kpi_strip(%{change: {read, period}} = assigns) do
-    assigns = assign(assigns, read: read, label: Widget.period_label(period))
-
-    ~H"""
-    <div id={"dashboard-kpi-strip" <> @uid} class="kpi-strip" aria-label={gettext("Key figures")} role="group">
-      <div class="kpi-strip__cells">
-        <a href={@wealth_href} class="kpi-strip__cell" data-role="kpi-ttwror">
-          <span class="kpi-strip__label"><%= gettext("TTWROR · %{period}", period: @label) %></span>
-          <%= cond do %>
-            <% is_map(@read) -> %>
-              <strong class={sign_class(@read.result.ttwror)}>
-                <%= signed_percent(@read.result.ttwror) %>%
-              </strong>
-              <small class="kpi-strip__sub"><%= money_weighted_line(@read.result) %></small>
-            <% @read == :error -> %>
-              <strong class="kpi-strip__na">—</strong>
-              <small class="kpi-strip__sub"><%= money_weighted_line(nil) %></small>
-            <% true -> %>
-              <.strip_pending />
-          <% end %>
-        </a>
-        <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-cash-quote">
-          <span class="kpi-strip__label"><%= gettext("Cash quote") %></span>
-          <%= if @card do %>
-            <strong><%= Format.percent(@card.valuation.cash_quote) %>%</strong>
-            <small class="kpi-strip__sub">
-              <%= Format.money(@card.valuation.total_cash) %> <%= @card.valuation.base_currency %> <%= gettext(
-                "cash"
-              ) %>
-            </small>
-          <% else %>
-            <.strip_pending />
-          <% end %>
-        </a>
-        <%!-- The ledger's newest booking, kind label localized here at
-             render time (the async task has no user locale). --%>
-        <a href="/transactions" class="kpi-strip__cell" data-role="kpi-last-booking">
-          <span class="kpi-strip__label"><%= gettext("Last booking") %></span>
-          <%= if @card do %>
-            <strong :if={@last_booking}><%= Format.date(@last_booking.date) %></strong>
-            <strong :if={is_nil(@last_booking)} class="kpi-strip__na">—</strong>
-            <small :if={@last_booking} class="kpi-strip__sub">
-              <%= TransactionKindLabel.label(@last_booking.type) %><%= if @last_booking.subject,
-                do: " · #{@last_booking.subject}" %>
-            </small>
-          <% else %>
-            <.strip_pending />
-          <% end %>
-        </a>
-        <%!-- Freshness: the newest stored quote across the held positions is
-             the fact; the stale count is the finding, shown only when it
-             exists (no all-clear badge) and linking where the data-quality
-             line's quote count links: the held list (issue 1417). --%>
-        <a
-          href="/securities?dq=stale_quote&holding=held"
-          class="kpi-strip__cell"
-          data-role="kpi-freshness"
-        >
-          <span class="kpi-strip__label"><%= gettext("Quotes") %></span>
-          <%= if @card do %>
-            <strong :if={@card.valuation.newest_quote_date}>
-              <%= Format.date(@card.valuation.newest_quote_date) %>
-            </strong>
-            <strong :if={is_nil(@card.valuation.newest_quote_date)} class="kpi-strip__na">
-              —
-            </strong>
-            <%!-- The count is the one the link resolves to: the stale_quote
-                 predicate over the held securities, the same rule and
-                 scope as the data-quality finding and the list the href
-                 opens (#705). Issue 1417: "n held stale". --%>
-            <small
-              :if={@data_quality && @data_quality.without_quote > 0}
-              class="kpi-strip__sub kpi-strip__sub--attention"
-            >
-              <AppShell.icon name={:alert_triangle} size={12} />
-              <span><%= ngettext(
-                "%{count} held stale",
-                "%{count} held stale",
-                @data_quality.without_quote
-              ) %></span>
-            </small>
-          <% else %>
-            <.strip_pending />
-          <% end %>
-        </a>
-      </div>
-      <%!-- The strip's three domain metrics carry their definition in the
-           widget's ⓘ: a cell is a link, and a <details> inside a link is
-           invalid interactive nesting. The basis line names the view, the
-           period, the date and the currency. --%>
-      <div :if={@card} class="summary-basis kpi-strip__basis" data-role="kpi-strip-basis">
-        <%= gettext("View %{view} · return over %{period} to %{date} · in %{currency} · quotes: the newest across held positions",
-          view: @card.name || gettext("Everything"),
-          period: @label,
-          date: Format.date(strip_as_of(@read)),
-          currency: @card.valuation.base_currency
-        ) %>
-      </div>
-    </div>
     """
   end
 
@@ -3194,16 +3134,6 @@ defmodule PortfolixirWeb.DashboardLive do
     )
   end
 
-  # The pending footprint of a strip cell (UX-DR20): the value-sized
-  # placeholder, aria-busy, no cue — the strip is a sub-second figure (#723).
-  defp strip_pending(assigns) do
-    ~H"""
-    <strong class="value-slot-pending" aria-busy="true">
-      <span class="value-skeleton" aria-hidden="true"></span>
-    </strong>
-    """
-  end
-
   # The cross-portfolio view walk the card and the strip chain their periods
   # from (#577, ADR-0019 at the view boundary); nil when it cannot run yet.
   defp view_analysis(view_id, base_currency) do
@@ -3248,11 +3178,6 @@ defmodule PortfolixirWeb.DashboardLive do
     do: Date.diff(end_date, start_date) + 1 < 365
 
   defp short_window?(_summary), do: false
-
-  # The date the strip's return runs to: its read's end, today while it
-  # runs.
-  defp strip_as_of(%{result: %{end_date: %Date{} = end_date}}), do: end_date
-  defp strip_as_of(_read), do: Portfolixir.Clock.today()
 
   # The ledger's newest booking (#798): newest date, newest id — the order
   # the history opens on. Raw record; the kind label is localized at render

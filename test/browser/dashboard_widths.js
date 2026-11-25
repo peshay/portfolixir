@@ -307,7 +307,16 @@ function measure(page, roots, targets = TAP_TARGETS) {
         vw: window.innerWidth,
         vh: window.innerHeight,
         scrollWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
-        grid: grid ? { ...box(grid), columns: gs.gridTemplateColumns, gap: parseFloat(gs.columnGap) || 0, display: gs.display } : null,
+        grid: grid
+          ? {
+              ...box(grid),
+              columns: gs.gridTemplateColumns,
+              gap: parseFloat(gs.columnGap) || 0,
+              rowGap: parseFloat(gs.rowGap) || 0,
+              autoRows: gs.gridAutoRows,
+              display: gs.display
+            }
+          : null,
         widgets,
         texts,
         small: texts.filter((t) => t.size < floor),
@@ -355,18 +364,39 @@ function inReadingOrder(widgets) {
   return true;
 }
 
+// Sprint 32 E4 (board ux-design-2026-11-25-sprint32/09): the compact
+// class sets the families as a phone's home screen does — two S side by
+// side, every other size the full width — in reading order: a widget
+// stands under the one before it, or, an S after an S that stands alone on
+// the left, beside it on the right.
 function compactRules(m, at) {
   const errors = pageRules(m, at);
   if (!inReadingOrder(m.widgets)) errors.push(at + ": the page draws the widgets out of reading order");
-  const left = m.widgets.length ? m.widgets[0].left : 0;
+  const full = m.grid ? m.grid.width : 0;
+  const gap = m.grid ? m.grid.gap : 0;
+  const half = (full - gap) / 2;
+  const left = m.grid ? m.grid.left : 0;
+  let beside = false;
   for (let i = 0; i < m.widgets.length; i++) {
     const w = m.widgets[i];
-    if (Math.abs(w.left - left) > SLACK || Math.abs(w.width - m.widgets[0].width) > SLACK) {
-      errors.push(at + ": #" + w.id + " is not in the one column (left " + Math.round(w.left) + ", width " + Math.round(w.width) + ")");
+    const small = w.size === "S";
+    const width = small ? half : full;
+    if (Math.abs(w.width - width) > SLACK) {
+      errors.push(at + ": #" + w.id + " (" + w.size + ") is " + Math.round(w.width) + " px wide, not " + Math.round(width));
     }
-    if (i > 0 && w.top < m.widgets[i - 1].bottom - SLACK) {
-      errors.push(at + ": #" + w.id + " does not stand under #" + m.widgets[i - 1].id);
+    const prev = i > 0 ? m.widgets[i - 1] : null;
+    const right = small && prev && prev.size === "S" && !beside && Math.abs(prev.left - left) <= SLACK;
+    if (right) {
+      if (Math.abs(w.top - prev.top) > SLACK || Math.abs(w.left - (left + half + gap)) > SLACK) {
+        errors.push(at + ": #" + w.id + " does not stand beside #" + prev.id);
+      }
+    } else {
+      if (Math.abs(w.left - left) > SLACK) errors.push(at + ": #" + w.id + " does not start its row (left " + Math.round(w.left) + ")");
+      if (prev && w.top < Math.max(prev.bottom, i > 1 ? m.widgets[i - 2].bottom : 0) - SLACK) {
+        errors.push(at + ": #" + w.id + " does not stand under #" + prev.id);
+      }
     }
+    beside = right;
     if (w.compact === false) errors.push(at + ": #" + w.id + " does not show its compact form");
     if (w.wide === true) errors.push(at + ": #" + w.id + " shows its wide form");
   }
@@ -417,13 +447,12 @@ const RAIL_INSET = 3;
 const SEARCH_GAP = 12;
 // The wide form's title (DS3).
 const TITLE = 15;
-// The wide form's height budget by size (DS1; board
-// ux-design-2026-11-21-sprint31/02 ①, the board's rows: one row 112 px,
-// rows 12 px apart), and the margin a template widget may take over it on
-// the review seed, whose names, notes and lists are long: twice the
-// budget. Every template widget holds it, none excepted.
-const BUDGET = { S: 112, W: 112, M: 236, T: 360, L: 360 };
-const MARGIN = 2;
+// Sprint 32 E4 (ADR-0062's amendment of 2026-11-25, point 3; D-13): every
+// row of the wide grid is a fixed 7rem (112 px), so every widget is exactly
+// its tile — its rows' tracks and the gaps between them — whatever it
+// holds; Sprint 31's height budget (DS1), which a row growing with its
+// content needed, is the tile itself now.
+const ROW = 112;
 
 // Sprint 31 UAT, finding 9: no title under its ⓘ and none cut. The
 // title's box overlaps the ⓘ's nowhere, and its text fits its box.
@@ -448,6 +477,7 @@ function wideRules(m, at) {
   if (m.band !== null && m.band > BAND) errors.push(at + ": " + m.band + " px between the bar and the grid, more than " + BAND);
   for (const f of m.broken) errors.push(at + ": the figure " + JSON.stringify(f.text) + " breaks over " + f.lines + " lines");
   if (!m.grid || m.grid.display !== "grid") return errors.concat([at + ": the dashboard is no grid"]);
+  if (m.grid.autoRows !== ROW + "px") errors.push(at + ": the grid's rows are " + m.grid.autoRows + ", not a fixed " + ROW + " px");
   const tracks = m.grid.columns.split(/\s+/).map(parseFloat);
   if (tracks.length !== COLUMNS) errors.push(at + ": the grid has " + tracks.length + " columns, not " + COLUMNS);
   const col = tracks[0];
@@ -481,11 +511,12 @@ function wideRules(m, at) {
       if (Math.abs(h.tag.left - h.title.left) > SLACK) errors.push(at + ": " + name(w) + "'s period tag is not at its title's left");
     }
     if (h.tagText === "ohne Zeitraum") errors.push(at + ": " + name(w) + " says „ohne Zeitraum“ on the grid");
-    // DS1: the footer at the frame's foot; the widget within its budget.
+    // DS1: the footer at the frame's foot, inside the tile.
     if (w.footGap !== null && Math.abs(w.footGap) > SLACK) errors.push(at + ": " + name(w) + "'s footer stands " + w.footGap + " px above the frame's foot");
-    const budget = BUDGET[w.size];
-    if (budget && w.natural > budget * MARGIN) {
-      errors.push(at + ": " + name(w) + " is " + w.natural + " px tall, over " + MARGIN + " × its size's budget of " + budget + " px");
+    // E4: the widget is its tile, never a row taller.
+    const tile = w.h * ROW + (w.h - 1) * m.grid.rowGap;
+    if (Math.abs(w.height - tile) > SLACK) {
+      errors.push(at + ": " + name(w) + " is " + Math.round(w.height) + " px tall, not its tile's " + tile + " px (" + w.h + " rows)");
     }
   }
   for (let i = 0; i < m.widgets.length; i++) {
@@ -757,6 +788,16 @@ async function attack(browser) {
   let m = await measure(page, COMPACT_ROOTS);
   caught.sideways = { errors: compactRules(m, at).filter((e) => e.includes("wider than its frame")) };
   await page.evaluate(() => document.getElementById("walk-attack-wide").remove());
+
+  // Sprint 32 E4: an S drawn the full width, where two S stand side by
+  // side.
+  const widened = await page.evaluate(() => {
+    const el = document.querySelector("[data-role='dashboard-grid'] > .dashboard-widget.widget--s");
+    el.style.setProperty("grid-column", "span 2");
+    return el.id;
+  });
+  m = await measure(page, COMPACT_ROOTS);
+  caught.full_s = { widened, errors: compactRules(m, at).filter((e) => e.includes("(S) is")) };
   await leave(phone);
 
   // The wide grid: the second widget of the first row moved onto the
@@ -770,6 +811,16 @@ async function attack(browser) {
   });
   m = await measure(wide, []);
   caught.overlap = { errors: wideRules(m, WIDE.width + " x " + WIDE.height).filter((e) => e.includes("overlap") || e.includes("starts at")) };
+
+  // Sprint 32 E4: a widget a row taller than its tile.
+  await open(wide, "/");
+  await wide.evaluate(() => {
+    const el = document.querySelector("[data-role='dashboard-grid'] > .dashboard-widget");
+    const h = Number(getComputedStyle(el).getPropertyValue("--widget-h"));
+    el.style.setProperty("grid-row", el.dataset.row + " / span " + (h + 1));
+  });
+  m = await measure(wide, []);
+  caught.taller = { errors: wideRules(m, WIDE.width + " x " + WIDE.height).filter((e) => e.includes("not its tile's")) };
 
   // The medium class drawn as one column.
   await resize(wide, MEDIUM[0]);

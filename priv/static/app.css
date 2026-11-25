@@ -15069,18 +15069,74 @@ a.widget-row:hover .widget-row__name {
   }
 }
 
+/* Sprint 32 E4 (ADR-0062's amendment of 2026-11-25, point 3; board
+   ux-design-2026-11-25-sprint32/09): the compact class sets Apple's
+   families as a phone's home screen does: two S side by side, M, L and XL
+   the full width, in the reading order. */
+@media (width < 600px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-grid > .dashboard-widget {
+    grid-column: span 2;
+  }
+
+  .dashboard-grid > .dashboard-widget.widget--s {
+    grid-column: span 1;
+  }
+
+  /* Half the width: a row's name and figure stand one under the other,
+     so a figure is never cut (Sprint 32 E4). */
+  .dashboard-grid > .widget--s .widget-row {
+    flex-wrap: wrap;
+  }
+
+  .dashboard-grid > .widget--s .widget-row__figure {
+    justify-items: start;
+    text-align: left;
+  }
+
+  /* The total in half the width: a smaller figure, its currency free to
+     go under it; its digits never break. */
+  .dashboard-grid > .widget--s .widget-total__figure {
+    font-size: 20px;
+    white-space: normal;
+  }
+
+  .dashboard-grid > .widget--s .widget-total__figure .value-suffix {
+    display: inline-block;
+  }
+}
+
 @media (width >= 1000px) {
+  /* Every row is a fixed 7rem: no row grows with its content, so a size
+     is one height wherever it stands; the widget shows what fits its tile
+     and its body gives way, cut at the tile's edge (Sprint 32 E4). */
   .dashboard-grid {
     display: grid;
     columns: auto;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    grid-auto-rows: minmax(7rem, auto);
+    grid-auto-rows: 7rem;
   }
 
   .dashboard-grid > .dashboard-widget {
     grid-column: var(--widget-col) / span var(--widget-w);
     grid-row: var(--widget-row) / span var(--widget-h);
+    min-height: 0;
     margin-bottom: 0;
+  }
+
+  /* Out of the edit mode the tile cuts what does not fit; in it, the
+     step's note stands under the widget, outside its tile. */
+  .dashboard-grid > .dashboard-widget:not(.is-editing) {
+    overflow: hidden;
+  }
+
+  .dashboard-grid > .dashboard-widget > .widget__wide {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .widget__wide {
@@ -15744,6 +15800,39 @@ a.widget-row:hover .widget-row__name {
   white-space: nowrap;
 }
 
+/* „Gesamtwert“ at M (Sprint 32 E4; board ux-design-2026-11-25-sprint32/01
+   ④, its W): the total with two companions side by side, no chart. */
+.widget-total-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+}
+
+.widget-total-figures > div {
+  min-width: 0;
+}
+
+.widget-total-figures dt {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.widget-total-figures dd {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.widget-total-figures dd a {
+  color: inherit;
+  text-decoration: none;
+}
+
 /* An add refused stands in the catalogue, where it was asked (Sprint 32
    E2); out of the flow while empty. */
 .dashboard-catalogue__status {
@@ -16109,12 +16198,6 @@ a.widget-row:hover .widget-row__name {
 
 .widget-drift-table__drift [data-role="drift-points"] {
   white-space: nowrap;
-}
-
-/* T is four columns wide: the drift's sign and points carry it, the
-   decorative bar gives way (as in an S row). */
-.widget--t .widget-drift-table__drift .drift-bar {
-  display: none;
 }
 
 .widget-warning {
@@ -16825,11 +16908,6 @@ a.widget-row:hover .widget-row__name {
 .dashboard-widget .widget-drift-table th,
 .dashboard-widget .widget-drift-table td {
   padding: var(--space-1) var(--space-2);
-}
-
-.dashboard-widget.widget--t .widget-drift-table th,
-.dashboard-widget.widget--t .widget-drift-table td {
-  padding-inline: var(--space-1);
 }
 
 .dashboard-widget .widget-drift-table tbody th {

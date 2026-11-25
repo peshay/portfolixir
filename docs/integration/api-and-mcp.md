@@ -5262,8 +5262,8 @@ without reading the code: `{"data": {"widgets", "groups", "grid",
   `due`, `off_target`, `performance`, `movers`, `snapshots`,
   `allocation_drift`, `crashes`, `bitcoin_cycle`, `sale_review`), `title`
   (English) and `title_key` (`{context, msgid}`, the message the screen
-  translates), `group`, `sizes` (a subset of `S`, `W`, `M`, `T`, `L` and
-  `full`), `source` (`routes`, the `GET /api/v1/...` routes it draws;
+  translates), `group`, `sizes` (a subset of `S`, `M`, `L`, `XL` and
+  `full`, smallest first), `source` (`routes`, the `GET /api/v1/...` routes it draws;
   `function`, the context function behind them; `note`, where the figures
   have no route of their own), `period` (`"none"`, or `{periods, param,
   values, ranges, translated}`: the dashboard periods it answers, the
@@ -5275,9 +5275,21 @@ without reading the code: `{"data": {"widgets", "groups", "grid",
 - `groups`: `{key, title}` in order (`overview`, `performance`,
   `allocation`, `risk`, `analyses`).
 - `grid`: `columns` (12), `max_row` (200), `max_items` (40), `sizes` (each
-  grid size's `{columns, rows}`: `S` 3 × 1, `W` 6 × 1, `M` 6 × 2, `T` 4 ×
-  3, `L` 8 × 3) and `full`, which says that `full` is a page of its own,
-  never placed on the grid.
+  grid size's `{columns, rows, family}`: `S` 3 × 2, `M` 6 × 2, `L` 6 × 4,
+  `XL` 12 × 4, Apple's widget families small, medium, large and extra
+  large, each a multiple of S), `row_height` (`7rem`: every row has a
+  fixed height at the wide class, and no row grows with its content, so a
+  widget shows what fits its tile), `size_rule` (each size of a kind shows
+  more of the same: S one figure, M the figure with two or three
+  companions, L the figure with its course, XL the figure, its course and
+  a breakdown; a size that adds nothing is not offered) and `full`, which
+  says that `full` is a page of its own, never placed on the grid. Since
+  Sprint 32 (ADR-0062's amendment of 2026-11-25, point 3) Sprint 31's
+  sizes `W` and `T` are no size, and a write naming one is refused naming
+  the families. A layout Sprint 31 stored is read as S → S, W → M, M → L,
+  T → L, L → XL with its rows doubled (a size its kind no longer takes as
+  the nearest it does), arranged as the edit mode arranges, by every read
+  alike — the screen, `GET` and the companion; its next save stores it so.
 - `periods`: `values` (`1d`, `1w`, `1m`, `3m`, `ytd`, `1y`, `3y`, `max`)
   and `default` (`1y`). A range ending today is ADR-0061 §3's money
   window, from the day after its start day to today, its baseline the
@@ -5402,7 +5414,7 @@ as the replace does, and only on a replace. It is a write in `book` and `full`, 
 the previous name, layout or place back restores them.
 `portfolixir.dashboards.delete` takes `id` and `dry_run`; it is admin.
 The companion checks a layout's shape before any request (an item's keys,
-a size among `S`, `W`, `M`, `T` and `L`, `col` 1 to 12, at most 40 items, a
+a size among `S`, `M`, `L` and `XL`, `col` 1 to 12, at most 40 items, a
 name of at most 60 characters) and takes an item's `title` and `source` as
 `get` answers them without sending them, so `get`, a change and `put` is
 one round trip; the API checks the rest and its refusals
@@ -5422,9 +5434,9 @@ Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 Content-Type: application/json
 
 {"dashboard": {"name": "Short term", "layout": [
-  {"kind": "movers", "size": "M", "col": 1, "row": 1, "settings": {"period": "1w"}},
-  {"kind": "performance", "size": "M", "col": 7, "row": 1},
-  {"kind": "due", "size": "S", "col": 1, "row": 3}
+  {"kind": "movers", "size": "L", "col": 1, "row": 1, "settings": {"period": "1w"}},
+  {"kind": "performance", "size": "L", "col": 7, "row": 1},
+  {"kind": "due", "size": "S", "col": 1, "row": 5}
 ]}}
 ```
 

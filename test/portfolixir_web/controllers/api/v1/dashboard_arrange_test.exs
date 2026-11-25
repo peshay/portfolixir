@@ -49,16 +49,16 @@ defmodule PortfolixirWeb.Api.V1.DashboardArrangeTest do
 
   defp journal_count, do: length(Journal.list_entries(resource_type: "dashboard"))
 
-  # A two-row dashboard: Tops und Flops and Crashes side by side under
-  # Snapshots. The agent widens Snapshots to cover Tops und Flops.
+  # Tops und Flops and Crashes side by side under Snapshots. The agent
+  # widens Snapshots to M and moves it down onto Tops und Flops.
   defp before,
     do: [
       item("snapshots", "S", 1, 1),
-      item("movers", "M", 1, 2),
-      item("crashes", "M", 7, 2)
+      item("movers", "L", 1, 3),
+      item("crashes", "L", 7, 3)
     ]
 
-  defp widened, do: List.replace_at(before(), 0, item("snapshots", "W", 1, 2))
+  defp widened, do: List.replace_at(before(), 0, item("snapshots", "M", 1, 3))
 
   # User story:
   # As the agent the operator runs,
@@ -92,15 +92,16 @@ defmodule PortfolixirWeb.Api.V1.DashboardArrangeTest do
         200
       )
 
-    # Snapshots W at row 2 covers Tops und Flops (columns 1 to 6, row 2):
-    # Tops und Flops moves on to the next free place after its own, column
-    # 7 of row 2, which Crashes then gives up for the next after its own,
-    # row 3; then the gaps close: Tops und Flops floats to row 1, Crashes
-    # stays under Snapshots, and Snapshots keeps the place it was given.
+    # Snapshots M at row 3 covers Tops und Flops (columns 1 to 6): Tops und
+    # Flops moves on to the next free place after its own, column 7 of row
+    # 3, and Crashes, whose place that is, to the next after its own, under
+    # Snapshots; then the gaps close: Tops und Flops floats to row 1,
+    # Crashes stays under Snapshots, and Snapshots keeps the place it was
+    # given.
     assert places(data["layout"]) == [
-             {"snapshots", "W", 1, 2},
-             {"movers", "M", 7, 1},
-             {"crashes", "M", 1, 3}
+             {"snapshots", "M", 1, 3},
+             {"movers", "L", 7, 1},
+             {"crashes", "L", 1, 5}
            ]
 
     stored = Dashboards.get_dashboard(dashboard.id)
@@ -146,9 +147,9 @@ defmodule PortfolixirWeb.Api.V1.DashboardArrangeTest do
                422
              )["errors"]
 
-    # Wertentwicklung placed at row 200 over Tops und Flops: what it covers
-    # finds no place beside it and can only go below row 200.
-    tall = [item("performance", "L", 1, 1), item("movers", "M", 1, 200)]
+    # Wertentwicklung, full width, placed at row 200 over Tops und Flops:
+    # what it covers finds no place beside it and can only go below row 200.
+    tall = [item("performance", "XL", 1, 1), item("movers", "L", 1, 200)]
     tall_dashboard = create!(tall)
 
     assert %{"layout_item" => %{"index" => 0, "reason" => "no_room"}} =
@@ -156,7 +157,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardArrangeTest do
                conn,
                tall_dashboard,
                %{
-                 "layout" => List.replace_at(tall, 0, item("performance", "L", 1, 200)),
+                 "layout" => List.replace_at(tall, 0, item("performance", "XL", 1, 200)),
                  "arrange" => "push",
                  "arranged_index" => 0
                },

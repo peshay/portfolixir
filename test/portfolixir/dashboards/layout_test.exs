@@ -31,9 +31,9 @@ defmodule Portfolixir.Dashboards.LayoutTest do
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{"name" => "Synthetic Growth"})
 
     layout = [
-      item("movers", "M", 7, 1, %{"settings" => %{"period" => "3m", "view_id" => view.id}}),
+      item("movers", "L", 7, 1, %{"settings" => %{"period" => "3m", "view_id" => view.id}}),
       %{kind: "total_value", size: "S", col: 1, row: 1},
-      item("allocation_drift", "T", 1, 2, %{"settings" => %{}})
+      item("allocation_drift", "L", 1, 3, %{"settings" => %{}})
     ]
 
     assert {:ok, normalized} = Layout.validate(layout)
@@ -41,7 +41,7 @@ defmodule Portfolixir.Dashboards.LayoutTest do
     assert normalized == [
              %{
                "kind" => "movers",
-               "size" => "M",
+               "size" => "L",
                "col" => 7,
                "row" => 1,
                "settings" => %{"period" => "3m", "view_id" => view.id}
@@ -49,9 +49,9 @@ defmodule Portfolixir.Dashboards.LayoutTest do
              %{"kind" => "total_value", "size" => "S", "col" => 1, "row" => 1, "settings" => %{}},
              %{
                "kind" => "allocation_drift",
-               "size" => "T",
+               "size" => "L",
                "col" => 1,
-               "row" => 2,
+               "row" => 3,
                "settings" => %{}
              }
            ]
@@ -88,16 +88,23 @@ defmodule Portfolixir.Dashboards.LayoutTest do
   end
 
   test "a missing size, a size the kind lacks and full are refused" do
-    assert refusal([Map.delete(item("movers", "M", 1, 1), "size")]) ==
+    assert refusal([Map.delete(item("movers", "L", 1, 1), "size")]) ==
              %{index: 0, field: "size", reason: :missing}
 
-    assert refusal([item("movers", "L", 1, 1)]) ==
+    assert refusal([item("movers", "M", 1, 1)]) ==
              %{index: 0, field: "size", reason: :unsupported_size}
 
     assert refusal([item("performance", "full", 1, 1)]) ==
              %{index: 0, field: "size", reason: :unsupported_size}
 
     assert refusal([item("movers", "XL", 1, 1)]) ==
+             %{index: 0, field: "size", reason: :unsupported_size}
+
+    # Sprint 31's W and T are no size any more (Sprint 32 E4).
+    assert refusal([item("snapshots", "W", 1, 1)]) ==
+             %{index: 0, field: "size", reason: :unsupported_size}
+
+    assert refusal([item("allocation_drift", "T", 1, 1)]) ==
              %{index: 0, field: "size", reason: :unsupported_size}
   end
 
@@ -123,7 +130,7 @@ defmodule Portfolixir.Dashboards.LayoutTest do
              reason: :off_grid
            }
 
-    assert refusal([item("performance", "L", 6, 1)]) == %{
+    assert refusal([item("performance", "XL", 2, 1)]) == %{
              index: 0,
              field: "col",
              reason: :off_grid
@@ -155,8 +162,8 @@ defmodule Portfolixir.Dashboards.LayoutTest do
   end
 
   test "two items overlapping are refused naming the later one and the earlier" do
-    # M at col 1 row 1 covers cols 1–6, rows 1–2; an S at col 6 row 2 meets it.
-    layout = [item("movers", "M", 1, 1), item("total_value", "S", 7, 1), item("due", "S", 6, 2)]
+    # L at col 1 row 1 covers cols 1–6, rows 1–4; an S at col 6 row 4 meets it.
+    layout = [item("movers", "L", 1, 1), item("total_value", "S", 7, 1), item("due", "S", 6, 4)]
 
     assert {:error, %{index: 2, field: "col", reason: :overlap, other: 0}} =
              Layout.validate(layout)
@@ -164,9 +171,9 @@ defmodule Portfolixir.Dashboards.LayoutTest do
     # Edge to edge is no overlap.
     assert {:ok, _} =
              Layout.validate([
-               item("movers", "M", 1, 1),
-               item("due", "S", 7, 2),
-               item("due", "S", 1, 3)
+               item("movers", "L", 1, 1),
+               item("due", "S", 7, 3),
+               item("due", "S", 1, 5)
              ])
   end
 
@@ -188,7 +195,7 @@ defmodule Portfolixir.Dashboards.LayoutTest do
 
   test "a view_id naming no view is refused" do
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{"name" => "Synthetic Income"})
-    with_view = fn id -> item("movers", "M", 1, 1, %{"settings" => %{"view_id" => id}}) end
+    with_view = fn id -> item("movers", "L", 1, 1, %{"settings" => %{"view_id" => id}}) end
 
     assert {:ok, _} = Layout.validate([with_view.(view.id)])
 
@@ -217,11 +224,11 @@ defmodule Portfolixir.Dashboards.LayoutTest do
 
     assert {:ok, _} =
              Layout.validate([
-               item("movers", "M", 1, 1, %{"settings" => %{"view_id" => view.id}})
+               item("movers", "L", 1, 1, %{"settings" => %{"view_id" => view.id}})
              ])
 
     for kind <- ~w(due crashes snapshots) do
-      size = if kind == "crashes", do: "M", else: "S"
+      size = if kind == "crashes", do: "L", else: "S"
 
       assert refusal([item(kind, size, 1, 1, %{"settings" => %{"view_id" => view.id}})]) ==
                %{index: 0, field: "settings.view_id", reason: :no_view}
@@ -233,31 +240,31 @@ defmodule Portfolixir.Dashboards.LayoutTest do
       item(kind, size, 1, 1, %{"settings" => %{"period" => period}})
     end
 
-    assert {:ok, _} = Layout.validate([pin.("movers", "M", "max")])
-    assert {:ok, _} = Layout.validate([pin.("performance", "L", "1d")])
+    assert {:ok, _} = Layout.validate([pin.("movers", "L", "max")])
+    assert {:ok, _} = Layout.validate([pin.("performance", "XL", "1d")])
     assert {:ok, _} = Layout.validate([pin.("total_value", "S", "max")])
 
-    assert refusal([pin.("crashes", "M", "1y")]) ==
+    assert refusal([pin.("crashes", "L", "1y")]) ==
              %{index: 0, field: "settings.period", reason: :no_period}
 
-    assert refusal([pin.("movers", "M", "5y")]) ==
+    assert refusal([pin.("movers", "L", "5y")]) ==
              %{index: 0, field: "settings.period", reason: :unsupported_period}
 
-    assert refusal([pin.("movers", "M", "quarter")]) ==
+    assert refusal([pin.("movers", "L", "quarter")]) ==
              %{index: 0, field: "settings.period", reason: :unsupported_period}
 
-    assert refusal([pin.("movers", "M", nil)]) ==
+    assert refusal([pin.("movers", "L", nil)]) ==
              %{index: 0, field: "settings.period", reason: :unsupported_period}
   end
 
   test "41 items are refused, 40 are not, and a layout must be a list" do
-    forty = for n <- 0..39, do: item("total_value", "S", rem(n, 4) * 3 + 1, div(n, 4) + 1)
+    forty = for n <- 0..39, do: item("total_value", "S", rem(n, 4) * 3 + 1, div(n, 4) * 2 + 1)
 
     assert {:ok, stored} = Layout.validate(forty)
     assert length(stored) == 40
     assert Layout.max_items() == 40
 
-    assert refusal(forty ++ [item("due", "S", 1, 11)]) ==
+    assert refusal(forty ++ [item("due", "S", 1, 21)]) ==
              %{index: 40, field: nil, reason: :too_many_items}
 
     assert refusal(%{"kind" => "due"}) == %{index: nil, field: nil, reason: :not_a_list}
@@ -274,7 +281,9 @@ defmodule Portfolixir.Dashboards.LayoutTest do
 
     assert refusal.index == 1
     assert refusal.reason == :unsupported_size
-    assert refusal.message == "is not a size this widget kind takes"
+
+    assert refusal.message ==
+             "is not a size this widget kind takes: the sizes are the families S, M, L and XL"
   end
 
   # User story:
@@ -285,9 +294,10 @@ defmodule Portfolixir.Dashboards.LayoutTest do
   #
   # Acceptance criteria:
   # - The template's layout passes the validation unchanged.
-  # - It is the planning board's arrangement: four S widgets in row 1, then
-  #   Wertentwicklung L and Allokation und Drift T, Tops und Flops M and
-  #   Crashes M, Bitcoin-Zyklus M and Verkaufsrückblick M, Snapshots S.
+  # - It is board ux-design-2026-11-25-sprint32/09's arrangement on Apple's
+  #   families (Sprint 32 E4): four S widgets in rows 1 and 2, then
+  #   Wertentwicklung XL, Allokation und Drift L and Tops und Flops L,
+  #   Crashes L and Bitcoin-Zyklus L, Verkaufsrückblick L and Snapshots S.
   # - Only the template „Überblick“ is offered (ADR-0062 §3: a template whose
   #   kinds are not all built is not), and it names only registered kinds.
   test "the template Überblick passes the validation as it stands" do
@@ -304,13 +314,13 @@ defmodule Portfolixir.Dashboards.LayoutTest do
              {"data_quality", "S", 4, 1},
              {"due", "S", 7, 1},
              {"off_target", "S", 10, 1},
-             {"performance", "L", 1, 2},
-             {"allocation_drift", "T", 9, 2},
-             {"movers", "M", 1, 5},
-             {"crashes", "M", 7, 5},
-             {"bitcoin_cycle", "M", 1, 7},
-             {"sale_review", "M", 7, 7},
-             {"snapshots", "S", 1, 9}
+             {"performance", "XL", 1, 3},
+             {"allocation_drift", "L", 1, 7},
+             {"movers", "L", 7, 7},
+             {"crashes", "L", 1, 11},
+             {"bitcoin_cycle", "L", 7, 11},
+             {"sale_review", "L", 1, 15},
+             {"snapshots", "S", 7, 15}
            ]
 
     assert Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn -> Templates.title("overview") end) ==

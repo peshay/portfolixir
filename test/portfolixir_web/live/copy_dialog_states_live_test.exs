@@ -123,11 +123,11 @@ defmodule PortfolixirWeb.CopyDialogStatesLiveTest do
     #
     # Acceptance criteria:
     # - The card's change names the widget's period (Sprint 31 closing act,
-    #   F1: at M as at S): "TTWROR · 1Y" (de "TTWROR · 1J") on the default
+    #   F1: at M, now L, as at S): "TTWROR · 1Y" (de "TTWROR · 1J") on the default
     #   period, never a bare "YTD" it does not cover.
     test "the wealth card says the period of its change", %{conn: conn} do
       world_with_holding()
-      # Sprint 31 D4: the strip is „Gesamtwert“ at M.
+      # „Gesamtwert“ at L (Sprint 31's M; Sprint 32 E4).
       Portfolixir.DashboardFixtures.overview_at_m!()
 
       {:ok, view, _html} = live(conn, "/")

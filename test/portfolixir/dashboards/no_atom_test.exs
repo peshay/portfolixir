@@ -27,7 +27,7 @@ defmodule Portfolixir.Dashboards.NoAtomTest do
 
     stray_setting = %{
       "kind" => "movers",
-      "size" => "M",
+      "size" => "L",
       "col" => 1,
       "row" => 1,
       "settings" => %{fresh("setting") => true, "period" => fresh("period")}
@@ -35,7 +35,7 @@ defmodule Portfolixir.Dashboards.NoAtomTest do
 
     pinned = %{
       "kind" => "movers",
-      "size" => "M",
+      "size" => "L",
       "col" => 1,
       "row" => 1,
       "settings" => %{"period" => fresh("period")}

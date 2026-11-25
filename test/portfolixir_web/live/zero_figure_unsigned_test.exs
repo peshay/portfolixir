@@ -96,22 +96,27 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
   end
 
   # User story (#1149, Sprint 21 γ4; found while drawing 3, also board 01):
-  # As the operator reading the Overview's key-figure strip,
+  # As the operator reading the Overview's total,
   # I want a one-year TTWROR of +0.0004 % to read "0.0%" in body ink,
-  # so that the strip agrees with its own digits.
+  # so that the figure agrees with its own digits.
   #
   # Acceptance criteria:
-  # - The strip's TTWROR reads "0.0%", no "+", `is-flat`.
-  test "the Overview's strip reads a TTWROR that rounds to zero unsigned", %{conn: conn} do
+  # - „Gesamtwert“'s TTWROR over its period reads "0.0%", no "+",
+  #   `is-flat` (since Sprint 32 E4 at L under the total: the strip that
+  #   carried it is gone, board ux-design-2026-11-25-sprint32/01 ④).
+  test "the Overview's total reads a TTWROR that rounds to zero unsigned", %{conn: conn} do
     fraction_of_a_cent_world()
-    # Sprint 31 D4: the strip is „Gesamtwert“ at M.
     Portfolixir.DashboardFixtures.overview_at_m!()
 
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
 
     figure =
-      view |> document() |> Floki.find(~s(#dashboard-kpi-strip [data-role="kpi-ttwror"] strong))
+      view
+      |> document()
+      |> Floki.find(
+        ~s(#dashboard-wealth [data-form="wide"] [data-role="card-period-change"] span)
+      )
 
     assert text(figure) == "0.0%"
     assert classes(figure) == "is-flat"

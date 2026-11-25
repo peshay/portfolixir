@@ -102,7 +102,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Snapshots do
             · <%= gettext("since then") %>
             <span class={sign_class(@comparison.real_ttwror)} data-role="snapshots-since"><%= percent(@comparison.real_ttwror) %></span>
           </span>
-          <span :if={@item.size == "W"} data-role="snapshots-name">· <bdi><%= @latest.name %></bdi></span>
+          <span :if={@item.size == "M"} data-role="snapshots-name">· <bdi><%= @latest.name %></bdi></span>
         </small>
         <Line.sparkline
           :if={@comparison}

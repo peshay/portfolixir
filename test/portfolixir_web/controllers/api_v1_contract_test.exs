@@ -68,6 +68,15 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- S32 E3 end ---
 
+    # --- S32 E4 begin ---
+    assert newest["summary"] =~ "Sprint 32, E4 (ADR-0062's amendment of 2026-11-25, point 3): "
+
+    assert ("GET /api/v1/widgets (portfolixir.dashboards.list), changed: grid.sizes are S, M, L " <>
+              "and XL, each with columns, rows and family; added: grid.row_height and " <>
+              "grid.size_rule; each kind's sizes are families") in newest["parameters"]
+
+    # --- S32 E4 end ---
+
     # The security review's fixes of 2026-11 (version 32, one PR), found by
     # version from Sprint 32 on. Dated strictly after entry 31, so
     # since=2026-11-21 still returns it. Each row appends its own items

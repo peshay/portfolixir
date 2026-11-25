@@ -260,7 +260,7 @@ defmodule PortfolixirWeb.WidgetCatalogueTest do
   # - A dashboard of 40 widgets answers „hält schon 40 Widgets“ in the
   #   dialog; nothing is written or journaled.
   test "a full dashboard is refused in the dialog", %{conn: conn} do
-    forty = for row <- 1..40, do: item("due", "S", 1, row)
+    forty = for row <- 1..40, do: item("due", "S", 1, 2 * row - 1)
 
     {:ok, board} =
       Dashboards.create_dashboard(Actor.owner_ui(), %{"name" => "Voll", "layout" => forty})
@@ -301,7 +301,7 @@ defmodule PortfolixirWeb.WidgetCatalogueTest do
     assert [created] = Dashboards.list_dashboards()
     {:ok, template} = Templates.fetch("overview")
     assert created.name == "Überblick"
-    assert created.layout == template.layout ++ [item("movers", "S", 4, 9)]
+    assert created.layout == template.layout ++ [item("movers", "S", 10, 15)]
     assert [%{operation: :create}] = journal()
     assert_redirect(view, "/dashboards/#{created.id}")
   end

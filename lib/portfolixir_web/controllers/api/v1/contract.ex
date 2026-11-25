@@ -60,8 +60,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "server arranges before it validates (that item keeps its place, the items it " <>
               "covers move on, the gaps close); without them an overlap is still 422, and a " <>
               "layout with no place up to row 200 for what must move is 422 with " <>
-              "errors.layout_item.reason no_room. No endpoint or tool is added."
+              "errors.layout_item.reason no_room. No endpoint or tool is added.",
             # --- S32 E3 end ---
+            # --- S32 E4 begin ---
+            "Sprint 32, E4 (ADR-0062's amendment of 2026-11-25, point 3): the widget sizes " <>
+              "are Apple's families S 3x2, M 6x2, L 6x4 and XL 12x4 on rows of a fixed " <>
+              "height; W and T are no size; a layout Sprint 31 stored is read on them (S to S, " <>
+              "W to M, M to L, T to L, L to XL, the rows doubled, arranged) by every read. No " <>
+              "endpoint or tool is added."
+            # --- S32 E4 end ---
           ],
           " "
         ),
@@ -71,8 +78,18 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         # --- S32 E3 begin ---
         "PUT /api/v1/dashboards/:id (portfolixir.dashboards.put), added: dashboard.arrange " <>
           "\"push\" with dashboard.arranged_index, the others make room for that item; an " <>
-          "arrangement with no place up to row 200 answers layout_item.reason no_room"
+          "arrangement with no place up to row 200 answers layout_item.reason no_room",
         # --- S32 E3 end ---
+        # --- S32 E4 begin ---
+        "GET /api/v1/widgets (portfolixir.dashboards.list), changed: grid.sizes are S, M, L " <>
+          "and XL, each with columns, rows and family; added: grid.row_height and " <>
+          "grid.size_rule; each kind's sizes are families",
+        "GET /api/v1/dashboards and GET /api/v1/dashboards/:id (portfolixir.dashboards.list, " <>
+          "portfolixir.dashboards.get), changed: a layout stored on Sprint 31's grid is " <>
+          "answered on the families, arranged",
+        "POST, PUT /api/v1/dashboards (portfolixir.dashboards.put), changed: a size is S, M, " <>
+          "L or XL; W and T are refused naming the families"
+        # --- S32 E4 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],
