@@ -15,20 +15,19 @@ and both `npm audit` runs locally; all were clean.
 `SECURITY.md` asks for private reporting, and a public repository does not
 publish its own unfixed weaknesses. This document names each item by its
 *class* and its *fix*, which is what the work ledger needs; it carries no
-reproduction steps. Twenty-four items are held back further: this file is
-the repository version of the triage, published before the fixes exist, and
-it names those twenty-four by ID, severity and lane only (see "Disclosure
-handling"). The complete triage stays with the private report. The review's
-identifiers (N-01 to N-93) are kept so the private report and this plan can
-be read side by side. Severities are the closing act's (S1 to S3,
-`docs/development/sprint-workflow.md`).
+reproduction steps. The review's identifiers (N-01 to N-93) are kept so the
+private report and this plan can be read side by side. Severities are the
+closing act's (S1 to S3, `docs/development/sprint-workflow.md`).
+
+Twenty-four rows and three decisions were held back until their fixes had
+merged, and were published here with them on 2026-11-25: N-01 fixed in #1488,
+the other twenty-three in #1489 (see "Disclosure handling").
 
 Every S1 and S2 below was reproduced by a run before it counted and then read
 a second time by a reviewer whose job was to refute it; an S3 was confirmed by
 a run or by a traced code path. 93 findings
-stand: **4 S1, 27 S2, 62 S3**. Of these, 1 S1, 12 S2 and 11 S3 are held. Five
-candidates were refuted and 217 leads were not verified; neither group is in
-this document.
+stand: **4 S1, 27 S2, 62 S3**. Five candidates were refuted and 217 leads were
+not verified; neither group is in this document.
 
 This is the PM triage per ADR-0038: what still holds, dedup against the
 pipeline, the decisions the owner has to make, three batches, and what to file
@@ -58,16 +57,16 @@ the first test of their lane decides whether anything is left of them.
 
 **A rule that lives in one place only.**
 
-Part of the picture is held. Twenty-four of the 93 findings, one of the four
-S1 among them, are named in this file by ID, severity and lane only (see
-"Disclosure handling"). This part describes the other 69. The held rows
-are not described in this part.
+The perimeter is not where this review found its weight. On the documented
+deployment, the release behind the Host guard, no route was found without its
+guard, no server-side request past the URL policy, no injection sink in a
+page, a query or a command, and no way to act without a credential. The one
+thing an unauthenticated request can still do there is leave unescaped control
+characters in the log (N-31). Every fix of the three earlier reviews that was
+checked still holds, one of them in part (Part 1); three are narrower than the
+class they closed (N-09, N-31, N-59).
 
-The perimeter is not where this review found its weight. Every fix of the
-three earlier reviews that was checked still holds, one of them in part
-(Part 1); N-59 is narrower than the class it closed.
-
-What the 69 show instead is one shape, in two places:
+What the review found instead is one shape, in four places:
 
 1. **A money rule that holds on one write path and not on its neighbour.**
    Portfolixir has two first-class users, and the agent and the importer do
@@ -79,13 +78,32 @@ What the 69 show instead is one shape, in two places:
    church-tax rate of zero that an update stores (N-04). A bulk move skips the
    check the per-row writer makes (N-06). None of these needs an attacker.
    Each stores a figure the documentation says is refused or kept.
-2. **A guard pinned by a test narrower than the guard, or by none.** Five
-   rows are of this kind (N-85 to N-89): the tests would stay green if the
-   guard were removed.
+2. **A safety argument the receiver does not know is dropped, not refused.**
+   A destructive route or tool that is sent such an argument and does not take
+   it carries out the call, over the API and through the companion (N-07,
+   N-08). The companion publishes closed schemas and validates with open ones.
+3. **A bound at the parser and none behind it.** ADR-0056's caps limit what a
+   feed's answer may be. They do not limit what the ingest then does with it
+   (N-11, N-12, N-13), and a failure in one scope stops the work for every
+   scope sorted behind it (N-14, N-15).
+4. **A guard pinned by a test narrower than the guard.** Thirteen gates and
+   invariant tests would stay green if their guard were removed in a spelling
+   the test does not read (N-78 to N-90). None hides a defect in the
+   application today; three of the gates themselves pass input they should
+   refuse (N-78, N-83, N-84).
+
+**The one crossed boundary is a sibling of a finding already decided.** A
+server started with the development configuration, which the README offers as
+a way to run an instance, enables development-only debugging and uses a
+signing key committed to the repository, both of which SECURITY.md already
+records. The UI password, the route's stated only lock, is not the complete
+lock the README and SECURITY.md say it is (N-01). The 2026-10-12 triage
+already ruled that route in scope (K18).
 
 The consequence for planning: **the next batch is about the second user, not
 about the network.** The rules belong in the context, where the drawer, the
-API, the companion and the importer all pass.
+API, the companion and the importer all pass, and an argument nobody reads
+must be an error.
 
 ---
 
@@ -122,8 +140,17 @@ registries).
 
 - **N-75** (a boot refusal that quotes one shape of swapped token entry) is
   **#1262**, on the polish list at S3. Nothing new to file.
+- **N-84**: its main half (the pre-commit gate misses default-ignorable
+  characters) is **#1286**, S3. Two halves are new: file names are not read,
+  and a listing error passes.
 - **N-51**: the bond half is **#1070**, open, classed as a feature by the
   Sprint 22 severity pass (idea F29). The remainder is new (D-6).
+- **N-08** is the unswept remainder of **X1 (#894)**, which closed three
+  tools. The rule is the Sprint 25 retrospective's carry-forward 2; no open
+  issue applies it to the other tools.
+- **N-01** is a sibling of **K18**. No existing issue covered it; it was
+  tracked privately and gets its issue with the merge that fixed it, #1488
+  (see "Disclosure handling").
 - **N-16** is the class of **K17** (the 2026-10-12 triage; shipped in #1296);
   Sprint 28's closing act recorded "the cursor loses nothing" as passed.
 - **N-57** is not **#1264**, which is a different residual of the same fix
@@ -135,20 +162,27 @@ registries).
 
 ## Part 2 — Decisions for the owner
 
-Seven decisions, D-1 to D-7. D-2, D-3, D-6 and D-7 are the owner's because
-they change what the product promises, how stored money data is booked, or
-the text of a signed ADR; why D-1, D-4 and D-5 are the owner's is in the
-private report. D-1 to D-4 gate Batch 1. Everything else is decided in
-Part 5.
+Seven decisions, D-1 to D-7. They are the owner's because they change what
+the product promises, how stored money data is booked, or the text of a signed
+ADR. D-1 to D-4 gate Batch 1. Everything else is decided in Part 5.
 
-Three of the seven (D-1, D-4 and D-5) concern held rows only. Each is named
-below by its number and its rows; what it decides about them is in the
-private report.
+### D-1 — The run-from-source route loses its debug pages and its committed key. **Recommend: yes; keep the route.**
 
-### D-1 — Held (N-01).
+N-01 lands as its own small pull request, opened and merged on one day,
+before the sprint branch is pushed: a sprint branch is public from its first
+push and stays open for days. That is an exception to "one sprint, one PR"
+and is part of this decision.
 
-Decided by the owner from the private report; stated here when its fix has
-merged.
+Two changes to the development configuration close N-01:
+development debugging off unless a developer switch asks for it, and no signing
+key in the repository (read from the environment, which the README's route
+already asks the operator to set for four other values, or generated per
+checkout into an untracked file). Together they also retire what is left of
+K18's reasoning. The alternative is to stop offering the route in the README.
+I recommend against that: the route is what a machine without Docker has.
+
+**Decided 2026-11-24 by the owner: yes, as recommended.** Fixed in #1488
+(`9d633f22`).
 
 ### D-2 — A cash transfer across two currencies stays refused. **Recommend: yes; a currency exchange is its own idea.**
 
@@ -171,15 +205,31 @@ the second line of defence in this batch is to show amounts on the preview. A
 warning when quantity times price is far from the amount goes to the idea
 list.
 
-### D-4 — Held (N-07, N-08).
+### D-4 — An argument a route or a tool does not take is refused. **Recommend: yes; it is the Sprint 25 rule applied everywhere.**
 
-Decided by the owner from the private report; stated here when its fix has
-merged.
+On the API: every DELETE answers 422 for a key it does not read, so a safety
+argument is honoured or refused, never ignored (N-07). In the companion: every tool
+validates strictly, as its published schema already claims (N-08). The cost is
+compatibility: an agent that sends a stray argument gets an answer today and
+a 422 after the change. That is the behaviour the schemas promise.
 
-### D-5 — Held (N-18, N-19).
+**Decided 2026-11-24 by the owner: yes, as recommended.** Fixed in #1489
+(`ffd09d49`, `eae876dc`).
 
-Decided by the owner from the private report; stated here when its fix has
-merged.
+### D-5 — Two news rules give a feed a say ADR-0056 did not mean to give. **Recommend: amend the ADR in the news batch.**
+
+- Source quality is counted by a key a feed can vary or claim, so a research
+  note can record corroboration that is one source (N-18). The fix counts by
+  the key the tier table matched and lets one feed's claims count once; the
+  second half changes section 3 as written.
+- A story's representative is ordered by a value the feed supplies, so one
+  feed can become the representative of a story other sources reported
+  (N-19). The fix orders by first sight within a tier, or bounds how far a
+  feed's value may precede first sight; either changes B3 as written.
+
+**Decided 2026-11-24 by the owner: yes, as recommended.** Fixed in #1489
+(`0fbd8cb1`, `8027d964`), the first-sight order for N-19, with ADR-0056's
+amendment of 2026-11-24 (F8, F9).
 
 ### D-6 — What a merge drops is stated, and every security column has a merge disposition. **Recommend: yes; the bond carry stays #1070.**
 
@@ -238,78 +288,75 @@ and N-22 decides whether an import's bookings land.
 | N-34 | S3 | The record of currencies a history backfill already sought is one joined setting; its encoding and its size let the once-guard be defeated. | Hold currency codes to their shape on every record; store the sought list one row per code. |
 | N-72 | S3 | One pair of money fields is read outside the bounded decimal reader; a malformed value there raises before the changeset. | Parse through the bounded decimal reader, as the sibling fields do. |
 
-#### Lane R — held rows
+#### Lane R — the run-from-source route and perimeter leftovers (D-1)
 
-Both rows are held (N-01, N-31). D-1 belongs to N-01. The lane's size is in
-the private report.
-
-| ID | Sev | Class | Fix |
-|---|---|---|---|
-| N-01 | S1 | Held. | Filed with the merge that fixes it. |
-| N-31 | S2 | Held. | Filed with the merge that fixes it. |
-
-#### Lane C — seven rows, four held — ~1.5 days
-
-Four of the seven rows are held (N-07 to N-10). D-4 belongs to N-07 and
-N-08.
+D-1 belongs to N-01, which lands as its own pull request; the lane is not
+counted in the batch's size.
 
 | ID | Sev | Class | Fix |
 |---|---|---|---|
-| N-07 | S2 | Held. | Filed with the merge that fixes it. |
-| N-08 | S2 | Held. | Filed with the merge that fixes it. |
-| N-09 | S2 | Held. | Filed with the merge that fixes it. |
-| N-10 | S2 | Held. | Filed with the merge that fixes it. |
+| N-01 | S1 | The development configuration, which the README offers as a way to run an instance, enables development-only debugging and uses a signing key committed to the repository, both of which SECURITY.md already records. The UI password, the route's stated only lock, is not the complete lock the README and SECURITY.md say it is. A release contains neither. | Development debugging off unless a developer switch asks; no committed signing key. A test that reads the development configuration's default, and a request test on the route the README describes. README and SECURITY.md say what the password locks only after that. Fixed in #1488 (`9d633f22`). |
+| N-31 | S2 | The console log filter's control-character escaping is incomplete; an unauthenticated request can put unescaped control characters into the log. Incomplete fix of H69. | Escape the missing range in both clauses; extend the control-byte tests; decide line separators and invalid UTF-8 in the same pass. Fixed in #1489 (`e9ffc7c2`). |
+
+#### Lane C — closed arguments and the agent contract (D-4) — ~1.5 days
+
+D-4 belongs to N-07 and N-08.
+
+| ID | Sev | Class | Fix |
+|---|---|---|---|
+| N-07 | S2 | An argument a DELETE route does not take is dropped in silence, so a safety argument asked of a delete that does not offer it is ignored and the delete runs. | One check for the DELETE method on the API pipeline: a key the action does not read is a 422 naming it. A test that walks the router's DELETE routes. Fixed in #1489 (`ffd09d49`). |
+| N-08 | S2 | The companion publishes closed tool schemas and validates with open ones on most tools, so an unknown argument is stripped and the call runs with defaults. Unswept remainder of X1. | Strict validation in the one place tools are built; close the nested objects; let the published-schema test carry the closure so a new tool cannot ship open. Fixed in #1489 (`eae876dc`; the published-schema test's closure half, R-098, `8d67a199`). |
+| N-09 | S2 | The companion's refusal to start behind an environment proxy (K16) compares literal spellings of the runtime's switch and misses equivalent ones; the API call and its token then leave through the proxy. | Decide from what the runtime did, not from how the switch was written; a test per spelling. Fixed in #1489 (`50c5f2ec`). |
+| N-10 | S2 | One analytics read writes stored category and classification names into its computation-basis sentences. Stored text inside an app-written sentence an agent reads is the class F75 and #965 closed. | Name the record by kind and id in the sentence; keep names in the data fields; add the read to the stored-name sweep test. Fixed in #1489 (`77acbd79`). |
 | N-37 | S3 | A prediction's resolution reads whatever close is stored now, and a token may write that close (both decided: T-9, ADR-0055 §3). The calibration figures carry no marker for calls resting on a manual close. | Count such calls per calibration block and give the score without them; show each close's source on the pages (D-7). |
 | N-38 | S3 | The tool that registers a news feed is published as not reaching outside the instance, though the host is resolved in the call and the feed is fetched on schedule. | Add it to the open-world list, its test and the reference sentence. |
 | N-39 | S3 | Three general texts say a read-only tool changes nothing, while the news digest keeps a named reader's bookmark (decided in ADR-0056 D3). | Name the exception where the general promise is made. |
 
-#### Lane G — thirteen S3 rows, eight held — ~1.5 days
+#### Lane G — gates, pins and one ADR note — ~1.5 days
 
-Eight of the thirteen rows are held (N-78 to N-84, N-90). Of the five public
-rows, N-88 changes one start-up warning; the other four are each fixed by a
-test that fails when its guard is removed.
+Every application guard below holds at the audited commit. Three gates pass
+input they should refuse today (N-78, N-83, N-84); N-80 changes one CI
+command, N-88 one start-up warning, and N-90 is an ADR amendment. Every other
+fix is a test that fails when its guard is removed.
 
 | ID | Sev | Class | Fix |
 |---|---|---|---|
-| N-78 | S3 | Held. | Filed with the merge that fixes it. |
-| N-79 | S3 | Held. | Filed with the merge that fixes it. |
-| N-80 | S3 | Held. | Filed with the merge that fixes it. |
-| N-81 | S3 | Held. | Filed with the merge that fixes it. |
-| N-82 | S3 | Held. | Filed with the merge that fixes it. |
-| N-83 | S3 | Held. | Filed with the merge that fixes it. |
-| N-84 | S3 | Held. | Filed with the merge that fixes it. |
+| N-78 | S3 | The commit-authorship gate answers OK when its commit range does not resolve. | Resolve the range in its own statement; refuse an empty list in range mode. Fixed in #1489 (`68449c40`). |
+| N-79 | S3 | The tests that pin "the audits stay blocking" pass with a swallowed exit status or a continue-on-error. | Assert over the parsed workflows: no continue-on-error, each gate command equals a step's line exactly, no swallowed status. Fixed in #1489 (`25276113`). |
+| N-80 | S3 | Sobelow and Dialyzer read a root ignore file by default that no workflow line and no test refuses. | Refute the files in the CI test; run Sobelow without its configuration file. Fixed in #1489 (`1cb0aae3`). |
+| N-81 | S3 | The action-pin, context-expression and checkout-token tests read the workflow by line pattern and miss YAML-equivalent spellings. | Walk the parsed YAML. Fixed in #1489 (`a2f9b38d`). |
+| N-82 | S3 | Two source-scan invariants resolve aliases incompletely. | Expand aliases before matching, or refuse those alias forms for the two modules. Fixed in #1489 (`717eb5d7`). |
+| N-83 | S3 | The co-author and footer checks miss spellings git itself reads as trailers. | Collect every address on the line and require exactly one, allowlisted; match keys as git reads them. Fixed in #1489 (`36673fb2`). |
+| N-84 | S3 | The invisible-Unicode gate passes characters the application refuses (#1286), never reads file names, and passes when the file listing fails. | Share the application's ranges through a fixture; classify path strings; fail on a listing error. Fixed in #1489 (`33850557`). |
 | N-85 | S3 | No test pins the chart payload's script-closing guard, which sits behind a waived Sobelow check. | Two cases asserting on the raw page text; name the pin in the waiver. |
 | N-86 | S3 | Two source-pinned invariant tests (tooltip construction, inline handlers) are narrower than the guard they name. | Widen the patterns to every HTML-parsing sink and every static script. |
 | N-87 | S3 | "Non-root users" and "database port not published" hold, and nothing pins either. | Two assertions over the Dockerfiles and the Compose file. |
 | N-88 | S3 | The release's loopback default is pinned at the function, not at the line that applies it; the boot warning's input fails open. | Evaluate the runtime configuration with and without the switch; read a missing address as beyond loopback. |
 | N-89 | S3 | The actor-first gate keeps a hand-written list of contexts and does not read the News context. | Add it; a completeness test over every module that reaches the journal or a write. |
-| N-90 | S3 | Held. | Filed with the merge that fixes it. |
+| N-90 | S3 | Three news staging tables are on the non-journaled allowlist with no decision record naming them. | Amend ADR-0056 to name them with their writers and retention. Fixed in #1489 (`718944b7`; ADR-0056, amendment of 2026-11-24, F7). |
 
 ### Batch 2 — the news layer (about 5.5 days)
 
-#### Lane B — held rows — ~1.5 days
-
-All three rows are held (N-11 to N-13).
+#### Lane B — cost past the parser — ~1.5 days
 
 | ID | Sev | Class | Fix |
 |---|---|---|---|
-| N-11 | S2 | Held. | Filed with the merge that fixes it. |
-| N-12 | S2 | Held. | Filed with the merge that fixes it. |
-| N-13 | S2 | Held. | Filed with the merge that fixes it. |
+| N-11 | S2 | One field of a feed item is expanded at more than linear cost before its shape is checked; one answer under the byte cap drives the fetch task to gigabytes of memory until its time limit, at every interval. | Check the field's shape at the parser, before any derived work; bound that work; give the news tasks the heap cap the web processes have. Fixed in #1489 (`c2bcbea5`). |
+| N-12 | S2 | A feed's own claims decide how many items one recluster compares. Its cost grows faster than that number, it runs inside a default-timeout transaction, and its failure stops the scope's stories and the daily retention. | Bound the comparison by something the feed does not choose; cap the items one recluster compares; compute outside the transaction. Fixed in #1489 (`2cff88d1`). |
+| N-13 | S2 | Every dropped feed item leaves a row in the drop ledger, far past the cap on stored items, for the whole retention period. | Bound the rows per feed and day; count the rest without a row. Fixed in #1489 (`b65e34a3`). |
 
-#### Lane I — seven rows, four held — ~2 days
+#### Lane I — integrity and failure isolation (D-5) — ~2 days
 
-Four of the seven rows are held (N-14, N-15, N-18, N-19). D-5 belongs to
-N-18 and N-19.
+D-5 belongs to N-18 and N-19.
 
 | ID | Sev | Class | Fix |
 |---|---|---|---|
-| N-14 | S2 | Held. | Filed with the merge that fixes it. |
-| N-15 | S2 | Held. | Filed with the merge that fixes it. |
+| N-14 | S2 | The retention run ends at the first scope whose removal raises and is not tried again that day; nothing sorted behind that scope is pruned. | Rescue per scope; run the scope-independent steps first; record the run only when it finished. Fixed in #1489 (`b9cd2b39`). |
+| N-15 | S2 | An item stored by a fetch whose recluster failed is in no story and no read. Nothing reclusters or counts it, and it keeps its old scope stamp, so a reader that moved on never gets it. | Restamp on late filing; recluster scopes that hold assigned items without a story; count them in the health read. Fixed in #1489 (`e6e528ae`). |
 | N-16 | S2 | A consumer's paged digest reads live rows: a row that moves between two pages is dropped, and the last page's cursor confirms past it. The class of K17. | A continued page also answers the rows a write after the first page touched. |
 | N-17 | S2 | A fetch files its items under the binding its feed had before the request; a re-binding committed meanwhile leaves primary items on the old security. | Re-read the feed row under the lock; a database backstop for the binding. |
-| N-18 | S2 | Held. | Filed with the merge that fixes it. |
-| N-19 | S2 | Held. | Filed with the merge that fixes it. |
+| N-18 | S2 | Source quality is counted by a key a feed can vary or claim, so a research note can record corroboration that is one source. | Count by the key the tier table matched; let one feed's claims count once (D-5). Fixed in #1489 (`0fbd8cb1`). |
+| N-19 | S2 | A story's representative is ordered by a value the feed supplies, so one feed can become the representative of a story other sources reported; a note written from the story stores that item's link and date. | Order within a tier by first sight, or bound how far the feed's value may precede it (D-5). Fixed in #1489 (`8027d964`), by first sight. |
 | N-40 | S3 | A refused digest page still creates the consumer it names, so refused requests fill the consumer cap. | Look the consumer up without creating it when a page is asked for. |
 
 #### Lane K — lock order — ~1.5 days
@@ -321,13 +368,11 @@ N-18 and N-19.
 
 #### Lane N — news hygiene — ~0.5 day
 
-One of the four rows is held (N-74).
-
 | ID | Sev | Class | Fix |
 |---|---|---|---|
 | N-67 | S3 | One class of malformed cursor is answered with a server error where every other is a 422. | Refuse it in the cursor decoder, as the sibling parameter does. |
 | N-71 | S3 | A feed URL bounded in characters can exceed the unique index's byte limit: a server error, nothing written. | Bound it in bytes in the changeset and in the column's check. |
-| N-74 | S3 | Held. | Filed with the merge that fixes it. |
+| N-74 | S3 | An item link in a form the application and a browser read differently is stored under one domain while a browser opens another. | Refuse such a link at the parser and in the shape check. The parser half was closed on `main` after the audit (`db5db7f9`, #1444); the shape check is fixed in #1489 (`09d2c5f3`). |
 | N-77 | S3 | Registering a feed tells the caller how a host name resolved, where the logo endpoint answers one fixed sentence. | Fold the resolver-dependent reasons into one, or record the named code as decided (D-7). |
 
 ### Batch 3 — journal, bounds, merges, browser surface (about 7.5 days)
@@ -396,51 +441,43 @@ If it must be split, Lane W's S3 rows go to the polish lists first.
 
 #### Lane D — deployment and documents — ~1 day
 
-Two of the five rows are held (N-35, N-93).
-
 | ID | Sev | Class | Fix |
 |---|---|---|---|
-| N-35 | S3 | Held. | Filed with the merge that fixes it. |
+| N-35 | S3 | The development stack's API accepts a short or placeholder token where two documents say it is refused. | Name a principal in the development Compose file so the release's token rules apply, or correct the two sentences. Fixed in #1489 (`46fe0428`), by naming the principal. |
 | N-36 | S3 | The demo seeds write synthetic records beside existing ones with no guard, under the UI owner's identity, and ship inert in the release image (the K04 class). | Refuse a database that holds other records unless a flag says otherwise; write as a system job; keep the demo directory out of the image. |
 | N-91 | S3 | The production Compose services set no container hardening beyond a non-root user and a descriptor limit. | Read-only root, dropped capabilities, no new privileges, process and memory limits; the Compose smoke job proves the stack still boots. |
 | N-92 | S3 | The operator guides lag the served Content-Security-Policy. | Document what is served, or narrow the style directive to what the guides say. |
-| N-93 | S3 | Held. | Filed with the merge that fixes it. |
+| N-93 | S3 | The companion gives no start-up hint when its token will cross a non-loopback link over plain HTTP. | One warning line at start. Fixed in #1489 (`dcb8f1e3`). |
 
 ### Sequencing
 
 ```
 Batch 1  Lane L: N-02 validator ──▶ N-05 scope by currency ──▶ N-03 reader + preview ──▶ N-04 ──▶ listings
-         Lane R: N-01 outside the sprint PR (gated by D-1)
-         Lane C: its held rows in the order the private report gives; the public rows any time
+         Lane R: N-01 as its own small PR, merged the day it opens, before the sprint branch is pushed (D-1)
+         Lane C: N-07 API ──▶ N-08 companion (one walk test for both) ──▶ N-09, N-10
          Lane G: independent, any time
-Batch 2  Lane B and Lane I: order in the private report; N-18, N-19 wait on D-5
+Batch 2  Lane B ──▶ Lane I (N-14, N-15 before N-18, N-19, which wait on D-5)
          Lane K: lock-table rows first, then the writers
 Batch 3  Lane U's N-26 before Lane J (the journal page must survive what Lane J adds)
          Lane M after Lane K (both touch the merge's lock order)
 ```
 
-N-01 does not ride the sprint PR; how it lands is in the private report.
-That is an exception to "one sprint, one PR", adopted with this plan.
-
-D-1 to D-4 gate Batch 1: D-2 and D-3 are signed with the plan, D-1 and D-4
-from the private report. If all four are decided when the plan merges, no
-lane waits.
+D-1 to D-4 gate Batch 1. If the owner signs them with the plan, no lane
+waits.
 
 ### Shrink order (cut from the bottom, name the cut in the briefing)
 
 1. Batch 3, Lane W's S3 rows: to the polish lists.
-2. Batch 3, Lane D.
+2. Batch 3, Lane D: documents and container hardening.
 3. Batch 2, Lane N.
-4. Batch 1, Lane G: its cut order is in the private report.
+4. Batch 1, Lane G's rows that pin CI spellings (N-79, N-81): the guards
+   hold today.
 
-Lane L and Lane R never shrink: they are the four S1 findings. How Lane C
-shrinks is in the private report.
+Lane L and Lane R never shrink: they are the four S1 findings. Lane C shrinks
+only by the owner declining D-4, in which case N-07 still closes for the one
+documented safety argument alone.
 
 ### What "done" means
-
-The lists below state what done means for the public rows. The items that
-concern held rows only are not in this file: they are in the complete triage,
-and each is added here with the merge that fixes its rows.
 
 Batch 1:
 
@@ -453,16 +490,27 @@ Batch 1:
    consistency rule runs against it.
 4. A same-currency trade cannot be updated past the stated-cash rule by any
    combination of fields, and the ledger check lists rows stored before.
-5. Each guard named in N-85 to N-89 has a test that fails when the guard is
-   removed.
-6. The closing act holds a dedicated verification pass on Lane L and on N-01,
-   and the briefing lists what changes for an operator and for an agent.
+5. A server started as the README's run-from-source route describes runs
+   without development debugging and signs with no key that is in the
+   repository.
+6. Every DELETE route and every companion tool answers an argument it does
+   not take with a refusal that names it, pinned by one test that walks the
+   router and the tool list.
+7. Each gate in Lane G fails when its guard is removed in the spelling the
+   review named.
+8. The closing act holds a dedicated verification pass on Lane L and on N-01,
+   and the briefing lists what changes for an operator who runs from source
+   and for an agent that sends extra arguments.
 
 Batch 2:
 
-1. Every news writer that can meet a merge is a row of the lock table, raced
+1. A feed's answer at the byte cap costs bounded memory and bounded rows, for
+   each of the three shapes in Lane B, pinned by tests.
+2. A failing scope does not stop retention or clustering for another scope,
+   and an item without a story is found again and counted.
+3. Every news writer that can meet a merge is a row of the lock table, raced
    against the merge in both orders.
-2. A paged digest loses no story under a concurrent write.
+4. A paged digest loses no story under a concurrent write.
 
 Batch 3:
 
@@ -476,6 +524,10 @@ Batch 3:
 5. The closing act holds a dedicated verification pass on Lane M: a merge
    deletes bookings.
 
+The items that concern held rows only were met outside the batches: Batch 1
+item 5 and the verification pass on N-01 by #1488; Batch 1 item 6, item 7
+for N-78 to N-84 and N-90, and Batch 2 items 1 and 2 by #1489.
+
 ### Disclosure handling
 
 The private report stays private. Its reproductions are not published. What a
@@ -485,15 +537,15 @@ and the issues name fixes, not exploits, and each batch PR's briefing is
 written the same way; closing-act evidence that would show a weakness lives
 in the test suite, not in the PR text, as the 2026-09-05 triage decided.
 
-**This file is the repository version of the triage.** It is published with
-the planning PR, before the fixes exist. The complete triage, which states
-class and fix for every row and the three held decisions in full, stays with
-the private report. A class sentence and its fix together tell a careful
-reader where to look, so the conservative point for any row is after its
-lane has merged. The 69 rows this file states by class and fix are the ones
-judged low risk before that.
+**This file is the repository version of the triage.** It was published with
+the planning PR, before the fixes existed. The complete triage, which states
+class and fix for every row and the three held decisions in full, stayed with
+the private report until those fixes had merged. A class sentence and its fix
+together tell a careful reader where to look, so the conservative point for
+any row is after its lane has merged. The 69 rows this file stated by class
+and fix from the start are the ones judged low risk before that.
 
-**Held rows.** Twenty-four rows are not low risk before their fix, and a
+**Held rows.** Twenty-four rows were not low risk before their fix, and a
 public issue, a tracker entry or a planning PR is publication:
 
 - S1: N-01 (Lane R);
@@ -501,7 +553,7 @@ public issue, a tracker entry or a planning PR is publication:
   (Lane B); N-14, N-15, N-18 and N-19 (Lane I);
 - S3: N-78 to N-84 and N-90 (Lane G); N-74 (Lane N); N-35 and N-93 (Lane D).
 
-The held decisions are D-1 (N-01), D-4 (N-07, N-08) and D-5 (N-18, N-19).
+The held decisions were D-1 (N-01), D-4 (N-07, N-08) and D-5 (N-18, N-19).
 
 A held row gets its issue or its polish-list line with the merge that fixes
 it. Until then it lives in the private report or in a private security
@@ -512,6 +564,15 @@ merge makes (every push to `main` that touches shipped code gets one, by the
 sprint workflow). A merged fix does not help an instance that still runs
 older code, so the merge of N-01 carries a release note.
 
+**Stated in full since 2026-11-25.** All twenty-four held rows and the three
+held decisions stand above with their class, their fix and the commit that
+fixed them, after both merges and their releases: N-01 by #1488, merged on
+2026-11-25 as `9d633f22` and released as 2026.11.24, whose description tells
+an operator who runs from source to update; the other twenty-three by #1489,
+merged on 2026-11-25 and released as 2026.11.25 (`9d633f22..b0e4b241` on
+`main`). Their issues, closed as completed, and their polish-list lines are
+filed alongside this change. The private report keeps the reproductions.
+
 ---
 
 ## Part 4 — The work ledger (to file on adoption)
@@ -520,17 +581,22 @@ Nothing is filed. On adoption (an entry that belongs to a held row is made
 with the merge that fixes it):
 
 - One tracker per batch, naming held rows by ID, severity and lane only.
+  Done: the trackers name them as fixed by #1488 and #1489.
 - One issue per S1 and S2 finding, as thin pointers by class and fix: 31 in
   all (Batch 1: 12, Batch 2: 11, Batch 3: 8). Thirteen of them are held rows
   (Lane R: N-01, N-31; Lane C: N-07 to N-10; Lane B: N-11 to N-13; Lane I:
   N-14, N-15, N-18, N-19) and are filed with their fix, so adoption files 18
-  (Batch 1: 6, Batch 2: 4, Batch 3: 8).
+  (Batch 1: 6, Batch 2: 4, Batch 3: 8). Done for the thirteen: each is filed
+  after #1488 or #1489 and closed as completed.
 - The 62 S3 findings as lines on the polish lists (a row with no screen of its
   own under "Shell+global"), not as issues. Eleven are held rows (Lane G: N-78
   to N-84, N-90; Lane N: N-74; Lane D: N-35, N-93) and are added with their
   fix, which leaves 51; N-75 is already there as #1262 and N-41 as #1266, so
-  adoption adds 49.
-- ADR amendments: ADR-0050 for D-6; ADR-0045 for the note under N-64.
+  adoption adds 49. Done for the eleven: each is a checked line, fixed in
+  #1489.
+- ADR amendments: ADR-0050 for D-6; ADR-0045 for the note under N-64. Done
+  with the held rows: ADR-0056 for D-5 and for N-90 (its amendment of
+  2026-11-24, F7 to F9, in #1489); SECURITY.md and the README for D-1 (#1488).
 - Two ideas for the idea list, not for a batch: a booking that states both
   sides of a currency exchange (from D-2), and a warning when an import row's
   quantity times price is far from its amount (from D-3).
@@ -539,10 +605,12 @@ with the merge that fixes it):
 
 ## Part 5 — Decided here, and what is not mine to decide
 
-**Decided — the ordering.** Money rules first, because a wrong stored figure
-is the one damage this system cannot undo by restarting, and the held S1
-(N-01) with them; Lane C in the same batch, for the reason the private report
-gives. News second. The rest third.
+**Decided — the ordering.** Money rules and the one crossed boundary first,
+because a wrong stored figure is the one damage this system cannot undo by
+restarting; the agent contract with them, because it is the same rule seen
+from the other user. News second: its findings need a hostile or failing
+feed. The rest third. Done ahead of that order: every held row, N-01 in #1488
+and the rest in #1489, both merged on 2026-11-25.
 
 **Decided — severities.** The verifiers' severities stand, except five S2
 that a second reader argued down to S3 and the audit lead agreed with (N-37,
@@ -551,7 +619,7 @@ N-44, N-51, N-57, N-58). No finding was raised.
 **Decided — no exploit detail in public artifacts.** The rule follows from
 `SECURITY.md` and needs no new decision.
 
-**Decided — hardening is not new scope.** Every public row fixes behaviour the
+**Decided — hardening is not new scope.** Every lane fixes behaviour the
 requirements, an ADR or the handbook already promise. Under ADR-0036 it rides
 a batch as risk-tier work and needs no scope gate; what it needs is the
 closing act's dedicated verification pass, named above for Lane L, N-01 and
@@ -561,12 +629,17 @@ Lane M.
 lock, as AT4 already decided for the assignment. Lane K applies it; it is a
 precision of an existing decision.
 
-**Not mine: D-1, D-4 and D-5.** Held. Why each is the owner's is in the
-private report.
+**Not mine: D-1.** What the README offers as a way to run an instance is what
+the product says about itself. Decided by the owner on 2026-11-24 as
+recommended; done in #1488.
 
 **Not mine: D-2 and D-3.** How money data is booked, refused and corrected is
 the owner's by AGENTS.md, and so is every correction of a row already stored
 on the owner's instance. The review cannot see that instance and did not try.
 
-**Not mine, but small: D-6 and D-7.** Each narrows or amends a signed ADR's
-text, or picks between two reasonable defaults.
+**Not mine: D-4.** It changes what every agent integration gets back. Decided
+by the owner on 2026-11-24 as recommended; done in #1489.
+
+**Not mine, but small: D-5, D-6 and D-7.** Each narrows or amends a signed
+ADR's text, or picks between two reasonable defaults. D-5 was decided by the
+owner on 2026-11-24 as recommended and done in #1489.
