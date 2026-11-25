@@ -5,12 +5,21 @@ defmodule PortfolixirWeb.Dashboard.Edit do
 
   An edit is the layout being edited, on the server, beside the stored
   dashboard it will replace (its name and the lock_version the page read)
-  and the layout as read. Each step builds the next layout and validates
-  it with `Portfolixir.Dashboards.validate_layout/2`; a layout it refuses
-  is not applied, and the step answers the sentence a screen reader says
-  instead. Nothing here writes: the page saves the edit once, on „Fertig“,
-  as one replace (`Portfolixir.Dashboards.replace_dashboard/3`), so a
-  drag is not a journal entry.
+  and the layout as read. Each step builds the next layout — a move, a
+  drop, a resize and an add through the context's arrangement
+  (`Portfolixir.Dashboards.arrange_layout/2`; ADR-0062's amendment of
+  2026-11-25, point 1: the others make room, then the gaps close) — and
+  validates it with `Portfolixir.Dashboards.validate_layout/2`; a step
+  that is refused is not applied, and the step answers the sentence a
+  screen reader says instead. Nothing here writes: the page saves the edit
+  once, on „Fertig“, as one replace
+  (`Portfolixir.Dashboards.replace_dashboard/3`), so a drag is not a
+  journal entry.
+
+  Each applied step keeps the edit before it (`previous`), so „Rückgängig“
+  and Ctrl+Z take back that one step (`undo/1`), and the keys of the
+  widgets it moved (`moved`), which the page marks until the next step
+  (Sprint 32 E2; planning board `ux-design-2026-11-25-sprint32/01` ③).
 
   Every item carries a **key**, a whole number that stays with it for the
   whole edit, so the handle a keyboard is on keeps its id while its widget
@@ -20,14 +29,18 @@ defmodule PortfolixirWeb.Dashboard.Edit do
   The steps:
 
     * **move** one grid step (column ±1, row ±1; the arrow keys on the
-      handle) and **place** at a column and row (a drag on the wide grid);
+      handle) and **place** at a column and row (a drag on the wide grid):
+      the widget lands there and what it covers makes room; only a place
+      off the grid is refused;
     * **resize** to a grid size its kind takes (`full` is a page, never a
       choice); a size that would leave the grid at the item's column moves
-      it left as far as it needs, and one that would overlap is refused;
-    * **remove**; **add** a kind from the catalogue in its first grid size
-      (the registry lists a kind's sizes smallest first) at the first free
-      place, row by row, column by column (`Portfolixir.Dashboards.Layout.first_free/2`,
-      as „Alle Widgets“ adds one);
+      it left as far as it needs, and what it covers makes room;
+    * **remove**, after which the gaps close; **add** a kind from the
+      catalogue in its first grid size (the registry lists a kind's sizes
+      smallest first) at the first free place, row by row, column by
+      column (`Portfolixir.Dashboards.Layout.first_free/2`, as „Alle
+      Widgets“ adds one); the 41st widget and a grid with no place up to
+      row 200 are refused;
     * **reorder** up or down in reading order (the compact class, ADR-0062
       §7: no placement on a grid the window does not show). The mapping
       back onto the grid is deterministic: the item **swaps places** with
@@ -52,7 +65,9 @@ defmodule PortfolixirWeb.Dashboard.Edit do
 
   @columns 12
 
-  defstruct [:dashboard, :read, :layout, :keys, :next_key, stale: nil]
+  alias Portfolixir.Dashboards.Arrange
+
+  defstruct [:dashboard, :read, :layout, :keys, :next_key, stale: nil, previous: nil, moved: []]
 
   @type t :: %__MODULE__{
           dashboard: Dashboard.t(),
@@ -60,16 +75,30 @@ defmodule PortfolixirWeb.Dashboard.Edit do
           layout: [map()],
           keys: [pos_integer()],
           next_key: pos_integer(),
-          stale: Dashboard.t() | nil
+          stale: Dashboard.t() | nil,
+          previous:
+            %{
+              layout: [map()],
+              keys: [pos_integer()],
+              next_key: pos_integer(),
+              key: pos_integer() | nil
+            }
+            | nil,
+          moved: [pos_integer()]
         }
 
   @typedoc """
   A step's answer: the next edit with the sentence to announce and the key
-  of the handle the focus goes to (`nil`: the page's own choice); or the
-  sentence that says why the step was refused; or `:error` for an item or
-  a value the edit does not hold.
+  of the widget the step acted on, where its feedback stands and the focus
+  goes (`nil`: none is left); or the sentence that says why the step was
+  refused, with the key of the widget it was asked of (`nil` for an add,
+  which has none yet); or `:error` for an item or a value the edit does
+  not hold.
   """
-  @type step :: {:ok, t(), String.t(), pos_integer() | nil} | {:refused, String.t()} | :error
+  @type step ::
+          {:ok, t(), String.t(), pos_integer() | nil}
+          | {:refused, String.t(), pos_integer() | nil}
+          | :error
 
   @doc "Begins an edit of the stored `dashboard`."
   @spec start(Dashboard.t()) :: t()
@@ -101,9 +130,45 @@ defmodule PortfolixirWeb.Dashboard.Edit do
   @doc "The edited layout discarded: the layout as read, the edit still open."
   @spec reset(t()) :: t()
   def reset(%__MODULE__{} = edit) do
-    %{edit | layout: edit.read, keys: Enum.to_list(1..length(edit.read)//1), stale: nil}
+    %{
+      edit
+      | layout: edit.read,
+        keys: Enum.to_list(1..length(edit.read)//1),
+        stale: nil,
+        previous: nil,
+        moved: []
+    }
     |> Map.put(:next_key, length(edit.read) + 1)
   end
+
+  @doc """
+  „Rückgängig“ (and Ctrl+Z): the edit as it was before the last step, that
+  one step only; the widgets the undo moves back are marked. `:error` when
+  no step is left to take back.
+  """
+  @spec undo(t()) :: {:ok, t(), String.t(), pos_integer() | nil} | :error
+  def undo(
+        %__MODULE__{previous: %{layout: layout, keys: keys, next_key: next_key} = previous} = edit
+      ) do
+    restored = %{
+      edit
+      | layout: layout,
+        keys: keys,
+        next_key: next_key,
+        previous: nil,
+        moved: List.delete(moved_keys(edit.layout, edit.keys, layout, keys), previous.key)
+    }
+
+    key = if previous.key in keys, do: previous.key
+
+    {:ok, restored, gettext("Last step undone"), key}
+  end
+
+  def undo(%__MODULE__{}), do: :error
+
+  @doc "Whether a step can be taken back."
+  @spec undoable?(t()) :: boolean()
+  def undoable?(%__MODULE__{previous: previous}), do: not is_nil(previous)
 
   @doc "Whether the edited layout differs from the layout as read."
   @spec changed?(t()) :: boolean()
@@ -152,14 +217,17 @@ defmodule PortfolixirWeb.Dashboard.Edit do
       row = item["row"] + dr
       title = title(item)
 
-      case relocate(edit, index, %{item | "col" => col, "row" => row}) do
-        {:ok, edit} ->
-          {:ok, edit,
-           gettext("%{widget} moved %{direction}, column %{col}, row %{row}",
-             widget: title,
-             direction: direction(direction),
-             col: col,
-             row: row
+      case arranged(edit, key, {:move, index, {col, row}}) do
+        {:ok, next} ->
+          {:ok, next,
+           with_moved(
+             gettext("%{widget} moved %{direction}, column %{col}, row %{row}",
+               widget: title,
+               direction: direction(direction),
+               col: col,
+               row: row
+             ),
+             next
            ), key}
 
         {:refused, reason} ->
@@ -168,7 +236,7 @@ defmodule PortfolixirWeb.Dashboard.Edit do
              widget: title,
              direction: direction(direction),
              reason: reason
-           )}
+           ), key}
       end
     end
   end
@@ -179,13 +247,16 @@ defmodule PortfolixirWeb.Dashboard.Edit do
     with {:ok, index, item} <- fetch(edit, key) do
       title = title(item)
 
-      case relocate(edit, index, %{item | "col" => col, "row" => row}) do
-        {:ok, edit} ->
-          {:ok, edit,
-           gettext("%{widget} placed at column %{col}, row %{row}",
-             widget: title,
-             col: col,
-             row: row
+      case arranged(edit, key, {:move, index, {col, row}}) do
+        {:ok, next} ->
+          {:ok, next,
+           with_moved(
+             gettext("%{widget} placed at column %{col}, row %{row}",
+               widget: title,
+               col: col,
+               row: row
+             ),
+             next
            ), key}
 
         {:refused, reason} ->
@@ -195,7 +266,7 @@ defmodule PortfolixirWeb.Dashboard.Edit do
              col: col,
              row: row,
              reason: reason
-           )}
+           ), key}
       end
     end
   end
@@ -205,7 +276,7 @@ defmodule PortfolixirWeb.Dashboard.Edit do
   @doc """
   Sizes the item `key` to `size`, one of its kind's grid sizes; where the
   size would leave the grid at its column, the item moves left as far as
-  it needs.
+  it needs; what it then covers makes room.
   """
   @spec resize(t(), pos_integer(), term()) :: step()
   def resize(%__MODULE__{} = edit, key, size) do
@@ -215,14 +286,17 @@ defmodule PortfolixirWeb.Dashboard.Edit do
       col = min(item["col"], @columns - width + 1)
       title = title(item)
 
-      case relocate(edit, index, %{item | "size" => size, "col" => col}) do
-        {:ok, edit} ->
-          {:ok, edit,
-           gettext("%{widget} set to size %{size}, column %{col}, row %{row}",
-             widget: title,
-             size: size,
-             col: col,
-             row: item["row"]
+      case arranged(edit, key, {:resize, index, size}) do
+        {:ok, next} ->
+          {:ok, next,
+           with_moved(
+             gettext("%{widget} set to size %{size}, column %{col}, row %{row}",
+               widget: title,
+               size: size,
+               col: col,
+               row: item["row"]
+             ),
+             next
            ), key}
 
         {:refused, reason} ->
@@ -231,7 +305,7 @@ defmodule PortfolixirWeb.Dashboard.Edit do
              widget: title,
              size: size,
              reason: reason
-           )}
+           ), key}
       end
     else
       _not_a_size -> :error
@@ -239,8 +313,9 @@ defmodule PortfolixirWeb.Dashboard.Edit do
   end
 
   @doc """
-  Removes the item `key`; the focus goes to the next item in reading
-  order, else the one before it, else nowhere (`nil`).
+  Removes the item `key`, then the gaps close; the feedback and the focus
+  go to the next item in reading order, else the one before it, else
+  nowhere (`nil`).
   """
   @spec remove(t(), pos_integer()) :: step()
   def remove(%__MODULE__{} = edit, key) do
@@ -248,14 +323,14 @@ defmodule PortfolixirWeb.Dashboard.Edit do
       order = reading_keys(edit)
       at = Enum.find_index(order, &(&1 == key))
       focus = Enum.at(order, at + 1) || (at > 0 && Enum.at(order, at - 1)) || nil
+      keys = List.delete_at(edit.keys, index)
 
-      edit = %{
-        edit
-        | layout: List.delete_at(edit.layout, index),
-          keys: List.delete_at(edit.keys, index)
-      }
+      {:ok, layout} = Arrange.settle(List.delete_at(edit.layout, index))
 
-      {:ok, edit, gettext("%{widget} removed", widget: title(item)), focus}
+      next =
+        stepped(edit, key, %{edit | layout: layout, keys: keys})
+
+      {:ok, next, with_moved(gettext("%{widget} removed", widget: title(item)), next), focus}
     end
   end
 
@@ -275,13 +350,13 @@ defmodule PortfolixirWeb.Dashboard.Edit do
           {:refused,
            gettext("%{widget} can't be added: a dashboard holds at most 40 widgets.",
              widget: Widgets.title(registered.key)
-           )}
+           ), nil}
 
         {:error, _no_room} ->
           {:refused,
            gettext("%{widget} can't be added: the grid has no free place.",
              widget: Widgets.title(registered.key)
-           )}
+           ), nil}
       end
     else
       _unknown -> :error
@@ -302,18 +377,20 @@ defmodule PortfolixirWeb.Dashboard.Edit do
 
       cond do
         to < 0 ->
-          {:refused, gettext("%{widget} is already first.", widget: title)}
+          {:refused, gettext("%{widget} is already first.", widget: title), key}
 
         to >= length(order) ->
-          {:refused, gettext("%{widget} is already last.", widget: title)}
+          {:refused, gettext("%{widget} is already last.", widget: title), key}
 
         true ->
           other = Enum.at(order, to)
           new_order = order |> List.replace_at(at, other) |> List.replace_at(to, key)
 
           case swap(edit, key, other) || reflow(edit, new_order) do
-            {:ok, edit} ->
-              {:ok, edit,
+            {:ok, reordered} ->
+              next = stepped(edit, key, reordered)
+
+              {:ok, next,
                gettext("%{widget} moved %{direction}, position %{position} of %{total}",
                  widget: title,
                  direction: direction(direction),
@@ -327,7 +404,7 @@ defmodule PortfolixirWeb.Dashboard.Edit do
                  widget: title,
                  direction: direction(direction),
                  reason: gettext("the grid has no free place")
-               )}
+               ), key}
           end
       end
     end
@@ -336,18 +413,22 @@ defmodule PortfolixirWeb.Dashboard.Edit do
   defp added(edit, kind, size, {col, row}) do
     item = %{"kind" => kind, "size" => size, "col" => col, "row" => row, "settings" => %{}}
     key = edit.next_key
+    grown = %{edit | keys: edit.keys ++ [key], next_key: key + 1}
 
-    case validate(edit, edit.layout ++ [item]) do
-      {:ok, layout} ->
-        {:ok, %{edit | layout: layout, keys: edit.keys ++ [key], next_key: key + 1},
-         gettext("%{widget} added at column %{col}, row %{row}, size %{size}",
-           widget: Widgets.title(kind),
-           col: col,
-           row: row,
-           size: size
+    case arranged(grown, key, {:add, item}, edit) do
+      {:ok, next} ->
+        {:ok, next,
+         with_moved(
+           gettext("%{widget} added at column %{col}, row %{row}, size %{size}",
+             widget: Widgets.title(kind),
+             col: col,
+             row: row,
+             size: size
+           ),
+           next
          ), key}
 
-      {:error, _refusal} ->
+      {:refused, _reason} ->
         :error
     end
   end
@@ -396,25 +477,58 @@ defmodule PortfolixirWeb.Dashboard.Edit do
 
   defp title(item), do: Widgets.title(item["kind"]) || item["kind"]
 
-  # The layout with the item at `index` replaced, validated; a refusal
-  # answers the reason in words, naming the widget it would overlap.
-  defp relocate(edit, index, item) do
-    case validate(edit, List.replace_at(edit.layout, index, item)) do
-      {:ok, layout} -> {:ok, %{edit | layout: layout}}
-      {:error, refusal} -> {:refused, reason(edit.layout, index, refusal)}
+  # The layout arranged after `action` (the context's rule: the item acted
+  # on keeps its place, the others make room, the gaps close), validated;
+  # the step kept as `previous` (taken from `before`, the edit before an
+  # add grew its keys) and the keys of the widgets it moved marked. A
+  # refusal answers the reason in words.
+  defp arranged(edit, key, action, before \\ nil) do
+    with {:ok, layout} <- Dashboards.arrange_layout(edit.layout, action),
+         {:ok, layout} <- validate(edit, layout) do
+      {:ok, stepped(before || edit, key, %{edit | layout: layout})}
+    else
+      {:error, refusal} -> {:refused, reason(refusal)}
     end
+  end
+
+  # `next` with the step taken from `before` kept for „Rückgängig“ and the
+  # widgets it moved, all but the one acted on (`key`), marked.
+  defp stepped(before, key, next) do
+    %{
+      next
+      | previous: %{layout: before.layout, keys: before.keys, next_key: before.next_key, key: key},
+        moved: List.delete(moved_keys(before.layout, before.keys, next.layout, next.keys), key)
+    }
+  end
+
+  # The keys whose place differs between two layouts (an item in one only
+  # is not counted).
+  defp moved_keys(layout_a, keys_a, layout_b, keys_b) do
+    places = Map.new(Enum.zip(keys_a, layout_a), fn {k, i} -> {k, {i["col"], i["row"]}} end)
+
+    for {k, item} <- Enum.zip(keys_b, layout_b),
+        Map.has_key?(places, k),
+        Map.fetch!(places, k) != {item["col"], item["row"]},
+        do: k
+  end
+
+  # The step's sentence, and how many widgets made room for it.
+  defp with_moved(say, %__MODULE__{moved: []}), do: say
+
+  defp with_moved(say, %__MODULE__{moved: moved}) do
+    say <>
+      " · " <>
+      ngettext("1 widget made room", "%{count} widgets made room", length(moved))
   end
 
   defp validate(edit, layout),
     do: Dashboards.validate_layout(layout, stored: edit.dashboard.layout)
 
-  defp reason(layout, index, %{reason: :overlap, index: at, other: other}) do
-    other_index = if at == index, do: other, else: at
-    gettext("it would overlap %{other}", other: title(Enum.at(layout, other_index)))
-  end
+  defp reason(:off_grid), do: gettext("it would leave the grid")
+  defp reason(:no_room), do: gettext("the grid has no free place")
 
-  defp reason(_layout, _index, %{reason: :off_grid}), do: gettext("it would leave the grid")
-  defp reason(_layout, _index, _refusal), do: gettext("the layout does not allow it")
+  defp reason(:too_many_items), do: gettext("a dashboard holds at most 40 widgets")
+  defp reason(_refusal), do: gettext("the layout does not allow it")
 
   # The two items' places exchanged, or nil where the layout refuses it.
   defp swap(edit, key, other) do

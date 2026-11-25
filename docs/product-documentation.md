@@ -2170,9 +2170,17 @@ screen.
   **×**, and the catalogue **Add widget** opens beside the grid: a tap
   adds the widget at the first free place in its smallest size. Drag a
   handle on the wide grid, or focus it and use the arrow keys (one column
-  or row per press) and Delete; every step is announced to a screen reader,
-  and a step that would overlap another widget or leave the grid is
-  refused and said, not applied. Under 600 px the edit mode offers **up**,
+  or row per press) and Delete. **The others make room** (Sprint 32): a
+  resize, a move or an add lands where you put it; every widget it would
+  cover moves on to the next free place after its own, in reading order,
+  and then every widget floats up until no gap is left (a removal closes
+  its gap too). The widgets that moved are outlined until your next step.
+  Each step is said under the widget you acted on, and to a screen
+  reader, with how many made room ("Total value set to size M, column 1,
+  row 1 · 7 widgets made room") and **Undo** beside it, which takes back
+  that one step, as **Ctrl+Z** (⌘Z) does. Only a step off the grid, the
+  41st widget and a widget with no place up to row 200 are refused, said
+  at the widget (an add at the catalogue). Under 600 px the edit mode offers **up**,
   **down**, the sizes and **×** only: a reorder swaps the widget's place
   with its neighbour's, or lays the grid out again in the new order where
   their sizes differ. **Reset** discards the unsaved edit; **Done** stores

@@ -82,10 +82,14 @@ defmodule PortfolixirWeb.Browser.DashboardEditTest do
   #
   # Acceptance criteria:
   # - On the wide grid, an arrow key on a widget's handle moves it one
-  #   column and the polite live region says so; a refused step is said;
-  #   the focus stays on the handle and the page does not scroll.
+  #   column and the polite live region at the widget says so; a step onto
+  #   other widgets moves them on (Sprint 32 E2); the focus stays on the
+  #   handle and the page does not scroll.
   # - A drag of a handle below the grid places the widget in the row under
   #   the last, at the column under its corner, and says so.
+  # - Board ux-design-2026-11-25-sprint32/01 ①: a size clicked on the last
+  #   widget, scrolled to the page's foot, is answered under the widget,
+  #   inside the window, with „Undo“; Ctrl+Z takes the step back.
   # - „Done“ stores the layout drawn, as one journal entry after the create.
   # - At 393 px the edit mode offers reorder, size and remove (44 px
   #   targets), no handle and no catalogue, and the page never scrolls
