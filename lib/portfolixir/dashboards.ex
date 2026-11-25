@@ -49,6 +49,7 @@ defmodule Portfolixir.Dashboards do
           Ecto.Changeset.t()
           | {:unknown_fields, %{String.t() => [String.t()]}}
           | {:missing_fields, %{String.t() => [String.t()]}}
+          | {:invalid_fields, %{String.t() => [String.t()]}}
           | :not_found
           | :too_many_dashboards
 
@@ -185,17 +186,31 @@ defmodule Portfolixir.Dashboards do
   dashboard as stored, and nothing is written. Otherwise the replace raises
   lock_version by one and is journaled as an update with its before-image;
   one that changes nothing writes and journals nothing.
+
+  **The arrangement on request** (ADR-0062's amendment of 2026-11-25,
+  point 2): with `arrange` `"push"` and `arranged_index`, the index of the
+  item the caller changed in the layout it sends, the layout is arranged
+  before it is validated — that item keeps the place it was given, what
+  it covers makes room, the gaps close (`Portfolixir.Dashboards.Arrange`,
+  the edit mode's rule). Its items are checked first as they would be
+  without it (only an overlap is let through), so a bad item is refused
+  as before; a layout with no place up to row 200 for what must move is
+  refused with reason `:no_room` at the arranged item. Without the two
+  keys an overlap is refused, as ever; one without the other, an
+  `arrange` other than `"push"` or an index that names no item answers
+  `{:error, {:invalid_fields, errors}}`.
   """
   @spec replace_dashboard(Actor.t(), term(), map()) ::
           {:ok, Dashboard.t()} | {:error, :stale, Dashboard.t()} | {:error, refusal()}
   def replace_dashboard(%Actor{} = actor, id, attrs) when is_map(attrs) do
     fields = ~w(name layout lock_version)
 
-    with :ok <- closed(attrs, fields, "a dashboard's replace"),
+    with :ok <- closed(attrs, fields ++ ~w(arrange arranged_index), "a dashboard's replace"),
          attrs = string_attrs(attrs),
          :ok <- required(attrs, fields, "a dashboard's replace"),
          {:ok, read_version} <- lock_version(attrs),
-         {:ok, prior} <- fetch(id) do
+         {:ok, prior} <- fetch(id),
+         {:ok, attrs} <- arranged(attrs, prior) do
       Multi.new()
       |> Multi.run(:current, fn _repo, changes ->
         current = Journal.locked_row(changes)
@@ -273,6 +288,108 @@ defmodule Portfolixir.Dashboards do
       end
     end
   end
+
+  # `arrange: "push"` with `arranged_index`: the layout arranged around
+  # that item before the changeset validates it; neither key: as sent.
+  defp arranged(attrs, prior) do
+    case {Map.fetch(attrs, "arrange"), Map.fetch(attrs, "arranged_index")} do
+      {:error, :error} ->
+        {:ok, attrs}
+
+      {{:ok, "push"}, {:ok, index}} ->
+        with {:ok, layout} <- arranged_layout(attrs["layout"], index, prior) do
+          {:ok, attrs |> Map.drop(~w(arrange arranged_index)) |> Map.put("layout", layout)}
+        end
+
+      {{:ok, "push"}, :error} ->
+        invalid("arranged_index", "is required with arrange: the index of the item changed")
+
+      {:error, {:ok, _index}} ->
+        invalid("arrange", ~s(is required with arranged_index: "push"))
+
+      {{:ok, _other}, _index} ->
+        invalid("arrange", ~s(must be "push"))
+    end
+  end
+
+  defp arranged_layout(layout, index, prior) do
+    count = if is_list(layout), do: length(layout), else: 0
+
+    with :ok <- arranged_index(index, count),
+         {:ok, items} <- checked_items(layout, prior),
+         # A retired kind's item is dropped by the check (see Layout):
+         # the arranged item's index in what is left.
+         at = index - retired_before(layout, index, prior),
+         {:ok, %{"col" => col, "row" => row}} <- fetch_item(items, at),
+         {:ok, arranged} <- arrange_or_refuse(items, at, col, row, prior) do
+      {:ok, arranged}
+    end
+  end
+
+  defp arranged_index(index, count) when is_integer(index) and index >= 0 and index < count,
+    do: :ok
+
+  defp arranged_index(_index, count) do
+    invalid(
+      "arranged_index",
+      "must name an item of the layout sent: a whole number from 0 to #{max(count - 1, 0)}"
+    )
+  end
+
+  defp checked_items(layout, prior) do
+    case Layout.validate(layout, stored: prior.layout, overlaps: :allow) do
+      {:ok, items} -> {:ok, items}
+      {:error, refusal} -> {:error, layout_refusal(prior, refusal)}
+    end
+  end
+
+  defp retired_before(layout, index, prior) do
+    retired = MapSet.new(prior.layout, & &1["kind"])
+
+    layout
+    |> Enum.take(index)
+    |> Enum.count(fn item ->
+      kind = is_map(item) && (Map.get(item, "kind") || Map.get(item, :kind))
+      Widgets.fetch(kind) == :error and MapSet.member?(retired, kind)
+    end)
+  end
+
+  defp fetch_item(items, at) do
+    case Enum.at(items, at) do
+      %{} = item -> {:ok, item}
+      nil -> invalid("arranged_index", "names an item of a retired kind, which is dropped")
+    end
+  end
+
+  defp arrange_or_refuse(items, at, col, row, prior) do
+    case Arrange.arrange(items, {:move, at, {col, row}}) do
+      {:ok, arranged} ->
+        {:ok, arranged}
+
+      {:error, reason} ->
+        {:error,
+         layout_refusal(prior, %{
+           index: at,
+           field: "row",
+           reason: reason,
+           message: Layout.message(reason)
+         })}
+    end
+  end
+
+  # A layout refusal as the replace's changeset answers one.
+  defp layout_refusal(prior, refusal) do
+    prior
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.add_error(
+      :layout,
+      refusal.message,
+      Map.to_list(Map.delete(refusal, :message))
+    )
+    |> Map.put(:action, :update)
+  end
+
+  defp invalid(field, message), do: {:error, {:invalid_fields, %{field => [message]}}}
 
   # The name's changeset and the position's, merged: each raises
   # lock_version to the same one past the stored, so either or both raise

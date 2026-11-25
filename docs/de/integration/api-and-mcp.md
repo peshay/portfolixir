@@ -5819,6 +5819,32 @@ zusammenfällt, nie ungesehen verloren geht: auf `stored` aufbauen und seine
 `lock_version` senden (`title` und `source` seiner Elemente werden, wie bei
 jedem Schreibzugriff, übergangen).
 
+**Die anderen rücken nach, auf Wunsch** (Sprint 32; Ergänzung von ADR-0062
+vom 25.11.2026, Punkt 2). Ein Ersetzen darf `"arrange": "push"` mit
+`arranged_index` tragen, dem Index (ab 0) des Elements, das Sie im
+gesendeten Layout geändert haben, beide in `dashboard`: Der Server ordnet
+das Layout dann, bevor er es prüft, nach der Regel des Bearbeitungsmodus.
+Dieses Element behält Platz und Größe, die Sie ihm gegeben haben; jedes
+Element, das es überdeckt, rückt auf den nächsten freien Platz nach seinem
+eigenen, in Lesereihenfolge (Zeile, dann Spalte), und so fort für das, was
+dieses Nachrücken überdeckt; danach rutscht jedes andere Element nach oben,
+so weit nichts es aufhält. Antwort und gespeichertes Layout sind das
+geordnete. Die Elemente werden zuerst geprüft wie ohne den Wunsch (nur eine
+Überlappung wird durchgelassen), ein fehlerhaftes Element wird also wie
+immer abgelehnt; ein Layout ohne Platz bis Zeile 200 für das, was rücken
+muss, liefert `422` mit `layout_item.reason` `no_room` am geordneten
+Element. Der Server ordnet nie ungefragt: ohne sie wird eine Überlappung
+weiterhin mit `422` abgelehnt. Ein `arrange` außer `"push"`, ein Schlüssel
+ohne den anderen oder ein `arranged_index`, der kein Element des
+gesendeten Layouts nennt, liefert `422` und nennt den Schlüssel.
+
+```http
+PUT /api/v1/dashboards/7
+{"dashboard": {"name": "Kurzfristig", "lock_version": 3, "arrange": "push", "arranged_index": 0,
+  "layout": [{"kind": "performance", "size": "L", "col": 1, "row": 1},
+             {"kind": "movers", "size": "S", "col": 1, "row": 3}]}}
+```
+
 **`DELETE /api/v1/dashboards/:id`** liefert `204`. Mit `dry_run=true` löscht
 es nichts und liefert `200` `{"data": {"dry_run": true, "would_remove":
 {"dashboards": {"count": 1, "ids": [<id>]}}}}`, wie die kaskadierenden
@@ -5863,7 +5889,8 @@ antworten kompaktes JSON. `portfolixir.dashboards.put` schreibt: ohne `id`
 legt es aus `dashboard` `{name, layout}` an oder kopiert `template` unter
 `dashboard.name`; mit `id` und einem `layout` ersetzt es (`PUT`, mit
 `lock_version`), mit `id` ohne Layout benennt es um oder verschiebt es
-(`PATCH`, `lock_version` optional). Es ist ein Schreibzugriff in `book` und
+(`PATCH`, `lock_version` optional). `portfolixir.dashboards.put` nimmt
+`arrange` und `arranged_index` wie das Ersetzen, und nur beim Ersetzen. Es ist ein Schreibzugriff in `book` und
 `full` und bleibt dort, weil der vorige Name, das vorige Layout oder der
 vorige Platz, wieder gesendet, sie wiederherstellt.
 `portfolixir.dashboards.delete` nimmt `id` und `dry_run`; es ist Admin. Der

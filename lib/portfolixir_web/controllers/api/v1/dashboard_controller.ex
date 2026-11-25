@@ -17,7 +17,10 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
       `{"dashboard": {template, name?}}` copies a template (201).
     * `PUT /api/v1/dashboards/:id` — `{"dashboard": {name, layout,
       lock_version}}` replaces; a stale lock_version answers 409 with the
-      dashboard as stored under `errors.stored`.
+      dashboard as stored under `errors.stored`. With `arrange: "push"` and
+      `arranged_index` (the item changed) the layout is arranged before it
+      is validated: that item keeps its place, the others make room
+      (`Portfolixir.Dashboards.Arrange`); without them an overlap is 422.
     * `PATCH /api/v1/dashboards/:id` — `{"dashboard": {name?, position?,
       lock_version?}}` renames and/or moves; a lock_version sent and stale
       answers 409 the same way.
@@ -53,7 +56,9 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
 
   @create_fields ~w(name layout)
   @copy_fields ~w(template name)
-  @replace_fields ~w(name layout lock_version)
+  # `arrange` and `arranged_index`: the arrangement on request (ADR-0062's
+  # amendment of 2026-11-25, point 2; Sprint 32 E3).
+  @replace_fields ~w(name layout lock_version arrange arranged_index)
   @update_fields ~w(name position lock_version)
 
   # What a read adds to an item from the registry (`DashboardJSON`): read-only,
@@ -276,6 +281,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
 
   defp refuse(conn, {:error, {:unknown_fields, errors}}), do: ClosedBody.refuse(conn, errors)
   defp refuse(conn, {:error, {:missing_fields, errors}}), do: ClosedBody.refuse(conn, errors)
+  defp refuse(conn, {:error, {:invalid_fields, errors}}), do: ClosedBody.refuse(conn, errors)
   defp refuse(conn, {:error, errors}) when is_map(errors), do: ClosedBody.refuse(conn, errors)
 
   # The changeset's messages, and for a refused layout the first bad item

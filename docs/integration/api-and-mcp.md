@@ -5331,6 +5331,30 @@ change racing the screen's save is never lost unseen: build on `stored`
 and send its `lock_version` (its items' `title` and `source` are ignored,
 as on every write).
 
+**The others make room, on request** (Sprint 32; ADR-0062's amendment of
+2026-11-25, point 2). A replace may carry `"arrange": "push"` with
+`arranged_index`, the index (from 0) of the item you changed in the layout
+you send, both inside `dashboard`: the server then arranges the layout
+before it validates it, by the rule the edit mode uses. That item keeps
+the place and size you gave it; every item it covers moves on to the next
+free place after its own, in reading order (row, then column), and so on
+for what that move covers; then every other item floats up as far as
+nothing stops it. The answer and the stored layout are the arranged one.
+The items are checked first as without it (only an overlap is let
+through), so a bad item is refused as ever; a layout with no place up to
+row 200 for what must move answers `422` with `layout_item.reason`
+`no_room` at the arranged item. The server never arranges unasked:
+without them an overlap is still refused with `422`. `arrange` other than
+`"push"`, one key without the other, or an `arranged_index` that names no
+item of the layout sent answers `422` naming the key.
+
+```http
+PUT /api/v1/dashboards/7
+{"dashboard": {"name": "Short term", "lock_version": 3, "arrange": "push", "arranged_index": 0,
+  "layout": [{"kind": "performance", "size": "L", "col": 1, "row": 1},
+             {"kind": "movers", "size": "S", "col": 1, "row": 3}]}}
+```
+
 **`DELETE /api/v1/dashboards/:id`** answers `204`. With `dry_run=true` it
 deletes nothing and answers `200` `{"data": {"dry_run": true,
 "would_remove": {"dashboards": {"count": 1, "ids": [<id>]}}}}`, as the
@@ -5373,7 +5397,8 @@ are reads in every profile and answer compact JSON.
 `dashboard` `{name, layout}`, or copies `template` under `dashboard.name`;
 with `id` and a `layout` it replaces (`PUT`, with `lock_version`), and
 with `id` and no layout it renames or moves (`PATCH`, `lock_version`
-optional). It is a write in `book` and `full`, kept there because putting
+optional). `portfolixir.dashboards.put` takes `arrange` and `arranged_index`
+as the replace does, and only on a replace. It is a write in `book` and `full`, kept there because putting
 the previous name, layout or place back restores them.
 `portfolixir.dashboards.delete` takes `id` and `dry_run`; it is admin.
 The companion checks a layout's shape before any request (an item's keys,

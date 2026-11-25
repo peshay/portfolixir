@@ -819,8 +819,22 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 124_482,
     book: 205_498,
     full: 242_155
-  }
+  },
   // --- S31 fix SE2 A4 end ---
+  // --- S32 E3 begin ---
+  {
+    since: "2026-11-25",
+    why:
+      "Sprint 32 E3 (ADR-0062's amendment of 2026-11-25, point 2): dashboards.put takes " +
+      "arrange \"push\" and arranged_index on a replace and says so; paid for by trimming " +
+      "the dashboard tools' own wording (put's layout and refusal lines, get's and list's " +
+      "phrasing), and each ceiling is lowered to the figure measured: read 124,443, book " +
+      "205,496 and full 242,153; no other tool's bytes change",
+    read: 124_443,
+    book: 205_496,
+    full: 242_153
+  }
+  // --- S32 E3 end ---
 ];
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];

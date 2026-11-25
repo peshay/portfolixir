@@ -162,6 +162,66 @@ describe("the dashboard tools", () => {
     }
   });
 
+  // User story (Sprint 32 E3; ADR-0062's amendment of 2026-11-25, point 2):
+  // As the agent the operator runs,
+  // I want put to ask the server to make room for the item I changed,
+  // so that I resize or move one widget without placing every other one.
+  //
+  // Acceptance criteria:
+  // - put with id, a layout, arrange "push" and arranged_index PUTs both
+  //   inside dashboard, as the API takes them.
+  // - Before any request: arrange other than "push", arrange without
+  //   arranged_index or the other way round, an arranged_index that is no
+  //   whole number from 0 to 39, either without a layout (a rename or a
+  //   move, which arranges nothing) or on a create or a copy.
+  // - put's schema names both, and its description says the others make
+  //   room and that without them an overlap is refused.
+  it("asks the server to arrange around the item changed, and only on a replace", async () => {
+    const { client, requests } = createRecordingClient();
+    const layout = [
+      { kind: "snapshots", size: "W", col: 1, row: 2 },
+      { kind: "movers", size: "M", col: 1, row: 2 }
+    ];
+
+    await callTool(client, PUT, {
+      id: 4,
+      dashboard: { name: "Kurz", layout, lock_version: 3, arrange: "push", arranged_index: 0 }
+    });
+
+    assert.deepEqual(
+      requests.map((request) => [request.method, request.path, request.body]),
+      [
+        [
+          "PUT",
+          "/api/v1/dashboards/4",
+          { dashboard: { name: "Kurz", layout, lock_version: 3, arrange: "push", arranged_index: 0 } }
+        ]
+      ]
+    );
+
+    for (const args of [
+      { id: 4, dashboard: { name: "N", layout, lock_version: 3, arrange: "always", arranged_index: 0 } },
+      { id: 4, dashboard: { name: "N", layout, lock_version: 3, arrange: "push" } },
+      { id: 4, dashboard: { name: "N", layout, lock_version: 3, arranged_index: 0 } },
+      { id: 4, dashboard: { name: "N", layout, lock_version: 3, arrange: "push", arranged_index: -1 } },
+      { id: 4, dashboard: { name: "N", layout, lock_version: 3, arrange: "push", arranged_index: 40 } },
+      { id: 4, dashboard: { name: "N", layout, lock_version: 3, arrange: "push", arranged_index: 0.5 } },
+      { id: 4, dashboard: { name: "N", position: 2, arrange: "push", arranged_index: 0 } },
+      { dashboard: { name: "N", layout, arrange: "push", arranged_index: 0 } },
+      { template: "overview", dashboard: { arrange: "push", arranged_index: 0 } }
+    ]) {
+      const before = requests.length;
+      await assert.rejects(callTool(client, PUT, args as any), JSON.stringify(args));
+      assert.equal(requests.length, before, JSON.stringify(args));
+    }
+
+    const fields = (tool(PUT)?.inputSchema as any).properties.dashboard.properties;
+    assert.deepEqual(fields.arrange, { type: "string", enum: ["push"] });
+    assert.deepEqual(fields.arranged_index, { type: "integer" });
+    assert.match(tool(PUT)?.description ?? "", /arrange "push" \+ arranged_index/);
+    assert.match(tool(PUT)?.description ?? "", /others make room; else an overlap is 422/);
+  });
+
   // Acceptance criteria (ADR-0062 §8; the plan's agent lens):
   // - list and get are reads in every profile; put is a write in book and
   //   full, kept with its reason (the previous name and layout put back
