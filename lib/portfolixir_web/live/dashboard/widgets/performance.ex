@@ -10,21 +10,22 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Performance do
   then `PortfolixirWeb.Api.V1.PeriodParam.resolve/1`, as the routes read
   it): `Portfolixir.Portfolios.Performance.for_view/2`, the read
   `GET /api/v1/performance` and `GET /api/v1/views/:view_id/performance`
-  answer, and at L its bands, `Portfolixir.Portfolios.Performance.Bands`'
+  answer, and at XL its bands, `Portfolixir.Portfolios.Performance.Bands`'
   `for_view/2` at the level „Kategorien“, the read
   `GET /api/v1/performance/bands?level=category` answers. Both are computed
   in the first portfolio's base currency, as the value card and Wealth do.
 
     * **S** — the period's TTWROR at figure size, its period, and a
       sparkline of the period's daily value;
-    * **M** — the TTWROR and the end value over the value line of the
-      period (`PortfolixirWeb.Dashboard.Widgets.Line.chart/1`);
-    * **L** — „Wertentwicklung nach Kategorien“: Wealth's stacked chart
+    * **L** — the TTWROR and the end value over the value line of the
+      period (`PortfolixirWeb.Dashboard.Widgets.Line.chart/1`; Sprint 31's
+      M, read as L since Sprint 32 E4);
+    * **XL** — „Wertentwicklung nach Kategorien“: Wealth's stacked chart
       (`PortfolixirWeb.Portfolio.StackedChart.figure/1`), served from the
       memo when the warmup (Lane P) holds it, else read in the background;
     * **compact** (board 06) — the S form at phone type.
 
-  „Ganze Ansicht →“ opens Wealth's chart on the same period (at L on the
+  „Ganze Ansicht →“ opens Wealth's chart on the same period (at XL on the
   level „Kategorien“). The page loads; this module only draws, and turns
   the dashboard's period into the source's.
   """
@@ -81,7 +82,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Performance do
   end
 
   @doc """
-  The L size's bands from the memo, in the page's own process (I34 step
+  The XL size's bands from the memo, in the page's own process (I34 step
   2): `{:ok, result}` when the warmup or an earlier read holds them, else
   `:miss`, and the page reads them in the background (`read_bands/3`).
   """
@@ -93,7 +94,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Performance do
     end
   end
 
-  @doc "The L size's bands, read: `{:ok, result}` or `:error`."
+  @doc "The XL size's bands, read: `{:ok, result}` or `:error`."
   @spec read_bands(integer() | nil, String.t(), String.t()) :: {:ok, map()} | :error
   def read_bands(scope_id, period, base_currency) do
     with {:ok, term} <- period_term(period),
@@ -130,7 +131,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Performance do
     <Widget.frame
       id={"dashboard-performance" <> @uid}
       item={@item}
-      title={if @item.size == "L", do: gettext("Performance by category"), else: Widgets.title("performance")}
+      title={if @item.size == "XL", do: gettext("Performance by category"), else: Widgets.title("performance")}
       scope_label={@scope_label}
       full_href={wealth_href(@period, @item.size)}
       full_label={gettext("Full view →")}
@@ -146,16 +147,16 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Performance do
           currency: @result.base_currency
         ) %>
       </:info>
-      <:info :if={@item.size == "L"}>
+      <:info :if={@item.size == "XL"}>
         <%= gettext("The bands are the categories of the steering tree on each day; the method is behind the chart's own ⓘ.") %>
       </:info>
       <:shared>
-        <p :if={is_nil(@card) and @item.size != "L"} class="section-skeleton" aria-busy="true" data-role="performance-skeleton"></p>
+        <p :if={is_nil(@card) and @item.size != "XL"} class="section-skeleton" aria-busy="true" data-role="performance-skeleton"></p>
         <p :if={@card == :error} class="hint" data-role="performance-failed">
           <%= gettext("Computation failed. Reload retries.") %>
         </p>
       </:shared>
-      <%= if @item.size == "L" do %>
+      <%= if @item.size == "XL" do %>
         <p :if={@result} class="hint" data-role="performance-stack-line">
           <%= gettext("Value · level Categories") %> ·
           <span class={sign_class(@result.ttwror)} data-role="performance-ttwror"><%= percent(@result.ttwror) %></span>
@@ -164,19 +165,19 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Performance do
         <.one_day :if={one_day?(@bands)} />
         <.stack :if={not one_day?(@bands)} bands={@bands} uid={@uid} />
       <% else %>
-        <.headline :if={@result} result={@result} label={@label} end_value={@item.size == "M"} />
+        <.headline :if={@result} result={@result} label={@label} end_value={@item.size == "L"} />
         <Line.sparkline
           :if={@result && @item.size == "S"}
           values={Enum.map(@result.series, & &1.value)}
           role="performance-spark"
         />
         <Line.chart
-          :if={@result && @item.size == "M" && not one_day?(@result)}
+          :if={@result && @item.size == "L" && not one_day?(@result)}
           id={"performance-line" <> @uid}
           points={@result.series}
           currency={@result.base_currency}
         />
-        <.one_day :if={@result && @item.size == "M" && one_day?(@result)} />
+        <.one_day :if={@result && @item.size == "L" && one_day?(@result)} />
       <% end %>
       <:compact>
         <div :if={@result} class="widget-figure" data-compact-role="performance">
@@ -271,7 +272,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Performance do
   """
   @spec wealth_href(String.t(), String.t()) :: String.t()
   def wealth_href(period, size) do
-    level = if size == "L", do: [{"level", "category"}], else: []
+    level = if size == "XL", do: [{"level", "category"}], else: []
 
     period_pairs =
       case Widgets.source_params("performance", period, Clock.today()) do

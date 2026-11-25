@@ -10,9 +10,15 @@ defmodule Portfolixir.Dashboards.Widgets do
       (`fetch/1` takes a binary and compares it).
     * `title` — an English msgid the screen translates (`title/1`, context
       `"widget kind"`); `group` — the catalogue's topic (`group_title/1`).
-    * `sizes` — the subset of `sizes/0` it supports. `S`, `W`, `M`, `T` and
-      `L` are grid sizes (`dimensions/1`); `full` is its own page, reached
-      through „Ganze Ansicht“, and never a size a layout item may take.
+    * `sizes` — the subset of `sizes/0` it supports, smallest first. `S`,
+      `M`, `L` and `XL` are the grid sizes (`dimensions/1`), Apple's widget
+      families small, medium, large and extra large (`family/1`; ADR-0062's
+      amendment of 2026-11-25, point 3; Sprint 32 E4): one square unit of 3
+      columns by 2 rows, every size a multiple of it, every size of a fixed
+      height. Each size of a kind shows more of the same, never something
+      else, and a size that adds nothing is not offered. `full` is its own
+      page, reached through „Ganze Ansicht“, and never a size a layout item
+      may take.
     * `source` — the one existing read it draws: the `/api/v1` route
       templates (`routes`, `GET` each), the context function behind them
       (`function`, `{module, name, arity}`) and, where the widget's figures
@@ -44,8 +50,9 @@ defmodule Portfolixir.Dashboards.Widgets do
   @periods ~w(1d 1w 1m 3m ytd 1y 3y max)
   @default_period "1y"
 
-  @sizes ~w(S W M T L full)
-  @dimensions %{"S" => {3, 1}, "W" => {6, 1}, "M" => {6, 2}, "T" => {4, 3}, "L" => {8, 3}}
+  @sizes ~w(S M L XL full)
+  @dimensions %{"S" => {3, 2}, "M" => {6, 2}, "L" => {6, 4}, "XL" => {12, 4}}
+  @families %{"S" => "small", "M" => "medium", "L" => "large", "XL" => "extra large"}
 
   @groups ~w(overview performance allocation risk analyses)
 
@@ -89,7 +96,9 @@ defmodule Portfolixir.Dashboards.Widgets do
       key: "total_value",
       title: "Total value",
       group: "overview",
-      sizes: ~w(S M),
+      # Board 01 ④: S the figure and its change, M the figure with two
+      # companions, L the figure with its course (Sprint 32 E4).
+      sizes: ~w(S M L),
       source: %{
         routes: [
           "GET /api/v1/valuation",
@@ -114,7 +123,8 @@ defmodule Portfolixir.Dashboards.Widgets do
       key: "data_quality",
       title: "Data quality",
       group: "overview",
-      sizes: ~w(S M),
+      # S the counts, L the list (Sprint 31's M, read as L).
+      sizes: ~w(S L),
       source: %{
         routes: [
           "GET /api/v1/securities",
@@ -150,8 +160,8 @@ defmodule Portfolixir.Dashboards.Widgets do
       key: "off_target",
       title: "Off target",
       group: "overview",
-      # S the count, M the list (Sprint 31 closing act, DS1).
-      sizes: ~w(S M),
+      # S the count, L the list (Sprint 31 closing act, DS1; its M read as L).
+      sizes: ~w(S L),
       source: %{
         routes: ["GET /api/v1/portfolios/:portfolio_id/allocation"],
         function: {Portfolixir.Portfolios.Allocation, :for_portfolio, 3},
@@ -167,7 +177,9 @@ defmodule Portfolixir.Dashboards.Widgets do
       key: "performance",
       title: "Performance",
       group: "performance",
-      sizes: ~w(S M L full),
+      # S the return and its spark, L the return and its course, XL the
+      # course by category (Sprint 31's S, M and L).
+      sizes: ~w(S L XL full),
       source: %{
         routes: ["GET /api/v1/performance", "GET /api/v1/views/:view_id/performance"],
         function: {Portfolixir.Portfolios.Performance, :for_view, 2},
@@ -181,7 +193,7 @@ defmodule Portfolixir.Dashboards.Widgets do
       key: "movers",
       title: "Tops and flops",
       group: "performance",
-      sizes: ~w(S M),
+      sizes: ~w(S L),
       source: %{
         routes: ["GET /api/v1/movers", "GET /api/v1/views/:view_id/movers"],
         function: {Portfolixir.Portfolios.Performance.Movers, :read, 3},
@@ -195,7 +207,7 @@ defmodule Portfolixir.Dashboards.Widgets do
       key: "snapshots",
       title: "Snapshots",
       group: "performance",
-      sizes: ~w(S W),
+      sizes: ~w(S M),
       source: %{
         routes: [
           "GET /api/v1/snapshots",
@@ -214,7 +226,9 @@ defmodule Portfolixir.Dashboards.Widgets do
       key: "allocation_drift",
       title: "Allocation and drift",
       group: "allocation",
-      sizes: ~w(M T),
+      # Sprint 31's M and T both read as L; T was M, only narrower (board 07
+      # ①, finding 6).
+      sizes: ~w(L),
       source: %{
         routes: ["GET /api/v1/portfolios/:portfolio_id/allocation"],
         function: {Portfolixir.Portfolios.Allocation, :for_portfolio, 3},
@@ -228,7 +242,9 @@ defmodule Portfolixir.Dashboards.Widgets do
       key: "crashes",
       title: "Crashes compared",
       group: "risk",
-      sizes: ~w(M L),
+      # Sprint 31's L (read as XL) showed what its M did, with space (board
+      # 07 ①, finding 6): not offered.
+      sizes: ~w(L),
       source: %{
         routes: ["GET /api/v1/crashes", "GET /api/v1/crashes/:key/rankings"],
         function: {Portfolixir.Crashes, :list_windows, 0},
@@ -244,7 +260,8 @@ defmodule Portfolixir.Dashboards.Widgets do
       key: "bitcoin_cycle",
       title: "Bitcoin cycle",
       group: "analyses",
-      sizes: ~w(M L full),
+      # XL is Sprint 31's L; Lane L draws the cycle chart in it (plan L3).
+      sizes: ~w(L XL full),
       source: %{
         routes: ["GET /api/v1/securities/:security_id/cycles"],
         function: {Portfolixir.Catalog.SecurityCycles, :for_security, 2},
@@ -258,7 +275,7 @@ defmodule Portfolixir.Dashboards.Widgets do
       key: "sale_review",
       title: "Sale review",
       group: "analyses",
-      sizes: ~w(M),
+      sizes: ~w(L),
       source: %{
         routes: ["GET /api/v1/realized_gains"],
         function: {Portfolixir.Portfolios.RealizedGains, :newest_trades, 2},
@@ -313,7 +330,7 @@ defmodule Portfolixir.Dashboards.Widgets do
   def fetch(key) when is_binary(key), do: Map.fetch(@by_key, key)
   def fetch(_key), do: :error
 
-  @doc "The sizes a kind may support: the five grid sizes and `full`."
+  @doc "The sizes a kind may support: the four grid sizes and `full`."
   @spec sizes() :: [size()]
   def sizes, do: @sizes
 
@@ -324,6 +341,15 @@ defmodule Portfolixir.Dashboards.Widgets do
   @spec dimensions(term()) :: {:ok, {pos_integer(), pos_integer()}} | :error
   def dimensions(size) when is_binary(size), do: Map.fetch(@dimensions, size)
   def dimensions(_size), do: :error
+
+  @doc """
+  The widget family a grid size names (Apple's WidgetKit families):
+  `"small"`, `"medium"`, `"large"`, `"extra large"`; `nil` for anything
+  else.
+  """
+  @spec family(term()) :: String.t() | nil
+  def family(size) when is_binary(size), do: Map.get(@families, size)
+  def family(_size), do: nil
 
   @doc "The catalogue's groups, in its order."
   @spec groups() :: [String.t()]

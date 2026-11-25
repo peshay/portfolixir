@@ -25,6 +25,7 @@ defmodule Portfolixir.Dashboards do
   alias Portfolixir.Actor
   alias Portfolixir.Dashboards.Arrange
   alias Portfolixir.Dashboards.Dashboard
+  alias Portfolixir.Dashboards.Grid
   alias Portfolixir.Dashboards.Layout
   alias Portfolixir.Dashboards.Templates
   alias Portfolixir.Dashboards.Widgets
@@ -110,10 +111,26 @@ defmodule Portfolixir.Dashboards do
 
   # --- reads ----------------------------------------------------------------
 
-  @doc "The stored dashboards in the menu's order: by position, then id."
+  @doc """
+  The stored dashboards in the menu's order: by position, then id, each
+  layout as today's grid reads it (`as_read/1`).
+  """
   @spec list_dashboards() :: [Dashboard.t()]
   def list_dashboards,
-    do: Repo.all(from(d in Dashboard, order_by: [asc: d.position, asc: d.id]))
+    do:
+      Repo.all(from(d in Dashboard, order_by: [asc: d.position, asc: d.id]))
+      |> Enum.map(&as_read/1)
+
+  @doc """
+  A stored dashboard as every read answers it (Sprint 32 E4): its layout
+  read on today's grid (`Portfolixir.Dashboards.Grid.read/2`), so a layout
+  Sprint 31 stored in the old sizes reads in Apple's families, arranged.
+  Writes nothing; `grid` stays the one stored, and the next save of the
+  layout stores it on today's grid.
+  """
+  @spec as_read(Dashboard.t()) :: Dashboard.t()
+  def as_read(%Dashboard{grid: grid, layout: layout} = dashboard),
+    do: %{dashboard | layout: Grid.read(grid, layout)}
 
   @doc """
   The menu's dashboard entries, each marked: the stored dashboards in
@@ -129,12 +146,22 @@ defmodule Portfolixir.Dashboards do
     end
   end
 
-  @doc "The stored dashboard `id`, or `nil` (also for an id no row can carry)."
+  @doc """
+  The stored dashboard `id` as every read answers it (`as_read/1`), or
+  `nil` (also for an id no row can carry).
+  """
   @spec get_dashboard(term()) :: Dashboard.t() | nil
-  def get_dashboard(id) when is_integer(id) and id >= 1 and id <= @max_id,
-    do: Repo.get(Dashboard, id)
+  def get_dashboard(id) do
+    case stored(id) do
+      %Dashboard{} = dashboard -> as_read(dashboard)
+      nil -> nil
+    end
+  end
 
-  def get_dashboard(_id), do: nil
+  # The row as stored, its layout unread: the before-image a write
+  # journals.
+  defp stored(id) when is_integer(id) and id >= 1 and id <= @max_id, do: Repo.get(Dashboard, id)
+  defp stored(_id), do: nil
 
   # --- writes ---------------------------------------------------------------
   #
@@ -225,7 +252,7 @@ defmodule Portfolixir.Dashboards do
       |> journal(actor, :update, prior)
       |> Repo.transaction()
       |> case do
-        {:error, :current, %Dashboard{} = stored, _changes} -> {:error, :stale, stored}
+        {:error, :current, %Dashboard{} = stored, _changes} -> {:error, :stale, as_read(stored)}
         result -> written(result)
       end
     end
@@ -283,7 +310,7 @@ defmodule Portfolixir.Dashboards do
       |> journal(actor, :update, prior)
       |> Repo.transaction()
       |> case do
-        {:error, :current, %Dashboard{} = stored, _changes} -> {:error, :stale, stored}
+        {:error, :current, %Dashboard{} = stored, _changes} -> {:error, :stale, as_read(stored)}
         result -> written(result)
       end
     end
@@ -484,12 +511,12 @@ defmodule Portfolixir.Dashboards do
     )
   end
 
-  defp written({:ok, %{dashboard: dashboard}}), do: {:ok, dashboard}
+  defp written({:ok, %{dashboard: dashboard}}), do: {:ok, as_read(dashboard)}
   defp written({:error, :dashboard, %Ecto.Changeset{} = invalid, _changes}), do: {:error, invalid}
   defp written({:error, {:journal_lock, _step}, :not_found, _changes}), do: {:error, :not_found}
 
   defp fetch(id) do
-    case get_dashboard(id) do
+    case stored(id) do
       %Dashboard{} = dashboard -> {:ok, dashboard}
       nil -> {:error, :not_found}
     end

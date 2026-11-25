@@ -2437,17 +2437,34 @@ nennt und zum ganzen Screen führt.
   Zyklus-Ansicht, kein Snapshot —, behält seinen Platz mit einer ruhigen
   Zeile („Keine offenen Punkte.“, „Nichts fällig in den nächsten 30
   Tagen.“, „Noch keine abgeschlossenen Verkäufe gebucht.“).
-- **Größen, die ändern, was ein Widget sagt.** **Gesamtwert** in S (so in
-  der Vorlage) zeigt die Summe, ihre Veränderung im Zeitraum des
-  Dashboards (die TTWROR des Zeitraums, wie `GET /api/v1/performance` sie
-  antwortet) und die Wertlinie des Zeitraums; in M kommen die
-  Kennzahlenleiste und die Veränderung seit Jahresbeginn dazu.
-  **Datenqualität** in S zeigt jeden Befund als eine kurze gezählte Zeile
-  („1 Kurs älter als 7 Tage“) mit „Prüfen →“; in M die ganzen Sätze.
+- **Die Größen sind Apples Widget-Familien** (Sprint 32; Ergänzung von
+  ADR-0062 vom 25.11.2026, Punkt 3): **S** (3 Spalten mal 2 Zeilen),
+  **M** (6 × 2), **L** (6 × 4) und **XL** (12 × 4, die volle Breite), jede
+  ein Vielfaches von S. Ab 1000 px ist jede Zeile fest 7rem hoch: Keine
+  Zeile wächst mit ihrem Inhalt, ein Widget zeigt also, was in seine Kachel
+  passt, und das Raster liest sich in ruhigen Reihen. Unter 600 px stehen
+  zwei S nebeneinander und jede andere Größe nimmt die volle Breite, wie
+  auf dem Home-Bildschirm eines Telefons. Ein Dashboard, das vor Sprint 32
+  gespeichert wurde, wird auf den Familien gelesen (S bleibt S, W wird M,
+  M und T werden L, L wird XL, die Zeilen verdoppelt), geordnet wie im
+  Bearbeitungsmodus und beim nächsten Speichern so gespeichert.
+- **Jede Größe zeigt mehr vom Gleichen, nie etwas anderes.** S eine Zahl,
+  M die Zahl mit zwei, drei Begleitern, L die Zahl mit ihrem Verlauf, XL
+  die Zahl, ihren Verlauf und eine Aufteilung; eine Größe, die nichts
+  hinzufügt, wird nicht angeboten. **Gesamtwert** in S (so in der
+  Vorlage) zeigt die Summe, ihre Veränderung im Zeitraum des Dashboards
+  (die TTWROR des Zeitraums, wie `GET /api/v1/performance` sie antwortet)
+  und die Wertlinie des Zeitraums; in M die Summe mit der TTWROR des
+  Zeitraums und seinem Ergebnis (Endwert weniger Anfangswert und
+  Nettozuflüsse von außen, die Zahlen der Performance-Lesung selbst)
+  nebeneinander; in L die Summe, ihre Veränderung und den Verlauf des
+  Werts im Zeitraum. **Datenqualität** in S zeigt jeden Befund als eine
+  kurze gezählte Zeile („1 Kurs älter als 7 Tage“) mit „Prüfen →“; in L
+  die ganzen Sätze.
 - **Die vier Widgets aus den Abschnitten von Vermögen.**
   **Wertentwicklung** zeigt in S die TTWROR des Zeitraums und eine Linie
-  seines Tageswerts, in M die Wertlinie mit ihrem niedrigsten und höchsten
-  Wert und ihren Daten, in L (so in der Vorlage) das gestapelte Chart von
+  seines Tageswerts, in L die Wertlinie mit ihrem niedrigsten und höchsten
+  Wert und ihren Daten, in XL (so in der Vorlage) das gestapelte Chart von
   Vermögen nach Kategorien; „Ganze Ansicht →“ öffnet das Chart in Vermögen
   im selben Zeitraum. **Allokation und Drift** zeigt jede Kategorie der
   obersten Ebene des Steuerungsbaums und Cash mit Ist- und Sollgewicht und
@@ -2458,7 +2475,7 @@ nennt und zum ganzen Screen führt.
   Vermögen. **Snapshots** zeigt das Datum des letzten Snapshots, wie viele
   es gibt und die echte TTWROR seit diesem Datum, mit ihrer Tageslinie;
   „Vergleichen →“ öffnet seinen Vergleich. **Crashes im Vergleich** zeigt
-  die Crash-Fenster, das neueste zuerst (fünf in M, acht in L), jedes mit
+  die Crash-Fenster, das neueste zuerst (acht, in L, seiner einen Größe), jedes mit
   der Rendite des Crash-Benchmarks darüber und der niedrigsten Rendite
   unter den heute gehaltenen Wertpapieren („Im Depot“) oder im ganzen
   Katalog („Katalog“), die Zahlen, die die Ranglisten der Fenster
@@ -2504,19 +2521,12 @@ Sie gewählt (Issue #1122). Lässt die Summe nichts aus, gibt es
 keinen Hinweis; merkt sich Vermögen trotzdem eine andere Ansicht, sagt
 das eine ruhige Zeile unter der Summe (Issue #1222). Zwei Wertpapiere
 gleichen Namens im Hinweis werden je mit dem genannt, was sie
-unterscheidet, „Twin Fonds · ISIN DE0000000201“ (Issue #1320). Unter der Karte zeigt das Widget in M die **Kennzahlenleiste**
-(UX-DR2 in der Fassung vom 2026-09-14, Issue #798): vier Zellen, jede verlinkt auf die Oberfläche,
-der die Zahl gehört — die **TTWROR 1J** mit ihrem IRR (bei kürzerer
-Historie die Perioden-MWR) führt zum Vermögen, die **Cashquote** mit dem
-Cash-Betrag zum Vermögen, die **letzte Buchung** mit Datum, Art und Konto
-oder Wertpapier zu den Transaktionen, und die **Kursaktualität**, das Datum
-des neuesten gespeicherten Kurses über die gehaltenen Positionen, zur auf
-die gehaltenen Wertpapiere mit veraltetem Kurs vorgefilterten
-Wertpapierliste; ihre Unterzeile „n gehaltene veraltet" erscheint nur, wenn
-es solche Wertpapiere gibt (sonst das Datum allein — ein Fakt, kein „alles
-in Ordnung"), und zählt die gehaltenen Wertpapiere, also die Liste, die ihr
-Link öffnet (Issue #1417; die Zahl des Katalogs steht in der
-Datenqualitätszeile) —, und eine Basiszeile unter der Leiste nennt Ansicht, Zeitraum und Währung —
+unterscheidet, „Twin Fonds · ISIN DE0000000201“ (Issue #1320). Das breite Widget trägt die
+**Kennzahlenleiste** aus Issue #798 (TTWROR mit IRR, Cashquote, letzte
+Buchung, Kursaktualität) nicht mehr: Seit Sprint 32 zeigt jede Größe mehr
+von der Summe, nicht vier andere Antworten in ihrem Rahmen (Board
+ux-design-2026-11-25-sprint32/01 ④); die kompakte Form auf dem Telefon
+behält ihre Zeilen vorerst —
 das Widget **Verkaufsrückblick**, die bisherige Karte **Abgeschlossene
 Trades** (UX-DR2 in der Fassung vom 2026-10-01, Issue #984): die fünf zuletzt abgeschlossenen
 Rundläufe, neueste zuerst, je mit Verkaufsdatum und Haltedauer, dem
@@ -5609,8 +5619,8 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   Link in diesem Handbuch funktioniert.
 - **Alle Widgets** (`/widgets`, ADR-0062 §1) ist der Katalog als Seite:
   jedes Widget der App, nach Thema (Überblick, Performance, Allokation,
-  Risiko, Analysen), jedes mit den Größen, die es annimmt, als Chips (S, W,
-  M, T, L und **Voll** für seine eigene Seite) und **hinzufügen ›**.
+  Risiko, Analysen), jedes mit den Größen, die es annimmt, als Chips (S, M,
+  L, XL und **Voll** für seine eigene Seite) und **hinzufügen ›**.
   **Suchen …** behält die Widgets, deren Name den eingegebenen Text
   enthält. **hinzufügen ›** fragt, auf welches Ihrer Dashboards: Das
   Widget kommt dort in seiner kleinsten Größe an den ersten freien Platz

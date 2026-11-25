@@ -74,8 +74,9 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
   # widget squeezed.
   #
   # Acceptance criteria:
-  # - At 375, 393 and 440 px wide: one column of widgets in reading order,
-  #   each in its compact form, no sideways page scroll, every widget's
+  # - At 375, 393 and 440 px wide: the widgets in reading order, two S side
+  #   by side and every other size the full width (Sprint 32 E4, board
+  #   ux-design-2026-11-25-sprint32/09), each in its compact form, no sideways page scroll, every widget's
   #   frame inside the window and nothing in a frame wider than it (every
   #   class holds these two), and every visible text of the grid, the
   #   dashboard's bar and the tab bar at 12 px or more; every target a
@@ -90,11 +91,11 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
   #   band between the bar and the grid, 20 px at most (Sprint 31 closing
   #   act, DS2); each widget's title at 15 px with its ⓘ on the title's
   #   line, its period tag under the title at its left, and no „ohne
-  #   Zeitraum“ on the grid (DS3); each footer at its frame's foot, and
-  #   each template widget, none excepted, at most twice its size's height
-  #   budget (S 112, M 236, T and L 360 px, the board's rows) on the review
-  #   seed (DS1); no figure of „Crashes im Vergleich“ broken over
-  #   two lines (DS5).
+  #   Zeitraum“ on the grid (DS3); each footer at its frame's foot (DS1),
+  #   and since Sprint 32 E4 the grid's rows a fixed 112 px (7rem) and
+  #   each widget, none excepted, exactly its tile's height (its rows and
+  #   the gaps between them) on the review seed; no figure of „Crashes im
+  #   Vergleich“ broken over two lines (DS5).
   # - The edit mode at 1200 px (the template copied, „Bearbeiten“): the
   #   grid as wide as outside the edit, no content past a frame, the
   #   catalogue closed until „Widget hinzufügen“ opens it as a drawer at
@@ -136,6 +137,8 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
   # - A widget moved onto its neighbour's col at 1200 px: the overlap and
   #   the wrong col named.
   # - The medium class drawn as one column: "1 columns of widgets, not 2".
+  # - Sprint 32 E4: a widget drawn a row taller than its tile at 1200 px,
+  #   and an S drawn the full width at 393 px, each named.
   test "the walk fails a compact text under 12 px, a sideways scroll, an overlap and one column",
        %{base_url: base_url} do
     result = run!(base_url, "attack")
@@ -168,6 +171,14 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
 
     assert Enum.any?(caught["one_column"]["errors"], &(&1 =~ "1 columns of widgets, not 2")),
            inspect(caught["one_column"])
+
+    # Sprint 32 E4: the fixed tile and the two S side by side, each seen
+    # caught.
+    assert Enum.any?(caught["taller"]["errors"], &(&1 =~ "not its tile's")),
+           inspect(caught["taller"])
+
+    assert Enum.any?(caught["full_s"]["errors"], &(&1 =~ caught["full_s"]["widened"])),
+           inspect(caught["full_s"])
   end
 
   defp run!(base_url, mode) do

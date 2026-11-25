@@ -63,7 +63,7 @@ defmodule PortfolixirWeb.DashboardReadCapTest do
           "kind" => "total_value",
           "size" => "S",
           "col" => rem(i, 4) * 3 + 1,
-          "row" => div(i, 4) + 1,
+          "row" => div(i, 4) * 2 + 1,
           "settings" => %{"view_id" => view.id}
         }
       end)

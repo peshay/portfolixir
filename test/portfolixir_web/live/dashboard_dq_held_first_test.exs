@@ -14,8 +14,9 @@ defmodule PortfolixirWeb.DashboardDqHeldFirstTest do
   use PortfolixirWeb.ConnCase
 
   # Sprint 31 D4: the template draws „Gesamtwert“ and „Datenqualität“ at S;
-  # this module pins the strip, the year-to-date change and the line's
-  # full sentences, which M draws, so `/` opens the Overview at M.
+  # this module pins the total's exclusion line, its change and the line's
+  # full sentences, which L draws (Sprint 31's M; Sprint 32 E4), so `/`
+  # opens the Overview at L.
   setup {Portfolixir.DashboardFixtures, :overview_at_m}
 
   import Phoenix.LiveViewTest
@@ -175,21 +176,15 @@ defmodule PortfolixirWeb.DashboardDqHeldFirstTest do
     assert class_href =~ "holding=held"
     assert rows(conn, class_href) == 1
     assert rows(conn, href(view, ~s(#dashboard-dq-line [data-catalog-of="dq-class"] a))) == 2
-
-    assert href(view, ~s(a[data-role="kpi-freshness"])) ==
-             "/securities?dq=stale_quote&holding=held"
-
-    assert text(view, ~s([data-role="kpi-freshness"] .kpi-strip__sub--attention)) ==
-             "1 held stale"
   end
 
-  # Acceptance criteria (German, board 04 ② and the KPI cell):
+  # Acceptance criteria (German, board 04 ②; the KPI cell went with the
+  # strip in Sprint 32 E4, board ux-design-2026-11-25-sprint32/01 ④):
   # - "ein gehaltenes Wertpapier ohne Kurs seit 7 Tagen (im Katalog 3)".
-  # - The KPI cell reads "1 gehaltenes veraltet".
   # - A clause after the first counts in a numeral, as the short form
   #   does: "1 ohne Anlageklasse", "1 ohne Logo", never "eins ohne …"
   #   (Sprint 31 UAT, finding 11).
-  test "the German line and cell read the held count and the catalogue in parentheses",
+  test "the German line reads the held count and the catalogue in parentheses",
        %{conn: conn} do
     seed_catalogue_wider_than_held()
     view = overview(german(conn))
@@ -199,9 +194,6 @@ defmodule PortfolixirWeb.DashboardDqHeldFirstTest do
 
     assert text(view, ~s(#dashboard-dq-line [data-catalog-of="dq-quotes"])) ==
              "(im Katalog 3)"
-
-    assert text(view, ~s([data-role="kpi-freshness"] .kpi-strip__sub--attention)) ==
-             "1 gehaltenes veraltet"
 
     assert text(view, ~s(#dashboard-dq-line a[data-role="dq-class"])) == "1 ohne Anlageklasse"
     assert text(view, ~s(#dashboard-dq-line a[data-role="dq-logo"])) == "1 ohne Logo"
@@ -237,8 +229,8 @@ defmodule PortfolixirWeb.DashboardDqHeldFirstTest do
   # so that the hint clears without retiring anything.
   #
   # Acceptance criteria:
-  # - No finding, no line, the KPI cell without its sub-line; since Sprint
-  #   31 D4 the widget stays, with its quiet line.
+  # - No finding, no line; since Sprint 31 D4 the widget stays, with its
+  #   quiet line.
   # - The catalogue sets stay reachable: Wertpapiere's chip lists them,
   #   and the API answers the same count.
   test "no section while every held count is 0; the catalogue stays on Wertpapiere",
@@ -259,7 +251,6 @@ defmodule PortfolixirWeb.DashboardDqHeldFirstTest do
 
     assert has_element?(view, ~s(#dashboard-data-quality [data-role="data-quality-empty"]))
     refute has_element?(view, ~s([data-role="data-quality-line"]))
-    refute has_element?(view, ~s([data-role="kpi-freshness"] .kpi-strip__sub))
 
     {:ok, list, _html} = live(conn, "/securities")
     assert has_element?(list, "#sec-chip-stale_quote")

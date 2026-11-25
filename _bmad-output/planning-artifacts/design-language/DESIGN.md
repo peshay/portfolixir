@@ -11529,3 +11529,66 @@ wide window, its height); nothing of the device is read.
   a frame wider than it. (Before the `S31 D8` block, the drift table of
   „Allokation und Drift“ at T reached 10 px past its frame in DejaVu
   Sans.)
+
+## Amendment 2026-11-25 — Apple's widget families, fixed rows and the size rule *(Sprint 32 E4, FR-60, ideas I57 and I58; ADR-0062's amendment of 2026-11-25, point 3; planning boards `mockups/ux-design-2026-11-25-sprint32/01` ④, 08 and 09; plan D-13)*
+
+This replaces the table „The sizes, on the 12-column grid“ and the
+paragraph „The row is not a fixed height; each size has a budget“ of the
+amendment of 2026-11-21; the rest of that amendment stands.
+
+### The families, on the 12-column grid *(`Portfolixir.Dashboards.Widgets.dimensions/1`, `family/1`)*
+
+| Size | Family | Columns × rows | At 1200 px, the sidebar open |
+|---|---|---|---|
+| **S** | small | 3 × 2 | 222 × 236 px |
+| **M** | medium | 6 × 2 | 456 × 236 px |
+| **L** | large | 6 × 4 | 456 × 484 px |
+| **XL** | extra large | 12 × 4 | the grid's width × 484 px |
+| **full** | — | its own page | reached through „Ganze Ansicht →“; never an item on the grid |
+
+- **One square unit, every size a multiple of it** (S is 3 columns by 2
+  rows), as Apple's WidgetKit families are; native widgets (I53) take the
+  same families. Sprint 31's W and T are no size; L was 8 × 3.
+- **Every row is a fixed 7rem** (`grid-auto-rows: 7rem` from 1000 px):
+  no row grows with its content, so every widget is exactly its tile, its
+  rows' tracks and the gaps between them. A widget shows what fits its
+  tile: its body (`.widget__wide`) gives way and is cut at the tile's
+  edge, the head and the footer stay; out of the edit mode the tile cuts
+  (`overflow: hidden`), in it the step's note may stand under the tile.
+  The width walk asserts it at 1200 px, in Inter and in DejaVu Sans, for
+  every widget of the template on the review seed, none excepted; it
+  replaces the height budget of 2026-11-21, which only a row that grew
+  needed. Each kind's own layout per family is Lane L's (plan L1 to L3).
+- **The compact class sets the families as a phone's home screen**: two
+  S side by side, M, L and XL the full width, in the reading order (an S
+  after a wider size starts its row); in half the width a row's name and
+  figure stand one under the other and the total's figure is 20 px, its
+  currency free to go under it, so no figure is cut.
+- **A layout stored on Sprint 31's grid is read** as S → S, W → M, M → L,
+  T → L and L → XL with its rows doubled, a size its kind no longer takes
+  as the nearest it does, and arranged by the edit mode's rule
+  (`Portfolixir.Dashboards.Grid`); every read reads it so, and its next
+  save stores it so. The template „Überblick“ is that reading of
+  Sprint 31's, board 09's arrangement.
+
+### Each size shows more of the same, never something else
+
+S one figure, M the figure with two or three companions, L the figure
+with its course, XL the figure, its course and a breakdown. **A size that
+adds nothing readable is not offered.** Read against it in Sprint 32:
+
+- **Gesamtwert** S, M and L (board 01 ④): S the total, its change over
+  the period and a line; M the total, the period's TTWROR and its result
+  side by side, no chart; L the total, its change and the value's course
+  over the period. Sprint 31's strip of four answers at its M (TTWROR with
+  IRR, cash quote, last booking, newest quote) is gone from the wide form:
+  it was a second widget in this one's frame.
+- **Crashes im Vergleich** L only: Sprint 31's L showed what its M did,
+  with space (board 07 ①, finding 6).
+- **Allokation und Drift** L only: Sprint 31's M and T both read as L; T
+  was M, only narrower (finding 6).
+- **Bitcoin-Zyklus** keeps XL, Sprint 31's L, which today shows what L
+  does: plan L3 draws the cycle chart in it this sprint. Every other kind
+  keeps the families its sizes read as (Datenqualität and Abseits des
+  Ziels S and L, the count and the list; Wertentwicklung S, L, XL;
+  Tops und Flops S, L; Snapshots S, M; Fällig S; Verkaufsrückblick L).

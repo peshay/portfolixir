@@ -12,6 +12,10 @@ defmodule Portfolixir.Dashboards.Templates do
 
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  # Board 09's „Überblick“ on Apple's tiles (Sprint 32 E4): Sprint 31's
+  # layout read on the families (S → S, M → L, T → L, L → XL, the rows
+  # doubled) and arranged, as `Portfolixir.Dashboards.Grid` reads every
+  # copy Sprint 31 stored.
   @overview %{
     key: "overview",
     title: "Overview",
@@ -20,13 +24,13 @@ defmodule Portfolixir.Dashboards.Templates do
       %{"kind" => "data_quality", "size" => "S", "col" => 4, "row" => 1, "settings" => %{}},
       %{"kind" => "due", "size" => "S", "col" => 7, "row" => 1, "settings" => %{}},
       %{"kind" => "off_target", "size" => "S", "col" => 10, "row" => 1, "settings" => %{}},
-      %{"kind" => "performance", "size" => "L", "col" => 1, "row" => 2, "settings" => %{}},
-      %{"kind" => "allocation_drift", "size" => "T", "col" => 9, "row" => 2, "settings" => %{}},
-      %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 5, "settings" => %{}},
-      %{"kind" => "crashes", "size" => "M", "col" => 7, "row" => 5, "settings" => %{}},
-      %{"kind" => "bitcoin_cycle", "size" => "M", "col" => 1, "row" => 7, "settings" => %{}},
-      %{"kind" => "sale_review", "size" => "M", "col" => 7, "row" => 7, "settings" => %{}},
-      %{"kind" => "snapshots", "size" => "S", "col" => 1, "row" => 9, "settings" => %{}}
+      %{"kind" => "performance", "size" => "XL", "col" => 1, "row" => 3, "settings" => %{}},
+      %{"kind" => "allocation_drift", "size" => "L", "col" => 1, "row" => 7, "settings" => %{}},
+      %{"kind" => "movers", "size" => "L", "col" => 7, "row" => 7, "settings" => %{}},
+      %{"kind" => "crashes", "size" => "L", "col" => 1, "row" => 11, "settings" => %{}},
+      %{"kind" => "bitcoin_cycle", "size" => "L", "col" => 7, "row" => 11, "settings" => %{}},
+      %{"kind" => "sale_review", "size" => "L", "col" => 1, "row" => 15, "settings" => %{}},
+      %{"kind" => "snapshots", "size" => "S", "col" => 7, "row" => 15, "settings" => %{}}
     ]
   }
 

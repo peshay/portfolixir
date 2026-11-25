@@ -41,7 +41,7 @@ describe("the dashboard tools", () => {
   it("routes each tool to the API", async () => {
     const { client, requests } = createRecordingClient({ data: [{ type: "template" }] });
     const layout = [
-      { kind: "movers", size: "M", col: 1, row: 1, settings: { period: "1w" } },
+      { kind: "movers", size: "L", col: 1, row: 1, settings: { period: "1w" } },
       { kind: "performance", size: "S", col: 7, row: 1 }
     ];
 
@@ -85,7 +85,7 @@ describe("the dashboard tools", () => {
   //   with id and template; a template copy carrying a layout, a position or
   //   a lock_version; a put with neither id, template nor dashboard; an item
   //   key or a setting the layout does not take (a route among them); a size
-  //   outside S, W, M, T and L; a kind over 40 characters (SE2: every other
+  //   outside S, M, L and XL (Sprint 31's W and T among them); a kind over 40 characters (SE2: every other
   //   text field is capped); a col outside 1 to 12; 41 items; a name over
   //   60 characters; a misspelt dry_run; a field a tool does not take.
   it("refuses what the API would refuse by its shape, before any request", async () => {
@@ -104,6 +104,8 @@ describe("the dashboard tools", () => {
       [PUT, { dashboard: { name: "N", layout: [{ ...item, route: "GET /api/v1/journal" }] } }],
       [PUT, { dashboard: { name: "N", layout: [{ ...item, settings: { route: "/api/v1/journal" } }] } }],
       [PUT, { dashboard: { name: "N", layout: [{ ...item, size: "full" }] } }],
+      [PUT, { dashboard: { name: "N", layout: [{ ...item, size: "W" }] } }],
+      [PUT, { dashboard: { name: "N", layout: [{ ...item, size: "T" }] } }],
       [PUT, { dashboard: { name: "N", layout: [{ ...item, kind: "k".repeat(41) }] } }],
       [PUT, { dashboard: { name: "N", layout: [{ ...item, col: 13 }] } }],
       [PUT, { dashboard: { name: "N", layout: Array.from({ length: 41 }, (_, row) => ({ ...item, row: row + 1 })) } }],
@@ -134,7 +136,7 @@ describe("the dashboard tools", () => {
     const { client, requests } = createRecordingClient();
     const source = { routes: ["GET /api/v1/movers"], function: "M.read/3", note: null };
     const read = [
-      { kind: "movers", size: "M", col: 1, row: 2, settings: {}, title: "Tops and flops", source },
+      { kind: "movers", size: "L", col: 1, row: 2, settings: {}, title: "Tops and flops", source },
       { kind: "gone_kind", size: "S", col: 7, row: 1, settings: {}, title: null, source: null }
     ];
 
@@ -142,7 +144,7 @@ describe("the dashboard tools", () => {
     await callTool(client, PUT, { dashboard: { name: "Kopie", layout: read } });
 
     const sent = [
-      { kind: "movers", size: "M", col: 1, row: 2, settings: {} },
+      { kind: "movers", size: "L", col: 1, row: 2, settings: {} },
       { kind: "gone_kind", size: "S", col: 7, row: 1, settings: {} }
     ];
 
@@ -179,8 +181,8 @@ describe("the dashboard tools", () => {
   it("asks the server to arrange around the item changed, and only on a replace", async () => {
     const { client, requests } = createRecordingClient();
     const layout = [
-      { kind: "snapshots", size: "W", col: 1, row: 2 },
-      { kind: "movers", size: "M", col: 1, row: 2 }
+      { kind: "snapshots", size: "M", col: 1, row: 3 },
+      { kind: "movers", size: "L", col: 1, row: 3 }
     ];
 
     await callTool(client, PUT, {
@@ -293,7 +295,9 @@ describe("the dashboard tools", () => {
     assert.equal(putSchema.properties.dashboard.additionalProperties, false);
     assert.equal(item.additionalProperties, false);
     assert.deepEqual(item.required, ["kind", "size", "col", "row"]);
-    assert.deepEqual(item.properties.size.enum, ["S", "W", "M", "T", "L"]);
+    // Apple's families since Sprint 32 E4; list names them with their grid.
+    assert.deepEqual(item.properties.size.enum, ["S", "M", "L", "XL"]);
+    assert.match(description(LIST), /families S 3x2, M 6x2, L 6x4, XL 12x4/);
     assert.equal(item.properties.kind.maxLength, 40);
     assert.equal(item.properties.settings.additionalProperties, false);
     assert.deepEqual(Object.keys(item.properties.settings.properties).sort(), ["period", "view_id"]);

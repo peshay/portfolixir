@@ -102,20 +102,24 @@ async function startEditing(page) {
     });
     check(live === "status/polite", "the edit region is " + live + ", not a polite status");
 
+    // Sprint 32 E4: Wertentwicklung and Tops und Flops side by side at L,
+    // Crashes im Vergleich under the first.
+    await page.focus("[data-widget-kind='crashes'] [data-role='edit-handle']");
+    await page.keyboard.press("ArrowRight");
+    await said(page, "Crashes compared moved right, column 2, row 5", "crashes");
+    check(JSON.stringify(await place(page, "crashes")) === JSON.stringify([2, 5, "L"]),
+      "the arrow key did not move Crashes compared to column 2: " + JSON.stringify(await place(page, "crashes")));
+
     const perfHandle = "[data-widget-kind='performance'] [data-role='edit-handle']";
     await page.focus(perfHandle);
     const scrollBefore = await page.evaluate(() => window.scrollY);
-    await page.keyboard.press("ArrowRight");
-    await said(page, "Performance moved right, column 2, row 1", "performance");
-    check(JSON.stringify(await place(page, "performance")) === JSON.stringify([2, 1, "L"]),
-      "the arrow key did not move Performance to column 2: " + JSON.stringify(await place(page, "performance")));
-    // Down onto Tops und Flops and Crashes: they make room (Sprint 32 E2).
+    // Down onto Crashes compared: it makes room (Sprint 32 E2).
     await page.keyboard.press("ArrowDown");
-    await said(page, "Performance moved down, column 2, row 2 · 2 widgets made room", "performance");
-    check(JSON.stringify(await place(page, "movers")) === JSON.stringify([1, 5, "M"]),
-      "Tops and flops did not make room: " + JSON.stringify(await place(page, "movers")));
+    await said(page, "Performance moved down, column 1, row 2 · 1 widget made room", "performance");
+    check(JSON.stringify(await place(page, "crashes")) === JSON.stringify([7, 5, "L"]),
+      "Crashes compared did not make room: " + JSON.stringify(await place(page, "crashes")));
     await page.keyboard.press("ArrowUp");
-    await said(page, "Performance moved up, column 2, row 1 · 2 widgets made room", "performance");
+    await said(page, "Performance moved up, column 1, row 1", "performance");
     check((await status(page)).length === 1, "more than the widget's note speaks: " + JSON.stringify(await status(page)));
     const kept = await page.evaluate(() => {
       const a = document.activeElement;
@@ -137,7 +141,7 @@ async function startEditing(page) {
       return {
         x: h.left + h.width / 2,
         y: h.top + h.height / 2,
-        dy: g.bottom + 12 - w.top,
+        dy: g.bottom + 40 - w.top,
         rows: rows
       };
     });
@@ -146,8 +150,9 @@ async function startEditing(page) {
     await page.mouse.move(drop.x, drop.y + drop.dy / 2, { steps: 5 });
     await page.mouse.move(drop.x, drop.y + drop.dy, { steps: 5 });
     await page.mouse.up();
-    await said(page, "Tops and flops placed at column 1, row " + (drop.rows + 1), "movers");
-    check(JSON.stringify(await place(page, "movers")) === JSON.stringify([1, drop.rows + 1, "M"]),
+    // Crashes compared floats up into the place Tops und Flops left.
+    await said(page, "Tops and flops placed at column 7, row " + (drop.rows + 1) + " · 1 widget made room", "movers");
+    check(JSON.stringify(await place(page, "movers")) === JSON.stringify([7, drop.rows + 1, "L"]),
       "the drag placed Tops and flops at " + JSON.stringify(await place(page, "movers")));
 
     // Board 01 ①: a click at the page's foot. Scrolled to the end, the size
@@ -155,7 +160,7 @@ async function startEditing(page) {
     // window, with „Undo“; Ctrl+Z takes the step back.
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await page.click("[data-widget-kind='movers'] [data-role='edit-size'][data-size='S']");
-    await said(page, "Tops and flops set to size S, column 1, row " + (drop.rows + 1), "movers");
+    await said(page, "Tops and flops set to size S, column 7, row " + (drop.rows + 1), "movers");
     const foot = await page.evaluate(() => {
       const note = document.querySelector("[data-widget-kind='movers'] .widget__note");
       const r = note.getBoundingClientRect();
@@ -178,7 +183,7 @@ async function startEditing(page) {
     check(foot.live, "the note is no polite live region");
     await page.keyboard.press("Control+z");
     await said(page, "Last step undone", "movers");
-    check(JSON.stringify(await place(page, "movers")) === JSON.stringify([1, drop.rows + 1, "M"]),
+    check(JSON.stringify(await place(page, "movers")) === JSON.stringify([7, drop.rows + 1, "L"]),
       "Ctrl+Z did not take the size back: " + JSON.stringify(await place(page, "movers")));
 
     if (shots) {

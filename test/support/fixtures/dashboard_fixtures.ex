@@ -5,9 +5,10 @@ defmodule Portfolixir.DashboardFixtures do
   The template „Überblick“ draws „Gesamtwert“ and „Datenqualität“ at S
   (planning board 01 ①): the total with its period's change, and each
   data-quality finding as a short counted line. The tests that pin the
-  value card's strip, its year-to-date change and the data-quality line's
-  full sentences read them at M, the size that draws them, from
-  `overview_at_m!/0`: the template's widgets with those two at M, stored
+  value card's exclusion line, its change and the data-quality line's
+  full sentences read them at L (Sprint 31's M, read as L since Sprint 32
+  E4), the size that draws them, from `overview_at_m!/0`: the template's
+  widgets with those two at L, stored
   as the first dashboard, so `/` opens it. A module that calls it from an
   async test joins `group: :dashboards` (`Portfolixir.LockTable` row 30).
   """
@@ -15,22 +16,25 @@ defmodule Portfolixir.DashboardFixtures do
   alias Portfolixir.Actor
   alias Portfolixir.Dashboards
 
+  # Sprint 32 E4: on Apple's families. Sprint 31's M of the two is L (the
+  # figure with its course; the list of findings), the rest as the
+  # template reads them.
   @layout [
-    {"total_value", "M", 1, 1},
-    {"data_quality", "M", 7, 1},
-    {"due", "S", 1, 3},
-    {"off_target", "S", 4, 3},
-    {"performance", "L", 1, 4},
-    {"allocation_drift", "T", 9, 4},
-    {"movers", "M", 1, 7},
-    {"crashes", "M", 7, 7},
-    {"bitcoin_cycle", "M", 1, 9},
-    {"sale_review", "M", 7, 9},
-    {"snapshots", "S", 1, 11}
+    {"total_value", "L", 1, 1},
+    {"data_quality", "L", 7, 1},
+    {"due", "S", 1, 5},
+    {"off_target", "S", 4, 5},
+    {"performance", "XL", 1, 7},
+    {"allocation_drift", "L", 1, 11},
+    {"movers", "L", 7, 11},
+    {"crashes", "L", 1, 15},
+    {"bitcoin_cycle", "L", 7, 15},
+    {"sale_review", "L", 1, 19},
+    {"snapshots", "S", 7, 19}
   ]
 
   @doc """
-  Stores „Überblick“ with „Gesamtwert“ and „Datenqualität“ at M as the
+  Stores „Überblick“ with „Gesamtwert“ and „Datenqualität“ at L as the
   first dashboard, named as the template is, and returns it.
   """
   def overview_at_m! do

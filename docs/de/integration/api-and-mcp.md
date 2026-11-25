@@ -5744,8 +5744,8 @@ zusammenstellen lässt, ohne den Code zu lesen: `{"data": {"widgets",
   `data_quality`, `due`, `off_target`, `performance`, `movers`, `snapshots`,
   `allocation_drift`, `crashes`, `bitcoin_cycle`, `sale_review`), `title`
   (englisch) und `title_key` (`{context, msgid}`, die Meldung, die der
-  Bildschirm übersetzt), `group`, `sizes` (eine Teilmenge von `S`, `W`, `M`,
-  `T`, `L` und `full`), `source` (`routes`, die `GET /api/v1/...`-Routen,
+  Bildschirm übersetzt), `group`, `sizes` (eine Teilmenge von `S`, `M`, `L`,
+  `XL` und `full`, die kleinste zuerst), `source` (`routes`, die `GET /api/v1/...`-Routen,
   die es zeichnet; `function`, die Kontextfunktion dahinter; `note`, wo die
   Zahlen keine eigene Route haben), `period` (`"none"` oder `{periods, param,
   values, ranges, translated}`: die Dashboard-Zeiträume, die es beantwortet,
@@ -5757,9 +5757,23 @@ zusammenstellen lässt, ohne den Code zu lesen: `{"data": {"widgets",
 - `groups`: `{key, title}` in ihrer Reihenfolge (`overview`, `performance`,
   `allocation`, `risk`, `analyses`).
 - `grid`: `columns` (12), `max_row` (200), `max_items` (40), `sizes` (je
-  Rastergröße `{columns, rows}`: `S` 3 × 1, `W` 6 × 1, `M` 6 × 2, `T` 4 × 3,
-  `L` 8 × 3) und `full`, das sagt, dass `full` eine eigene Seite ist und nie
-  im Raster steht.
+  Rastergröße `{columns, rows, family}`: `S` 3 × 2, `M` 6 × 2, `L` 6 × 4,
+  `XL` 12 × 4, Apples Widget-Familien klein, mittel, groß und extra groß,
+  jede ein Vielfaches von S), `row_height` (`7rem`: jede Zeile hat im
+  breiten Raster eine feste Höhe, und keine Zeile wächst mit ihrem Inhalt,
+  ein Widget zeigt also, was in seine Kachel passt), `size_rule` (jede
+  Größe einer Art zeigt mehr vom Gleichen: S eine Zahl, M die Zahl mit
+  zwei, drei Begleitern, L die Zahl mit ihrem Verlauf, XL die Zahl, ihren
+  Verlauf und eine Aufteilung; eine Größe, die nichts hinzufügt, wird
+  nicht angeboten) und `full`, das sagt, dass `full` eine eigene Seite ist
+  und nie im Raster steht. Seit Sprint 32 (Ergänzung von ADR-0062 vom
+  25.11.2026, Punkt 3) sind die Größen `W` und `T` aus Sprint 31 keine
+  Größe mehr, und ein Schreibzugriff, der eine nennt, wird mit den
+  Familien abgelehnt. Ein Layout, das Sprint 31 gespeichert hat, wird als
+  S → S, W → M, M → L, T → L, L → XL mit verdoppelten Zeilen gelesen (eine
+  Größe, die seine Art nicht mehr nimmt, als die nächste, die sie nimmt),
+  geordnet wie im Bearbeitungsmodus, von jeder Lesung gleich — Bildschirm,
+  `GET` und Begleiter; das nächste Speichern speichert es so.
 - `periods`: `values` (`1d`, `1w`, `1m`, `3m`, `ytd`, `1y`, `3y`, `max`) und
   `default` (`1y`). Ein Bereich bis heute ist das Geldfenster aus
   ADR-0061 §3, vom Tag nach seinem Starttag bis heute, seine Basis der
@@ -5895,7 +5909,7 @@ legt es aus `dashboard` `{name, layout}` an oder kopiert `template` unter
 vorige Platz, wieder gesendet, sie wiederherstellt.
 `portfolixir.dashboards.delete` nimmt `id` und `dry_run`; es ist Admin. Der
 Begleiter prüft die Form eines Layouts vor jeder Anfrage (die Schlüssel
-eines Elements, eine Größe aus `S`, `W`, `M`, `T` und `L`, `col` 1 bis 12,
+eines Elements, eine Größe aus `S`, `M`, `L` und `XL`, `col` 1 bis 12,
 höchstens 40 Elemente, ein Name von höchstens 60 Zeichen) und nimmt
 `title` und `source` eines Elements, wie `get` sie liefert, ohne sie zu
 senden, damit `get`, eine Änderung und `put` ein Durchgang sind; den Rest
@@ -5916,9 +5930,9 @@ Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 Content-Type: application/json
 
 {"dashboard": {"name": "Kurzfristig", "layout": [
-  {"kind": "movers", "size": "M", "col": 1, "row": 1, "settings": {"period": "1w"}},
-  {"kind": "performance", "size": "M", "col": 7, "row": 1},
-  {"kind": "due", "size": "S", "col": 1, "row": 3}
+  {"kind": "movers", "size": "L", "col": 1, "row": 1, "settings": {"period": "1w"}},
+  {"kind": "performance", "size": "L", "col": 7, "row": 1},
+  {"kind": "due", "size": "S", "col": 1, "row": 5}
 ]}}
 ```
 

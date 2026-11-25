@@ -806,8 +806,21 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 124_443,
     book: 205_496,
     full: 242_153
-  }
+  },
   // --- S32 E3 end ---
+  // --- S32 E4 begin ---
+  {
+    since: "2026-11-25",
+    why:
+      "Sprint 32 E4 (ADR-0062's amendment of 2026-11-25, point 3): dashboards.put's sizes " +
+      "become Apple's families S, M, L and XL, and dashboards.list names them with their " +
+      "grid, its \"cols x rows\" dropped; each ceiling is lowered to the figure measured: " +
+      "read 124,434, book 205,484 and full 242,141; no other tool's bytes change",
+    read: 124_434,
+    book: 205_484,
+    full: 242_141
+  }
+  // --- S32 E4 end ---
 ];
 
 describe("the schema budget", () => {

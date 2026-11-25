@@ -205,7 +205,7 @@ defmodule PortfolixirWeb.DashboardTradesCardCostTest do
     {:ok, _} =
       Portfolixir.Dashboards.create_dashboard(Actor.owner_ui(), %{
         "name" => "Trades",
-        "layout" => [%{"kind" => "sale_review", "size" => "M", "col" => 1, "row" => 1}]
+        "layout" => [%{"kind" => "sale_review", "size" => "L", "col" => 1, "row" => 1}]
       })
 
     counts =

@@ -159,6 +159,53 @@ defmodule Portfolixir.DashboardsDocsTest do
     assert de =~ "`portfolixir.dashboards.put` nimmt `arrange` und `arranged_index`"
   end
 
+  # User story (Sprint 32 E4; ADR-0062's amendment of 2026-11-25, point 3):
+  # As the agent that reads the API reference, or the operator who reads it
+  # in German,
+  # I want the sizes named as Apple's widget families with their columns
+  # and rows, the fixed row and the rule each kind's sizes follow,
+  # so that a layout I compose uses the sizes the server takes, and I know
+  # a stored layout of Sprint 31 is read on them.
+  #
+  # Acceptance criteria:
+  # - Both references name S 3 × 2, M 6 × 2, L 6 × 4 and XL 12 × 4 with
+  #   their families, `row_height` and `size_rule`, that W and T are no
+  #   size any more, and how a Sprint 31 layout is read (S → S, W → M,
+  #   M → L, T → L, L → XL, the rows doubled).
+  test "the API references name the families, the fixed row and the reading of Sprint 31's sizes" do
+    en =
+      section(
+        "docs/integration/api-and-mcp.md",
+        "## Dashboards and widgets (ADR-0062)",
+        "## Imports"
+      )
+
+    de =
+      section(
+        "docs/de/integration/api-and-mcp.md",
+        "## Dashboards und Widgets (ADR-0062)",
+        "## Importe"
+      )
+
+    for {text, lang} <- [{en, "en"}, {de, "de"}],
+        expected <- [
+          "`S` 3 × 2",
+          "`M` 6 × 2",
+          "`L` 6 × 4",
+          "`XL` 12 × 4",
+          "`row_height`",
+          "`size_rule`",
+          "S → S, W → M, M → L, T → L, L → XL"
+        ] do
+      assert text =~ expected, "#{lang} dashboards section lacks #{expected}"
+    end
+
+    assert en =~ "small, medium, large and extra large"
+    assert de =~ "klein, mittel, groß und extra groß"
+    refute en =~ "`W` 6 × 1"
+    refute de =~ "`W` 6 × 1"
+  end
+
   # Acceptance criteria:
   # - The worked example's body, in each language, is a layout the server
   #   accepts as it stands (no view is named, so no table is read).

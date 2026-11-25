@@ -49,8 +49,8 @@ defmodule Portfolixir.Dashboards.AttackTest do
   # stored as sent.
   #
   # Acceptance criteria:
-  # - An S widget (3 columns) fits at col 10, not at col 11 or 12; an L
-  #   widget (8 columns) at col 5, not at 6.
+  # - An S widget (3 columns) fits at col 10, not at col 11 or 12; an XL
+  #   widget (12 columns) at col 1, not at 2.
   # - col 0, a negative col, row 0, a negative row and a row past the cap
   #   are off the grid; the cap's own row is on it.
   # - A float, a numeric string, a boolean or nil is not a whole number,
@@ -60,9 +60,9 @@ defmodule Portfolixir.Dashboards.AttackTest do
     assert {:ok, _} = Layout.validate([item("due", "S", 10, 1)])
     assert refusal([item("due", "S", 11, 1)]) == %{index: 0, field: "col", reason: :off_grid}
     assert refusal([item("due", "S", 12, 1)]) == %{index: 0, field: "col", reason: :off_grid}
-    assert {:ok, _} = Layout.validate([item("performance", "L", 5, 1)])
+    assert {:ok, _} = Layout.validate([item("performance", "XL", 1, 1)])
 
-    assert refusal([item("performance", "L", 6, 1)]) ==
+    assert refusal([item("performance", "XL", 2, 1)]) ==
              %{index: 0, field: "col", reason: :off_grid}
 
     for col <- [0, -1, -12, 13, 10 ** 40, -(10 ** 40)] do
@@ -70,7 +70,7 @@ defmodule Portfolixir.Dashboards.AttackTest do
     end
 
     max_row = Layout.max_row()
-    assert {:ok, _} = Layout.validate([item("allocation_drift", "T", 1, max_row)])
+    assert {:ok, _} = Layout.validate([item("allocation_drift", "L", 1, max_row)])
 
     for row <- [0, -1, max_row + 1, 10 ** 40] do
       assert refusal([item("due", "S", 1, row)]) == %{index: 0, field: "row", reason: :off_grid}
@@ -107,22 +107,23 @@ defmodule Portfolixir.Dashboards.AttackTest do
   #
   # Acceptance criteria:
   # - An M widget (6 × 2) at col 4, row 4 covers cols 4–9, rows 4–5: an S
-  #   widget touching it on any side or corner is accepted.
-  # - An S widget sharing exactly one cell with it at any edge or corner is
-  #   refused, naming the later item and the earlier one.
+  #   widget (3 × 2 since Sprint 32 E4) touching it on any side or corner
+  #   is accepted.
+  # - An S widget sharing a cell with it at any edge or corner is refused,
+  #   naming the later item and the earlier one.
   # - The same item twice is refused as an overlap.
   test "touching widgets are accepted, one shared cell is an overlap" do
-    anchor = item("movers", "M", 4, 4)
+    anchor = item("snapshots", "M", 4, 4)
 
-    # S covers {col..col+2, row}.
-    touching = [{1, 4}, {10, 4}, {1, 5}, {10, 5}, {4, 3}, {7, 3}, {4, 6}, {7, 6}, {1, 3}, {10, 6}]
+    # S covers {col..col+2, row..row+1}.
+    touching = [{1, 4}, {10, 4}, {1, 5}, {10, 5}, {4, 2}, {7, 2}, {4, 6}, {7, 6}, {1, 2}, {10, 6}]
 
     for {col, row} <- touching do
       assert {:ok, _} = Layout.validate([anchor, item("due", "S", col, row)]),
              "S at #{col},#{row} touches the M widget and should be accepted"
     end
 
-    one_cell = [{2, 4}, {9, 4}, {2, 5}, {9, 5}, {4, 5}, {7, 4}]
+    one_cell = [{2, 3}, {9, 3}, {2, 5}, {9, 5}, {4, 5}, {7, 3}]
 
     for {col, row} <- one_cell do
       assert {:error, %{index: 1, reason: :overlap, other: 0}} =
@@ -130,10 +131,10 @@ defmodule Portfolixir.Dashboards.AttackTest do
              "S at #{col},#{row} shares a cell with the M widget and should be refused"
     end
 
-    # A T widget (4 × 3) reaches two rows below its start.
-    tall = item("allocation_drift", "T", 9, 1)
-    assert {:error, %{index: 1, other: 0}} = Layout.validate([tall, item("due", "S", 10, 3)])
-    assert {:ok, _} = Layout.validate([tall, item("due", "S", 10, 4)])
+    # An L widget (6 × 4) reaches three rows below its start.
+    tall = item("allocation_drift", "L", 7, 1)
+    assert {:error, %{index: 1, other: 0}} = Layout.validate([tall, item("due", "S", 10, 4)])
+    assert {:ok, _} = Layout.validate([tall, item("due", "S", 10, 5)])
 
     assert {:error, %{index: 1, reason: :overlap, other: 0}} =
              Layout.validate([item("due", "S", 1, 1), item("due", "S", 1, 1)])
@@ -175,7 +176,7 @@ defmodule Portfolixir.Dashboards.AttackTest do
     end
 
     for settings <- [[], "view", 1, [%{"view_id" => 1}]] do
-      assert refusal([item("movers", "M", 1, 1, %{"settings" => settings})]) ==
+      assert refusal([item("movers", "L", 1, 1, %{"settings" => settings})]) ==
                %{index: 0, field: "settings", reason: :not_an_object}
     end
   end
@@ -195,7 +196,7 @@ defmodule Portfolixir.Dashboards.AttackTest do
   # - Settings that are empty or null are stored as the empty map.
   test "settings carry a view and a period of the right type, nothing else" do
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{"name" => "Synthetic Growth"})
-    with_settings = fn settings -> [item("movers", "M", 1, 1, %{"settings" => settings})] end
+    with_settings = fn settings -> [item("movers", "L", 1, 1, %{"settings" => settings})] end
 
     assert {:ok, [%{"settings" => %{"view_id" => id}}]} =
              Layout.validate(with_settings.(%{"view_id" => view.id}))
@@ -240,7 +241,7 @@ defmodule Portfolixir.Dashboards.AttackTest do
   #   resend the layout.
   test "a deleted view leaves the stored id dangling; a rename still passes" do
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{"name" => "Synthetic Short"})
-    pinned = item("movers", "M", 1, 1, %{"settings" => %{"view_id" => view.id}})
+    pinned = item("movers", "L", 1, 1, %{"settings" => %{"view_id" => view.id}})
     dashboard = create!("With a view", [pinned])
 
     {:ok, _} = Buckets.delete_view(Actor.owner_ui(), view)

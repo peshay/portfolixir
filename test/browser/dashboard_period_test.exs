@@ -59,9 +59,9 @@ defmodule PortfolixirWeb.Browser.DashboardPeriodTest do
     put_quotes!(security, [{start, "100"}, {Date.add(today, -100), "110"}, {today, "121"}])
 
     layout = [
-      %{"kind" => "performance", "size" => "L", "col" => 1, "row" => 1},
-      %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 4},
-      %{"kind" => "crashes", "size" => "M", "col" => 7, "row" => 4}
+      %{"kind" => "performance", "size" => "XL", "col" => 1, "row" => 1},
+      %{"kind" => "movers", "size" => "L", "col" => 1, "row" => 5},
+      %{"kind" => "crashes", "size" => "L", "col" => 7, "row" => 5}
     ]
 
     pinned =

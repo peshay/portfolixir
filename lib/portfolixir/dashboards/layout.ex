@@ -52,7 +52,7 @@ defmodule Portfolixir.Dashboards.Layout do
 
   @max_items 40
   @columns 12
-  # 40 items at most, none taller than 3 rows: 120 rows hold any layout the
+  # 40 items at most, none taller than 4 rows: 160 rows hold any layout the
   # item cap admits stacked one below the other; 200 leaves room for gaps.
   @max_row 200
   @max_bigint 9_223_372_036_854_775_807
@@ -210,7 +210,11 @@ defmodule Portfolixir.Dashboards.Layout do
   def message(:unknown_kind), do: dgettext_noop("errors", "is not a registered widget kind")
 
   def message(:unsupported_size),
-    do: dgettext_noop("errors", "is not a size this widget kind takes")
+    do:
+      dgettext_noop(
+        "errors",
+        "is not a size this widget kind takes: the sizes are the families S, M, L and XL"
+      )
 
   def message(:not_an_integer), do: dgettext_noop("errors", "must be a whole number")
   def message(:off_grid), do: dgettext_noop("errors", "is off the grid")

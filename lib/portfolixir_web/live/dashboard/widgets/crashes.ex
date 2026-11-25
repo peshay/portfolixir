@@ -128,7 +128,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
       assigns
       |> assign(:uid, assigns.item.uid)
       |> assign(:ready, match?(%{state: :ok}, assigns.card))
-      |> assign(:shown, if(assigns.item.size == "L", do: 8, else: 5))
+      |> assign(:shown, 8)
 
     assigns =
       assign(

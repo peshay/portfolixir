@@ -67,7 +67,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
              "title" => "Tops and flops",
              "title_key" => %{"context" => "widget kind", "msgid" => "Tops and flops"},
              "group" => "performance",
-             "sizes" => ["S", "M"],
+             "sizes" => ["S", "L"],
              "source" => %{
                "routes" => ["GET /api/v1/movers", "GET /api/v1/views/:view_id/movers"],
                "function" => "Portfolixir.Portfolios.Performance.Movers.read/3",
@@ -117,13 +117,17 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
     assert data["grid"]["max_row"] == 200
     assert data["grid"]["max_items"] == 40
 
+    # Sprint 32 E4: Apple's families, each named, rows of a fixed height,
+    # and the rule each kind's sizes are read against.
     assert data["grid"]["sizes"] == %{
-             "S" => %{"columns" => 3, "rows" => 1},
-             "W" => %{"columns" => 6, "rows" => 1},
-             "M" => %{"columns" => 6, "rows" => 2},
-             "T" => %{"columns" => 4, "rows" => 3},
-             "L" => %{"columns" => 8, "rows" => 3}
+             "S" => %{"columns" => 3, "rows" => 2, "family" => "small"},
+             "M" => %{"columns" => 6, "rows" => 2, "family" => "medium"},
+             "L" => %{"columns" => 6, "rows" => 4, "family" => "large"},
+             "XL" => %{"columns" => 12, "rows" => 4, "family" => "extra large"}
            }
+
+    assert data["grid"]["row_height"] == "7rem"
+    assert data["grid"]["size_rule"] =~ "each size of a kind shows more of the same"
 
     assert data["grid"]["full"] =~ "never placed"
     assert data["periods"] == %{"values" => ~w(1d 1w 1m 3m ytd 1y 3y max), "default" => "1y"}
@@ -221,9 +225,9 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
         Map.put(due(1, 1), "settings", %{}),
         %{
           "kind" => "movers",
-          "size" => "M",
+          "size" => "L",
           "col" => 1,
-          "row" => 2,
+          "row" => 3,
           "settings" => %{"view_id" => view.id, "period" => "1w"}
         }
       ])
@@ -239,9 +243,9 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
 
     assert movers_item == %{
              "kind" => "movers",
-             "size" => "M",
+             "size" => "L",
              "col" => 1,
-             "row" => 2,
+             "row" => 3,
              "settings" => %{"view_id" => view.id, "period" => "1w"},
              "title" => "Tops and flops",
              "source" => %{
@@ -312,7 +316,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
       "dashboard" => %{
         "name" => "Kurzfristig",
         "layout" => [
-          %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 1},
+          %{"kind" => "movers", "size" => "L", "col" => 1, "row" => 1},
           %{"kind" => "performance", "size" => "S", "col" => 7, "row" => 1}
         ]
       }
@@ -382,12 +386,12 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
   #   object answers 422.
   # - Nothing is written on any refusal.
   test "a refused create names the first bad item and writes nothing", %{conn: conn} do
-    movers = %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 1}
+    movers = %{"kind" => "movers", "size" => "L", "col" => 1, "row" => 1}
 
     refusals = [
       {[Map.put(movers, "kind", "ticker_tape")],
        %{"index" => 0, "field" => "kind", "reason" => "unknown_kind"}},
-      {[Map.put(movers, "size", "L")],
+      {[Map.put(movers, "size", "M")],
        %{"index" => 0, "field" => "size", "reason" => "unsupported_size"}},
       {[Map.put(movers, "col", 8)], %{"index" => 0, "field" => "col", "reason" => "off_grid"}},
       {[movers, Map.put(movers, "col", 4)],
@@ -592,7 +596,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
       create!("Kurzfristig", [
         %{
           "kind" => "movers",
-          "size" => "M",
+          "size" => "L",
           "col" => 1,
           "row" => 1,
           "settings" => %{"period" => "1w"}

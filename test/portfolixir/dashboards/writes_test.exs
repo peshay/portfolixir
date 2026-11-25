@@ -357,7 +357,7 @@ defmodule Portfolixir.Dashboards.WritesTest do
 
     pinned = %{
       "kind" => "movers",
-      "size" => "M",
+      "size" => "L",
       "col" => 1,
       "row" => 1,
       "settings" => %{"view_id" => view.id, "period" => "1m"}
@@ -432,7 +432,7 @@ defmodule Portfolixir.Dashboards.WritesTest do
   # - A replace naming an unregistered kind the stored layout does not hold
   #   is refused (unknown_kind, its index); a create naming one is refused.
   test "a stored item whose kind is no longer registered is dropped on the next save" do
-    movers = %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 1, "settings" => %{}}
+    movers = %{"kind" => "movers", "size" => "L", "col" => 1, "row" => 1, "settings" => %{}}
     gone = %{"kind" => "gone_kind", "size" => "S", "col" => 7, "row" => 1, "settings" => %{}}
     dashboard = create!("Retired", [movers])
     force_layout!(dashboard, [movers, gone])

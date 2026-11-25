@@ -29,7 +29,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardAttackTest do
   end
 
   defp attempt(id) do
-    item = %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 1}
+    item = %{"kind" => "movers", "size" => "L", "col" => 1, "row" => 1}
     path = "/api/v1/dashboards/#{id}"
 
     requests = [

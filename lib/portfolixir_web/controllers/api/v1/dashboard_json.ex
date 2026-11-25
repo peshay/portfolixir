@@ -22,6 +22,13 @@ defmodule PortfolixirWeb.Api.V1.DashboardJSON do
   @full_size "full is a page of its own, reached through the widget's full view, never placed " <>
                "on the grid"
 
+  # ADR-0062's amendment of 2026-11-25, point 3 (Sprint 32 E4).
+  @size_rule "Apple's widget families: every size a multiple of S and of a fixed height " <>
+               "(rows of 7rem at the wide class, none growing with its content); each size " <>
+               "of a kind shows more of the same: S one figure, M the figure with two or " <>
+               "three companions, L the figure with its course, XL the figure, its course " <>
+               "and a breakdown; a size that adds nothing is not offered"
+
   @doc "The widget catalogue (§1): every kind, the groups, the grid, the periods, the limits."
   @spec catalogue() :: map()
   def catalogue do
@@ -33,6 +40,8 @@ defmodule PortfolixirWeb.Api.V1.DashboardJSON do
         max_row: Layout.max_row(),
         max_items: Layout.max_items(),
         sizes: grid_sizes(),
+        row_height: "7rem",
+        size_rule: @size_rule,
         full: @full_size
       },
       periods: %{values: Widgets.periods(), default: Widgets.default_period()},
@@ -59,7 +68,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardJSON do
     for size <- Widgets.sizes(),
         {:ok, {columns, rows}} <- [Widgets.dimensions(size)],
         into: %{},
-        do: {size, %{columns: columns, rows: rows}}
+        do: {size, %{columns: columns, rows: rows, family: Widgets.family(size)}}
   end
 
   defp source(kind) do

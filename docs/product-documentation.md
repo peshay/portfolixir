@@ -2202,16 +2202,31 @@ screen.
   finding, no due date, no closed trade, no security with the cycle view,
   no snapshot — keeps its place with one quiet line ("No open points.",
   "Nothing due in the next 30 days.", "No closed sales booked yet.").
-- **Sizes that change what a widget says.** **Total value** at S (the
-  template's) shows the total, its change over the dashboard's period
-  (the period's TTWROR, as `GET /api/v1/performance` answers it) and the
-  period's value line; at M it adds the key-figure strip and the change
-  since the start of the year. **Data quality** at S shows each finding as
-  one short counted line ("1 quote older than 7 days") with "Check →"; at
-  M the full sentences.
+- **The sizes are Apple's widget families** (Sprint 32; ADR-0062's
+  amendment of 2026-11-25, point 3): **S** (3 columns by 2 rows), **M**
+  (6 × 2), **L** (6 × 4) and **XL** (12 × 4, the full width), each a
+  multiple of S. From 1000 px every row is a fixed 7rem: no row grows with
+  its content, so a widget shows what fits its tile and the grid reads as
+  calm rows. Under 600 px two S stand side by side and every other size
+  takes the full width, as on a phone's home screen. A dashboard stored
+  before Sprint 32 is read on the families (S stays S, W becomes M, M and
+  T become L, L becomes XL, the rows doubled) and arranged as the edit mode
+  arranges, and stored so on its next save.
+- **Each size shows more of the same, never something else.** S one
+  figure, M the figure with two or three companions, L the figure with its
+  course, XL the figure, its course and a breakdown; a size that adds
+  nothing is not offered. **Total value** at S (the template's) shows the
+  total, its change over the dashboard's period (the period's TTWROR, as
+  `GET /api/v1/performance` answers it) and the period's value line; at M
+  the total with the period's TTWROR and its result (the end value less
+  the start value and the net external flows, the performance read's own
+  figures) side by side; at L the total, its change and the value's course
+  over the period. **Data quality** at S shows each finding as one short
+  counted line ("1 quote older than 7 days") with "Check →"; at L the full
+  sentences.
 - **The four widgets from Wealth's sections.** **Performance** at S shows
-  the period's TTWROR and a line of the period's daily value, at M the
-  value line with its lowest and highest value and its dates, at L (the
+  the period's TTWROR and a line of the period's daily value, at L the
+  value line with its lowest and highest value and its dates, at XL (the
   template's) Wealth's stacked chart by category; "Full view →" opens
   Wealth's chart on the same period. **Allocation and drift** shows each
   top-level category of the steering tree and cash with its actual and
@@ -2222,7 +2237,7 @@ screen.
   tab. **Snapshots** shows the latest snapshot's date, how many there are
   and the real TTWROR since that date, with its daily line; "Compare →"
   opens its comparison. **Crashes compared** shows the crash windows,
-  newest first (five at M, eight at L), each with the crash benchmark's
+  newest first (eight, at L, its one size), each with the crash benchmark's
   return over it and the lowest return among the securities held today
   ("In depot") or in the whole catalogue ("Catalogue"), the figures the
   windows' rankings answer (`GET /api/v1/crashes/:key/rankings`); "All
@@ -2263,19 +2278,11 @@ for you (issue #1122). When the total leaves nothing out, there is no note;
 where Wealth remembers another view all the same, one quiet line under the
 total says so (issue #1222). Two securities of one name in the note are
 each named with what tells them apart, "Twin Fonds · ISIN DE0000000201"
-(issue #1320). Under the card, at M, the widget shows the **key-figure strip**
-(UX-DR2 as amended 2026-09-14, issue #798): four cells, each linking to the surface that owns
-its figure — the **1Y TTWROR** with its IRR (the period MWR for a shorter
-history) leading to Wealth, the **cash quote** with the cash amount leading
-to Wealth, the **last booking** with its date, kind and account or security
-leading to Transactions, and the **quote freshness**, the newest stored
-quote date across the held positions, leading to the securities list
-pre-filtered to the held securities with a stale quote; its "n held stale"
-sub-line appears only when such securities exist (with none, the date
-alone — a fact, not an all-clear badge) and counts the held securities,
-which is the list its link opens (issue #1417; the catalogue's count stands
-on the data-quality line) — and a basis line under the strip names the
-view, the period and the currency — the **Sale review** widget, today's
+(issue #1320). The wide widget no longer carries the **key-figure strip**
+of issue #798 (TTWROR with IRR, cash quote, last booking, quote
+freshness): since Sprint 32 each size shows more of the total, not four
+other answers in its frame (board ux-design-2026-11-25-sprint32/01 ④);
+the phone's compact form keeps its rows for now — the **Sale review** widget, today's
 **Closed trades** card (UX-DR2 as amended
 2026-10-01, issue #984): the five most recently closed round-trips, newest first, each
 with the date it was sold and how long it was held, its realised result in
@@ -5076,7 +5083,7 @@ naming the already-booked event) stays inline in the dialog.
   keeps working.
 - **All widgets** (`/widgets`, ADR-0062 §1) is the catalogue as a page:
   every widget the app has, by topic (Overview, Performance, Allocation,
-  Risk, Analyses), each with the sizes it takes as chips (S, W, M, T, L,
+  Risk, Analyses), each with the sizes it takes as chips (S, M, L, XL,
   and **Full** for its own page) and **add ›**. **Search …** keeps the
   widgets whose name holds what you type. **add ›** asks which of your
   dashboards: the widget goes there at its smallest size, at the first free

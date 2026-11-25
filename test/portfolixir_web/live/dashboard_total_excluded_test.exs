@@ -2,8 +2,9 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
   use PortfolixirWeb.ConnCase
 
   # Sprint 31 D4: the template draws „Gesamtwert“ and „Datenqualität“ at S;
-  # this module pins the strip, the year-to-date change and the line's
-  # full sentences, which M draws, so `/` opens the Overview at M.
+  # this module pins the total's exclusion line, its change and the line's
+  # full sentences, which L draws (Sprint 31's M; Sprint 32 E4), so `/`
+  # opens the Overview at L.
   setup {Portfolixir.DashboardFixtures, :overview_at_m}
 
   import Phoenix.LiveViewTest
@@ -297,13 +298,13 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
   # catalogue's count beside it on the line,
   # so that the cell and its basis line speak of one set.
   #
-  # Acceptance criteria:
-  # - The quotes cell's sub-line reads "%{count} gehaltene veraltet".
+  # Acceptance criteria (the quotes cell went with the strip in Sprint 32
+  # E4, board ux-design-2026-11-25-sprint32/01 ④):
   # - The data-quality line reads "%{count} gehaltene Wertpapiere ohne Kurs
   #   seit 7 Tagen (im Katalog n)".
   # - The parenthesis wraps with its clause, never inside it ("(im Katalog"
   #   and "47)" on two lines at 390 px; board 04 ④, PR 2's closing act).
-  test "the stale count says it counts the held, in the cell and on the line",
+  test "the stale count says it counts the held, on the line",
        %{conn: conn} do
     world = world()
 
@@ -318,10 +319,6 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
     render_async(view)
 
     doc = view |> render() |> Floki.parse_document!()
-
-    assert doc
-           |> Floki.find(~s([data-role="kpi-freshness"] .kpi-strip__sub--attention))
-           |> text() == "2 gehaltene veraltet"
 
     assert doc |> Floki.find(~s([data-role="dq-quotes"])) |> text() ==
              "2 gehaltene Wertpapiere ohne Kurs seit 7 Tagen"

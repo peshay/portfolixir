@@ -295,7 +295,7 @@ msgstr ""
 msgid "is not a key a widget takes"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:224
+#: lib/portfolixir/dashboards/layout.ex:228
 #, elixir-autogen, elixir-format
 msgid "is not a period this widget kind takes"
 msgstr ""
@@ -305,17 +305,12 @@ msgstr ""
 msgid "is not a registered widget kind"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:218
+#: lib/portfolixir/dashboards/layout.ex:222
 #, elixir-autogen, elixir-format
 msgid "is not a setting a widget takes"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:213
-#, elixir-autogen, elixir-format
-msgid "is not a size this widget kind takes"
-msgstr ""
-
-#: lib/portfolixir/dashboards/layout.ex:216
+#: lib/portfolixir/dashboards/layout.ex:220
 #, elixir-autogen, elixir-format
 msgid "is off the grid"
 msgstr ""
@@ -325,7 +320,7 @@ msgstr ""
 msgid "must be a list of widgets"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:215
+#: lib/portfolixir/dashboards/layout.ex:219
 #, elixir-autogen, elixir-format
 msgid "must be a whole number"
 msgstr ""
@@ -340,32 +335,37 @@ msgstr ""
 msgid "must hold at most 40 widgets"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:219
+#: lib/portfolixir/dashboards/layout.ex:223
 #, elixir-autogen, elixir-format
 msgid "names no view"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:217
+#: lib/portfolixir/dashboards/layout.ex:221
 #, elixir-autogen, elixir-format
 msgid "overlaps another widget"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:220
+#: lib/portfolixir/dashboards/layout.ex:224
 #, elixir-autogen, elixir-format
 msgid "this widget kind takes no period"
 msgstr ""
 
-#: lib/portfolixir/dashboards.ex:557
+#: lib/portfolixir/dashboards.ex:584
 #, elixir-autogen, elixir-format
 msgid "must be the whole number the dashboard was read with"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:221
+#: lib/portfolixir/dashboards/layout.ex:225
 #, elixir-autogen, elixir-format
 msgid "this widget kind takes no view"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:228
+#: lib/portfolixir/dashboards/layout.ex:232
 #, elixir-autogen, elixir-format
 msgid "leaves no place up to row 200 for the widgets it would move"
+msgstr ""
+
+#: lib/portfolixir/dashboards/layout.ex:214
+#, elixir-autogen, elixir-format
+msgid "is not a size this widget kind takes: the sizes are the families S, M, L and XL"
 msgstr ""
