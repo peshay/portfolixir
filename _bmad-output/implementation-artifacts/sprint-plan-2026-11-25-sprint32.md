@@ -38,7 +38,7 @@ rule of ADR-0026's amendment of 2026-11-01 applies unchanged.
      (Ergebnis, TTWROR, IRR), the value bridge Anfang + Nettoflüsse +
      Ergebnis = heute below, one ⓘ for the widget (D-12).
    - **„den Look von allen Widgets prüfen“** (board 07): all eleven kinds
-     in all 21 sizes photographed and checked; nine findings and one
+     in all 21 sizes photographed and checked; ten findings and one
      widget anatomy derived from A, built as Lane L before the Wealth
      widgets, so they are born in it (D-12).
    - **Zeiträume** (I59, D-5, board 04): a quick choice of up to six that
@@ -170,8 +170,8 @@ widget draws stay equal to its route's (the existing per-kind tests).
 
 | Story | Source | What it does | Board | Commits |
 |---|---|---|---|---|
-| L1 | board 07 ② | **the anatomy as shared components**: the widget head on one line (title, ⓘ, the period mark „1J“ or „📌 …“, the widget's switch, ⋯), the headline figure (label over figure; S 28, W and M 34, secondary 24 px; colour only for plus and minus), the list row (name, figure, a second muted line; numbers never cut), the warning line, the one-line footer (scope left, one link named for its target); `DESIGN.md` gains the anatomy and its measures; a browser walk fails a widget whose head wraps, whose figure is clipped or which carries a warning box | 07 ② | 2–3 |
-| L2 | board 07 ① 1–5, 7–9 | **the eleven kinds on the anatomy**: findings 1 to 5 and 7 to 9 fixed kind by kind (Gesamtwert, Datenqualität, Fällig, Abseits des Ziels, Wertentwicklung, Tops und Flops, Snapshots, Allokation und Drift with „≈ zum Soll“ as a column, Crashes, Bitcoin-Zyklus, Verkaufsrückblick); the basis sentences move behind ⓘ (I1's rule), the warning boxes become footer lines, the Overview's template keeps its layout | 07 ③ | 3–4 |
+| L1 | board 07 ② | **the anatomy as shared components**: the widget head on one line (title, ⓘ, the period mark „1J“ or „📌 …“, the widget's switch, ⋯), the headline figure (label over figure; S 28, W and M 34, secondary 24 px; colour only for plus and minus), the list row (name, figure, a second muted line; numbers never cut), the bar under a row of comparable figures (the contribution table's: centre 0, the largest listed fills 45 %, kept in the compact forms, where `.drift-bar` hides it under 560 px today), the warning line, the one-line footer (scope left, one link named for its target); `DESIGN.md` gains the anatomy and its measures; a browser walk fails a widget whose head wraps, whose figure is clipped or which carries a warning box | 07 ② | 2–3 |
+| L2 | board 07 ① 1–5, 7–10 | **the eleven kinds on the anatomy**: findings 1 to 5 and 7 to 10 fixed kind by kind (Gesamtwert, Datenqualität, Fällig, Abseits des Ziels, Wertentwicklung, Tops und Flops with its bars in both views and both columns, as the old Overview card drew them, Snapshots, Allokation und Drift with „≈ zum Soll“ as a column, Crashes, Bitcoin-Zyklus, Verkaufsrückblick); the basis sentences move behind ⓘ (I1's rule), the warning boxes become footer lines, the Overview's template keeps its layout | 07 ③ | 3–4 |
 | L3 | board 07 ① 6; amendment 3 | **the sizes that add nothing**: Tops und Flops S a list lower than M; Bitcoin-Zyklus L draws the existing cycle chart; Crashes L and Allokation und Drift T removed (with E4's rule for stored items of a removed size) | 07 ③ | 1–2 |
 
 **Lane T, the periods** (I59; amendment 6; board 04).
@@ -360,8 +360,10 @@ their story.
 
 You found the Kennzahlen widget cluttered and picked variant A on board 06;
 then you asked to check the look of every widget. Board 07 photographs all
-eleven kinds in all 21 sizes in the running app and finds nine things
+eleven kinds in all 21 sizes in the running app and finds ten things
 (the period on its own line, basis sentences in the body, warning boxes,
+Tops und Flops' bars hidden behind „Beitrag“ — your question of the same
+day: „das war hilfreich“ —,
 a card inside a card with clipped figures, five headline sizes, sizes
 that add nothing, nine footer wordings, a paragraph where a column
 belongs, switches in two places). The anatomy of board 07 ② answers them
