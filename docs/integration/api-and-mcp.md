@@ -5277,7 +5277,7 @@ without reading the code: `{"data": {"widgets", "groups", "grid",
   `key` (the stable string a layout names: `total_value`, `data_quality`,
   `due`, `off_target`, `performance`, `movers`, `snapshots`,
   `allocation_drift`, `crashes`, `bitcoin_cycle`, `sale_review`, and since
-  Sprint 32 `distance_to_high`), `title`
+  Sprint 32 `distance_to_high` and `crash_chart`), `title`
   (English) and `title_key` (`{context, msgid}`, the message the screen
   translates), `group`, `sizes` (a subset of `S`, `M`, `L`, `XL`, `row`
   and `full`, smallest first), `source` (`routes`, the `GET /api/v1/...` routes it draws;

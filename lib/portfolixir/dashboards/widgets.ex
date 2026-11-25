@@ -138,6 +138,22 @@ defmodule Portfolixir.Dashboards.Widgets do
     translated: []
   }
 
+  # Sprint 32 S5: „Crash-Chart“ draws the crash benchmark's closes from the
+  # period's first day to today, every period a range ending today, the
+  # quotes route's from=/to=; none translated.
+  @crash_chart_period %{
+    periods: @periods,
+    param: "from",
+    values: %{},
+    ranges: @periods ++ ["saved:<id>"],
+    years: ~w(prev_year year:YYYY),
+    keyed: %{},
+    spans: [],
+    spans_else: nil,
+    translated: [],
+    whole_ranges: true
+  }
+
   @kinds [
     %{
       key: "total_value",
@@ -364,6 +380,27 @@ defmodule Portfolixir.Dashboards.Widgets do
       period: :none,
       scope: :view,
       compact: true
+    },
+    %{
+      key: "crash_chart",
+      title: "Crash chart",
+      group: "risk",
+      # Sprint 32 S5 (I61; board 11 ①, ②): the crash benchmark's closes with
+      # every crash window shaded and named; L and XL, XL the year, a copy
+      # pinned to 1M the zoom.
+      sizes: ~w(L XL),
+      source: %{
+        routes: ["GET /api/v1/crashes", "GET /api/v1/securities/:security_id/quotes"],
+        function: {Portfolixir.Crashes, :list_windows, 0},
+        note:
+          "The windows of GET /api/v1/crashes that overlap the period (a detected one from " <>
+            "its start to recovered_on, or to today while provisional; a manual one to its " <>
+            "trough) over the crash benchmark's quotes from the period's from to its to, " <>
+            "their adjusted_close."
+      },
+      period: @crash_chart_period,
+      scope: :none,
+      compact: true
     }
     # --- S32 S5 end ---
   ]
@@ -528,6 +565,10 @@ defmodule Portfolixir.Dashboards.Widgets do
           rule.spans != [] ->
             {:ok, %{param => span_window(rule, term)}}
 
+          # Sprint 32 S5: „Crash-Chart“ reads every period as a whole range.
+          Map.get(rule, :whole_ranges, false) ->
+            spelled(whole_range(term, today))
+
           true ->
             spelled(term)
         end
@@ -555,6 +596,27 @@ defmodule Portfolixir.Dashboards.Widgets do
 
   defp keyed?(period), do: is_binary(period) and String.starts_with?(period, "year:")
 
+  # --- S32 S5 begin ---
+  # A whole range from the period's first day to its last, for a kind that
+  # reads a series over the period itself („Crash-Chart“): a range as the
+  # vocabulary spans it; YTD from 1 January, 1J, 3J and 5J the day after
+  # the date as many years back, Max from the series' floor, each to
+  # today; a year from 1 January to 31 December, or to today while it runs.
+  defp whole_range({:range, from, to}, _today), do: {:range, from, to}
+  defp whole_range("ytd", today), do: {:range, Date.new!(today.year, 1, 1), today}
+  defp whole_range("max", today), do: {:range, ~D[1900-01-01], today}
+
+  defp whole_range({:year, year}, today),
+    do: {:range, Date.new!(year, 1, 1), Enum.min([Date.new!(year, 12, 31), today], Date)}
+
+  defp whole_range(years_back, today) when years_back in ~w(1y 3y 5y) do
+    years = String.to_integer(String.trim_trailing(years_back, "y"))
+    {:range, today |> Date.shift(year: -years) |> Date.add(1), today}
+  end
+
+  defp whole_range(_term, _today), do: :error
+  # --- S32 S5 end ---
+
   @doc "`{module, name, arity}` written as Elixir names it: `Mod.fun/2`."
   @spec function_name(mfa()) :: String.t()
   def function_name({module, name, arity}),
@@ -574,6 +636,7 @@ defmodule Portfolixir.Dashboards.Widgets do
   def title("bitcoin_cycle"), do: pgettext("widget kind", "Bitcoin cycle")
   def title("sale_review"), do: pgettext("widget kind", "Sale review")
   def title("distance_to_high"), do: pgettext("widget kind", "Distance to high")
+  def title("crash_chart"), do: pgettext("widget kind", "Crash chart")
   def title(_key), do: nil
 
   @doc "The group's title in the current locale; `nil` for an unknown group."
