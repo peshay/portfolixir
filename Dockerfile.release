@@ -11,7 +11,7 @@
 # OTP named here is the OTP every instance runs; the official `elixir` library
 # tag this used to name was frozen and shipped an OTP with published TLS-client
 # advisories (the 2026-09-24 runtime hotfix). ci_test pins the parity with CI.
-FROM hexpm/elixir:1.19.7-erlang-27.3.4.19-debian-bookworm-20261104-slim@sha256:014993349ad972626a03b5bd652423c8c26600411b1e8ea9c8a2f6fc2c623804 AS build
+FROM hexpm/elixir:1.19.7-erlang-27.3.4.20-debian-bookworm-20261123-slim@sha256:b38c9f54bf210f618a398ab8c9723db9f74fdc98b072ba32d4a70d63b4939096 AS build
 
 ENV MIX_ENV=prod \
     MIX_HOME=/opt/mix \
@@ -76,7 +76,7 @@ RUN mix compile && mix phx.digest && mix release
 # --- runtime stage ---------------------------------------------------------
 # The same Debian release the build stage was built on, because the bundled
 # ERTS links against its libraries; pinned by tag and digest.
-FROM debian:bookworm-20261104-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
+FROM debian:bookworm-20261123-slim@sha256:e67eeead736ff7bbe258ef088bff683635c561b1fcfefad0806c1df4ab49ce0e
 
 # The build stage's apt route (docker/apt-install.sh, #1092). The script and
 # the optional `build_ca` secret are mounted for this step only, so neither
