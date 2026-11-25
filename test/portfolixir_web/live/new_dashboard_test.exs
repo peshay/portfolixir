@@ -254,4 +254,60 @@ defmodule PortfolixirWeb.NewDashboardTest do
     assert Repo.aggregate(Dashboard, :count) == Dashboards.max_dashboards()
     assert length(journal()) == before
   end
+
+  # User story (Sprint 32 S5; board 03 ②, „Dashboard aus ‚Krypto Lover‘“):
+  # As the operator starting from the theme „Krypto Lover“,
+  # I want to be asked for the view it reads,
+  # so that the theme shows my crypto, not everything.
+  #
+  # Acceptance criteria:
+  # - The themes „Krypto Lover“ and „Rücksetzer“ stand in „Themen“.
+  # - „Krypto Lover“'s dialog asks for the view: „Keine“ and every view;
+  #   „Rücksetzer“'s asks for none.
+  # - „Anlegen“ with a view stores the copy with that view as its own and
+  #   template_key krypto_lover, and opens it.
+  test "a theme that asks for a scope stores the view chosen as the dashboard's own",
+       %{conn: conn} do
+    {:ok, krypto} =
+      Portfolixir.Buckets.create_view(Actor.owner_ui(), %{name: "Krypto", include_all: true})
+
+    {:ok, view, _html} = live(conn, "/dashboards/new?locale=de")
+
+    assert has_element?(
+             view,
+             "[data-role='gallery-themes'] [data-template='krypto_lover']",
+             "Krypto Lover"
+           )
+
+    assert has_element?(
+             view,
+             "[data-role='gallery-themes'] [data-template='pullbacks']",
+             "Rücksetzer"
+           )
+
+    view |> element("[data-template='pullbacks']") |> render_click()
+    refute has_element?(view, "#new-dashboard-form select[name='dashboard[view_id]']")
+    view |> element("#new-dashboard-dialog [data-role='new-dashboard-cancel']") |> render_click()
+
+    view |> element("[data-template='krypto_lover']") |> render_click()
+    assert has_element?(view, "#new-dashboard-dialog", "Dashboard aus „Krypto Lover“")
+
+    assert has_element?(
+             view,
+             "#new-dashboard-form select[name='dashboard[view_id]'] option[value='']",
+             "Keine"
+           )
+
+    assert has_element?(view, "#new-dashboard-form option[value='#{krypto.id}']", "Krypto")
+
+    view
+    |> form("#new-dashboard-form", %{
+      "dashboard" => %{"name" => "Mein Krypto", "view_id" => to_string(krypto.id)}
+    })
+    |> render_submit()
+
+    created = Enum.find(Dashboards.list_dashboards(), &(&1.name == "Mein Krypto"))
+    assert {created.view_id, created.template_key} == {krypto.id, "krypto_lover"}
+    assert_redirect(view, "/dashboards/#{created.id}")
+  end
 end

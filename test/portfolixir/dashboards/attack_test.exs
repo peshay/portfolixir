@@ -482,7 +482,7 @@ defmodule Portfolixir.Dashboards.AttackTest do
     {:ok, _} = Dashboards.delete_dashboard(agent(), copy.id)
 
     assert Dashboards.fetch_template("overview") == {:ok, shipped}
-    assert Templates.templates() == [shipped]
+    assert hd(Templates.templates()) == shipped
     assert Dashboards.list_dashboards() == []
 
     for key <- ["Overview", "overview ", :overview, nil, 1, ""] do

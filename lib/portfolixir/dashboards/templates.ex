@@ -2,7 +2,9 @@ defmodule Portfolixir.Dashboards.Templates do
   @moduledoc """
   The curated templates (ADR-0062 §3): layouts defined in code and
   versioned with the release, never stored and never edited. „Anpassen“
-  copies one into a stored dashboard (`Portfolixir.Dashboards.copy_template/3`).
+  copies one into a stored dashboard (`Portfolixir.Dashboards.copy_template/3`);
+  the gallery offers each (Sprint 32 S4), the starters and the themes
+  „Krypto Lover“ and „Rücksetzer“ (S5).
 
   A template names only kinds that exist in its release; a template whose
   kinds are not all built is not offered. A template marked `starter` is
@@ -43,7 +45,68 @@ defmodule Portfolixir.Dashboards.Templates do
     ]
   }
 
-  @templates [@overview]
+  # --- S32 S5 begin ---
+  # The themes (I61; board 03 ①; Sprint 32 S5), offered in the gallery
+  # beside the starters, never stored by the boot.
+  #
+  # „Krypto Lover“ (board 09's simulation): the cycle at XL, then the
+  # performance and the tops and flops, the distance to the high and the
+  # crashes at L; it asks for a scope, the operator's crypto view.
+  @krypto_lover %{
+    key: "krypto_lover",
+    title: "Crypto Lover",
+    starter: false,
+    asks_scope: true,
+    layout: [
+      %{"kind" => "bitcoin_cycle", "size" => "XL", "col" => 1, "row" => 1, "settings" => %{}},
+      %{"kind" => "performance", "size" => "L", "col" => 1, "row" => 5, "settings" => %{}},
+      %{"kind" => "movers", "size" => "L", "col" => 7, "row" => 5, "settings" => %{}},
+      %{"kind" => "distance_to_high", "size" => "L", "col" => 1, "row" => 9, "settings" => %{}},
+      %{"kind" => "crashes", "size" => "L", "col" => 7, "row" => 9, "settings" => %{}}
+    ]
+  }
+
+  # „Rücksetzer“ as board 11 draws it (D-15; the owner's description of
+  # 2026-11-25; the name the owner's silence kept): the crash chart over
+  # the year and pinned to 1M as the zoom, the crashes compared, the tops
+  # and flops pinned to 1W and to 1M, the rebounders. The board's tops and
+  # flops tiles are 6 × 4, the kind's L (it takes no M).
+  @pullbacks %{
+    key: "pullbacks",
+    title: "Pullbacks",
+    starter: false,
+    asks_scope: false,
+    layout: [
+      %{"kind" => "crash_chart", "size" => "XL", "col" => 1, "row" => 1, "settings" => %{}},
+      %{
+        "kind" => "crash_chart",
+        "size" => "L",
+        "col" => 1,
+        "row" => 5,
+        "settings" => %{"period" => "1m"}
+      },
+      %{"kind" => "crashes", "size" => "L", "col" => 7, "row" => 5, "settings" => %{}},
+      %{
+        "kind" => "movers",
+        "size" => "L",
+        "col" => 1,
+        "row" => 9,
+        "settings" => %{"period" => "1w"}
+      },
+      %{
+        "kind" => "movers",
+        "size" => "L",
+        "col" => 7,
+        "row" => 9,
+        "settings" => %{"period" => "1m"}
+      },
+      %{"kind" => "rebounders", "size" => "XL", "col" => 1, "row" => 13, "settings" => %{}}
+    ]
+  }
+
+  # --- S32 S5 end ---
+
+  @templates [@overview, @krypto_lover, @pullbacks]
   @by_key Map.new(@templates, &{&1.key, &1})
 
   @type t :: %{
@@ -96,6 +159,8 @@ defmodule Portfolixir.Dashboards.Templates do
   @doc "The template's title in the current locale; `nil` for an unknown key."
   @spec title(term()) :: String.t() | nil
   def title("overview"), do: pgettext("dashboard template", "Overview")
+  def title("krypto_lover"), do: pgettext("dashboard template", "Crypto Lover")
+  def title("pullbacks"), do: pgettext("dashboard template", "Pullbacks")
   def title(_key), do: nil
 
   @doc """
@@ -104,5 +169,12 @@ defmodule Portfolixir.Dashboards.Templates do
   """
   @spec subtitle(term()) :: String.t() | nil
   def subtitle("overview"), do: pgettext("dashboard template", "as today's start page")
+
+  def subtitle("krypto_lover"),
+    do: pgettext("dashboard template", "cycle, halving, a crypto view")
+
+  def subtitle("pullbacks"),
+    do: pgettext("dashboard template", "the falls compared, short tops and flops, rebounders")
+
   def subtitle(_key), do: nil
 end

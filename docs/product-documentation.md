@@ -5182,7 +5182,12 @@ naming the already-booked event) stays inline in the dialog.
 - **New dashboard** (`/dashboards/new`, Sprint 32) opens a gallery:
   **Start empty**, then **Like today's pages · the starter dashboards**
   (Overview, and each screen of Wealth as its pass lands), then
-  **Themes**. Each card shows its grid in miniature, how many widgets it
+  **Themes**: **Crypto Lover** (the Bitcoin cycle, performance, tops and
+  flops, distance to high and crashes compared; it asks for your crypto
+  view) and **Pullbacks** (the crash chart over the year and pinned to 1M,
+  crashes compared, tops and flops pinned to 1W and to 1M, and the
+  rebounders after the last crashes).
+  Each card shows its grid in miniature, how many widgets it
   holds and which; a template whose widgets are not all built is not
   shown. A click opens a dialog with the name, suggested from the
   template's title and, where a dashboard of yours already has it, as

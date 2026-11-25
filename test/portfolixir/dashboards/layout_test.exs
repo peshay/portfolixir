@@ -306,10 +306,13 @@ defmodule Portfolixir.Dashboards.LayoutTest do
   #   families (Sprint 32 E4): four S widgets in rows 1 and 2, then
   #   Wertentwicklung XL, Allokation und Drift L and Tops und Flops L,
   #   Crashes L and Bitcoin-Zyklus L, Verkaufsrückblick L and Snapshots S.
-  # - Only the template „Überblick“ is offered (ADR-0062 §3: a template whose
-  #   kinds are not all built is not), and it names only registered kinds.
+  # - „Überblick“ is the first template offered, the only starter
+  #   (ADR-0062 §3: a template whose kinds are not all built is not; the
+  #   themes of Sprint 32 S5, themes_test.exs), and it names only
+  #   registered kinds.
   test "the template Überblick passes the validation as it stands" do
-    assert [%{key: "overview"} = overview] = Templates.templates()
+    assert [%{key: "overview"} = overview | _themes] = Templates.templates()
+    assert Templates.starters() == [overview]
     assert Templates.fetch("overview") == {:ok, overview}
     assert Templates.fetch("performance") == :error
     assert Templates.fetch(:overview) == :error
