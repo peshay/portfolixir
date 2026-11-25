@@ -78,6 +78,7 @@ defmodule Portfolixir.Dashboards.Layout do
           | :no_view
           | :no_period
           | :unsupported_period
+          | :no_room
 
   @typedoc """
   A refusal: the item's 0-based `index` (`nil` when the layout itself is
@@ -156,6 +157,11 @@ defmodule Portfolixir.Dashboards.Layout do
   replaces one: a view id it already holds that names no view any more is
   dropped from the item that sends it, and an item of a kind it already
   holds that is no longer registered is dropped (see the moduledoc).
+
+  Option `overlaps: :allow` reads every item but does not refuse two that
+  overlap: the check the arrangement runs before it moves the others
+  (`Portfolixir.Dashboards.Arrange`; ADR-0062's amendment of 2026-11-25,
+  point 2), whose answer is validated again in full.
   """
   @spec validate(term(), keyword()) :: {:ok, [item()]} | {:error, refusal()}
   def validate(layout, opts \\ [])
@@ -169,7 +175,8 @@ defmodule Portfolixir.Dashboards.Layout do
       views = %{
         existing: existing_views(layout),
         stored: stored_views(stored),
-        retired: retired_kinds(stored)
+        retired: retired_kinds(stored),
+        overlaps: Keyword.get(opts, :overlaps, :refuse)
       }
 
       layout
@@ -216,6 +223,13 @@ defmodule Portfolixir.Dashboards.Layout do
   def message(:unsupported_period),
     do: dgettext_noop("errors", "is not a period this widget kind takes")
 
+  def message(:no_room),
+    do:
+      dgettext_noop(
+        "errors",
+        "leaves no place up to row 200 for the widgets it would move"
+      )
+
   # --- one item ---------------------------------------------------------
 
   defp validate_item(raw, index, views, placed) when is_map(raw) do
@@ -226,7 +240,7 @@ defmodule Portfolixir.Dashboards.Layout do
          {:ok, row} <- whole(fields, "row", index),
          :ok <- on_grid(col, row, width, index),
          {:ok, settings} <- settings(fields, kind, views, index),
-         :ok <- no_overlap({col, row, width, height}, placed, index) do
+         :ok <- no_overlap({col, row, width, height}, placed, index, views.overlaps) do
       {:ok,
        %{
          "kind" => kind.key,
@@ -388,7 +402,9 @@ defmodule Portfolixir.Dashboards.Layout do
 
   # --- the grid -------------------------------------------------------------
 
-  defp no_overlap(rect, placed, index) do
+  defp no_overlap(_rect, _placed, _index, :allow), do: :ok
+
+  defp no_overlap(rect, placed, index, :refuse) do
     case Enum.find(placed, fn {item, _index} -> overlap?(rect, rect_of(item)) end) do
       nil ->
         :ok

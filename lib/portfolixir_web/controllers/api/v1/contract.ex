@@ -45,6 +45,41 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 33,
+      # Sprint 32's sprint PR. Dated after entry 32, because since=
+      # compares strictly after a date. Each story of the sprint appends its
+      # own summary sentence and items between its own markers.
+      date: ~D[2026-11-25],
+      summary:
+        Enum.join(
+          [
+            # --- S32 E3 begin ---
+            "Sprint 32, E3 (ADR-0062's amendment of 2026-11-25, point 2): PUT " <>
+              "/api/v1/dashboards/:id and portfolixir.dashboards.put take arrange \"push\" " <>
+              "with arranged_index, the index of the item changed in the layout sent: the " <>
+              "server arranges before it validates (that item keeps its place, the items it " <>
+              "covers move on, the gaps close); without them an overlap is still 422, and a " <>
+              "layout with no place up to row 200 for what must move is 422 with " <>
+              "errors.layout_item.reason no_room. No endpoint or tool is added."
+            # --- S32 E3 end ---
+          ],
+          " "
+        ),
+      endpoints: [],
+      tools: [],
+      parameters: [
+        # --- S32 E3 begin ---
+        "PUT /api/v1/dashboards/:id (portfolixir.dashboards.put), added: dashboard.arrange " <>
+          "\"push\" with dashboard.arranged_index, the others make room for that item; an " <>
+          "arrangement with no place up to row 200 answers layout_item.reason no_room"
+        # --- S32 E3 end ---
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 32,
       # The security review's fixes of 2026-11 (one PR). Each row appends its
       # own summary sentence and items between its own markers.

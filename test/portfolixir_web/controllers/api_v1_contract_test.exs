@@ -49,9 +49,30 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # The security review's fixes of 2026-11 (version 32, one PR). Dated
-    # strictly after entry 31, so since=2026-11-21 still returns it. Each row
-    # appends its own items between its own markers.
+    # Sprint 32's sprint PR (version 33). Dated strictly after entry 32, so
+    # since=2026-11-24 still returns it. Each story appends its own items
+    # between its own markers.
+    assert newest["version"] == 33
+    assert newest["date"] == "2026-11-25"
+    assert newest["endpoints"] == []
+    assert newest["tools"] == []
+
+    # --- S32 E3 begin ---
+    assert newest["summary"] =~ "Sprint 32, E3 (ADR-0062's amendment of 2026-11-25, point 2): "
+
+    assert ("PUT /api/v1/dashboards/:id (portfolixir.dashboards.put), added: dashboard.arrange " <>
+              "\"push\" with dashboard.arranged_index, the others make room for that item; an " <>
+              "arrangement with no place up to row 200 answers layout_item.reason no_room") in newest[
+             "parameters"
+           ]
+
+    # --- S32 E3 end ---
+
+    # The security review's fixes of 2026-11 (version 32, one PR), found by
+    # version from Sprint 32 on. Dated strictly after entry 31, so
+    # since=2026-11-21 still returns it. Each row appends its own items
+    # between its own markers.
+    newest = Enum.find(data["entries"], &(&1["version"] == 32))
     assert newest["version"] == 32
     assert newest["date"] == "2026-11-24"
     assert newest["endpoints"] == []

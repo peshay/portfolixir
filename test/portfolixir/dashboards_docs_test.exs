@@ -122,6 +122,43 @@ defmodule Portfolixir.DashboardsDocsTest do
         do: assert(de =~ expected, expected)
   end
 
+  # User story (Sprint 32 E3; ADR-0062's amendment of 2026-11-25, point 2):
+  # As the agent that reads the API reference, or the operator who reads it
+  # in German,
+  # I want the arrangement on request described where the replace is,
+  # so that I know how to make room for one widget and that the server
+  # never moves one I did not ask it to.
+  #
+  # Acceptance criteria:
+  # - Both references name `arrange` "push" and `arranged_index` on the
+  #   replace and on the MCP put, say that without them an overlap is still
+  #   refused, and name the refusal `no_room`.
+  test "the API references describe arrange: push on the replace" do
+    en =
+      section(
+        "docs/integration/api-and-mcp.md",
+        "## Dashboards and widgets (ADR-0062)",
+        "## Imports"
+      )
+
+    de =
+      section(
+        "docs/de/integration/api-and-mcp.md",
+        "## Dashboards und Widgets (ADR-0062)",
+        "## Importe"
+      )
+
+    for {text, lang} <- [{en, "en"}, {de, "de"}],
+        expected <- ["`\"arrange\": \"push\"`", "`arranged_index`", "`no_room`", "`arrange`"] do
+      assert text =~ expected, "#{lang} dashboards section lacks #{expected}"
+    end
+
+    assert en =~ "without them an overlap is still refused with `422`"
+    assert en =~ "`portfolixir.dashboards.put` takes `arrange` and `arranged_index`"
+    assert de =~ "ohne sie wird eine Überlappung weiterhin mit `422` abgelehnt"
+    assert de =~ "`portfolixir.dashboards.put` nimmt `arrange` und `arranged_index`"
+  end
+
   # Acceptance criteria:
   # - The worked example's body, in each language, is a layout the server
   #   accepts as it stands (no view is named, so no table is read).
