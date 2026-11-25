@@ -339,7 +339,7 @@ function board02() {
 }
 
 // ---------- write ----------
-const out = { '01-resize': board01(), '02-starter-dashboards': board02(), '03-templates': board03(), '04-periods': board04(), '05-new-widgets': board05(), '06-real-app': board06(), '07-widget-look': board07() };
+const out = { '01-resize': board01(), '02-starter-dashboards': board02(), '03-templates': board03(), '04-periods': board04(), '05-new-widgets': board05(), '06-real-app': board06(), '07-widget-look': board07(), '08-alle-widgets': board08(), '09-groessen-nach-apple': board09() };
 for (const [name, html] of Object.entries(out)) {
   fs.writeFileSync(path.join(__dirname, name + '.html'), html);
   console.log('wrote ' + name + '.html');
@@ -430,5 +430,68 @@ table.f7 td:first-child{font-weight:800;color:var(--color-accent);width:24px}
 <section class="mock-board"><h2>③ Sechs Widgets nach der Anatomie ${tag('rec', 'nachher')} <small>dieselben synthetischen Zahlen wie auf den Kontaktbögen</small></h2>${after}
 <p class="mock-note" style="margin-top:10px">Gesamtwert S: die Warnung als Zeile im Fuß. Tops und Flops S: eine Liste mit Balken, ohne Erklärtext, niedriger als M. Datenqualität M: die Liste von S mit Zählern und je einer erklärenden Zeile statt des roten Fließtexts. Tops und Flops M: der Schalter im Kopf, Balken in beiden Spalten und in beiden Ansichten. Allokation und Drift: „≈ zum Soll“ als Spalte, die Drift mit ihrem Balken. Verkaufsrückblick: der Warnkasten wird eine Fußzeile, die Liste bleibt, sie ist schon das Vorbild. Bitcoin-Zyklus L bekommt das Zyklus-Diagramm, das es als Komponente schon gibt; Crashes L und Allokation T entfallen nach der Größenregel (gespeicherte Widgets dieser Größen werden als M gelesen).</p></section>
 <section class="mock-board"><h2>④ Heute ${tag('before', 'vorher')} <small>alle 21, Kontaktbögen</small></h2><img src="07-heute-1.png" style="width:100%;border:1px solid var(--color-border-strong);border-radius:10px" alt=""><img src="07-heute-2.png" style="width:100%;margin-top:12px;border:1px solid var(--color-border-strong);border-radius:10px" alt=""></section>
+`);
+}
+
+// ---------- board 08: every widget in every size, light and dark ----------
+function board08() {
+  const sizes = JSON.parse(fs.readFileSync(path.join(__dirname, 'real-app', 'sizes.json'), 'utf8'));
+  const names = { total_value: 'Gesamtwert', data_quality: 'Datenqualität', due: 'Fällig', off_target: 'Abseits des Ziels', performance: 'Wertentwicklung', movers: 'Tops und Flops', snapshots: 'Snapshots', allocation_drift: 'Allokation und Drift', crashes: 'Crashes im Vergleich', bitcoin_cycle: 'Bitcoin-Zyklus', sale_review: 'Verkaufsrückblick' };
+  const grid = { S: '3 × 1', W: '6 × 1', M: '6 × 2', T: '4 × 3', L: '8 × 3' };
+  const verdict = {
+    total_value: ['S: brauchbar, die Warnung ist abgeschnitten.', 'M: nicht in Ordnung: Karte in der Karte, zwei Zahlen abgeschnitten (07 ① 3, 4).'],
+    data_quality: ['S: in Ordnung, Zeilen gekürzt.', 'M: nicht in Ordnung: roter Fließtext statt Liste (07 ① 3).'],
+    due: ['S: in Ordnung; der Kreis hinter dem Namen ist unerklärt.'],
+    off_target: ['S: in Ordnung.', 'M: in Ordnung, der Erklärsatz oben gehört ins ⓘ (07 ① 2).'],
+    performance: ['S, M, L: in Ordnung; M beschriftet die Achse nur an zwei Stellen.'],
+    movers: ['S: nicht in Ordnung: höher als M, jeder Name gekürzt (07 ① 6).', 'M: brauchbar, ohne Balken (07 ① 10).'],
+    snapshots: ['S und W: in Ordnung.'],
+    allocation_drift: ['M: brauchbar, „Rechnerisch zum Soll“ als Absatz (07 ① 8).', 'T: entbehrlich, M nur schmaler (07 ① 6).'],
+    crashes: ['M: in Ordnung.', 'L: nicht in Ordnung: dasselbe wie M mit Leerraum (07 ① 6).'],
+    bitcoin_cycle: ['M: brauchbar, nur Text.', 'L: nicht in Ordnung: kein Diagramm, Leerraum (07 ① 6).'],
+    sale_review: ['M: in Ordnung bis auf den Warnkasten oben (07 ① 3).'],
+  };
+  const kinds = [...new Set(sizes.map((s) => s.kind))];
+  const block = (k) => {
+    const its = sizes.filter((s) => s.kind === k);
+    const row = (theme) => `<div class="g8row">${its.map((s) => `<figure class="g8"><img src="08-galerie/${k}-${s.size}-${theme}.png" width="${s.w}" alt=""><figcaption><b>${s.size}</b> · Raster ${grid[s.size]} · ${s.w} × ${s.h} px</figcaption></figure>`).join('')}</div>`;
+    return `<section class="mock-board"><h2>${names[k]} <small>${k}</small></h2><p class="mock-note">${verdict[k].join(' ')}</p><div class="g8theme">Hell</div>${row('light')}<div class="g8theme">Dunkel</div>${row('dark')}</section>`;
+  };
+  return page('Sprint 32 · Board 08 — alle Widgets', `
+<style>
+.g8row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;margin:0 0 10px}
+.g8{margin:0}.g8 img{display:block;border-radius:12px;box-shadow:var(--shadow-sm)}
+.g8 figcaption{margin-top:5px;font-size:11.5px;color:var(--color-text-muted)}
+.g8theme{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--color-text-muted);margin:6px 0 6px}
+</style>
+<header class="mock-board mock-head"><h1>Sprint 32 · Board 08 — jedes Widget in jeder Größe, hell und dunkel ${SYN}</h1>
+<p class="mock-note">Dein Wunsch vom 25.11.: „jedes Widget einmal in seinen Größen screenshoten, in light und dark … dann zeig mir bitte alle nochmal ordentlich, damit wir sehen, ob die alle in Ordnung aussehen.“ Der Stand von heute, vor Lane L: die laufende App auf dem synthetischen Review-Seed, 1280 px breit, jedes Widget für sich fotografiert (<code>real-app/gallery.js</code>); die Einzelbilder liegen in <code>08-galerie/</code> als <code>&lt;art&gt;-&lt;größe&gt;-&lt;light|dark&gt;.png</code>. „Raster“ ist die gespeicherte Größe in Spalten × Reihen, „px“ die gezeichnete. <b>Was auffällt:</b> eine Reihe ist 112 px hoch, aber kein S-Widget ist es; die Höhe folgt dem Inhalt (bis 593 px), deshalb wirkt ein Dashboard unruhig (Board 09).</p></header>
+<section class="mock-board"><div class="mock-pickbar"><p><b>Für die Doku:</b> diese Bilder zeigen den Stand vor dem Umbau und dienen hier nur zum Vergleich. Sprint 32 bekommt eine Geschichte, die dieselben Bilder nach Lane L neu erzeugt (jede Art, jede Größe, hell und dunkel, in 2×), als Skript im Repository, damit die Doku jede Funktion mit ihrem Widget zeigen kann und die Bilder nach jeder Änderung neu entstehen (D-13).</p></div></section>
+${kinds.map(block).join('')}
+`);
+}
+
+// ---------- board 09: Apple's sizes, and templates with widgets on them ----------
+function board09() {
+  const img = (f, cap) => `<figure class="mock-fig" style="margin:0"><img src="${f}" style="width:100%;border:1px solid var(--color-border-strong);border-radius:10px" alt=""><p class="sp-cap">${cap}</p></figure>`;
+  return page('Sprint 32 · Board 09 — Größen nach Apple', `
+<header class="mock-board mock-head"><h1>Sprint 32 · Board 09 — Widget-Größen nach Apples Familien, und die Vorlagen mit Widgets darauf ${SYN}</h1>
+<p class="mock-note">Deine Fragen vom 25.11.: „Für Widgets hat Apple ja Empfehlungen für die Sizes. Verfolgen wir die bei allen?“ und „Sehen die Vorlagen auch gut aus, wenn die Widgets drauf sind, oder machen die Widget-Sizes die Ästhetik wieder kaputt?“ <b>Kurz: nein und ja.</b> Heute folgen wir Apple nur halb, und genau das macht die Ästhetik kaputt.</p></header>
+<section class="mock-board"><div class="mock-pickbar"><p><b>Empfehlung:</b> die Größen werden Apples Familien (WidgetKit: small, medium, large, extra large). Eine quadratische Einheit, alle Größen ein Vielfaches davon, <b>jede Größe mit fester Höhe</b>. Dazu bleiben „Zeile“ (die Abschnitte aus Vermögen, so hoch wie ihr Inhalt) und „Ganze Ansicht“. Jede Art zeichnet pro Größe ihr eigenes Layout, wie Apple es verlangt (Lane L). Auf dem Handy stehen zwei S nebeneinander, M und L über die volle Breite, wie auf dem iPhone-Homescreen; native Widgets später (I53) übernehmen die Größen 1 : 1. <b>Umschalten:</b> „Größen wie bisher“.</p></div></section>
+<section class="mock-board"><h2>① Unsere Größen gegen Apples</h2><div class="mock-frame"><table class="pd-var">
+<tr><th>Apple (WidgetKit)</th><th>Form</th><th>bei uns heute</th><th>Vorschlag</th></tr>
+<tr><td>small</td><td>1 × 1 Einheit, quadratisch</td><td><b>S</b> 3 × 1 Raster, breit statt quadratisch, Höhe wächst mit dem Inhalt</td><td><b>S</b> 3 Spalten × 2 Reihen ≈ 240 × 236 px, fest</td></tr>
+<tr><td>medium</td><td>2 × 1, so hoch wie small</td><td><b>W</b> 6 × 1</td><td><b>M</b> 6 × 2, fest</td></tr>
+<tr><td>large</td><td>2 × 2</td><td><b>M</b> 6 × 2 (halb so hoch wie Apples large)</td><td><b>L</b> 6 × 4, fest</td></tr>
+<tr><td>extra large (iPad)</td><td>4 × 2</td><td><b>L</b> 8 × 3, kein Vielfaches der Einheit</td><td><b>XL</b> 12 × 4, die volle Breite, fest</td></tr>
+<tr><td>–</td><td>–</td><td><b>T</b> 4 × 3, kein Vielfaches der Einheit</td><td>entfällt (gelesen als L)</td></tr>
+<tr><td>–</td><td>–</td><td>„Zeile“ (geplant, Board 02)</td><td>bleibt: volle Breite, so hoch wie der Inhalt, nur für Abschnitte</td></tr>
+</table><p class="sp-cap"><b>Was heute folgt:</b> W ist zwei S breit und M zwei W hoch, das ist Apples Muster. <b>Was nicht folgt:</b> S ist nicht quadratisch, L und T haben Breiten (8, 4), die kein Vielfaches von S sind, und keine Größe hat eine feste Höhe. Neben einem L (8 Spalten) passt nur ein T oder eine Lücke; S neben L lässt Spalte 12 leer. Umbenennung für gespeicherte Layouts: S bleibt S, W wird M, M wird L, T wird L, L wird XL; die Reihen verdoppeln sich, die Lage ordnet E1 beim ersten Speichern neu (Board 01 A).</p></div></section>
+<section class="mock-board"><h2>② Die Vorlage „Überblick“ <small>links heute, rechts dieselben Widgets auf Apples Kacheln (im Browser simuliert, nichts gespeichert)</small></h2>
+<div class="sp-row">${img('09-ueberblick-heute.png', 'Heute: jede Reihe so hoch wie ihr höchstes Widget; Allokation (T) und Crashes enden in Leerraum, Datenqualität und Fällig sind kürzer als ihre Nachbarn.')}${img('09-ueberblick-apple.png', 'Apples Kacheln: gleiche Höhen je Reihe, ruhige Kanten, Wertentwicklung über die volle Breite. Aber der heutige Inhalt passt noch nicht: Crashes und Bitcoin-Zyklus sind halb leer, Tops und Flops wäre in S abgeschnitten.')}</div></section>
+<section class="mock-board"><h2>③ „Krypto Lover“ und „Rücksetzer“ <small>mit den heutigen Widgets nachgestellt; „Abstand zum Hoch“ gibt es noch nicht</small></h2>
+<div class="sp-row">${img('09-krypto-heute.png', 'Krypto Lover heute: L neben T geht auf, darunter zwei M und zwei S mit unterschiedlicher Höhe.')}${img('09-krypto-apple.png', 'Auf Apples Kacheln: geordnet; der Bitcoin-Zyklus als XL ohne Diagramm ist zu leer (Lane L gibt ihm das Diagramm).')}</div>
+<div class="sp-row">${img('09-ruecksetzer-heute.png', 'Rücksetzer heute: neben Crashes L (8 Spalten) passen zwei S nur übereinander, Spalte 12 bleibt leer, Crashes endet in einer großen Lücke.')}${img('09-ruecksetzer-apple.png', 'Auf Apples Kacheln: keine leere Spalte; Tops und Flops in S zeigt, warum jede Größe ihr eigenes Layout braucht (abgeschnitten).')}</div>
+<p class="mock-note" style="margin-top:8px"><b>Was das heißt:</b> die Vorlagen sehen erst gut aus, wenn beides kommt: Apples feste Kacheln (das Raster wird ruhig) und ein Layout je Art und Größe (der Inhalt füllt seine Kachel). Nur das eine allein reicht nicht, wie die rechten Bilder zeigen. Beides gehört in Lane L; die Vorlagen werden danach auf den neuen Größen gesetzt und vor dem Bau auf diesem Board gegengeprüft.</p></section>
 `);
 }
