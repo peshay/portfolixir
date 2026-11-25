@@ -5,7 +5,7 @@ The merge is the signature (ADR-0026 step 1, as amended on 2026-10-08). It
 signs [ADR-0062's amendment of
 2026-11-25](../../docs/decisions/0062-widgets-and-composed-dashboards.md)
 (ideas I57 to I59 and I61, the owner's review of Sprint 31's first slice),
-the decisions below, and the planning boards 01 to 10 in
+the decisions below, and the planning boards 01 to 11 in
 `design-language/mockups/ux-design-2026-11-25-sprint32/`. No change moves a
 stored figure: every widget draws a read that exists today, and a layout,
 a saved period and a seed record hold no money data. A fresh implementation
@@ -59,7 +59,8 @@ rule of ADR-0026's amendment of 2026-11-01 applies unchanged.
      periods stored on the server and usable on the whole dashboard or
      pinned to one chart.
 2. **One question only you can answer: may a shipped template be called
-   „Buy The Dip“?** The name tells the operator to buy, and „no advice“ is
+   „Buy The Dip“?** Its content is settled as you described it (board 11,
+   D-15); only the name is open. The name tells the operator to buy, and „no advice“ is
    one of Portfolixir's permanent non-goals (`AGENTS.md`). Recommended:
    ship it as **„Rücksetzer“** with the same widgets; your own copy can be
    renamed to anything. Silence adopts „Rücksetzer“; „Buy The Dip heißt Buy
@@ -209,7 +210,7 @@ amendment 3 to 5; boards 02, 03).
 | S2 | amendment 3 | **the size „Zeile“** (`row`): registered for the kinds that take it, 12 × 1 in validation and in E1's arrangement, drawn at its content's height (the grid split into bands at each „Zeile“ item, the rows after it starting below); compact and medium classes draw the section's own narrow layout; a browser test measures that a „Zeile“ widget is as tall as its content at 1200 px and at 393 pt | 02 ①, ③ | 2 |
 | S3 | amendment 5 | **starters stored once**: a seed table by template key; a boot task under `Actor.system_job/1` stores each starter of the release not yet seeded, journaled, and records it; an instance that stores any dashboard counts „Überblick“ as seeded; a deleted starter is never stored again (a test deletes one and restarts the task); a read still never writes (Sprint 31's test kept) | 02 | 2 |
 | S4 | amendment 5; board 03 | **the gallery**: „Neues Dashboard“ opens it (Leer, the starters, the themes; each card its grid in miniature, its widget count and names), a template whose kinds are not all built is not shown; the dialog with the name (a taken name suggests „… (2)“) and, for a template that names one, the scope; „Anlegen“ stores one copy and opens it; API: `POST /api/v1/dashboards` with `template` and `view_id`, as the MCP `put` | 03 ①, ② | 2–3 |
-| S5 | I61; board 03, board 05's last paragraph | **the themes**: the kind „Abstand zum Hoch“ (the securities of the scope with their distance to the 52-week high and their largest drawdown, sorted by distance, from `securities.metrics`, ADR-0047; its basis that read's; M and L; its compact form; no verdict word, `metrics_carry_no_verdict_test.exs` walks it); the templates „Krypto Lover“ (Bitcoin-Zyklus L, Wertentwicklung, Tops und Flops, Abstand zum Hoch, Crashes; asks for a scope) and „Rücksetzer“ (Abstand zum Hoch, Crashes im Vergleich, Tops und Flops pinned to 1W, Wertentwicklung), the second named as your answer to „What you need to do“ 2 | 03 ①; 05 | 2–3 |
+| S5 | I61; boards 03, 05 and 11 | **the themes**: the kind „Abstand zum Hoch“ (the securities of the scope with their distance to the 52-week high and their largest drawdown, sorted by distance, from `securities.metrics`, ADR-0047; L and XL; no verdict word, `metrics_carry_no_verdict_test.exs` walks it) for „Krypto Lover“ (Bitcoin-Zyklus XL, Wertentwicklung, Tops und Flops, Abstand zum Hoch, Crashes; asks for a scope); **the template for falls as board 11 draws it** (your description of 2026-11-25), with two new kinds that draw existing reads only: **Crash-Chart** (the crash benchmark's stored closes with every crash window shaded and named, the running one stronger; L and XL; follows the period, so a pinned copy is the zoom) and **Erholer nach Crashes** (`GET /api/v1/crashes/:key/rankings?list=rebounders` of the last three windows side by side over the scope's holdings or the catalogue, a name in more than one list marked „mehrfach“ by name only; L and XL; its basis ADR-0058 §6's, survivorship named); the template: Crash-Chart XL at 1J, Crash-Chart L pinned to 1M, Crashes im Vergleich L (the running fall first, with „erholt nach“ from the window's end), Tops und Flops M pinned to 1W and M pinned to 1M, Erholer XL; named as your answer to „What you need to do“ 2 | 03 ①; 05; 11 | 4–5 |
 
 **Lane W, Wealth's tabs as starter dashboards** (I57; amendment 3, 5 and
 7; board 02; the second stacked PR). Every section widget draws the section
@@ -419,3 +420,15 @@ without gaps, card borders or shadows; checked in light and dark on board
 10. Separate cards with gaps stay for the native widgets of I53. Built in
 L1 as tokens. **To flip:** „Abstand B“, „Abstand C“, „Abstand wie
 bisher“.
+
+### D-15: the template for falls, as you described it (board 11)
+
+You described the template on 2026-11-25: the crash examples in a one-year
+chart with a zoom on the current week or month, your own tops and flops in
+short periods, and what recovered best after the last crashes. Board 11
+draws it on Apple's sizes and as one surface. Two kinds are new, and both
+draw reads that exist (ADR-0058's windows and rankings, the stored closes),
+so no new figure needs a decision. **Not in it:** a score of „recovers best
+across crashes“: it would be a new figure that reads as a signal for the
+next crash, which ADR-0058 §8 excludes; side by side, you see the
+repetition yourself. Its name stays your answer to „What you need to do“ 2.
