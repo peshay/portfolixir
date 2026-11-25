@@ -139,6 +139,7 @@ defmodule PortfolixirWeb.DashboardLive do
         customize_error: nil,
         edit: nil,
         edit_say: nil,
+        edit_note: nil,
         catalogue_open: false
       )
       |> assign_widget_reads()
@@ -358,18 +359,25 @@ defmodule PortfolixirWeb.DashboardLive do
 
     items =
       if edit,
-        do:
-          Enum.map(
-            items,
-            &Map.merge(&1, %{
-              editing: true,
-              edit_key: Edit.key_at(edit, &1.index),
-              edit_sizes: Edit.grid_sizes(&1.kind)
-            })
-          ),
+        do: Enum.map(items, &editing(&1, edit, assigns[:edit_note])),
         else: items
 
     assign(socket, :items, items)
+  end
+
+  # An item in the edit mode: its key and sizes, whether the last step
+  # moved it (marked until the next step), and the note of the last step
+  # where it was taken on this widget.
+  defp editing(item, edit, note) do
+    key = Edit.key_at(edit, item.index)
+
+    Map.merge(item, %{
+      editing: true,
+      edit_key: key,
+      edit_sizes: Edit.grid_sizes(item.kind),
+      moved: key in edit.moved,
+      edit_note: if(match?(%{at: ^key}, note), do: note)
+    })
   end
 
   # An open edit stays while the page shows its dashboard (another scope,
@@ -1025,10 +1033,23 @@ defmodule PortfolixirWeb.DashboardLive do
   def handle_event("edit_add", %{"kind" => kind}, %{assigns: %{edit: %Edit{} = edit}} = socket),
     do: {:noreply, stepped(socket, Edit.add(edit, kind), :handle)}
 
+  # „Rückgängig“ at the widget, and Ctrl+Z (the DashboardEdit hook): the
+  # last step taken back, that one only (Sprint 32 E2; board 01 ③).
+  def handle_event("edit_undo", _params, %{assigns: %{edit: %Edit{} = edit}} = socket) do
+    case Edit.undo(edit) do
+      {:ok, edit, say, key} -> {:noreply, stepped(socket, {:ok, edit, say, key}, :handle)}
+      :error -> {:noreply, socket}
+    end
+  end
+
   def handle_event("edit_reset", _params, %{assigns: %{edit: %Edit{} = edit}} = socket) do
     {:noreply,
      socket
-     |> assign(edit: Edit.reset(edit), edit_say: gettext("Unsaved changes discarded."))
+     |> assign(
+       edit: Edit.reset(edit),
+       edit_say: gettext("Unsaved changes discarded."),
+       edit_note: nil
+     )
      |> assign_items()
      |> start_added_reads()}
   end
@@ -1073,7 +1094,7 @@ defmodule PortfolixirWeb.DashboardLive do
       ) do
     {:noreply,
      socket
-     |> assign(edit: nil, edit_say: gettext("The stored version is shown."))
+     |> assign(edit: nil, edit_say: gettext("The stored version is shown."), edit_note: nil)
      |> show(stored(stored), socket.assigns.scope_id)
      |> push_event("dashboard-edit-focus", %{ids: ["dashboard-edit-start"]})}
   end
@@ -1112,6 +1133,7 @@ defmodule PortfolixirWeb.DashboardLive do
     |> assign(
       edit: edit,
       edit_say: gettext("Editing: nothing is stored until “Done”."),
+      edit_note: nil,
       catalogue_open: catalogue_open
     )
     |> assign_items()
@@ -1150,9 +1172,14 @@ defmodule PortfolixirWeb.DashboardLive do
     end
   end
 
-  # A step applied: the edit drawn, its sentence said, the focus on the
+  # A step applied: the edit drawn, its sentence said at the widget it
+  # acted on (Sprint 32 E2; board 01 ③: „Die Meldung erscheint unter dem
+  # Widget, das du angeklickt hast“), with „Rückgängig“; the focus on the
   # control the step names, and a read started for a widget the page has
-  # not read yet. A refused step is said and changes nothing else.
+  # not read yet. The bar's status line carries no step any more; it says
+  # a step only when no widget is left to say it at (the last one
+  # removed). A refused step is said at its widget, an add refused at the
+  # catalogue, and changes nothing else.
   #
   # The focus goes to the first of a list of ids the page has drawn and
   # shows (the DashboardEdit hook), since the compact class hides the
@@ -1160,25 +1187,46 @@ defmodule PortfolixirWeb.DashboardLive do
   # control just used, on the widget it moved — ↑ or ↓ after a reorder, a
   # size after a resize —, else that widget's handle; after a removal the
   # next widget's handle or ×; „Fertig“ when no widget is left.
+  defp stepped(socket, {:ok, edit, say, nil}, focus) do
+    socket
+    |> assign(edit: edit, edit_say: say, edit_note: nil)
+    |> assign_items()
+    |> push_event("dashboard-edit-focus", %{ids: focus_ids(focus, nil)})
+    |> start_added_reads()
+  end
+
   defp stepped(socket, {:ok, edit, say, key}, focus) do
     socket
-    |> assign(edit: edit, edit_say: say)
+    |> assign(edit: edit, edit_say: nil)
+    |> note(key, say, Edit.undoable?(edit))
     |> assign_items()
     |> push_event("dashboard-edit-focus", %{ids: focus_ids(focus, key)})
     |> start_added_reads()
   end
 
-  # A refusal said again is said with a no-break space more or less at its
-  # end, so the live region's text changes and a screen reader announces it
-  # again; the words stay the same (Sprint 31 closing act, the a11y lens).
-  defp stepped(socket, {:refused, say}, _focus) do
-    case socket.assigns.edit_say do
-      ^say -> assign(socket, :edit_say, say <> "\u00A0")
-      _other -> assign(socket, :edit_say, say)
-    end
+  defp stepped(socket, {:refused, say, key}, _focus) do
+    socket
+    |> assign(:edit_say, nil)
+    |> note(key || :catalogue, say, false)
+    |> assign_items()
   end
 
   defp stepped(socket, :error, _focus), do: socket
+
+  # The note at the widget `at` (or the catalogue). The same words said
+  # again at the same place carry a no-break space more or less at their
+  # end, so the live region's text changes and a screen reader announces
+  # them again; the words stay the same (Sprint 31 closing act, the a11y
+  # lens).
+  defp note(socket, at, say, undo) do
+    say =
+      case socket.assigns.edit_note do
+        %{at: ^at, say: ^say} -> say <> "\u00A0"
+        _other -> say
+      end
+
+    assign(socket, :edit_note, %{at: at, say: say, undo: undo})
+  end
 
   defp focus_ids(_focus, nil), do: ["dashboard-edit-done"]
 
@@ -1220,7 +1268,7 @@ defmodule PortfolixirWeb.DashboardLive do
   # The focus goes back to „Bearbeiten“ (Y3).
   defp saved(socket, dashboard, say) do
     socket
-    |> assign(edit: nil, edit_say: say)
+    |> assign(edit: nil, edit_say: say, edit_note: nil)
     |> then(&pinned_board({:ok, dashboard}, &1))
     |> push_event("dashboard-edit-focus", %{ids: ["dashboard-edit-start"]})
   end
@@ -1590,6 +1638,8 @@ defmodule PortfolixirWeb.DashboardLive do
   # registered kind under its group, with its grid sizes; a tap adds it at
   # the first free place in its first size. The compact class has none
   # (ADR-0062 §7: no placement there).
+  attr(:note, :map, default: nil)
+
   defp catalogue(assigns) do
     assigns =
       assign(
@@ -1654,6 +1704,16 @@ defmodule PortfolixirWeb.DashboardLive do
             ><%= size %></span></span>
         </button>
       </section>
+      <%!-- An add refused (the 41st widget, no place up to row 200) is
+           said here, where it was asked (Sprint 32 E2). No whitespace
+           inside, so `:empty` holds. --%>
+      <p
+        id="dashboard-catalogue-status"
+        class="dashboard-catalogue__status"
+        role="status"
+        aria-live="polite"
+        data-role="edit-note"
+      ><%= if match?(%{at: :catalogue}, @note), do: @note.say %></p>
       <p class="dashboard-catalogue__note">
         <%= gettext("A tap adds a widget at the first free place. An agent can do the same over the API and MCP.") %>
       </p>
@@ -1752,7 +1812,7 @@ defmodule PortfolixirWeb.DashboardLive do
           {widget_assigns(assigns)}
         />
       </div>
-      <.catalogue :if={@edit} open={@catalogue_open} />
+      <.catalogue :if={@edit} open={@catalogue_open} note={@edit_note} />
     </div>
     """
   end

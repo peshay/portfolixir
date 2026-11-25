@@ -34,12 +34,13 @@ defmodule PortfolixirWeb.DashboardEditRebaseTest do
     world
   end
 
-  defp place(view, kind) do
-    [widget] =
-      view |> render() |> Floki.parse_document!() |> Floki.find("[data-widget-kind='#{kind}']")
-
-    {widget |> Floki.attribute("data-col") |> hd() |> String.to_integer(),
-     widget |> Floki.attribute("data-row") |> hd() |> String.to_integer()}
+  defp size(view, kind) do
+    view
+    |> render()
+    |> Floki.parse_document!()
+    |> Floki.find("[data-widget-kind='#{kind}']")
+    |> Floki.attribute("data-size")
+    |> hd()
   end
 
   defp key(view, kind, key) do
@@ -48,9 +49,10 @@ defmodule PortfolixirWeb.DashboardEditRebaseTest do
     |> render_keydown(%{"key" => key})
   end
 
-  # An edit on `name`, one step taken, then the agent moves „Tops und
-  # Flops“ to row 7, then „Fertig“ (refused as stale) and „Weiter
-  # bearbeiten“.
+  # An edit on `name`, one step taken, then the agent sizes „Tops und
+  # Flops“ to S, then „Fertig“ (refused as stale) and „Weiter
+  # bearbeiten“. (A size, not a row: since Sprint 32 E2 every step closes
+  # the gaps, so a row the agent leaves a gap above would float up.)
   defp kept_after_stale(conn, name) do
     seed()
 
@@ -68,7 +70,7 @@ defmodule PortfolixirWeb.DashboardEditRebaseTest do
     {:ok, _agents} =
       Dashboards.replace_dashboard(Actor.api_token_rw("agent"), dashboard.id, %{
         "name" => name,
-        "layout" => List.update_at(@layout, 1, &Map.put(&1, "row", 7)),
+        "layout" => List.update_at(@layout, 1, &Map.put(&1, "size", "S")),
         "lock_version" => dashboard.lock_version
       })
 
@@ -86,18 +88,18 @@ defmodule PortfolixirWeb.DashboardEditRebaseTest do
   #
   # Acceptance criteria:
   # - After „Weiter bearbeiten“, „Zurücksetzen“ draws the stored layout
-  #   (the agent's „Tops und Flops“ at row 7), and a step and „Fertig“
-  #   then store it with the agent's change kept.
+  #   (the agent's „Tops und Flops“ at S), and a step and „Fertig“ then
+  #   store it with the agent's change kept.
   test "„Zurücksetzen“ after „Weiter bearbeiten“ resets to the stored version", %{conn: conn} do
     {view, dashboard} = kept_after_stale(conn, "A")
 
     view |> element("[data-role='edit-reset']") |> render_click()
-    assert place(view, "movers") == {1, 7}
+    assert size(view, "movers") == "S"
 
     key(view, "crashes", "ArrowDown")
     view |> element("[data-role='edit-done']") |> render_click()
 
-    assert Enum.at(Dashboards.get_dashboard(dashboard.id).layout, 1)["row"] == 7
+    assert Enum.at(Dashboards.get_dashboard(dashboard.id).layout, 1)["size"] == "S"
   end
 
   # Acceptance criteria:
@@ -110,6 +112,6 @@ defmodule PortfolixirWeb.DashboardEditRebaseTest do
     key(view, "performance", "ArrowLeft")
     view |> element("[data-role='edit-done']") |> render_click()
 
-    assert Enum.at(Dashboards.get_dashboard(dashboard.id).layout, 1)["row"] == 4
+    assert Enum.at(Dashboards.get_dashboard(dashboard.id).layout, 1)["size"] == "M"
   end
 end

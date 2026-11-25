@@ -2238,12 +2238,19 @@ defmodule PortfolixirWeb.LayoutView do
                 // The focus after a step: the first of the ids the page
                 // drew and shows (the compact class hides the handle, the
                 // wide class the reorder buttons; Sprint 31 closing act, Y1).
+                // Sprint 32 E2 (board 01 ③): the step's note stands under
+                // the widget it acted on; after the focus moves, the note
+                // is scrolled into the window as far as it needs, so a
+                // click at the page's foot sees its answer.
                 this.handleEvent("dashboard-edit-focus", function (payload) {
                   var ids = (payload && payload.ids) || [];
                   for (var i = 0; i < ids.length; i++) {
                     var target = document.getElementById(ids[i]);
                     if (target && target.getClientRects().length > 0) {
-                      target.focus();
+                      target.focus({ preventScroll: true });
+                      var note = target.closest("[data-widget-kind]");
+                      note = note && note.querySelector(".widget__note.is-shown");
+                      (note || target).scrollIntoView({ block: "nearest", inline: "nearest" });
                       return;
                     }
                   }
@@ -2252,6 +2259,18 @@ defmodule PortfolixirWeb.LayoutView do
                 this._onKeydown = function (event) {
                   if (handleOf(event.target) && keys.indexOf(event.key) !== -1) event.preventDefault();
                 };
+                // Ctrl+Z (⌘Z on a Mac) takes back the last step while the
+                // edit mode is open, unless the focus is in a text field.
+                this._onUndo = function (event) {
+                  if (el.dataset.editing !== "true") return;
+                  if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return;
+                  if (event.key !== "z" && event.key !== "Z") return;
+                  var t = event.target;
+                  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+                  event.preventDefault();
+                  self.pushEvent("edit_undo", {});
+                };
+                window.addEventListener("keydown", this._onUndo);
                 this._onPointerDown = function (event) {
                   var handle = handleOf(event.target);
                   if (!handle || el.dataset.editing !== "true" || event.button !== 0) return;
@@ -2309,6 +2328,7 @@ defmodule PortfolixirWeb.LayoutView do
               },
               destroyed: function () {
                 var el = this.el;
+                window.removeEventListener("keydown", this._onUndo);
                 el.removeEventListener("keydown", this._onKeydown);
                 el.removeEventListener("pointerdown", this._onPointerDown);
                 el.removeEventListener("pointermove", this._onPointerMove);

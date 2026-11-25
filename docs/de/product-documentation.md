@@ -2398,10 +2398,20 @@ nennt und zum ganzen Screen führt.
   **Widget hinzufügen**: Antippen fügt das Widget am ersten freien Platz in
   seiner kleinsten Größe hinzu. Ein Griff lässt sich im breiten Raster
   ziehen oder fokussieren und mit den Pfeiltasten (eine Spalte oder Zeile
-  je Druck) und Entf bedienen; jeder Schritt wird einem Screenreader
-  angesagt, und ein Schritt, der ein anderes Widget überdecken oder das
-  Raster verlassen würde, wird abgelehnt und angesagt, nicht ausgeführt.
-  Unter 600 px bietet der Modus nur **nach oben**, **nach unten**, die
+  je Druck) und Entf bedienen. **Die anderen rücken nach** (Sprint 32):
+  Eine Größenänderung, ein Verschieben oder ein Hinzufügen landet dort, wo
+  Sie es hinsetzen; jedes Widget, das es überdecken würde, rückt auf den
+  nächsten freien Platz nach seinem eigenen, in Lesereihenfolge, und
+  danach rutscht jedes Widget nach oben, bis keine Lücke bleibt (auch ein
+  Entfernen schließt seine Lücke). Die Widgets, die sich bewegt haben,
+  sind bis zum nächsten Schritt umrandet. Jeder Schritt wird unter dem
+  Widget angesagt, an dem Sie ihn getan haben, auch einem Screenreader,
+  mit der Zahl der nachgerückten („Gesamtwert auf Größe M gestellt,
+  Spalte 1, Zeile 1 · 7 Widgets sind nachgerückt“) und **Rückgängig**
+  daneben, das genau diesen Schritt zurücknimmt, wie **Strg+Z** (⌘Z).
+  Abgelehnt werden nur ein Schritt aus dem Raster, das 41. Widget und ein
+  Widget ohne Platz bis Zeile 200, angesagt am Widget (ein Hinzufügen am
+  Katalog). Unter 600 px bietet der Modus nur **nach oben**, **nach unten**, die
   Größen und **×**: Eine Umstellung tauscht den Platz des Widgets mit dem
   seines Nachbarn oder ordnet das Raster in der neuen Reihenfolge neu, wo
   ihre Größen verschieden sind. **Zurücksetzen** verwirft die ungespeicherte

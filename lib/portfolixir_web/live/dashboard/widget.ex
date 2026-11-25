@@ -237,9 +237,11 @@ defmodule PortfolixirWeb.Dashboard.Widget do
         "dashboard-widget",
         "widget--" <> String.downcase(@item.size),
         editing?(@item) && "is-editing",
+        Map.get(@item, :moved) && "is-moved",
         @class
       ]}
       data-widget-kind={@item.kind}
+      data-moved={if Map.get(@item, :moved), do: "true"}
       data-size={@item.size}
       data-col={@item.col}
       data-row={@item.row}
@@ -286,6 +288,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
         <a :if={@full_href} href={@full_href} data-role={@full_role}><%= @full_label %></a>
       </footer>
       <.size_switch :if={editing?(@item)} item={@item} title={@title} />
+      <.edit_note :if={editing?(@item)} item={@item} />
     </section>
     """
   end
@@ -338,7 +341,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
         phx-keydown="edit_key"
         phx-value-item={@item.edit_key}
         aria-label={gettext("Move %{widget}", widget: @title)}
-        aria-describedby="dashboard-edit-hint"
+        aria-describedby={"dashboard-edit-hint dashboard-edit-note-#{@item.edit_key}"}
         title={gettext("Move %{widget}", widget: @title)}
         data-role="edit-handle"
         data-item={@item.edit_key}
@@ -353,6 +356,37 @@ defmodule PortfolixirWeb.Dashboard.Widget do
         title={gettext("Remove %{widget}", widget: @title)}
         data-role="edit-remove"
       ><span aria-hidden="true">×</span></button>
+    </div>
+    """
+  end
+
+  attr(:item, :map, required: true)
+
+  # The feedback of the last step, at the widget it acted on (Sprint 32
+  # E2; board ux-design-2026-11-25-sprint32/01 ③): a polite live region on
+  # every widget in the edit mode, so the region exists before the step
+  # it says (the handle names it in its description), and beside it
+  # „Rückgängig“ while that step can be taken back. It stands under the
+  # widget, over what follows, until the next step.
+  defp edit_note(assigns) do
+    assigns = assign(assigns, :note, Map.get(assigns.item, :edit_note))
+
+    ~H"""
+    <div class={["widget__note", @note && "is-shown"]} data-role="edit-note-box">
+      <p
+        id={"dashboard-edit-note-#{@item.edit_key}"}
+        class="widget__note-text"
+        role="status"
+        aria-live="polite"
+        data-role="edit-note"
+      ><%= @note && @note.say %></p>
+      <button
+        :if={@note && @note.undo}
+        type="button"
+        class="widget__undo"
+        phx-click="edit_undo"
+        data-role="edit-undo"
+      ><%= gettext("Undo") %></button>
     </div>
     """
   end

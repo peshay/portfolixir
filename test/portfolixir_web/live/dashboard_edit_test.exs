@@ -62,7 +62,16 @@ defmodule PortfolixirWeb.DashboardEditTest do
 
   defp document(view), do: view |> render() |> Floki.parse_document!()
 
-  defp announced(view), do: view |> document() |> Floki.find("#dashboard-edit-status") |> text()
+  # Sprint 32 E2: a step is said at the widget it acted on (or, for an
+  # add refused, at the catalogue), never in the bar's status line, which
+  # says only what the bar's buttons did.
+  defp announced(view) do
+    doc = document(view)
+    assert doc |> Floki.find("#dashboard-edit-status") |> text() == ""
+    doc |> Floki.find("[data-role='edit-note']") |> Enum.map(&text/1) |> Enum.join()
+  end
+
+  defp bar(view), do: view |> document() |> Floki.find("#dashboard-edit-status") |> text()
 
   defp handle(view, kind),
     do: element(view, "[data-widget-kind='#{kind}'] [data-role='edit-handle']")
@@ -136,7 +145,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert has_element?(view, "[data-role='edit-done']", "Fertig")
     refute has_element?(view, "[data-role='widget-menu']")
     assert has_element?(view, "[data-role='dashboard-grid'][data-editing='true']")
-    assert announced(view) =~ "Bearbeiten"
+    assert bar(view) =~ "Bearbeiten"
 
     # The bar names the state as a label, not a bare verb (Sprint 31 UAT,
     # finding 8: „bearbeiten“).
@@ -193,12 +202,13 @@ defmodule PortfolixirWeb.DashboardEditTest do
   #   ±1, row ±1) and the live region says where: „Wertentwicklung nach
   #   rechts verschoben, Spalte 2, Zeile 1“; the focus stays on its handle
   #   (`dashboard-edit-focus`).
-  # - A step that would leave the grid or overlap a widget is refused and
-  #   said, naming the widget it would overlap; the layout stays.
+  # - A step that would leave the grid is refused and said; the layout
+  #   stays. A step onto another widget is taken, and the others make room
+  #   (Sprint 32 E2, ADR-0062's amendment of 2026-11-25, point 1).
   # - The size switch's buttons size the widget, said with its place; a
-  #   size that would overlap is refused and said.
+  #   size that covers another widget is taken and the other moves on.
   # - Delete removes the widget and says so; the focus moves to the next
-  #   handle in reading order.
+  #   handle in reading order, and the gaps close.
   # - None of it writes: the lock_version and the journal stay.
   test "the keyboard path moves, sizes and removes, each step announced", %{conn: conn} do
     seed()
@@ -229,10 +239,13 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert announced(view) == "Wertentwicklung kann nicht nach oben: Es verließe das Raster."
 
     key(view, "performance", "ArrowDown")
-    assert place(view, "performance") == {1, 1, "L"}
+    assert place(view, "performance") == {1, 2, "L"}
 
     assert announced(view) ==
-             "Wertentwicklung kann nicht nach unten: Es würde „Tops und Flops“ überdecken."
+             "Wertentwicklung nach unten verschoben, Spalte 1, Zeile 2 · 2 Widgets sind nachgerückt"
+
+    key(view, "performance", "ArrowUp")
+    assert place(view, "performance") == {1, 1, "L"}
 
     key(view, "movers", "ArrowDown")
     assert place(view, "movers") == {1, 5, "M"}
@@ -267,15 +280,17 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert place(view, "crashes") == {5, 4, "L"}
     assert announced(view) == "Crashes im Vergleich auf Größe L gestellt, Spalte 5, Zeile 4"
 
-    # Tops und Flops back to M would now overlap it.
+    # Tops und Flops back to M covers it: Crashes im Vergleich moves on
+    # below.
     view
     |> element("[data-widget-kind='movers'] [data-role='edit-size'][data-size='M']")
     |> render_click()
 
-    assert place(view, "movers") == {1, 4, "S"}
+    assert place(view, "movers") == {1, 4, "M"}
+    assert place(view, "crashes") == {1, 6, "L"}
 
     assert announced(view) ==
-             "Tops und Flops kann nicht Größe M annehmen: Es würde „Crashes im Vergleich“ überdecken."
+             "Tops und Flops auf Größe M gestellt, Spalte 1, Zeile 4 · 1 Widget ist nachgerückt"
 
     assert Dashboards.get_dashboard(dashboard.id).lock_version == dashboard.lock_version
     assert journal_count() == 1
@@ -284,7 +299,8 @@ defmodule PortfolixirWeb.DashboardEditTest do
     crashes = item_key(view, "crashes")
     key(view, "movers", "Delete")
     refute has_element?(view, "[data-widget-kind='movers']")
-    assert announced(view) == "Tops und Flops entfernt"
+    assert place(view, "crashes") == {1, 4, "L"}
+    assert announced(view) == "Tops und Flops entfernt · 1 Widget ist nachgerückt"
 
     assert_push_event(view, "dashboard-edit-focus", %{
       ids: ["dashboard-edit-handle-" <> ^crashes | _]
@@ -307,9 +323,10 @@ defmodule PortfolixirWeb.DashboardEditTest do
   # - The hook's `edit_place` (the cell under the dragged widget's corner)
   #   moves the widget there and says so: „Tops und Flops an Spalte 7,
   #   Zeile 6 gesetzt“.
-  # - A place that overlaps or leaves the grid is refused and said; a
-  #   place that is not a whole number, or an item that does not exist,
-  #   changes nothing.
+  # - A place on another widget is taken, the other making room (Sprint 32
+  #   E2); a place that leaves the grid is refused and said; a place that
+  #   is not a whole number, or an item that does not exist, changes
+  #   nothing.
   # - × removes the widget; a drag writes nothing.
   test "the pointer path places a widget where it was dropped", %{conn: conn} do
     seed()
@@ -322,20 +339,21 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert announced(view) == "Tops und Flops an Spalte 7, Zeile 6 gesetzt"
 
     render_hook(view, "edit_place", %{"item" => movers, "col" => 7, "row" => 4})
-    assert place(view, "movers") == {7, 6, "M"}
+    assert place(view, "movers") == {7, 4, "M"}
+    assert place(view, "crashes") == {1, 4, "M"}
 
     assert announced(view) ==
-             "Tops und Flops kann nicht an Spalte 7, Zeile 4: Es würde „Crashes im Vergleich“ überdecken."
+             "Tops und Flops an Spalte 7, Zeile 4 gesetzt · 1 Widget ist nachgerückt"
 
     render_hook(view, "edit_place", %{"item" => movers, "col" => 8, "row" => 9})
-    assert place(view, "movers") == {7, 6, "M"}
+    assert place(view, "movers") == {7, 4, "M"}
 
     assert announced(view) ==
              "Tops und Flops kann nicht an Spalte 8, Zeile 9: Es verließe das Raster."
 
     render_hook(view, "edit_place", %{"item" => movers, "col" => "x", "row" => 1})
     render_hook(view, "edit_place", %{"item" => "999", "col" => 1, "row" => 9})
-    assert place(view, "movers") == {7, 6, "M"}
+    assert place(view, "movers") == {7, 4, "M"}
 
     view |> element("[data-widget-kind='crashes'] [data-role='edit-remove']") |> render_click()
     refute has_element?(view, "[data-widget-kind='crashes']")
@@ -389,7 +407,8 @@ defmodule PortfolixirWeb.DashboardEditTest do
   # Acceptance criteria:
   # - Several moves, a resize, a removal and an add, then „Fertig“: one
   #   journal entry, an update under the UI's actor, and the stored layout
-  #   is the edited one; the lock_version rises by one.
+  #   is the edited one, arranged (the gaps closed); the lock_version
+  #   rises by one.
   # - The edit mode ends, the dashboard is drawn as stored, the ⋯ menu is
   #   back and the region says „Dashboard gespeichert.“
   test "„Fertig“ saves the whole edit as one journaled write", %{conn: conn} do
@@ -424,15 +443,15 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert stored.lock_version == dashboard.lock_version + 1
 
     assert stored.layout == [
-             %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 8, "settings" => %{}},
-             %{"kind" => "crashes", "size" => "L", "col" => 5, "row" => 4, "settings" => %{}},
+             %{"kind" => "movers", "size" => "M", "col" => 1, "row" => 4, "settings" => %{}},
+             %{"kind" => "crashes", "size" => "L", "col" => 5, "row" => 1, "settings" => %{}},
              %{"kind" => "snapshots", "size" => "S", "col" => 1, "row" => 1, "settings" => %{}}
            ]
 
     refute has_element?(view, "[data-role='edit-handle']")
     assert has_element?(view, "[data-role='edit-start']")
     assert has_element?(view, "[data-widget-kind='crashes'] [data-role='widget-menu']")
-    assert announced(view) == "Dashboard gespeichert."
+    assert bar(view) == "Dashboard gespeichert."
 
     # „Fertig“ with nothing changed writes nothing.
     view |> element("[data-role='edit-start']") |> render_click()
@@ -464,7 +483,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert place(view, "performance") == {1, 1, "L"}
     assert place(view, "movers") == {1, 4, "M"}
     assert has_element?(view, "[data-role='edit-handle']")
-    assert announced(view) == "Ungespeicherte Änderungen verworfen."
+    assert bar(view) == "Ungespeicherte Änderungen verworfen."
 
     view |> element("[data-role='edit-done']") |> render_click()
     assert journal_count() == 1
@@ -517,8 +536,9 @@ defmodule PortfolixirWeb.DashboardEditTest do
   #   „Crashes im Vergleich““.
   # - „nach oben“ and „nach unten“ read „… nach oben verschieben“, as the
   #   announcement „… nach oben verschoben“.
-  # - The same refusal twice changes the live region's text, so it is
-  #   announced again; the words stay the same.
+  # - The same refusal twice changes the live region's text (the note at
+  #   the widget, Sprint 32 E2), so it is announced again; the words stay
+  #   the same.
   test "the edit controls name their widget and a repeated refusal is said again",
        %{conn: conn} do
     seed()
@@ -551,7 +571,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
       view
       |> render()
       |> Floki.parse_document!()
-      |> Floki.find("#dashboard-edit-status")
+      |> Floki.find("[data-widget-kind='performance'] [data-role='edit-note']")
       |> Floki.text()
     end
 
@@ -648,7 +668,9 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert stored.lock_version == agents.lock_version + 1
     assert stored.name == "Agent's"
     assert Enum.at(stored.layout, 0)["col"] == 2
-    assert Enum.at(stored.layout, 1)["row"] == 7
+    # The edit's own: the step closed the agent's gap above row 7, and the
+    # agent's later row 8 was not taken over.
+    assert Enum.at(stored.layout, 1)["row"] == 4
     assert journal_count() == 4
   end
 

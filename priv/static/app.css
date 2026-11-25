@@ -15744,6 +15744,84 @@ a.widget-row:hover .widget-row__name {
   white-space: nowrap;
 }
 
+/* An add refused stands in the catalogue, where it was asked (Sprint 32
+   E2); out of the flow while empty. */
+.dashboard-catalogue__status {
+  margin: var(--space-2) 0 0;
+  color: var(--color-warning);
+  font-size: 13px;
+}
+
+.dashboard-catalogue__status:empty {
+  position: absolute;
+}
+
+/* Sprint 32 E2 (ADR-0062's amendment of 2026-11-25, point 1; planning
+   board ux-design-2026-11-25-sprint32/01 ② and ③): the widgets the last
+   step moved, outlined in orange until the next step, and the step's note
+   under the widget it acted on, with „Rückgängig“. The note's region is
+   on every widget in the edit mode, so a screen reader hears it arrive:
+   while it says nothing it is clipped to nothing, never `display: none`,
+   which would take it out of the accessibility tree. */
+.dashboard-widget.is-moved {
+  outline: 2px solid var(--color-warning);
+  outline-offset: -1px;
+}
+
+.widget__note {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: var(--space-2);
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  width: max-content;
+  max-width: min(36rem, calc(100vw - 32px));
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-text);
+  box-shadow: var(--shadow-panel);
+  color: var(--color-bg);
+  font-size: 13px;
+  line-height: 1.35;
+  /* It lies over the widget below; only „Rückgängig“ takes a pointer, so
+     the handle and the controls under the words stay reachable. */
+  pointer-events: none;
+}
+
+.widget__note:not(.is-shown) {
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.widget__note-text {
+  margin: 0;
+}
+
+.widget__undo {
+  pointer-events: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.widget__undo:focus-visible {
+  outline: 2px solid var(--color-bg);
+  outline-offset: 2px;
+}
+
 .dashboard-catalogue__note {
   margin: var(--space-2) 0 0;
   color: var(--color-text-muted);
