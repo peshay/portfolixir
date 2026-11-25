@@ -757,4 +757,73 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   end
 
   # --- S31 D2 end ---
+
+  # --- S32 S5 begin ---
+  # Words that tell the operator what to do with a price, in the two
+  # languages the screen speaks (AGENTS.md, „no advice“; board 05: „ohne
+  # ‚günstig‘ oder ‚Kaufchance‘“). Matched case-folded as substrings.
+  @verdict_words ~w(buy sell cheap bargain opportunity kauf verkauf günstig chance schnäppchen
+                    empfehl) ++ @forbidden
+
+  defp verdict_words(text) do
+    folded = String.downcase(text)
+    Enum.filter(@verdict_words, &String.contains?(folded, &1))
+  end
+
+  # User story (Sprint 32 S5; I61; board 05):
+  # As the maintainer holding the scope ladder,
+  # I want the widget „Abstand zum Hoch“ walked as a metric payload is —
+  # its read's keys and the words it draws, in English and German,
+  # so that a distance to a high never reads as a reason to buy.
+  #
+  # Acceptance criteria:
+  # - The widget's read (`DistanceToHigh.read/1`) over a held security walks
+  #   every row key (security_id, name, currency, high, high_date,
+  #   distance, drawdown) and none carries a forbidden word.
+  # - The widget drawn from that read, in English and in German, holds no
+  #   verdict word (buy, cheap, opportunity, kauf, günstig, chance, …).
+  # - The check's own attack: „Kaufchance“ and "buy_signal" are caught.
+  test "the widget „Abstand zum Hoch“ carries no verdict, in its read or its words" do
+    require Phoenix.LiveViewTest
+
+    alias PortfolixirWeb.Dashboard.Widget
+    alias PortfolixirWeb.Dashboard.Widgets.DistanceToHigh
+
+    world = base_world()
+    security = create_security!(name: "Synthetic Fallen")
+    today = Portfolixir.Clock.today()
+    seed_series!(security.id, Enum.map(1..400, &to_string(100 + rem(&1, 37))), today)
+    deposit!(world, "10000", Date.add(today, -399))
+    buy!(world, security, quantity: "1", price: "100", date: Date.add(today, -399))
+
+    read = DistanceToHigh.read(nil)
+    assert %{state: :ok, rows: [_row]} = read
+
+    for key <- ~w(rows security_id name currency high high_date distance drawdown)a do
+      assert key in keys(read), "the walk misses #{inspect(key)}"
+    end
+
+    assert offenders(read) == []
+
+    [item] =
+      [%{"kind" => "distance_to_high", "size" => "L", "col" => 1, "row" => 1}]
+      |> Widget.items(nil, [])
+      |> Enum.map(&Widget.with_period(&1, "1y", true))
+
+    for locale <- ~w(en de) do
+      html =
+        Gettext.with_locale(PortfolixirWeb.Gettext, locale, fn ->
+          Phoenix.LiveViewTest.render_component(&DistanceToHigh.widget/1, item: item, card: read)
+        end)
+
+      text = html |> Floki.parse_document!() |> Floki.text(sep: " ")
+      assert text =~ "Synthetic Fallen"
+      assert verdict_words(text) == [], "#{locale}: #{inspect(verdict_words(text))}"
+    end
+
+    assert verdict_words("Eine Kaufchance") == ["kauf", "chance"]
+    assert offenders(%{"buy_signal" => 1}) != []
+  end
+
+  # --- S32 S5 end ---
 end

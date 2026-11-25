@@ -87,6 +87,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.Dashboard.Widget
   alias PortfolixirWeb.Dashboard.Widgets.AllocationDrift, as: AllocationDriftWidget
   alias PortfolixirWeb.Dashboard.Widgets.Crashes, as: CrashesWidget
+  alias PortfolixirWeb.Dashboard.Widgets.DistanceToHigh, as: DistanceToHighWidget
   alias PortfolixirWeb.Dashboard.Widgets.Line
   alias PortfolixirWeb.Dashboard.Widgets.Performance, as: PerformanceWidget
   alias PortfolixirWeb.Dashboard.Widgets.Snapshots, as: SnapshotsWidget
@@ -756,7 +757,10 @@ defmodule PortfolixirWeb.DashboardLive do
         allocation_drift: %{},
         snapshots: nil,
         crashes: %{},
-        crash_universe: Map.get(socket.assigns, :crash_universe, "held")
+        crash_universe: Map.get(socket.assigns, :crash_universe, "held"),
+        # --- S32 S5 begin ---
+        distance_to_high: %{}
+        # --- S32 S5 end ---
       )
 
   defp start_widget_reads(%{assigns: %{transactions_count: 0}} = socket), do: socket
@@ -836,6 +840,14 @@ defmodule PortfolixirWeb.DashboardLive do
       &CrashesWidget.read/1
     )
     |> start_snapshots(Map.has_key?(kinds, "snapshots"))
+    # --- S32 S5 begin ---
+    |> start_each(
+      once.(:distance_to_high, scopes.("distance_to_high")),
+      :distance_to_high,
+      &DistanceToHighWidget.read/1
+    )
+
+    # --- S32 S5 end ---
   end
 
   # One read per `{name, key}` whose key `field` neither holds nor has
@@ -1013,7 +1025,13 @@ defmodule PortfolixirWeb.DashboardLive do
 
   # --- S31 D4 begin ---
   defp land(name, key, result, socket)
-       when elem(name, 0) in [:performance, :performance_bands, :allocation_drift, :crashes] do
+       when elem(name, 0) in [
+              :performance,
+              :performance_bands,
+              :allocation_drift,
+              :crashes,
+              :distance_to_high
+            ] do
     answer =
       case result do
         {:ok, {:ok, bands}} -> bands
@@ -2203,7 +2221,8 @@ defmodule PortfolixirWeb.DashboardLive do
       :allocation_drift,
       :snapshots,
       :crashes,
-      :crash_universe
+      :crash_universe,
+      :distance_to_high
     ])
   end
 
@@ -2740,6 +2759,17 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   # --- S31 D4 end ---
+
+  # --- S32 S5 begin ---
+  defp widget(%{item: %{kind: "distance_to_high"} = item} = assigns) do
+    assigns = assign(assigns, :card, Map.get(assigns.distance_to_high, item.scope))
+
+    ~H"""
+    <DistanceToHighWidget.widget item={@item} card={@card} scope_label={scope_label(@item, @views)} />
+    """
+  end
+
+  # --- S32 S5 end ---
 
   attr(:row, :map, required: true)
 

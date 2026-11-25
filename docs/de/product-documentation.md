@@ -2486,6 +2486,15 @@ nennt und zum ganzen Screen führt.
   Zyklus-Ansicht, kein Snapshot —, behält seinen Platz mit einer ruhigen
   Zeile („Keine offenen Punkte.“, „Nichts fällig in den nächsten 30
   Tagen.“, „Noch keine abgeschlossenen Verkäufe gebucht.“).
+- **Abstand zum Hoch** (Sprint 32, L und XL; für das Thema Krypto Lover)
+  listet die Wertpapiere, die die Ansicht des Dashboards heute hält, mit
+  ihrem Abstand zum 52-Wochen-Hoch, ihrem 52-Wochen-Hoch und ihrem größten
+  Rückgang über 365 Tage, das am weitesten unter seinem Hoch zuerst; eines,
+  dessen Schlusskurse nicht weit genug zurückreichen, zeigt „—“ und steht
+  zuletzt. Seine Zahlen sind die Kennzahlen-Lesung je Wertpapier (`GET
+  /api/v1/securities/<id>/metrics`), in der eigenen Währung des
+  Wertpapiers, und sein ⓘ sagt, wie sie gemessen sind. Es sagt, wo ein
+  Kurs steht, und nichts darüber, was zu tun ist.
 - **Die Größen sind Apples Widget-Familien** (Sprint 32; Ergänzung von
   ADR-0062 vom 25.11.2026, Punkt 3): **S** (3 Spalten mal 2 Zeilen),
   **M** (6 × 2), **L** (6 × 4) und **XL** (12 × 4, die volle Breite), jede

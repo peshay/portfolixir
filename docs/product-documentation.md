@@ -2246,6 +2246,15 @@ screen.
   finding, no due date, no closed trade, no security with the cycle view,
   no snapshot — keeps its place with one quiet line ("No open points.",
   "Nothing due in the next 30 days.", "No closed sales booked yet.").
+- **Distance to high** (Sprint 32, L and XL; for the theme Krypto Lover)
+  lists the securities the dashboard's view holds today with their
+  distance to the 52-week high, their 52-week high and their largest
+  drawdown over 365 days, the farthest below its high first; one whose
+  closes do not reach back far enough reads "—" and stands last. Its
+  figures are the per-security metrics read (`GET
+  /api/v1/securities/<id>/metrics`), in each security's own currency, and
+  its ⓘ states how they are measured. It says where a price stands and
+  nothing about what to do.
 - **The sizes are Apple's widget families** (Sprint 32; ADR-0062's
   amendment of 2026-11-25, point 3): **S** (3 columns by 2 rows), **M**
   (6 × 2), **L** (6 × 4) and **XL** (12 × 4, the full width), each a
