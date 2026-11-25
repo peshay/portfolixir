@@ -81,6 +81,9 @@ config :portfolixir, Portfolixir.Fx.RateSync,
 # transaction when it needs them; a global boot seed would pollute tests that
 # assert a clean slate (#529).
 config :portfolixir, :seed_builtins_on_boot, false
+# Sprint 32 S3: the starter dashboards are seeded by each test that needs
+# them, in its own sandbox (Portfolixir.Dashboards.Starters).
+config :portfolixir, :seed_starters_on_boot, false
 
 # The boot reconciliation of stored logos with the logo directory (#933)
 # would run as a task outside any test's sandbox; tests start it, or call

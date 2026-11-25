@@ -4,6 +4,7 @@ defmodule Portfolixir.Application do
 
   require Logger
 
+  alias Portfolixir.Dashboards.Starters
   alias Portfolixir.Portfolios.Performance.Warmup
 
   @impl true
@@ -28,6 +29,10 @@ defmodule Portfolixir.Application do
     * The logo reconciliation (#933) starts as a supervised task, so it never
       holds up or stops the boot; config-gated (off in tests), see
       `Catalog.reconcile_logos_on_boot/1`.
+    * The starter dashboards (ADR-0062's amendment of 2026-11-25, point 5):
+      each template marked as a starter stored once, journaled under the
+      system actor; config-gated (off in tests), never stopping the boot,
+      see `Portfolixir.Dashboards.Starters.seed_on_boot/0`.
     * The startup warnings, `warn_if_exposed/0`.
     * In a release, the log filter that keeps a crashing live page's form
       values and session out of the log (security review 2026-10-12, H71);
@@ -41,6 +46,7 @@ defmodule Portfolixir.Application do
     PortfolixirWeb.SocketCrashReport.install_on_boot()
     Portfolixir.Classifications.seed_builtins_on_boot()
     Portfolixir.Catalog.reconcile_logos_on_boot()
+    Starters.seed_on_boot()
     warn_if_exposed()
     Portfolixir.Fx.report_non_positive_rates_on_boot()
   end

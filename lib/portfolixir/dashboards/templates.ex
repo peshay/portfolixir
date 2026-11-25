@@ -5,7 +5,10 @@ defmodule Portfolixir.Dashboards.Templates do
   copies one into a stored dashboard (`Portfolixir.Dashboards.copy_template/3`).
 
   A template names only kinds that exist in its release; a template whose
-  kinds are not all built is not offered. Sprint 31 ships „Überblick“
+  kinds are not all built is not offered. A template marked `starter` is
+  stored once, on the first start of the release that brings it
+  (`Portfolixir.Dashboards.Starters`; ADR-0062's amendment of 2026-11-25,
+  point 5); from then on the copy is the operator's. Sprint 31 ships „Überblick“
   (`"overview"`) only, its layout as planning board 01 ① draws it on the
   12-column grid; the other four of board 03 follow with their widgets.
   """
@@ -19,6 +22,9 @@ defmodule Portfolixir.Dashboards.Templates do
   @overview %{
     key: "overview",
     title: "Overview",
+    # Sprint 32 S3: stored once on the first start of this release
+    # (`Portfolixir.Dashboards.Starters`).
+    starter: true,
     layout: [
       %{"kind" => "total_value", "size" => "S", "col" => 1, "row" => 1, "settings" => %{}},
       %{"kind" => "data_quality", "size" => "S", "col" => 4, "row" => 1, "settings" => %{}},
@@ -37,11 +43,20 @@ defmodule Portfolixir.Dashboards.Templates do
   @templates [@overview]
   @by_key Map.new(@templates, &{&1.key, &1})
 
-  @type t :: %{key: String.t(), title: String.t(), layout: [map()]}
+  @type t :: %{key: String.t(), title: String.t(), starter: boolean(), layout: [map()]}
 
   @doc "The templates this release offers, in the menu's order."
   @spec templates() :: [t()]
   def templates, do: @templates
+
+  @doc """
+  The templates marked as starters (ADR-0062's amendment of 2026-11-25,
+  point 5; Sprint 32 S3), in the menu's order: each is stored once, on the
+  first start of the release that brings it. A pass that turns a screen
+  into a starter only adds its template here with `starter: true`.
+  """
+  @spec starters() :: [t()]
+  def starters, do: Enum.filter(@templates, & &1.starter)
 
   @doc "The template under `key`, matched as a string, or `:error`."
   @spec fetch(term()) :: {:ok, t()} | :error

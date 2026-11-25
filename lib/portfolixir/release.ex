@@ -60,7 +60,12 @@ defmodule Portfolixir.Release do
     Portfolixir.Portfolios.Performance.Warmup
   ]
 
-  @boot_switches [:enable_logo_discovery, :seed_builtins_on_boot, :reconcile_logos_on_boot]
+  @boot_switches [
+    :enable_logo_discovery,
+    :seed_builtins_on_boot,
+    :seed_starters_on_boot,
+    :reconcile_logos_on_boot
+  ]
 
   defp standalone_config do
     merge_env(PortfolixirWeb.Endpoint, server: false)

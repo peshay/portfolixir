@@ -2124,8 +2124,16 @@ computation basis, its period tag, a ⋯ menu (the widget's own period),
 the figures, and a footer naming the view it reads and the way to the full
 screen.
 
-- **A fresh instance stores nothing.** With no dashboard of your own, `/`
-  shows the shipped template **Overview** read-only, under the banner
+- **The starters are stored once** (Sprint 32). On the first start of a
+  release that brings a starter dashboard, the instance stores it once as
+  a dashboard of yours, recorded in the audit journal under the system
+  ("dashboard_starters"): this release brings **Overview** (stored under
+  its English name, which you can rename). From then on
+  it is yours to rename, change, reorder or delete, and one you deleted is
+  never stored again. An instance that already stores a dashboard of yours
+  gets no second Overview: it counts as seeded.
+- **Reading never writes.** With no dashboard of your own (you deleted
+  them all), `/` shows the shipped template **Overview** read-only, under the banner
   "Template · shipped, read-only" with **Customize**: that copies the
   template into a dashboard of yours (one journaled write) and opens it at
   `/dashboards/<id>`. Reading the page never writes. With dashboards of your

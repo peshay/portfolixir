@@ -5327,8 +5327,13 @@ by `type` (`dashboard` or `template`) and carries `id` (a stored one's, else
 a template), `in_menu` and `item_count`; a stored one also `position`,
 `lock_version`, `view_id`, `view_dangling`, `template_key`, `inserted_at`
 and `updated_at`. A template is `in_menu`
-only while no dashboard is stored: a fresh instance shows „Überblick“
-read-only and stores nothing, and the read never writes.
+only while no dashboard is stored, and the read never writes. Since
+Sprint 32 the instance stores each **starter** template once, on the first
+start of the release that brings it (this release: `overview`), journaled
+under the system actor `dashboard_starters` (`resource_type`
+`dashboard_seed` records the key, so a starter deleted is never stored
+again); the copy answers `template_key` `overview`. An instance that
+already stores a dashboard counts it as seeded and stores none.
 
 **`GET /api/v1/dashboards/:id`** answers one stored dashboard; a template
 is read as **`GET /api/v1/dashboards/template:<key>`**

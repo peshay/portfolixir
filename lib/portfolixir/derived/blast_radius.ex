@@ -41,6 +41,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   alias Portfolixir.Crashes.ManualWindow
   alias Portfolixir.Crashes.WindowName
   alias Portfolixir.Dashboards.Dashboard
+  alias Portfolixir.Dashboards.Seed
   alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.Ledger.Transaction
@@ -152,6 +153,9 @@ defmodule Portfolixir.Derived.BlastRadius do
   # resolves it; no memoised value holds it, so no derived value moves:
   # `:none`, as a dashboard.
   def for_write("period", %{__struct__: SavedPeriod}), do: :none
+  # A seed record (Sprint 32 S3) names a starter template stored once; no
+  # read but the boot's seed run reads it: `:none`.
+  def for_write("dashboard_seed", %{__struct__: Seed}), do: :none
 
   # An authored write to a security's quotes (E25 S6, T-9) is journaled as
   # one aggregate of the security's rows: its radius is a quote write's, every

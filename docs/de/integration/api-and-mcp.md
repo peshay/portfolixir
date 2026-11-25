@@ -5814,9 +5814,14 @@ Vorlage, sonst `null`), `name`, `read_only` (`true` für eine Vorlage),
 `in_menu` und `item_count`; ein gespeichertes zusätzlich `position`,
 `lock_version`, `view_id`, `view_dangling`, `template_key`, `inserted_at`
 und `updated_at`. Eine Vorlage ist nur
-`in_menu`, solange kein Dashboard gespeichert ist: Eine frische Instanz
-zeigt „Überblick“ schreibgeschützt und speichert nichts, und die Lesung
-schreibt nie.
+`in_menu`, solange kein Dashboard gespeichert ist, und die Lesung schreibt
+nie. Seit Sprint 32 speichert die Instanz jede **Start**-Vorlage einmal,
+beim ersten Start der Version, die sie mitbringt (diese Version:
+`overview`), im Journal unter dem Systemakteur `dashboard_starters`
+(`resource_type` `dashboard_seed` hält den Schlüssel fest, sodass ein
+gelöschtes Start-Dashboard nie wieder gespeichert wird); die Kopie
+liefert `template_key` `overview`. Eine Instanz, die schon ein Dashboard
+speichert, zählt es als gespeichert und speichert keines.
 
 **`GET /api/v1/dashboards/:id`** liefert ein gespeichertes Dashboard; eine
 Vorlage liest **`GET /api/v1/dashboards/template:<key>`**

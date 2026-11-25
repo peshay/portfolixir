@@ -46,8 +46,8 @@ defmodule Portfolixir.ReleaseTest do
   # - With the endpoint configured to serve and every scheduler on,
   #   rebuild_derived/0 returns its report, and the configuration it started
   #   under has the endpoint's server off, the quote and FX syncs, the
-  #   warm-up and logo discovery off, and the boot seed and logo
-  #   reconciliation off. (The derived refresher has no boot work: it acts
+  #   warm-up and logo discovery off, and the boot seed, the starter
+  #   dashboards (Sprint 32 S3) and logo reconciliation off. (The derived refresher has no boot work: it acts
   #   only on a write's notice.)
   test "rebuild_derived/0 starts without the web listener, the schedulers or the boot steps" do
     keys = [
@@ -57,6 +57,7 @@ defmodule Portfolixir.ReleaseTest do
       Portfolixir.Portfolios.Performance.Warmup,
       :enable_logo_discovery,
       :seed_builtins_on_boot,
+      :seed_starters_on_boot,
       :reconcile_logos_on_boot
     ]
 
