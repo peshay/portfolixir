@@ -67,4 +67,53 @@ defmodule PortfolixirWeb.DashboardThemeKindsTest do
       refute has_element?(view, "##{id} [data-role='crash-chart']")
     end
   end
+
+  # User story (board 11 ⑤):
+  # As the operator who placed the rebounders on a dashboard,
+  # I want it in its frame with the switch „Im Depot · Katalog“, and told
+  # why it is empty while no crash benchmark is chosen,
+  # so that I know where its lists come from.
+  #
+  # Acceptance criteria:
+  # - „Erholer nach Crashes“ is drawn with its switch, „Im Depot“
+  #   pressed; with no crash benchmark it says so and draws no list;
+  #   „Katalog“ presses the other.
+  test "„Erholer nach Crashes“ keeps its switch and says when no benchmark is chosen",
+       %{conn: conn} do
+    deposit!(base_world(), "100", Portfolixir.Clock.today())
+
+    {:ok, board} =
+      Dashboards.create_dashboard(Actor.owner_ui(), %{
+        "name" => "Erholer",
+        "layout" => [item("rebounders", "XL", 1, 1)]
+      })
+
+    conn = put_preference_cookie(conn, "portfolixir_locale", "de")
+    {:ok, view, _html} = live(conn, "/dashboards/#{board.id}")
+    render_async(view)
+
+    assert has_element?(view, "#dashboard-rebounders h2", "Erholer nach Crashes")
+
+    assert has_element?(
+             view,
+             "#dashboard-rebounders [data-universe='held'][aria-pressed='true']",
+             "Im Depot"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-rebounders [data-role='rebounders-empty']",
+             "Kein Crash-Benchmark"
+           )
+
+    refute has_element?(view, "#dashboard-rebounders [data-role='rebounders-list']")
+
+    view |> element("#dashboard-rebounders [data-universe='catalogue']") |> render_click()
+    render_async(view)
+
+    assert has_element?(
+             view,
+             "#dashboard-rebounders [data-universe='catalogue'][aria-pressed='true']"
+           )
+  end
 end

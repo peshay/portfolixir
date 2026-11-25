@@ -118,8 +118,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "with their distance to the 52-week high and their largest drawdown from GET " <>
               "/api/v1/securities/:security_id/metrics; the kind crash_chart, the crash " <>
               "benchmark's quotes over the period with the crash windows of GET /api/v1/crashes; " <>
-              "its period rule answers every dashboard period as a from/to range. No endpoint " <>
-              "or tool is added."
+              "its period rule answers every dashboard period as a from/to range; the kind " <>
+              "rebounders, the list=rebounders rankings of the last three ended windows side " <>
+              "by side. No endpoint or tool is added."
             # --- S32 S5 end ---
           ],
           " "
@@ -221,7 +222,7 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         # --- S32 S4 end ---
         # --- S32 S5 begin ---
         "GET /api/v1/widgets (portfolixir.dashboards.list), added: the kinds " <>
-          "distance_to_high and crash_chart"
+          "distance_to_high, crash_chart and rebounders"
         # --- S32 S5 end ---
       ],
       removed_endpoints: [],
