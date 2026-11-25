@@ -8,6 +8,9 @@ description: "Decision for idea I56 (FR-60). Every user-visible function becomes
 
 - **Status:** Accepted. Adopted by the merge of the Sprint 31 planning PR
   (ADR-0026 step 1, as amended on 2026-10-08: the merge is the signature).
+  Amended on 2026-11-25 by the Sprint 32 planning PR (resize makes room,
+  the tabs ship as starter dashboards, the periods; see the amendment at
+  the end).
   To be built from Sprint 31, Lane D, the Overview first (the Sprint 31
   plan, D-4); the other screens follow screen by screen.
 - **Date:** 2026-11-21
@@ -291,3 +294,137 @@ stay pages under „Entdecken“ until their passes.
 | Width classes at 600 and 1000 pt (§6) | the two numbers, named |
 | Templates read-only, copied to change (§3) | „Vorlagen bearbeitbar“ |
 | Edit in the compact class without placement (§7) | „Bearbeiten nur am großen Bildschirm“ |
+
+## Amendment: the others make room, the tabs ship as dashboards, the periods are the operator's (2026-11-25, Sprint 32 planning; ideas I57 to I59, I61)
+
+Adopted by the merge of the Sprint 32 planning PR. It answers the owner's
+review of the first slice (2026-11-25): a resize that is refused with a
+message far from the click („was muss ich machen, die löschen? Das ist doch
+quatsch“), a „Gesamtwert“ at M that reads cluttered, a first dashboard that
+does not look like the screens it replaces („das sieht scheiße aus. Total
+unübersichtlich“), a „Neues Dashboard“ with nothing to choose from, and
+periods too few and too fixed. The boards are
+`design-language/mockups/ux-design-2026-11-25-sprint32/` 01 to 05.
+
+1. **§7, the edit mode: the others make room** (I58; board 01 A). A resize,
+   a move or an add always succeeds while the layout holds fewer than 40
+   widgets and a place exists up to row 200. The widget acted on keeps the
+   place it was given; every widget it would cover moves down to the first
+   row below it, in reading order, and so on for every widget that one
+   move covers; then every widget, in reading order, floats up as far as
+   no other widget stops it. The arrangement is a pure function of the
+   layout and the action, computed by the context
+   (`Portfolixir.Dashboards`), so the screen, a test and an agent get the
+   same answer. **Feedback stands at the widget acted on**, announced to a
+   screen reader, with „Rückgängig“ for that one step (and Ctrl+Z);
+   „Zurücksetzen“ still discards the whole edit. The two refusals left (the
+   41st widget, no row left) stand there too. *Why:* the operator expects
+   to tidy up after a change, not to delete something first; a message at
+   the top of a long page answers a click the operator can no longer see.
+2. **§2, the API stays strict.** A stored write is still refused with 422
+   on an overlap and nothing is repaired silently; the edit mode sends a
+   layout it has already arranged. An agent that wants the arrangement
+   sends `arrange: "push"` with the item it changed on `PUT`, and the
+   server applies rule 1 before it validates; without it, an overlap is
+   still refused. *Why:* a write that moves what it was not asked to move
+   would surprise an agent that composed a layout on purpose.
+3. **§1, sizes: one more, and one rule** (I57, I58; boards 01 ④, 02 ③).
+   - **„Zeile“** (`row`): the full width, as tall as its content. It is
+     12 columns by 1 row in the stored grid, so validation, the
+     arrangement of rule 1 and the API treat it as any item; it is drawn
+     at its content's height, and every row after it starts below it. It
+     is the size of a **section widget**: a widget that draws one section
+     of today's screens as the screen draws it, from the read that section
+     reads today (§1's one existing read). Its compact form is the narrow
+     layout that section already has.
+   - **Each size shows more of the same, never something else.** S one
+     figure, W the figure with two or three companions, M the figure with
+     its course, L the figure, its course and a breakdown. A size that adds
+     nothing readable is not offered. „Gesamtwert“ takes S, W and M by this
+     rule (board 01 ④); Sprint 32 checks every registered kind against it.
+4. **§2, a dashboard may hold a scope of its own** (I61; board 03 ②):
+   an optional `view_id`, validated as an item's is, read before the
+   address's scope and the default view, overridden by an item's own. A
+   deleted view leaves it dangling as an item's does, read as the default
+   and said in the top bar. A dashboard also records the `template_key` it
+   was copied from, if any, which reads nothing and only answers „where
+   did this come from“.
+5. **§3, the starter dashboards and the gallery** (I57, I61; boards 02 A,
+   03). The paragraph „A fresh instance stores nothing“ is replaced:
+   - **Each template marked as a starter is stored once**, on the first
+     start of the release that brings it, by a boot task under the system
+     actor (`Actor.system_job/1`), journaled, and recorded in a seed table
+     by its key, so a starter the operator deleted is never stored again.
+     From then on it is a dashboard like any other: renamed, changed,
+     reordered, deleted. An instance that already stores a dashboard counts
+     „Überblick“ as seeded. A read still never writes.
+   - The starters are today's screens: „Überblick“ and, as their passes
+     land, „Bestände“, „Allokation & Ziele“, „Snapshots“, „Risiko“
+     (Sprint 32), „Cashflow“, „Steuer“, „Prognosen“ (the next widget pass), each its
+     screen's sections as section widgets in the screen's order.
+   - **„Neues Dashboard“ opens a gallery**: „Leer“, the starters, then the
+     themes, each with its grid in miniature and its widgets; a click asks
+     for the name and, for a template that names one, a scope. The themes
+     in Sprint 32 are „Krypto Lover“ and „Rücksetzer“; „Performance“ and
+     „Einkommen & Steuer“ follow with their widgets. A template is
+     offered only when all its kinds exist, as before.
+   - *Why:* the owner wants the screens kept as they are, as dashboards
+     that can be changed piece by piece, and to start a new one from
+     something; a starter shown but not stored (board 02 B) would need a
+     second memory for „deleted“.
+6. **§5, the periods** (I59; board 04 A).
+   - **The vocabulary** is one module (`Portfolixir.Periods`), resolved
+     against `Clock.today()` into the terms the reads already take (a
+     fixed key or `{:range, from, to}`): rolling `1d 1w 1m 3m 6m 1y 3y 5y
+     max`; calendar `mtd` (this month), `prev_month`, `qtd` (this quarter),
+     `prev_quarter`, `q1` to `q4` of the current year (a quarter not yet
+     begun is refused, not read as empty), `ytd`, `prev_year`, `year:YYYY`;
+     and `saved:<id>`, a stored period by reference. Every route that takes
+     `period=` through `PeriodParam` accepts the same keys; `from` and `to`
+     keep their precedence.
+   - **Saved periods are stored on the server**: a name (1 to 40
+     characters, trimmed, no control characters), `from`, and `to` or
+     „until today“; at most 50; journaled; read and written over
+     `/api/v1/periods` and the MCP companion. A pin may name one by
+     reference, so a change to the period reaches every widget pinned to
+     it; a deleted one leaves the pin dangling, read as the top bar's
+     period and said in the widget's footer, as a deleted view is.
+   - **The quick choice** in the top bar is the operator's: up to six keys,
+     stored on the server, defaulting to `1w mtd ytd 1y max`; the rest sits
+     behind one button that opens the menu (rolling, calendar, year, own).
+   - **The active period stays per browser** and in the address, as
+     before; what follows across devices is the vocabulary the operator
+     built. This answers #1482 („the period stored on the server“) in that
+     shape.
+   - A widget that lacks a calendar period translates it by its stated
+     rule (tops and flops: `mtd` and `prev_month` to Monat, `qtd`,
+     `prev_quarter` and `q1` to `q4` to Quartal, `prev_year` and
+     `year:YYYY` to 1J) and says so, as §5 already orders.
+7. **§9, Wealth leaves the menu** when all seven of its tabs are starters
+   (the next widget pass); until then the tabs not yet passed stay pages under
+   „Entdecken“. A section's write form does not move into its widget: the
+   widget links to the page that holds it (ADR-0022's amendment of
+   2026-11-21, point 3).
+8. **The asks** (ADR-0043):
+
+   | Ask | Answer |
+   |---|---|
+   | Refuse an overlap, push down, or push down and close the gaps | **Answered**: push down and close the gaps (1), the API strict unless asked (2) |
+   | Where a refusal stands | **Answered**: at the widget (1) |
+   | How a section of today's screens becomes a widget | **Answered**: a section widget in the size „Zeile“ (3) |
+   | Starters stored once, or shown until changed | **Answered**: stored once, with a seed record (5) |
+   | Which periods, and in what menu | **Answered**: the vocabulary, the quick choice and the menu (6) |
+   | The period on the server (#1482) | **Answered** in the shape of 6: own periods and the quick choice on the server, the active period per browser |
+   | The name of the theme „Buy The Dip“ | **The owner's**: a shipped name that says „buy“ may read as advice (`AGENTS.md`, permanent non-goals). Recommended „Rücksetzer“; flipped by „Buy The Dip heißt Buy The Dip“ |
+   | The monthly-return heatmap and the trading activity (I60) | **Deferred** to the next widget pass's planning PR: both are new figures (§10), each with its decision record (ADR-0063) |
+
+**Choices and how to flip them** (added to the table above):
+
+| Choice | Flip phrase |
+|---|---|
+| The others make room, gaps closed (1) | „Lücken stehen lassen“ (board 01 B) or „Überlappung verweigern“ |
+| The API arranges only when asked (2) | „API ordnet immer“ |
+| Starters stored once (5) | „Start-Dashboards erst beim Ändern speichern“ (board 02 B) |
+| A quick choice and a menu (6) | „alle Tasten zeigen“ (board 04 B) |
+| The active period per browser (6) | „aktiver Zeitraum auf dem Server“ |
+| „Rücksetzer“ (8) | „Buy The Dip heißt Buy The Dip“ |
