@@ -7,7 +7,7 @@ const { execFileSync } = require('child_process');
 const path = require('path');
 
 const QUANTIZE = 'import sys\nfrom PIL import Image\nfor f in sys.argv[1:]:\n    Image.open(f).convert("RGB").quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).save(f, optimize=True)\n';
-const BOARDS = ['01-resize', '02-starter-dashboards', '03-templates', '04-periods', '05-new-widgets', '06-real-app', '07-widget-look', '08-alle-widgets', '09-groessen-nach-apple'];
+const BOARDS = ['01-resize', '02-starter-dashboards', '03-templates', '04-periods', '05-new-widgets', '06-real-app', '07-widget-look', '08-alle-widgets', '09-groessen-nach-apple', '10-abstand'];
 
 (async () => {
   const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {});

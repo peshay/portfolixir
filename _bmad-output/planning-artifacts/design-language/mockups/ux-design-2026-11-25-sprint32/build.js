@@ -339,7 +339,7 @@ function board02() {
 }
 
 // ---------- write ----------
-const out = { '01-resize': board01(), '02-starter-dashboards': board02(), '03-templates': board03(), '04-periods': board04(), '05-new-widgets': board05(), '06-real-app': board06(), '07-widget-look': board07(), '08-alle-widgets': board08(), '09-groessen-nach-apple': board09() };
+const out = { '01-resize': board01(), '02-starter-dashboards': board02(), '03-templates': board03(), '04-periods': board04(), '05-new-widgets': board05(), '06-real-app': board06(), '07-widget-look': board07(), '08-alle-widgets': board08(), '09-groessen-nach-apple': board09(), '10-abstand': board10() };
 for (const [name, html] of Object.entries(out)) {
   fs.writeFileSync(path.join(__dirname, name + '.html'), html);
   console.log('wrote ' + name + '.html');
@@ -493,5 +493,21 @@ function board09() {
 <div class="sp-row">${img('09-krypto-heute.png', 'Krypto Lover heute: L neben T geht auf, darunter zwei M und zwei S mit unterschiedlicher Höhe.')}${img('09-krypto-apple.png', 'Auf Apples Kacheln: geordnet; der Bitcoin-Zyklus als XL ohne Diagramm ist zu leer (Lane L gibt ihm das Diagramm).')}</div>
 <div class="sp-row">${img('09-ruecksetzer-heute.png', 'Rücksetzer heute: neben Crashes L (8 Spalten) passen zwei S nur übereinander, Spalte 12 bleibt leer, Crashes endet in einer großen Lücke.')}${img('09-ruecksetzer-apple.png', 'Auf Apples Kacheln: keine leere Spalte; Tops und Flops in S zeigt, warum jede Größe ihr eigenes Layout braucht (abgeschnitten).')}</div>
 <p class="mock-note" style="margin-top:8px"><b>Was das heißt:</b> die Vorlagen sehen erst gut aus, wenn beides kommt: Apples feste Kacheln (das Raster wird ruhig) und ein Layout je Art und Größe (der Inhalt füllt seine Kachel). Nur das eine allein reicht nicht, wie die rechten Bilder zeigen. Beides gehört in Lane L; die Vorlagen werden danach auf den neuen Größen gesetzt und vor dem Bau auf diesem Board gegengeprüft.</p></section>
+`);
+}
+
+// ---------- board 10: the space between widgets ----------
+function board10() {
+  const img = (f, cap) => `<figure class="mock-fig" style="margin:0"><img src="${f}" style="width:100%;border:1px solid var(--color-border-strong);border-radius:10px" alt=""><p class="sp-cap">${cap}</p></figure>`;
+  return page('Sprint 32 · Board 10 — Abstand zwischen Widgets', `
+<header class="mock-board mock-head"><h1>Sprint 32 · Board 10 — der Abstand zwischen den Widgets ${SYN}</h1>
+<p class="mock-note">Deine Frage vom 25.11.: „Mir gefällt bei den Dashboards der Widget-Abstand nicht. Kann man das nicht besser designen?“ Die Vorlage „Überblick“ in der laufenden App (Review-Seed), auf Apples festen Kacheln wie Board 09, in vier Abständen; nur CSS im Browser, nichts gespeichert (<code>real-app/spacing.js</code>). Die leeren Flächen in Wertentwicklung sind kein Abstandsthema: der Inhalt füllt seine Kachel erst nach Lane L.</p></header>
+<section class="mock-board"><div class="mock-pickbar"><p><b>Was heute stört:</b> der Abstand zwischen zwei Widgets (12 px) ist kleiner als ihr Innenabstand (16 px seitlich), und die Ecken sind mit 12 px eng. Die Karten wirken dadurch aneinandergeklebt, als eine unruhige Fläche statt als einzelne Widgets. <b>Die Regel dagegen:</b> der Abstand zwischen Widgets ist mindestens so groß wie ihr Innenabstand.</p>
+<p><b>Empfehlung B „Luftig“:</b> 20 px zwischen den Widgets, 18 × 20 px innen, Ecken 16 px, eine feine Linie und ein weicher Schatten, 32 px Seitenrand. Sie trägt hell und dunkel. <b>C „Apple“</b> (24 px, Ecken 22 px, ohne Linie) ist am nächsten am iPhone, aber im Dunkelmodus verschwinden die Karten im Hintergrund (②) und auf 1280 px Breite kostet sie Platz. <b>D „Eine Fläche“</b> (Haarlinien statt Abständen) ist am dichtesten, verliert aber das Widget als Einheit. <b>Umschalten:</b> „Abstand C“, „Abstand D“, „Abstand wie bisher“.</p></div></section>
+<section class="mock-board"><h2>① Vier Abstände, hell</h2>
+<div class="sp-row">${img('10-heute-light.png', 'A heute: 12 px zwischen, 12 × 16 px innen, Ecken 12 px.')}${img('10-luftig-light.png', '<b>B Luftig (empfohlen):</b> 20 px zwischen, 18 × 20 px innen, Ecken 16 px, feine Linie, weicher Schatten.')}</div>
+<div class="sp-row">${img('10-apple-light.png', 'C Apple: 24 px zwischen, 20 × 22 px innen, Ecken 22 px, ohne Linie.')}${img('10-flaeche-light.png', 'D Eine Fläche: 1 px Haarlinien statt Abstand, ein gemeinsamer Rahmen.')}</div></section>
+<section class="mock-board"><h2>② B und C im Dunkelmodus</h2>
+<div class="sp-row">${img('10-luftig-dark.png', 'B: die feine Linie hält die Karten auseinander.')}${img('10-apple-dark.png', 'C: ohne Linie verschwimmen Karte und Hintergrund; C bräuchte im Dunkelmodus hellere Karten.')}</div></section>
 `);
 }
