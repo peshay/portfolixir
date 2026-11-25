@@ -145,6 +145,7 @@ defmodule PortfolixirWeb.DashboardLive do
         saved_periods: Periods.list_saved(),
         quick: Periods.quick_choice(),
         period_menu: false,
+        period_pin: nil,
         period_dialog: nil,
         period_say: nil,
         pin_error: nil,
@@ -280,11 +281,22 @@ defmodule PortfolixirWeb.DashboardLive do
     |> push_patch(to: with_period(socket.assigns.page_address, period))
   end
 
-  # A menu closed by a pick or Escape gives the focus back to its button.
+  # A menu closed by a pick or Escape gives the focus back to the button
+  # that opened it: a widget's „Zeitraum festpinnen“ where it is still
+  # shown, else the bar's button.
   defp close_period_menu(%{assigns: %{period_menu: true}} = socket) do
+    ids =
+      case socket.assigns.period_pin do
+        %{kind: kind, uid: uid} ->
+          ["widget-pin-open-#{kind}#{uid}", "dashboard-period-menu-toggle"]
+
+        nil ->
+          ["dashboard-period-menu-toggle"]
+      end
+
     socket
-    |> assign(:period_menu, false)
-    |> push_event("dashboard-edit-focus", %{ids: ["dashboard-period-menu-toggle"]})
+    |> assign(period_menu: false, period_pin: nil)
+    |> push_event("dashboard-edit-focus", %{ids: ids})
   end
 
   defp close_period_menu(socket), do: socket
@@ -324,7 +336,7 @@ defmodule PortfolixirWeb.DashboardLive do
 
   # „Speichern und anwenden“: the quick choice takes it or lets it go as
   # the box says, the dialog closes and the period is applied.
-  defp saved_period(socket, own, quick?) do
+  defp saved_period(socket, own, quick?, pin) do
     key = "saved:#{own.id}"
     keys = socket.assigns.quick.keys
 
@@ -347,14 +359,21 @@ defmodule PortfolixirWeb.DashboardLive do
           nil
       end
 
-    socket
-    |> assign(
-      saved_periods: Periods.list_saved(),
-      quick: Periods.quick_choice(),
-      period_dialog: nil
-    )
-    |> assign(:period_say, say || gettext("“%{name}” is stored and applied.", name: own.name))
-    |> apply_period(key)
+    socket =
+      socket
+      |> assign(
+        saved_periods: Periods.list_saved(),
+        quick: Periods.quick_choice(),
+        period_dialog: nil
+      )
+      |> assign(:period_say, say || gettext("“%{name}” is stored and applied.", name: own.name))
+
+    # Made from a widget's „Zeitraum festpinnen“ (T5): it is that widget's
+    # pin; else the dashboard's period.
+    case pin do
+      %{index: index} -> pin(socket, Integer.to_string(index), &Map.put(&1, "period", key))
+      nil -> apply_period(socket, key)
+    end
   end
 
   # --- S32 T4 end ---
@@ -631,7 +650,7 @@ defmodule PortfolixirWeb.DashboardLive do
     socket.assigns.items
     |> Enum.filter(&(&1.kind == "movers"))
     |> Enum.map(fn item ->
-      item = Widget.with_period(item, socket.assigns.period, false)
+      item = Widget.with_period(item, socket.assigns.period, false, socket.assigns.saved_periods)
       {{:movers, item.scope, read_slot(item)}, {item.scope, movers_window(item)}}
     end)
     |> Enum.uniq_by(fn {_name, key} -> key end)
@@ -1043,8 +1062,42 @@ defmodule PortfolixirWeb.DashboardLive do
   # it out, stored on the server under the UI's actor; the dialog makes,
   # changes and deletes an own period, each said in the bar's status line.
   def handle_event("period_menu", params, socket) do
-    {:noreply, assign(socket, :period_menu, Map.get(params, "open") == "true")}
+    open = Map.get(params, "open") == "true"
+    {:noreply, assign(socket, period_menu: open, period_pin: nil)}
   end
+
+  # Sprint 32 T5 (board 04 ③): a widget's ⋯ „Zeitraum festpinnen“ opens
+  # the same menu for that widget; only a stored dashboard's item pins.
+  def handle_event(
+        "pin_menu",
+        %{"index" => raw},
+        %{assigns: %{board: %{dashboard: %Dashboards.Dashboard{} = dashboard}}} = socket
+      ) do
+    index = layout_index(raw, dashboard.layout)
+
+    case index && Enum.find(socket.assigns.items, &(&1.index == index)) do
+      %{kind: kind} = item ->
+        item = Widget.with_period(item, socket.assigns.period, true, socket.assigns.saved_periods)
+
+        pin = %{
+          index: index,
+          kind: kind,
+          uid: item.uid,
+          title: Widgets.title(kind),
+          period: if(item.period_state == :pinned, do: item.period)
+        }
+
+        {:noreply,
+         socket
+         |> assign(period_menu: true, period_pin: pin)
+         |> push_event("dashboard-edit-focus", %{ids: ["dashboard-period-menu"]})}
+
+      _none ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("pin_menu", _params, socket), do: {:noreply, socket}
 
   def handle_event(
         "period_menu_key",
@@ -1068,7 +1121,12 @@ defmodule PortfolixirWeb.DashboardLive do
         _new -> period_dialog(nil, socket.assigns.quick)
       end
 
-    {:noreply, socket |> assign(:period_menu, false) |> assign(:period_dialog, dialog)}
+    dialog = Map.put(dialog, :pin, socket.assigns.period_pin)
+
+    {:noreply,
+     socket
+     |> assign(period_menu: false, period_pin: nil)
+     |> assign(:period_dialog, dialog)}
   end
 
   def handle_event("period_dialog_close", _params, socket) do
@@ -1103,7 +1161,7 @@ defmodule PortfolixirWeb.DashboardLive do
 
     case save_period(dialog, attrs) do
       {:ok, own} ->
-        {:noreply, saved_period(socket, own, form.quick)}
+        {:noreply, saved_period(socket, own, form.quick, Map.get(dialog, :pin))}
 
       {:error, :stale, stored} ->
         alert = gettext("This period was changed elsewhere; the dialog shows it as stored.")
@@ -1180,7 +1238,10 @@ defmodule PortfolixirWeb.DashboardLive do
   # answers (the layout's validation refuses any other).
   def handle_event("pin_period", %{"index" => index, "period" => period}, socket)
       when is_binary(period) do
-    {:noreply, pin(socket, index, &Map.put(&1, "period", period))}
+    {:noreply,
+     socket
+     |> close_period_menu()
+     |> pin(index, &Map.put(&1, "period", period))}
   end
 
   def handle_event("unpin_period", %{"index" => index}, socket) do
@@ -1628,6 +1689,7 @@ defmodule PortfolixirWeb.DashboardLive do
           quick={@quick}
           saved_periods={@saved_periods}
           period_menu={@period_menu}
+          period_pin={@period_pin}
           period_say={@period_say}
           edit={@edit}
           edit_say={@edit_say}
@@ -1679,6 +1741,7 @@ defmodule PortfolixirWeb.DashboardLive do
   attr(:quick, :map, required: true)
   attr(:saved_periods, :list, required: true)
   attr(:period_menu, :boolean, default: false)
+  attr(:period_pin, :map, default: nil)
   attr(:period_say, :string, default: nil)
   attr(:edit, :any, default: nil)
   attr(:edit_say, :string, default: nil)
@@ -1729,6 +1792,7 @@ defmodule PortfolixirWeb.DashboardLive do
           quick={@quick}
           saved={@saved_periods}
           open={@period_menu}
+          pin={@period_pin}
           say={@period_say}
         />
         <%!-- The browser's memory of the last period picked (ADR-0062 §5),
@@ -2053,7 +2117,7 @@ defmodule PortfolixirWeb.DashboardLive do
         aria-busy={if MapSet.size(@reads) > 0, do: "true"}
       >
         <.widget
-          :for={item <- periods(@items, @period, @board)}
+          :for={item <- periods(@items, @period, @board, @saved_periods)}
           item={item}
           period={item.period}
           {widget_assigns(assigns)}
@@ -2067,8 +2131,8 @@ defmodule PortfolixirWeb.DashboardLive do
   # Each item with its period (ADR-0062 §5): the pin where it holds one,
   # else the dashboard's; a template's items follow and cannot pin. A
   # widget receives it as `period` (nil for a kind that takes none).
-  defp periods(items, period, board),
-    do: Enum.map(items, &Widget.with_period(&1, period, is_nil(board.template)))
+  defp periods(items, period, board, saved),
+    do: Enum.map(items, &Widget.with_period(&1, period, is_nil(board.template), saved))
 
   defp widget_assigns(assigns) do
     Map.take(assigns, [

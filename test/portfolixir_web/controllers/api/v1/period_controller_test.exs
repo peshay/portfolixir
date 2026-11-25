@@ -266,4 +266,53 @@ defmodule PortfolixirWeb.Api.V1.PeriodControllerTest do
     assert %{"data" => %{"keys" => ~w(1w prev_quarter 1y), "dropped" => ["saved:" <> _]}} =
              conn |> authed() |> get("/api/v1/periods/quick") |> json_response(200)
   end
+
+  # User story (T5):
+  # As the agent composing a dashboard,
+  # I want a pin on the operator's own period by its key, and one that
+  # names no period refused with its reason,
+  # so that a widget is never pinned to a period that is not there.
+  #
+  # Acceptance criteria:
+  # - POST /api/v1/dashboards with settings.period saved:<id> of a stored
+  #   period stores it as sent; saved:<id> of none answers 422 with
+  #   layout_item {index, field: settings.period, reason: unknown_period}.
+  test "a dashboard pins an own period by its key, one of no period refused", %{conn: conn} do
+    {:ok, own} =
+      Periods.create_saved(Actor.owner_ui(), %{"name" => "Seit Juli", "from" => "2025-07-01"})
+
+    item = %{"kind" => "performance", "size" => "L", "col" => 1, "row" => 1}
+
+    %{"data" => %{"layout" => [stored]}} =
+      conn
+      |> authed()
+      |> post("/api/v1/dashboards", %{
+        "dashboard" => %{
+          "name" => "Pinned",
+          "layout" => [Map.put(item, "settings", %{"period" => "saved:#{own.id}"})]
+        }
+      })
+      |> json_response(201)
+
+    assert stored["settings"] == %{"period" => "saved:#{own.id}"}
+
+    assert %{
+             "errors" => %{
+               "layout_item" => %{
+                 "index" => 0,
+                 "field" => "settings.period",
+                 "reason" => "unknown_period"
+               }
+             }
+           } =
+             conn
+             |> authed()
+             |> post("/api/v1/dashboards", %{
+               "dashboard" => %{
+                 "name" => "Dangling",
+                 "layout" => [Map.put(item, "settings", %{"period" => "saved:#{own.id + 1000}"})]
+               }
+             })
+             |> json_response(422)
+  end
 end

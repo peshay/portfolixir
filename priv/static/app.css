@@ -15492,6 +15492,22 @@ a.widget-row:hover .widget-row__name {
   font-size: 12px;
 }
 
+/* Sprint 32 T5 (board 04 ③): the same menu opened from a widget's ⋯ lies
+   over the page, its first line naming the widget it pins for. */
+.dashboard-period-menu__panel.is-pin {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  max-height: 80vh;
+}
+
+.dashboard-period-menu__pin {
+  margin: 0;
+  font-weight: 700;
+}
+
 .period-dialog__to {
   display: flex;
   flex-wrap: wrap;
@@ -15528,8 +15544,10 @@ a.widget-row:hover .widget-row__name {
     font-size: 15px;
     scroll-snap-align: start;
   }
-  /* The menu as a sheet from the bottom edge, its targets thumb-sized. */
-  .dashboard-period-menu__panel {
+  /* The menu as a sheet from the bottom edge, its targets thumb-sized;
+     opened from a widget too. */
+  .dashboard-period-menu__panel,
+  .dashboard-period-menu__panel.is-pin {
     position: fixed;
     top: auto;
     right: 0;
@@ -15537,6 +15555,7 @@ a.widget-row:hover .widget-row__name {
     left: 0;
     width: auto;
     max-height: 80vh;
+    transform: none;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 

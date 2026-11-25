@@ -74,11 +74,8 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
 
   defp pick(view, period), do: pick_period(view, period)
 
-  defp pin(view, kind, period) do
-    view
-    |> element("[data-widget-kind='#{kind}'] [data-role='pin-period'][data-period='#{period}']")
-    |> render_click()
-  end
+  defp pin(view, kind, period),
+    do: pin_widget_period(view, "[data-widget-kind='#{kind}']", period)
 
   defp stored_settings(id, kind) do
     id
@@ -296,7 +293,8 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
   # so that it keeps that span whatever the top bar says, marked so.
   #
   # Acceptance criteria:
-  # - The ⋯ menu offers „Zeitraum festlegen“ with the kind's periods and
+  # - The ⋯ menu offers „Zeitraum festpinnen …“, which opens the period
+  #   menu for the widget with the vocabulary's keys (Sprint 32 T5), and
   #   „Folgt dem Dashboard (3M)“.
   # - A pin is stored in the item's `settings.period` by one journaled
   #   replace under the UI's actor; the widget says „📌 eigener: Max“ in
@@ -315,14 +313,26 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
       |> Floki.find("[data-widget-kind='performance'] [data-role='widget-menu']")
 
     assert text(menu) =~ "Folgt dem Dashboard (3M)"
-    assert text(menu) =~ "Zeitraum festlegen"
+    assert text(menu) =~ "Zeitraum festpinnen …"
 
-    # Sprint 32 T1: the vocabulary's keys, the rolling ones first.
-    assert menu |> Floki.find("[data-role='pin-period']") |> Floki.attribute("data-period") ==
-             Widgets.periods()
+    # Sprint 32 T5: the same menu as the top bar's, for this widget, the
+    # vocabulary's keys the rolling ones first.
+    view |> element("[data-widget-kind='performance'] [data-role='pin-menu']") |> render_click()
 
-    assert menu |> Floki.find("[data-role='pin-period']") |> Enum.take(10) |> Enum.map(&text/1) ==
-             ["1T", "1W", "1M", "3M", "6M", "1J", "3J", "5J", "Max", "lfd. Monat"]
+    assert has_element?(
+             view,
+             "#dashboard-period-menu[data-pin-kind='performance']",
+             "Zeitraum für „Wertentwicklung“ festpinnen"
+           )
+
+    options =
+      view
+      |> document()
+      |> Floki.find("#dashboard-period-menu [data-role='period-option']")
+      |> Floki.attribute("data-period")
+
+    assert Enum.take(options, length(Widgets.periods())) == Widgets.periods()
+    view |> element("#dashboard-period-menu") |> render_keydown(%{"key" => "Escape"})
 
     pin(view, "performance", "max")
 
@@ -380,10 +390,7 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
     assert tag_text(view, "total_value") == "folgt · 3M"
     assert line.() =~ "TTWROR · 3M"
 
-    assert view
-           |> document()
-           |> Floki.find("[data-widget-kind='total_value'] [data-role='pin-period']")
-           |> Floki.attribute("data-period") == Widgets.periods()
+    assert has_element?(view, "[data-widget-kind='total_value'] [data-role='pin-menu']")
 
     pin(view, "total_value", "max")
     render_async(view)
@@ -409,7 +416,7 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
     seed()
     {:ok, view, _html} = conn |> german() |> live("/")
 
-    refute has_element?(view, "[data-role='pin-period']")
+    refute has_element?(view, "[data-role='pin-menu']")
 
     assert has_element?(
              view,

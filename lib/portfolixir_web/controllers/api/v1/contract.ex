@@ -87,8 +87,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "PUT /api/v1/periods/quick, up to six keys, default 1w mtd ytd 1y max, a " <>
               "deleted period's key dropped from the read and named under dropped; " <>
               "portfolixir.periods.put sets it with quick, dashboards.list answers it as " <>
-              "data.quick."
+              "data.quick.",
             # --- S32 T3 end ---
+            # --- S32 T5 begin ---
+            "Sprint 32, T5: a dashboard item's pin may name an own period by reference " <>
+              "(saved:<id>); one that names no stored period is refused, one whose period " <>
+              "was deleted is dropped by the next save, as a deleted view is."
+            # --- S32 T5 end ---
           ],
           " "
         ),
@@ -159,8 +164,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "portfolixir.dashboards.list: data.quick, the quick choice as GET " <>
           "/api/v1/periods/quick answers it ({keys, default, dropped, max}); " <>
           "portfolixir.periods.put: quick, up to six period keys, alone, PUTs " <>
-          "{quick: {keys}} to /api/v1/periods/quick"
+          "{quick: {keys}} to /api/v1/periods/quick",
         # --- S32 T3 end ---
+        # --- S32 T5 begin ---
+        "POST and PUT /api/v1/dashboards (portfolixir.dashboards.put): settings.period " <>
+          "saved:<id> naming no stored own period answers 422 layout_item reason " <>
+          "unknown_period on settings.period; a saved:<id> the stored layout already pins " <>
+          "and whose period was deleted is dropped from the item, not refused; until then " <>
+          "GET /api/v1/dashboards/:id answers the stored pin as it is"
+        # --- S32 T5 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],
