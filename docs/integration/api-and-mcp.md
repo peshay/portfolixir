@@ -3686,13 +3686,29 @@ Example account payloads:
   roll-up only — totals, cash balances and cash quote without the
   per-position rows; the response states which shape was returned via
   `positions_included`.
+- **The period vocabulary** (ADR-0062's amendment of 2026-11-25, point 6):
+  every read that takes `period=` — the performance, benchmark,
+  contribution and bands reads, each per portfolio, per view and
+  view-less — and the dashboards' periods and pins take the same keys,
+  resolved against today. Rolling: `1d`, `1w`, `1m`, `3m`, `6m` (ranges
+  ending today, ADR-0061 §3's money window from the day after the start
+  day, its baseline that day's close: `1d` is today's change from the
+  close before it, `1w` starts six days back, `1m`, `3m` and `6m` the day
+  after the date one, three or six months back), `1y`, `3y`, `5y`, `max`.
+  Calendar: `mtd` (this month to today), `prev_month`, `qtd` (this quarter
+  to today), `prev_quarter` (both whole), `q1` to `q4` of the current year,
+  `ytd`, `prev_year`. Keyed: `year:YYYY`, one calendar year. A quarter or a
+  year that has not begun is refused with `422`, never read as empty; a
+  range that ends after today is clamped to today. `from`/`to` win over
+  `year`, which wins over `period`.
 - `GET /api/v1/portfolios/:portfolio_id/performance` returns the portfolio's
   **true time-weighted rate of return (TTWROR)**, computed the Portfolio
   Performance way: the portfolio is valued daily (quotes on or before each day,
   converted at that day's rates, plus cash), external flows — deposits,
   removals, deliveries, and balance-snapshot jumps — are neutralised, and daily
   returns chain geometrically (see ADR-0010). Optional query params: `period`
-  (`ytd`, `1y`, `3y`, `5y`, `max` — default `max`; an unknown period returns
+  (a key of the period vocabulary below — default `max`; an unknown key, or
+  a quarter or year that has not begun, returns
   `422 Unprocessable Entity`), `year=YYYY` for one calendar year, `from=`/`to=`
   (ISO dates, both required, `from <= to`) for a custom range — both clamped
   honestly to the available history, with a backwards or malformed range
@@ -5097,7 +5113,7 @@ a view is not journaled: no rule can read it yet.
   account scope the view valuation covers, so the total and the return always
   speak about the same accounts. Money crossing the view boundary counts as an
   external flow (ADR-0019); money moving between two in-scope accounts nets
-  out. `?period=` (`ytd|1y|3y|5y|max`, default `max`), `?year=YYYY`,
+  out. `?period=` (a key of the period vocabulary, default `max`), `?year=YYYY`,
   `?from=`/`?to=` (custom range) and `?series=true` behave like the portfolio
   performance endpoint; the shape mirrors it with `view_id` in place of
   `portfolio_id`, and all financial values are Decimal strings. Unknown and
@@ -5266,11 +5282,13 @@ without reading the code: `{"data": {"widgets", "groups", "grid",
   `full`, smallest first), `source` (`routes`, the `GET /api/v1/...` routes it draws;
   `function`, the context function behind them; `note`, where the figures
   have no route of their own), `period` (`"none"`, or `{periods, param,
-  values, ranges, translated}`: the dashboard periods it answers, the
-  source's query parameter, each period's value of it, the periods it
-  reads as a `from`/`to` range ending today, and the ones it answers with
-  another span, which the screen labels, for example `3m` read as
-  `quarter`), `scope` (`view` when it takes a view, else `none`) and
+  values, ranges, years, keyed, translated}`: the dashboard periods it
+  answers, the source's query parameter, each period's value of it, the
+  periods it reads as a `from`/`to` range, those it sends as `year=`
+  (`year:YYYY` standing for every keyed year), a keyed period's value of
+  the parameter, and the ones it answers with another span, which the
+  screen labels, for example `3m` read as `quarter`), `scope` (`view` when
+  it takes a view, else `none`) and
   `compact` (`true`: every kind has its phone form).
 - `groups`: `{key, title}` in order (`overview`, `performance`,
   `allocation`, `risk`, `analyses`).
@@ -5290,14 +5308,13 @@ without reading the code: `{"data": {"widgets", "groups", "grid",
   T → L, L → XL with its rows doubled (a size its kind no longer takes as
   the nearest it does), arranged as the edit mode arranges, by every read
   alike — the screen, `GET` and the companion; its next save stores it so.
-- `periods`: `values` (`1d`, `1w`, `1m`, `3m`, `ytd`, `1y`, `3y`, `max`)
-  and `default` (`1y`). A range ending today is ADR-0061 §3's money
-  window, from the day after its start day to today, its baseline the
-  start day's close: `1d` is `from` = `to` = today (today's change from
-  the close before it), `1w` starts six days back, `1m` and `3m` the day
-  after the date one and three months back. The movers read `day`,
-  `week` and `month`, calendar windows to date, for `1d`, `1w` and `1m`,
-  so those are `translated` there.
+- `periods`: `values` (the vocabulary's fixed keys, below), `keyed`
+  (`year:YYYY`) and `default` (`1y`). The movers read `day`, `week` and
+  `month`, calendar windows to date, for `1d`, `1w` and `1m`; a previous
+  month, quarter or year as the current window (`prev_month` and `mtd` as
+  `month`, `prev_quarter`, `qtd` and `q1` to `q4` as `quarter`, `6m` as
+  `quarter`, `5y`, `prev_year` and `year:YYYY` as `1y`), so those are
+  `translated` there.
 
 **`GET /api/v1/dashboards`** lists the stored dashboards in the menu's
 order (by `position`, then `id`), then the templates. Each entry is marked

@@ -77,6 +77,26 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- S32 E4 end ---
 
+    # --- S32 T1 begin ---
+    # T1 (I59): the period vocabulary on every read of the performance
+    # family and on the dashboard pins; no endpoint or tool.
+    assert newest["summary"] =~
+             "Sprint 32, T1 (I59; ADR-0062's amendment of 2026-11-25, point 6): period= on"
+
+    assert [line] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(
+                 &1,
+                 "period on GET /api/v1/portfolios/:portfolio_id/performance"
+               )
+             )
+
+    assert line =~ "mtd"
+    assert line =~ "year:YYYY"
+    assert line =~ "not yet"
+    # --- S32 T1 end ---
+
     # The security review's fixes of 2026-11 (version 32, one PR), found by
     # version from Sprint 32 on. Dated strictly after entry 31, so
     # since=2026-11-21 still returns it. Each row appends its own items

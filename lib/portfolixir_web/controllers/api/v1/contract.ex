@@ -67,8 +67,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "are Apple's families S 3x2, M 6x2, L 6x4 and XL 12x4 on rows of a fixed " <>
               "height; W and T are no size; a layout Sprint 31 stored is read on them (S to S, " <>
               "W to M, M to L, T to L, L to XL, the rows doubled, arranged) by every read. No " <>
-              "endpoint or tool is added."
+              "endpoint or tool is added.",
             # --- S32 E4 end ---
+            # --- S32 T1 begin ---
+            "Sprint 32, T1 (I59; ADR-0062's amendment of 2026-11-25, point 6): period= on " <>
+              "every read of the performance family takes the period vocabulary, resolved " <>
+              "against today, from and to keeping their precedence; the widget catalogue " <>
+              "and the dashboard pins take it too. No endpoint or tool is added."
+            # --- S32 T1 end ---
           ],
           " "
         ),
@@ -88,8 +94,30 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "portfolixir.dashboards.get), changed: a layout stored on Sprint 31's grid is " <>
           "answered on the families, arranged",
         "POST, PUT /api/v1/dashboards (portfolixir.dashboards.put), changed: a size is S, M, " <>
-          "L or XL; W and T are refused naming the families"
+          "L or XL; W and T are refused naming the families",
         # --- S32 E4 end ---
+        # --- S32 T1 begin ---
+        "period on GET /api/v1/portfolios/:portfolio_id/performance, " <>
+          "/performance/benchmark, /performance/contribution, /performance/bands, " <>
+          "GET /api/v1/views/:view_id/performance (and /benchmark, /contribution, /bands) " <>
+          "and GET /api/v1/performance (and /benchmark, /contribution, /bands), with " <>
+          "portfolixir.portfolios.performance, .benchmark, .contribution, .bands and " <>
+          "portfolixir.views.performance, .benchmark, .contribution, .bands: added the " <>
+          "keys 1d 1w 1m 3m 6m (ranges ending today, ADR-0061 §3's money window), mtd, " <>
+          "prev_month, qtd, prev_quarter, q1 to q4 of the current year, prev_year and " <>
+          "year:YYYY; ytd 1y 3y 5y max answer as before; a quarter or a year not yet " <>
+          "begun answers 422 errors.period [\"is invalid\"], as an unknown key does; the " <>
+          "tools' period is the vocabulary's pattern where it was an enum; their " <>
+          "descriptions, and the scope twin sentence of the ten twin tools, were " <>
+          "tightened without a change of meaning",
+        "GET /api/v1/widgets (portfolixir.dashboards.list): periods.values is the " <>
+          "vocabulary's 19 fixed keys and periods.keyed [\"year:YYYY\"]; a kind's period " <>
+          "rule adds years and keyed; tops and flops translate mtd and prev_month to " <>
+          "month, qtd, prev_quarter and q1 to q4 to quarter, 6m to quarter, 5y, prev_year " <>
+          "and year:YYYY to 1y. PUT and POST /api/v1/dashboards (portfolixir.dashboards.put): " <>
+          "settings.period takes every key of the vocabulary; the tool checks its shape " <>
+          "(a string of at most 25 characters), the API the key"
+        # --- S32 T1 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

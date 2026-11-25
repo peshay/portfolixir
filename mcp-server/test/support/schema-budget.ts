@@ -846,8 +846,24 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 124_434,
     book: 205_484,
     full: 242_141
-  }
+  },
   // --- S32 E4 end ---
+  // --- S32 T1 begin ---
+  {
+    since: "2026-11-25",
+    why:
+      "Sprint 32, T1 (I59; ADR-0062's amendment of 2026-11-25, point 6): the eight " +
+      "performance-family tools take the period vocabulary as an exact pattern where they " +
+      "took an enum of five keys, 456 bytes more in every profile, and dashboards.put's pin " +
+      "a string the API checks, 36 bytes fewer; paid for by tightening the performance " +
+      "family's descriptions and the scope twin sentence (\"this tool answers\" to \"this " +
+      "tool:\"), and each ceiling is lowered to the figure measured: read 124,379, book " +
+      "205,393 and full 242,050; no tool is added",
+    read: 124_379,
+    book: 205_393,
+    full: 242_050
+  }
+  // --- S32 T1 end ---
 ];
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];

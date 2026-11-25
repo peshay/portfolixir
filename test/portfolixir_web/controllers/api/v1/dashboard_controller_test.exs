@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
   alias Portfolixir.Dashboards.Templates
   alias Portfolixir.Dashboards.Widgets
   alias Portfolixir.Journal
+  alias Portfolixir.Periods
 
   defp authed(conn) do
     conn
@@ -73,21 +74,36 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
                "function" => "Portfolixir.Portfolios.Performance.Movers.read/3",
                "note" => nil
              },
+             # Sprint 32 T1: the period vocabulary's fixed keys, the
+             # keyed year, and the amendment's translations.
              "period" => %{
-               "periods" => ~w(1d 1w 1m 3m ytd 1y 3y max),
+               "periods" => Periods.keys(),
                "param" => "window",
                "values" => %{
                  "1d" => "day",
                  "1w" => "week",
                  "1m" => "month",
                  "3m" => "quarter",
-                 "ytd" => "ytd",
+                 "6m" => "quarter",
                  "1y" => "1y",
                  "3y" => "1y",
-                 "max" => "1y"
+                 "5y" => "1y",
+                 "max" => "1y",
+                 "mtd" => "month",
+                 "prev_month" => "month",
+                 "qtd" => "quarter",
+                 "prev_quarter" => "quarter",
+                 "q1" => "quarter",
+                 "q2" => "quarter",
+                 "q3" => "quarter",
+                 "q4" => "quarter",
+                 "ytd" => "ytd",
+                 "prev_year" => "1y"
                },
                "ranges" => [],
-               "translated" => ~w(1d 1w 1m 3m 3y max)
+               "years" => [],
+               "keyed" => %{"year:YYYY" => "1y"},
+               "translated" => (Periods.keys() -- ~w(ytd 1y)) ++ ["year:YYYY"]
              },
              "scope" => "view",
              "compact" => true
@@ -130,7 +146,13 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
     assert data["grid"]["size_rule"] =~ "each size of a kind shows more of the same"
 
     assert data["grid"]["full"] =~ "never placed"
-    assert data["periods"] == %{"values" => ~w(1d 1w 1m 3m ytd 1y 3y max), "default" => "1y"}
+
+    assert data["periods"] == %{
+             "values" => Periods.keys(),
+             "keyed" => ["year:YYYY"],
+             "default" => "1y"
+           }
+
     assert data["max_dashboards"] == 50
     assert data["name_max"] == 60
 
@@ -402,7 +424,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
        %{"index" => 1, "field" => "settings.view_id", "reason" => "no_view"}},
       {[Map.put(due(1, 1), "settings", %{"period" => "1y"})],
        %{"index" => 0, "field" => "settings.period", "reason" => "no_period"}},
-      {[Map.put(movers, "settings", %{"period" => "5y"})],
+      {[Map.put(movers, "settings", %{"period" => "6y"})],
        %{"index" => 0, "field" => "settings.period", "reason" => "unsupported_period"}},
       # source is read-only and ignored on write (C3), so route stands for
       # the key that names what a widget reads.

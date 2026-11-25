@@ -21,6 +21,7 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Dashboards
+  alias Portfolixir.Dashboards.Widgets
   alias Portfolixir.Journal
   alias Portfolixir.Repo
 
@@ -99,12 +100,13 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
   # so that one click moves every figure to the same span.
   #
   # Acceptance criteria:
-  # - The top bar holds the eight periods 1T, 1W, 1M, 3M, YTD, 1J, 3J,
-  #   Max (board 05 A), 1J pressed on an address that names none.
+  # - The top bar holds the periods 1T, 1W, 1M, 3M, 6M, YTD, 1J, 3J, 5J,
+  #   Max (board 05 A; 6M and 5J since Sprint 32 T1), 1J pressed on an
+  #   address that names none.
   # - A pick moves the address (`?period=3m`; 1J names none) and tells the
   #   browser's memory (`period-memory`, the pick's key).
   # - The page keeps the hook that remembers it per browser.
-  test "the top bar's selector offers the eight periods, 1J first, and a pick moves the address",
+  test "the top bar's selector offers the periods, 1J pressed, and a pick moves the address",
        %{conn: conn} do
     seed()
     {:ok, view, _html} = conn |> german() |> live("/")
@@ -113,7 +115,7 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
            |> document()
            |> Floki.find("[data-role='dashboard-period'] button")
            |> Enum.map(&text/1) ==
-             ~w(1T 1W 1M 3M YTD 1J 3J Max)
+             ~w(1T 1W 1M 3M 6M YTD 1J 3J 5J Max)
 
     assert selected(view) == ["1y"]
 
@@ -156,6 +158,63 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
     assert URI.decode_query(URI.parse(href).query) == %{"scope" => "total", "period" => "3m"}
 
     {:ok, view, _html} = conn |> german() |> live("/?period=decade")
+    assert selected(view) == ["1y"]
+    assert tag_text(view, "performance") == "folgt · 1J"
+  end
+
+  # User story (Sprint 32 T1; ADR-0062's amendment of 2026-11-25, point 6):
+  # As the operator handing over a link on a calendar period,
+  # I want the dashboard to open on any key of the vocabulary, each widget
+  # reading it by its kind's rule and Tops und Flops saying what it reads
+  # instead,
+  # so that „Vorquartal“ on the dashboard is the API's „Vorquartal“.
+  #
+  # Acceptance criteria:
+  # - `/?period=prev_quarter` opens on it: Wertentwicklung says „folgt ·
+  #   Vorquartal“ and its TTWROR is the one GET /api/v1/performance answers
+  #   for `period=prev_quarter`, the same request and period.
+  # - Tops und Flops says „folgt · Vorquartal → Quartal“ and reads the
+  #   quarter; on „lfd. Monat“ the month, on last year's key the year.
+  # - A key not yet begun (next year) opens 1J.
+  test "a calendar key opens the dashboard, its figure the API's, tops and flops translated",
+       %{conn: conn} do
+    seed()
+    {:ok, view, _html} = conn |> german() |> live("/?period=prev_quarter")
+    render_async(view)
+
+    assert tag_text(view, "performance") == "folgt · Vorquartal"
+    assert tag_text(view, "movers") == "folgt · Vorquartal → Quartal"
+    assert has_element?(view, "#dashboard-movers[data-window='quarter']")
+
+    api =
+      build_conn()
+      |> put_req_header("accept", "application/json")
+      |> put_req_header("authorization", "Bearer test-api-token")
+      |> get("/api/v1/performance?period=prev_quarter")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert view
+           |> document()
+           |> Floki.find("[data-widget-kind='performance'] [data-role='performance-ttwror']")
+           |> text() ==
+             PortfolixirWeb.Format.signed_percent(Decimal.new(api["ttwror"])) <> "%"
+
+    {:ok, view, _html} = conn |> german() |> live("/?period=mtd")
+    render_async(view)
+    assert tag_text(view, "movers") == "folgt · lfd. Monat → Monat"
+    assert has_element?(view, "#dashboard-movers[data-window='month']")
+
+    last_year = Portfolixir.Clock.today().year - 1
+    {:ok, view, _html} = conn |> german() |> live("/?period=year:#{last_year}")
+    render_async(view)
+    assert tag_text(view, "performance") == "folgt · #{last_year}"
+    assert tag_text(view, "movers") == "folgt · #{last_year} → 1J"
+    assert has_element?(view, "#dashboard-movers[data-window='1y']")
+
+    {:ok, view, _html} =
+      conn |> german() |> live("/?period=year:#{Portfolixir.Clock.today().year + 1}")
+
     assert selected(view) == ["1y"]
     assert tag_text(view, "performance") == "folgt · 1J"
   end
@@ -258,8 +317,12 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
     assert text(menu) =~ "Folgt dem Dashboard (3M)"
     assert text(menu) =~ "Zeitraum festlegen"
 
-    assert menu |> Floki.find("[data-role='pin-period']") |> Enum.map(&text/1) ==
-             ~w(1T 1W 1M 3M YTD 1J 3J Max)
+    # Sprint 32 T1: the vocabulary's keys, the rolling ones first.
+    assert menu |> Floki.find("[data-role='pin-period']") |> Floki.attribute("data-period") ==
+             Widgets.periods()
+
+    assert menu |> Floki.find("[data-role='pin-period']") |> Enum.take(10) |> Enum.map(&text/1) ==
+             ["1T", "1W", "1M", "3M", "6M", "1J", "3J", "5J", "Max", "lfd. Monat"]
 
     pin(view, "performance", "max")
 
@@ -320,7 +383,7 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
     assert view
            |> document()
            |> Floki.find("[data-widget-kind='total_value'] [data-role='pin-period']")
-           |> Enum.map(&text/1) == ~w(1T 1W 1M 3M YTD 1J 3J Max)
+           |> Floki.attribute("data-period") == Widgets.periods()
 
     pin(view, "total_value", "max")
     render_async(view)
@@ -398,7 +461,7 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
     before = Dashboards.get_dashboard(dashboard.id).lock_version
     render_click(view, "pin_period", %{"index" => "99", "period" => "max"})
     render_click(view, "pin_period", %{"index" => "2", "period" => "max"})
-    render_click(view, "pin_period", %{"index" => "0", "period" => "5y"})
+    render_click(view, "pin_period", %{"index" => "0", "period" => "6y"})
     assert Dashboards.get_dashboard(dashboard.id).lock_version == before
   end
 

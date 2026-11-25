@@ -2139,11 +2139,14 @@ screen.
   of its own; where that view has since been deleted, the widget reads the
   dashboard's scope and its footer says "Its view no longer exists · reads …".
 - **One period above every dashboard** (ADR-0062 §5). Beside the scope,
-  **1D · 1W · 1M · 3M · YTD · 1Y · 3Y · Max** (German 1T … 1J, 3J) sets the
-  period every widget that takes one reads; **1Y** is the default, as on
-  Wealth. The address carries it when it is not 1Y (`/?period=3m`), so a
-  link opens a dashboard on its period; a value that is no period opens
-  1Y. Your pick is remembered in this browser (as Wealth's period and the
+  **1D · 1W · 1M · 3M · 6M · YTD · 1Y · 3Y · 5Y · Max** (German 1T … 1J,
+  3J, 5J) sets the period every widget that takes one reads; **1Y** is the
+  default, as on Wealth. The address carries it when it is not 1Y
+  (`/?period=3m`) and takes every key of the period vocabulary, the
+  calendar ones too (`/?period=prev_quarter`, "Last quarter"; see "The
+  period vocabulary" in the API reference), so a link opens a dashboard on
+  its period; a value that is no period, or a quarter or year that has not
+  begun, opens 1Y. Your pick is remembered in this browser (as Wealth's period and the
   theme are; nothing is stored on the server) and stays when you open
   another dashboard. Under 600 px the periods are a strip of their own that
   you swipe sideways.
@@ -2153,8 +2156,10 @@ screen.
   Bitcoin cycle, Sale review, Snapshots); **Total value** follows it too,
   its small size's change line being the period's; and where the widget
   reads its nearest own window instead, both: **Tops and flops** reads
-  1D as Day, 1W as Week, 1M as Month, 3M as Quarter, YTD as YTD, and 1Y,
-  3Y and Max as 1Y, so at 3M it says **follows · 3M → Quarter**.
+  1D as Day, 1W as Week, 1M as Month, 3M and 6M as Quarter, YTD as YTD,
+  and 1Y, 3Y, 5Y and Max as 1Y; this month and last month as Month, this
+  quarter, last quarter and Q1 to Q4 as Quarter, last year and a year as
+  1Y — so at 3M it says **follows · 3M → Quarter**.
 - **A widget may pin its own period.** Its ⋯ menu offers **Set period**
   with the periods its read takes; the pin is stored in the widget's item
   of the layout (`settings.period`, one journaled write, as an agent's
@@ -2375,8 +2380,9 @@ The **Tops and flops** widget (FR-59, ADR-0061) answers "what moved, and what di
 me?" for the same scope as the value card — the default view, else
 **Everything**. Its window — **Day**, **Week**, **Month**, **Quarter**,
 **YTD** or **1Y**, each to today — is the dashboard's period (or the
-widget's pin) by the rule above: 1D is Day, 1W Week, 1M Month, 3M Quarter,
-YTD YTD, and 1Y, 3Y and Max are 1Y; the widget has no period chips of its
+widget's pin) by the rule above: 1D is Day, 1W Week, 1M Month, 3M and 6M
+Quarter, YTD YTD, and 1Y, 3Y, 5Y and Max are 1Y, a calendar period its
+month, quarter or year; the widget has no period chips of its
 own (Sprint 31, ADR-0062 §5). Two columns stand
 side by side where the widget is wide enough (stacked otherwise), each with
 its **Highest** over its **Lowest**, five each (under ten the list splits,

@@ -247,7 +247,15 @@ defmodule Portfolixir.Dashboards.LayoutTest do
     assert refusal([pin.("crashes", "L", "1y")]) ==
              %{index: 0, field: "settings.period", reason: :no_period}
 
-    assert refusal([pin.("movers", "L", "5y")]) ==
+    # Sprint 32 T1: 5y is a key of the vocabulary now; 6y is none.
+    assert {:ok, _} = Layout.validate([pin.("movers", "L", "5y")])
+    assert {:ok, _} = Layout.validate([pin.("performance", "L", "prev_quarter")])
+    assert {:ok, _} = Layout.validate([pin.("movers", "L", "year:2024")])
+
+    assert refusal([pin.("movers", "L", "6y")]) ==
+             %{index: 0, field: "settings.period", reason: :unsupported_period}
+
+    assert refusal([pin.("movers", "L", "year:24")]) ==
              %{index: 0, field: "settings.period", reason: :unsupported_period}
 
     assert refusal([pin.("movers", "L", "quarter")]) ==

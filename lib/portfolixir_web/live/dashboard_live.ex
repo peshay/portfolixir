@@ -30,10 +30,13 @@ defmodule PortfolixirWeb.DashboardLive do
     „Datenqualität“ their M size, and draws every widget, one with nothing
     to say with its quiet line.
   * **The period** (ADR-0062 §5; idea board 05, A; Sprint 31 D5). One
-    period above every dashboard, in the top bar: 1T, 1W, 1M, 3M, YTD, 1J,
-    3J, Max (the registry's `Widgets.periods/0`), 1J the default. The
+    period above every dashboard, in the top bar: 1T, 1W, 1M, 3M, 6M, YTD,
+    1J, 3J, 5J, Max, 1J the default; the address takes every key of the
+    period vocabulary (`Portfolixir.Periods`, the registry's
+    `Widgets.periods/0`, Sprint 32 T1). The
     address carries it as `?period=` when it is not 1J, so a link opens a
-    dashboard on its period; a value that is no period opens 1J. A pick is
+    dashboard on its period; a value that is no period, or one not yet
+    begun, opens 1J. A pick is
     remembered per browser (the `PeriodMemory` hook under the key
     `dashboard.period`, as Wealth keeps its own), so a dashboard opened
     without one in its address reopens it; a switch to another dashboard
@@ -61,6 +64,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias Portfolixir.Dashboards.Widgets
   alias Portfolixir.Knowledge.Events
   alias Portfolixir.Ledger
+  alias Portfolixir.Periods
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Performance
@@ -106,6 +110,10 @@ defmodule PortfolixirWeb.DashboardLive do
   @due_shown_at_s 2
   # #984 (pick G1-A): the Overview's closed-trades card lists the newest five.
   @closed_trades_shown 5
+
+  # The chips of the top bar: the rolling keys and YTD (Sprint 32 T1 adds
+  # 6M and 5J); every other key of the vocabulary opens from the address.
+  @bar_periods ~w(1d 1w 1m 3m 6m ytd 1y 3y 5y max)
 
   # The kinds whose figures come from the view-scoped value and drift read.
   @scoped_kinds ~w(total_value off_target)
@@ -194,7 +202,7 @@ defmodule PortfolixirWeb.DashboardLive do
   # 1J, as it says (Sprint 31 closing act, correctness lens C5). A fresh
   # page opens 1J, which the browser's memory may then replace.
   defp address_period(%{"period" => period}, _socket, _board) do
-    if period in Widgets.periods(),
+    if period?(period),
       do: {period, false},
       else: {Widgets.default_period(), false}
   end
@@ -227,6 +235,11 @@ defmodule PortfolixirWeb.DashboardLive do
       pairs -> uri.path <> "?" <> URI.encode_query(pairs)
     end
   end
+
+  # A key of the period vocabulary that resolves today (Sprint 32 T1): a
+  # quarter or a year not yet begun is no period to show.
+  defp period?(period),
+    do: Widgets.takes_period?("performance", period) and match?({:ok, _}, Periods.resolve(period))
 
   defp period_pairs(period) do
     if period == Widgets.default_period(), do: [], else: [{"period", period}]
@@ -890,7 +903,7 @@ defmodule PortfolixirWeb.DashboardLive do
   # link built from the address keeps it, and the browser's memory keeps
   # it for a dashboard opened without one.
   def handle_event("set_period", %{"period" => period}, socket) when is_binary(period) do
-    if period in Widgets.periods() do
+    if period?(period) do
       {:noreply,
        socket
        |> assign(:period, period)
@@ -911,7 +924,7 @@ defmodule PortfolixirWeb.DashboardLive do
         %{assigns: %{period_addressed: false}} = socket
       )
       when is_binary(period) do
-    if period in Widgets.periods() and period != socket.assigns.period,
+    if period?(period) and period != socket.assigns.period,
       do:
         {:noreply,
          push_patch(socket, to: with_period(socket.assigns.page_address, period), replace: true)},
@@ -1429,6 +1442,7 @@ defmodule PortfolixirWeb.DashboardLive do
   defp dashboard_bar(assigns) do
     assigns =
       assign(assigns,
+        bar_periods: @bar_periods,
         scope_name: scope_name(assigns.scope_id, assigns.views),
         choices:
           [{"total", gettext("Everything"), is_nil(assigns.scope_id)}] ++
@@ -1472,7 +1486,7 @@ defmodule PortfolixirWeb.DashboardLive do
             aria-label={gettext("Period")}
           >
             <button
-              :for={period <- Widgets.periods()}
+              :for={period <- @bar_periods}
               type="button"
               class={["segmented-control__option", @period == period && "is-active"]}
               phx-click="set_period"

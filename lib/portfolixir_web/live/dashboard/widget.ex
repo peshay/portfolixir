@@ -45,7 +45,9 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Clock
   alias Portfolixir.Dashboards.Widgets
+  alias Portfolixir.Periods
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Dashboard.MoversCard
 
@@ -137,7 +139,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
     {period, state} =
       cond do
         periods == [] -> {nil, :none}
-        is_binary(pin) and pin in periods -> {pin, :pinned}
+        pinned?(kind, pin) -> {pin, :pinned}
         true -> {dashboard_period, :follows}
       end
 
@@ -150,16 +152,40 @@ defmodule PortfolixirWeb.Dashboard.Widget do
     })
   end
 
-  @doc "A dashboard period's short label: 1T, 1W, 1M, 3M, YTD, 1J, 3J, Max."
+  # A pin the kind takes and that resolves today; a quarter or a year
+  # that has not begun reads the dashboard's period.
+  defp pinned?(kind, pin) do
+    Widgets.takes_period?(kind, pin) and match?({:ok, _term}, Periods.resolve(pin))
+  end
+
+  @doc """
+  A dashboard period's short label: 1T, 1W, 1M, 3M, 6M, YTD, 1J, 3J, 5J,
+  Max; „lfd. Monat“, „Vormonat“, „lfd. Quartal“, „Vorquartal“, „Q1 26“ to
+  „Q4 26“ (the current year), „Vorjahr“; a keyed year as its number.
+  """
   @spec period_label(String.t()) :: String.t()
   def period_label("1d"), do: gettext("1D")
   def period_label("1w"), do: gettext("1W")
   def period_label("1m"), do: gettext("1M")
   def period_label("3m"), do: gettext("3M")
+  def period_label("6m"), do: gettext("6M")
   def period_label("ytd"), do: gettext("YTD")
   def period_label("1y"), do: gettext("1Y")
   def period_label("3y"), do: gettext("3Y")
+  def period_label("5y"), do: gettext("5Y")
   def period_label("max"), do: gettext("Max")
+  def period_label("mtd"), do: pgettext("period", "This month")
+  def period_label("prev_month"), do: pgettext("period", "Last month")
+  def period_label("qtd"), do: pgettext("period", "This quarter")
+  def period_label("prev_quarter"), do: pgettext("period", "Last quarter")
+  def period_label("prev_year"), do: pgettext("period", "Last year")
+
+  def period_label("q" <> n) when n in ~w(1 2 3 4) do
+    year = Clock.today().year |> rem(100) |> Integer.to_string() |> String.pad_leading(2, "0")
+    pgettext("period", "Q%{quarter} %{year}", quarter: n, year: year)
+  end
+
+  def period_label("year:" <> year), do: year
 
   @doc """
   The period tag's words for an item `with_period/3` gave its period:
@@ -181,15 +207,18 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   # „ → Quartal“ where the kind answers the period with another span, by
   # its registry rule; nothing where it answers the period itself.
   defp translated(%{kind: kind, period: period}) do
-    with {:ok, %{period: %{translated: translated, values: values}}} <- Widgets.fetch(kind),
-         true <- period in translated,
-         {:ok, value} <- Map.fetch(values, period),
-         label when is_binary(label) <- source_label(kind, value) do
+    with true <- Widgets.translated?(kind, period),
+         {:ok, params} <- Widgets.source_params(kind, period, Clock.today()),
+         {:ok, %{param: param}} <- Widgets.fetch(kind) |> period_rule(),
+         label when is_binary(label) <- source_label(kind, Map.get(params, param)) do
       " → " <> label
     else
       _itself -> ""
     end
   end
+
+  defp period_rule({:ok, %{period: %{} = rule}}), do: {:ok, rule}
+  defp period_rule(_none), do: :error
 
   # The name of a kind's own window, as the kind names it.
   defp source_label("movers", window), do: MoversCard.window_label(window)
