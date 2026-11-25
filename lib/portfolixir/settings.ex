@@ -35,6 +35,12 @@ defmodule Portfolixir.Settings do
       with a stored quote (`Portfolixir.Catalog.BenchmarkSecurity.resolve/1`,
       Lane B's rule), named and cleared under its setter's actor, journaled.
       No default: unset, the rule detects nothing.
+    * `period_quick_choice/0` / `set_period_quick_choice/3` — the keys of the
+      period vocabulary the dashboard's top bar shows as its quick choice
+      (ADR-0062's amendment of 2026-11-25, point 6; Sprint 32 T3), stored
+      as one comma-separated value (`-` for none) and journaled under its
+      setter's actor; `Portfolixir.Periods` owns what a key may be and the
+      default.
   """
 
   import Ecto.Query
@@ -57,6 +63,7 @@ defmodule Portfolixir.Settings do
   @news_window_max 720
   @news_similarity_default "0.8"
   @crash_benchmark_key "crash_benchmark_security_id"
+  @period_quick_key "period_quick_choice"
 
   @doc "Reads the preference under `key`; `nil` when unset."
   @spec get(String.t()) :: String.t() | nil
@@ -288,6 +295,65 @@ defmodule Portfolixir.Settings do
     |> case do
       {:ok, %{benchmark: security}} -> {:ok, security}
       {:error, :benchmark, refusal, _changes} -> {:error, refusal}
+    end
+  end
+
+  # --- the period quick choice (ADR-0062's amendment, point 6; S32 T3) ---
+
+  @doc """
+  The stored quick choice of the dashboard's top bar, the keys in their
+  order (`[]` for one stored empty), or `nil` while none is stored. The
+  keys are read as stored; `Portfolixir.Periods.quick_choice/0` decides
+  what each still means.
+  """
+  @spec period_quick_choice() :: [String.t()] | nil
+  def period_quick_choice do
+    case get(@period_quick_key) do
+      nil -> nil
+      "-" -> []
+      value -> String.split(value, ",", trim: true)
+    end
+  end
+
+  @doc """
+  Stores `keys` as the quick choice on behalf of `actor`, journaled as a
+  `"setting"` upsert. `check` runs inside the writing transaction, after
+  the setting's key lock (`Portfolixir.LockTable` row 27), and answers
+  `:ok` or `{:error, reason}`; a refusal writes nothing and is answered as
+  `{:error, reason}`. The keys are the caller's to validate; none of them
+  may hold a comma.
+  """
+  @spec set_period_quick_choice(Actor.t(), [String.t()], (-> :ok | {:error, term()})) ::
+          :ok | {:error, term()}
+  def set_period_quick_choice(%Actor{} = actor, keys, check)
+      when is_list(keys) and is_function(check, 0) do
+    value = if keys == [], do: "-", else: Enum.join(keys, ",")
+    changeset = Setting.changeset(%Setting{}, %{key: @period_quick_key, value: value})
+
+    Multi.new()
+    |> Multi.run(:key_lock, fn repo, _changes -> lock_key(repo, @period_quick_key) end)
+    |> Multi.run(:check, fn _repo, _changes ->
+      case check.() do
+        :ok -> {:ok, keys}
+        {:error, reason} -> {:error, reason}
+      end
+    end)
+    |> Multi.run(:prior, fn repo, _changes -> {:ok, locked_setting(repo, @period_quick_key)} end)
+    |> Multi.insert(:setting, changeset,
+      on_conflict: {:replace, [:value, :updated_at]},
+      conflict_target: :key,
+      returning: true
+    )
+    |> Journal.record(actor,
+      resource_type: "setting",
+      operation: :upsert,
+      source: :setting,
+      before_step: :prior
+    )
+    |> Repo.transaction()
+    |> case do
+      {:ok, _changes} -> :ok
+      {:error, :check, reason, _changes} -> {:error, reason}
     end
   end
 

@@ -5913,9 +5913,10 @@ andere `kind` muss registriert sein. Schlüssel werden als Strings verglichen, a
 wird als Text gespeichert und maskiert gezeichnet.
 
 **MCP.** Vier Tools rufen diese Routen. `portfolixir.dashboards.list` liest
-`GET /api/v1/dashboards`, `GET /api/v1/widgets` und `GET /api/v1/periods`
-und liefert sie als `{"data": {"dashboards", "widgets", "periods"}}`: das
-Menü, den Katalog und die eigenen Zeiträume in einem Aufruf, sodass der
+`GET /api/v1/dashboards`, `GET /api/v1/widgets`, `GET /api/v1/periods`
+und `GET /api/v1/periods/quick` und liefert sie als `{"data":
+{"dashboards", "widgets", "periods", "quick"}}`: das Menü, den Katalog,
+die eigenen Zeiträume und die Schnellwahl in einem Aufruf, sodass der
 Katalog kein eigenes Tool braucht.
 `portfolixir.dashboards.get` liest ein Dashboard per `id` oder eine Vorlage
 per `template` (ihr Schlüssel). Beide sind Lesungen in jedem Profil und
@@ -5994,13 +5995,25 @@ Dashboards.
   Schreibvorgang überholt hat, liefert `409` mit `code` `stale` und dem
   gespeicherten Zeitraum unter `errors.stored`.
 - `DELETE /api/v1/periods/:id` liefert `204`.
+- `GET /api/v1/periods/quick` liefert die Schnellwahl der oberen Leiste
+  der Dashboards: `{"data": {"keys", "default", "dropped", "max"}}`, `keys`
+  in der Reihenfolge der Leiste (`1w`, `mtd`, `ytd`, `1y`, `max`, solange
+  keine gespeichert ist, `default` `true`), `dropped` die Schlüssel
+  gelöschter Zeiträume, die das Lesen ausließ (der nächste Schreibvorgang
+  speichert die Wahl ohne sie), `max` 6.
+- `PUT /api/v1/periods/quick` mit `{"quick": {"keys": [...]}}` speichert
+  bis zu sechs Schlüssel des Vokabulars, jeden einmal, ein `saved:<id>`
+  nur eines gespeicherten Zeitraums; gar keiner ist auch eine Wahl. Eine
+  abgelehnte Liste liefert `422` bei `keys`. Sie wird als Einstellung unter
+  dem Token protokolliert.
 
 Ein Feld oder Parameter, den eine Anfrage nicht nimmt, liefert `422` mit
 seinem Namen; jeder Schreibvorgang wird unter dem Token protokolliert
 (Ressourcentyp `period`). **MCP:** `portfolixir.dashboards.list` liefert
-die gespeicherten Zeiträume als `data.periods`; `portfolixir.periods.put`
-schreibt: `period` ohne `id` legt an, mit `id` ersetzt, und `id` mit
-`delete: true` löscht. Weil es einen Zeitraum entfernen kann, ist es
+die gespeicherten Zeiträume als `data.periods` und die Schnellwahl als
+`data.quick`; `portfolixir.periods.put` schreibt: `period` ohne `id` legt
+an, mit `id` ersetzt, `id` mit `delete: true` löscht, und `quick` allein
+setzt die Schnellwahl. Weil es einen Zeitraum entfernen kann, ist es
 Admin (das Profil `full`); der Companion prüft die Form (ein Name mit
 höchstens 40 Zeichen, ISO-Daten), die API den Rest.
 

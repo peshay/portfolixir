@@ -80,8 +80,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "PUT (with lock_version, 409 when stale) and DELETE /api/v1/periods, at most " <>
               "50, a name of 1 to 40 characters, from and to or until today; each is the key " <>
               "saved:<id> wherever a period key is taken. portfolixir.periods.put creates, " <>
-              "replaces or deletes one, admin; dashboards.list answers them as data.periods."
+              "replaces or deletes one, admin; dashboards.list answers them as data.periods.",
             # --- S32 T2 end ---
+            # --- S32 T3 begin ---
+            "Sprint 32, T3: the quick choice of the dashboard's top bar is stored — GET and " <>
+              "PUT /api/v1/periods/quick, up to six keys, default 1w mtd ytd 1y max, a " <>
+              "deleted period's key dropped from the read and named under dropped; " <>
+              "portfolixir.periods.put sets it with quick, dashboards.list answers it as " <>
+              "data.quick."
+            # --- S32 T3 end ---
           ],
           " "
         ),
@@ -90,8 +97,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/periods",
         "POST /api/v1/periods",
         "PUT /api/v1/periods/:id",
-        "DELETE /api/v1/periods/:id"
+        "DELETE /api/v1/periods/:id",
         # --- S32 T2 end ---
+        # --- S32 T3 begin ---
+        "GET /api/v1/periods/quick",
+        "PUT /api/v1/periods/quick"
+        # --- S32 T3 end ---
       ],
       tools: [
         # --- S32 T2 begin ---
@@ -142,8 +153,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "tools, and settings.period on a dashboard's item, take saved:<id> (a deleted " <>
           "one answers 422 on period); GET /api/v1/widgets: periods.keyed adds " <>
           "\"saved:<id>\", the performance rule reads it as a range and tops and flops by its " <>
-          "length (spans)"
+          "length (spans)",
         # --- S32 T2 end ---
+        # --- S32 T3 begin ---
+        "portfolixir.dashboards.list: data.quick, the quick choice as GET " <>
+          "/api/v1/periods/quick answers it ({keys, default, dropped, max}); " <>
+          "portfolixir.periods.put: quick, up to six period keys, alone, PUTs " <>
+          "{quick: {keys}} to /api/v1/periods/quick"
+        # --- S32 T3 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

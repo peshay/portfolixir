@@ -571,6 +571,9 @@ defmodule PortfolixirWeb.Router do
     # --- S32 T2 begin ---
     # ADR-0062's amendment of 2026-11-25, point 6 (Sprint 32, T2): the
     # operator's own periods, journaled, a replace with lock_version.
+    # T3: the quick choice, before the keyed routes.
+    get("/periods/quick", PeriodController, :quick)
+    put("/periods/quick", PeriodController, :put_quick)
     get("/periods", PeriodController, :index)
     post("/periods", PeriodController, :create)
     put("/periods/:id", PeriodController, :replace)

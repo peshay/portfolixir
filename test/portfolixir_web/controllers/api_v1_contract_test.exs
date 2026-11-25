@@ -107,6 +107,13 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["tools"] == ["portfolixir.periods.put"]
     # --- S32 T2 end ---
 
+    # --- S32 T3 begin ---
+    # T3: the quick choice, two endpoints on the same tool.
+    assert newest["summary"] =~ "Sprint 32, T3: the quick choice"
+    assert "GET /api/v1/periods/quick" in newest["endpoints"]
+    assert "PUT /api/v1/periods/quick" in newest["endpoints"]
+    # --- S32 T3 end ---
+
     # The security review's fixes of 2026-11 (version 32, one PR), found by
     # version from Sprint 32 on. Dated strictly after entry 31, so
     # since=2026-11-21 still returns it. Each row appends its own items
