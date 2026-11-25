@@ -48,6 +48,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.News.Item, as: NewsItem
   alias Portfolixir.News.Label
+  alias Portfolixir.Periods.SavedPeriod
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRuleVersion
@@ -146,6 +147,12 @@ defmodule Portfolixir.Derived.BlastRadius do
   # Resolved per struct, like the knowledge records above.
   def for_write("dashboard", %{__struct__: Dashboard}), do: :none
 
+  # A stored period (ADR-0062's amendment of 2026-11-25, point 6; Sprint
+  # 32 T2) is a name for a span, read at the moment a widget or a route
+  # resolves it; no memoised value holds it, so no derived value moves:
+  # `:none`, as a dashboard.
+  def for_write("period", %{__struct__: SavedPeriod}), do: :none
+
   # An authored write to a security's quotes (E25 S6, T-9) is journaled as
   # one aggregate of the security's rows: its radius is a quote write's, every
   # portfolio that ever transacted the security — resolved per struct.
@@ -185,7 +192,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   # it and so widens.
   @feeds_no_security_data ~w(
     allowance_order bucket cash_account cash_account_bucket_assignment category
-    classification crash_manual_window crash_window_name dashboard depot_bucket_assignment merge_record news_item news_label policy_rule
+    classification crash_manual_window crash_window_name dashboard depot_bucket_assignment merge_record news_item news_label period policy_rule
     policy_rule_version portfolio position_bucket_override prediction retired_import_hash
     securities_account security_category_assignment security_event security_identifier_alias
     security_note setting snapshot target target_plan tax_parameters tax_profile

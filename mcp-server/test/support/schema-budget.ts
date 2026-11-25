@@ -862,8 +862,24 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 124_379,
     book: 205_393,
     full: 242_050
-  }
+  },
   // --- S32 T1 end ---
+  // --- S32 T2 begin ---
+  {
+    since: "2026-11-25",
+    why:
+      "Sprint 32, T2 (I59; ADR-0062's amendment of 2026-11-25, point 6): periods.put, the " +
+      "one write of the own periods, admin, raises full by its own 1,237 bytes and no more; " +
+      "dashboards.list names data.periods and the period pattern takes saved:<id>, paid for " +
+      "by tightening dashboards.list's catalogue words and the performance family's " +
+      "descriptions, and each ceiling is lowered to the figure measured: read 124,377, book " +
+      "205,391 and full 243,286",
+    read: 124_377,
+    book: 205_391,
+    full: 243_286,
+    raisedBy: { tools: ["portfolixir.periods.put"], read: 0, book: 0, full: 1_237 }
+  }
+  // --- S32 T2 end ---
 ];
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];

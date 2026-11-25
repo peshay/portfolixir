@@ -96,12 +96,22 @@ defmodule Portfolixir.Dashboards.Widgets do
     ranges: [],
     years: [],
     keyed: %{"year:YYYY" => "1y"},
+    # An own period (`saved:<id>`, Sprint 32 T2) is read as the window its
+    # span's days come nearest to: up to 1 day Tag, up to 7 Woche, up to
+    # 31 Monat, up to 184 Quartal (6M is Quartal too), else 1J.
+    spans: [
+      %{window: "day", up_to_days: 1},
+      %{window: "week", up_to_days: 7},
+      %{window: "month", up_to_days: 31},
+      %{window: "quarter", up_to_days: 184}
+    ],
+    spans_else: "1y",
     # Tag, Woche and Monat are calendar windows to date (ADR-0061 §3),
     # not the spans ending today that performance reads for 1T, 1W and
     # 1M, so the screen says them too: „folgt · 1W → Woche“ (Sprint 31
     # closing act, correctness lens C1); a previous month, quarter or year
     # is read as the current window, and says so.
-    translated: (@periods -- ~w(ytd 1y)) ++ ["year:YYYY"]
+    translated: (@periods -- ~w(ytd 1y)) ++ ["year:YYYY", "saved:<id>"]
   }
 
   # The performance family takes ytd, 1y, 3y, 5y and max as `period=`, a
@@ -113,9 +123,11 @@ defmodule Portfolixir.Dashboards.Widgets do
     periods: @periods,
     param: "period",
     values: %{"ytd" => "ytd", "1y" => "1y", "3y" => "3y", "5y" => "5y", "max" => "max"},
-    ranges: ~w(1d 1w 1m 3m 6m mtd prev_month qtd prev_quarter q1 q2 q3 q4),
+    ranges: ~w(1d 1w 1m 3m 6m mtd prev_month qtd prev_quarter q1 q2 q3 q4 saved:<id>),
     years: ~w(prev_year year:YYYY),
     keyed: %{},
+    spans: [],
+    spans_else: nil,
     translated: []
   }
 
@@ -331,6 +343,8 @@ defmodule Portfolixir.Dashboards.Widgets do
               ranges: [String.t()],
               years: [String.t()],
               keyed: %{String.t() => String.t()},
+              spans: [%{window: String.t(), up_to_days: pos_integer()}],
+              spans_else: String.t() | nil,
               translated: [String.t()]
             }
   @type kind :: %{
@@ -420,7 +434,8 @@ defmodule Portfolixir.Dashboards.Widgets do
   def translated?(key, period) do
     case fetch(key) do
       {:ok, %{period: %{translated: translated}}} when is_binary(period) ->
-        period in translated or (keyed?(period) and "year:YYYY" in translated)
+        period in translated or (keyed?(period) and "year:YYYY" in translated) or
+          (Periods.saved_id(period) != :error and "saved:<id>" in translated)
 
       _none ->
         false
@@ -432,27 +447,28 @@ defmodule Portfolixir.Dashboards.Widgets do
   `period` on `today`: `{:ok, %{"window" => "quarter"}}`, `{:ok,
   %{"period" => "ytd"}}`, `{:ok, %{"year" => "2025"}}`, or for a range
   `{:ok, %{"from" => "2026-10-22", "to" => "2026-11-21"}}`, as
-  `Portfolixir.Periods.resolve/2` spans it. `{:error, :no_period}` for a
+  `Portfolixir.Periods.resolve/3` spans it (`saved`, where a stored
+  period is looked up, as there). `{:error, :no_period}` for a
   kind that takes none, `{:error, :unknown_period}` for a period it does
   not answer, or one that has not begun on `today`, `{:error,
   :unknown_kind}` for an unknown key.
   """
-  @spec source_params(term(), term(), Date.t()) ::
+  @spec source_params(term(), term(), Date.t(), :stored | [Periods.SavedPeriod.t()]) ::
           {:ok, %{String.t() => String.t()}}
           | {:error, :no_period | :unknown_period | :unknown_kind}
-  def source_params(key, period, %Date{} = today) do
+  def source_params(key, period, %Date{} = today, saved \\ :stored) do
     case fetch(key) do
       :error -> {:error, :unknown_kind}
       {:ok, %{period: :none}} -> {:error, :no_period}
-      {:ok, %{period: rule}} -> rule_params(rule, period, today)
+      {:ok, %{period: rule}} -> rule_params(rule, period, today, saved)
     end
   end
 
   # The period resolved first, so a quarter or a year not yet begun is no
   # period for any kind; then the rule's own value, a range or a year as
   # the vocabulary spans it.
-  defp rule_params(%{param: param, values: values, keyed: keyed}, period, today) do
-    case Periods.resolve(period, today) do
+  defp rule_params(%{param: param, values: values, keyed: keyed} = rule, period, today, saved) do
+    case Periods.resolve(period, today, saved) do
       {:ok, term} ->
         cond do
           Map.has_key?(values, period) ->
@@ -461,12 +477,25 @@ defmodule Portfolixir.Dashboards.Widgets do
           keyed?(period) and is_map_key(keyed, "year:YYYY") ->
             {:ok, %{param => keyed["year:YYYY"]}}
 
+          rule.spans != [] ->
+            {:ok, %{param => span_window(rule, term)}}
+
           true ->
             spelled(term)
         end
 
       {:error, _refusal} ->
         {:error, :unknown_period}
+    end
+  end
+
+  # The window an own period's span comes nearest to, by its days.
+  defp span_window(%{spans: spans, spans_else: fallback}, {:range, from, to}) do
+    days = Date.diff(to, from) + 1
+
+    case Enum.find(spans, &(days <= &1.up_to_days)) do
+      %{window: window} -> window
+      nil -> fallback
     end
   end
 

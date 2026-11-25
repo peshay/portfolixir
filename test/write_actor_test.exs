@@ -33,7 +33,10 @@ defmodule Portfolixir.WriteActorTest do
     Portfolixir.Settings => "lib/portfolixir/settings.ex",
     # ADR-0062 §2 (Sprint 31 D1): dashboards, born actor-first, their table
     # armed at creation.
-    Portfolixir.Dashboards => "lib/portfolixir/dashboards.ex"
+    Portfolixir.Dashboards => "lib/portfolixir/dashboards.ex",
+    # ADR-0062's amendment of 2026-11-25, point 6 (Sprint 32 T2): the stored
+    # periods, born actor-first, their table armed at creation.
+    Portfolixir.Periods => "lib/portfolixir/periods.ex"
   }
 
   # Contexts whose actor-first refactor + table arming has landed (leaf-first:
@@ -52,7 +55,10 @@ defmodule Portfolixir.WriteActorTest do
     # ADR-0055: born actor-first, its table armed at creation.
     Portfolixir.Predictions,
     # ADR-0062 §2: born actor-first, its table armed at creation.
-    Portfolixir.Dashboards
+    Portfolixir.Dashboards,
+    # ADR-0062's amendment, point 6 (Sprint 32 T2): born actor-first, its
+    # table armed at creation.
+    Portfolixir.Periods
   ]
 
   # Migration-only data backfills: arity locked by immutable migrations (which run
@@ -117,10 +123,11 @@ defmodule Portfolixir.WriteActorTest do
   # with the preference store, #1272; 71 once it follows `defdelegate` and
   # local captures, Sprint 22's closing act; 72 with the predictions write,
   # ADR-0055; 89, the count it reads with ADR-0062's seven dashboard writes,
-  # Sprint 31 D1). A
+  # Sprint 31 D1; 93 with the writes of a stored period, Sprint 32
+  # T2). A
   # count below this floor means it stopped seeing writers; raise the floor
   # when writers are added, never lower it to make a red run pass.
-  @writer_floor 89
+  @writer_floor 93
 
   # Pre-existing public context writers not yet actor-first (later leaf-first
   # slices: Portfolios/Classifications → Ledger → Imports). SHRINK-ONLY: a stale
@@ -207,7 +214,10 @@ defmodule Portfolixir.WriteActorTest do
                   # ADR-0062 §2 (Sprint 31 D1): the stored dashboards, armed
                   # in the migration that creates them, so every write — the
                   # screen's or an agent's — is journaled under its actor.
-                  "dashboards"
+                  "dashboards",
+                  # Sprint 32 T2 (ADR-0062's amendment, point 6): the stored
+                  # periods, armed in the migration that creates them.
+                  "saved_periods"
                 ])
 
   # Derived-value tables (ADR-0039): materializations of ledger-derived reads,
