@@ -2,16 +2,23 @@ defmodule PortfolixirWeb.Api.V1.PeriodParam do
   @moduledoc """
   Shared parsing for the performance period parameters (#563).
 
-  Besides the fixed `period` strings (`ytd|1y|3y|5y|max`), a request may ask
-  for one calendar year (`?year=YYYY`) or a custom date range
-  (`?from=&to=`, ISO dates, both required). The parsed term goes straight to
+  `period` takes every key of the period vocabulary (`Portfolixir.Periods`,
+  ADR-0062's amendment of 2026-11-25, point 6; Sprint 32 T1): the rolling
+  `1d 1w 1m 3m 6m 1y 3y 5y max`, the calendar `mtd prev_month qtd
+  prev_quarter q1..q4 ytd prev_year` and `year:YYYY`, resolved against
+  today. Besides it, a request may ask for one calendar year (`?year=YYYY`)
+  or a custom date range (`?from=&to=`, ISO dates, both required). The
+  parsed term goes straight to
   `Portfolixir.Portfolios.Performance.summarise/2`, which owns the range
   validation (`from <= to`) and the honest clamping to the available history.
 
   Returns `{:ok, period_term}` or `{:error, :invalid_period}` for a malformed
-  year, a half-given or unparsable range. Precedence: an explicit range wins
+  year, a half-given or unparsable range, and a key that is none or has not
+  begun (a quarter or a year to come). Precedence: an explicit range wins
   over `year`, which wins over `period`.
   """
+
+  alias Portfolixir.Periods
 
   @spec resolve(map()) :: {:ok, term()} | {:error, :invalid_period}
   def resolve(params) do
@@ -23,7 +30,14 @@ defmodule PortfolixirWeb.Api.V1.PeriodParam do
         year(Map.get(params, "year"))
 
       true ->
-        {:ok, Map.get(params, "period", "max")}
+        key(Map.get(params, "period", "max"))
+    end
+  end
+
+  defp key(key) do
+    case Periods.resolve(key) do
+      {:ok, term} -> {:ok, term}
+      {:error, _refusal} -> {:error, :invalid_period}
     end
   end
 

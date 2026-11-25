@@ -44,7 +44,13 @@ defmodule PortfolixirWeb.Api.V1.DashboardJSON do
         size_rule: @size_rule,
         full: @full_size
       },
-      periods: %{values: Widgets.periods(), default: Widgets.default_period()},
+      # Sprint 32 T1: the period vocabulary's fixed keys and its keyed
+      # forms (`Portfolixir.Periods`).
+      periods: %{
+        values: Widgets.periods(),
+        keyed: ["year:YYYY"],
+        default: Widgets.default_period()
+      },
       max_dashboards: Dashboards.max_dashboards(),
       name_max: Dashboards.name_max()
     }
@@ -82,7 +88,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardJSON do
   defp period(:none), do: "none"
 
   defp period(rule) do
-    Map.take(rule, [:periods, :param, :values, :ranges, :translated])
+    Map.take(rule, [:periods, :param, :values, :ranges, :years, :keyed, :translated])
   end
 
   @doc """

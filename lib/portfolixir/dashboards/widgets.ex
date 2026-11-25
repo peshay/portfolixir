@@ -26,28 +26,35 @@ defmodule Portfolixir.Dashboards.Widgets do
       the nearest route. A widget's source is the registry's, never the
       layout's (§11).
     * `period` — `:none`, or the rule by which it follows the dashboard's
-      period (§5): `periods` (the dashboard periods it answers), `param`
-      (the source route's query parameter), `values` (dashboard period →
-      the source's own value of `param`), `ranges` (the dashboard periods
-      it answers as a `from`/`to` range ending today, for a route that
-      takes one: ADR-0061 §3's money window, `range_start/2`) and
-      `translated` (the dashboard periods it answers
-      with a different span, which the screen says: „3M → Quartal“).
+      period (§5): `periods` (the fixed keys of the period vocabulary it
+      answers, `Portfolixir.Periods`), `param` (the source route's query
+      parameter), `values` (dashboard period → the source's own value of
+      `param`), `ranges` (the periods it answers as a `from`/`to` range,
+      as `Portfolixir.Periods.resolve/2` spans them: ADR-0061 §3's money
+      window for the short ones), `years` (the periods it answers as
+      `year=`, `year:YYYY` standing for every keyed year), `keyed` (a
+      keyed period answered with the source's own value of `param`, as
+      `values`) and `translated` (the
+      periods it answers with a different span, which the screen says:
+      „3M → Quartal“).
     * `scope` — `:view` when it takes a view (all of today's portfolio reads
       do), else `:none`.
     * `compact` — `true`: a kind is registered only with its compact form
       (§1, §6).
 
-  The dashboard's periods are `periods/0`, the keys Wealth uses for its
-  own (`Portfolixir.Portfolios.Performance.periods/0`), with `"1y"` the
-  default as on Wealth.
+  The dashboard's periods are `periods/0`, the fixed keys of the period
+  vocabulary (`Portfolixir.Periods.keys/0`; ADR-0062's amendment of
+  2026-11-25, point 6; Sprint 32 T1), with `"1y"` the default as on Wealth;
+  a keyed one, `year:YYYY`, is taken wherever a fixed one is.
 
   Nothing here reads data: a widget carries no figure of its own.
   """
 
   use Gettext, backend: PortfolixirWeb.Gettext
 
-  @periods ~w(1d 1w 1m 3m ytd 1y 3y max)
+  alias Portfolixir.Periods
+
+  @periods Periods.keys()
   @default_period "1y"
 
   @sizes ~w(S M L XL full)
@@ -57,7 +64,11 @@ defmodule Portfolixir.Dashboards.Widgets do
   @groups ~w(overview performance allocation risk analyses)
 
   # ADR-0061's windows: 1T to Tag, 1W to Woche, 1M to Monat, 3M to Quartal,
-  # YTD to YTD, 1J, 3J and Max to 1J (ADR-0062 §5).
+  # YTD to YTD, 1J, 3J and Max to 1J (ADR-0062 §5); by the amendment of
+  # 2026-11-25, point 6, mtd and prev_month to Monat, qtd, prev_quarter
+  # and q1 to q4 to Quartal, prev_year and year:YYYY to 1J. The two
+  # rolling keys the vocabulary adds take the nearest window: 6M the
+  # quarter, 5J the year, as 3J does (Sprint 32 T1).
   @movers_period %{
     periods: @periods,
     param: "window",
@@ -66,28 +77,45 @@ defmodule Portfolixir.Dashboards.Widgets do
       "1w" => "week",
       "1m" => "month",
       "3m" => "quarter",
-      "ytd" => "ytd",
+      "6m" => "quarter",
       "1y" => "1y",
       "3y" => "1y",
-      "max" => "1y"
+      "5y" => "1y",
+      "max" => "1y",
+      "mtd" => "month",
+      "prev_month" => "month",
+      "qtd" => "quarter",
+      "prev_quarter" => "quarter",
+      "q1" => "quarter",
+      "q2" => "quarter",
+      "q3" => "quarter",
+      "q4" => "quarter",
+      "ytd" => "ytd",
+      "prev_year" => "1y"
     },
     ranges: [],
+    years: [],
+    keyed: %{"year:YYYY" => "1y"},
     # Tag, Woche and Monat are calendar windows to date (ADR-0061 §3),
     # not the spans ending today that performance reads for 1T, 1W and
     # 1M, so the screen says them too: „folgt · 1W → Woche“ (Sprint 31
-    # closing act, correctness lens C1).
-    translated: ~w(1d 1w 1m 3m 3y max)
+    # closing act, correctness lens C1); a previous month, quarter or year
+    # is read as the current window, and says so.
+    translated: (@periods -- ~w(ytd 1y)) ++ ["year:YYYY"]
   }
 
-  # The performance family takes ytd, 1y, 3y and max as `period=`, and any
-  # span as `from=`/`to=` (`PortfolixirWeb.Api.V1.PeriodParam`), so the four
-  # short periods are a range ending today (`range_start/2`): every period
-  # is its own, none translated.
+  # The performance family takes ytd, 1y, 3y, 5y and max as `period=`, a
+  # year as `year=` and any span as `from=`/`to=`
+  # (`PortfolixirWeb.Api.V1.PeriodParam`), so every other key is the range
+  # `Portfolixir.Periods` spans for it: every period is its own, none
+  # translated.
   @performance_period %{
     periods: @periods,
     param: "period",
-    values: %{"ytd" => "ytd", "1y" => "1y", "3y" => "3y", "max" => "max"},
-    ranges: ~w(1d 1w 1m 3m),
+    values: %{"ytd" => "ytd", "1y" => "1y", "3y" => "3y", "5y" => "5y", "max" => "max"},
+    ranges: ~w(1d 1w 1m 3m 6m mtd prev_month qtd prev_quarter q1 q2 q3 q4),
+    years: ~w(prev_year year:YYYY),
+    keyed: %{},
     translated: []
   }
 
@@ -301,6 +329,8 @@ defmodule Portfolixir.Dashboards.Widgets do
               param: String.t(),
               values: %{String.t() => String.t()},
               ranges: [String.t()],
+              years: [String.t()],
+              keyed: %{String.t() => String.t()},
               translated: [String.t()]
             }
   @type kind :: %{
@@ -355,7 +385,11 @@ defmodule Portfolixir.Dashboards.Widgets do
   @spec groups() :: [String.t()]
   def groups, do: @groups
 
-  @doc "The periods above every dashboard, Wealth's keys (ADR-0062 §5)."
+  @doc """
+  The periods above every dashboard: the fixed keys of the period
+  vocabulary (`Portfolixir.Periods.keys/0`, ADR-0062 §5 as amended on
+  2026-11-25).
+  """
   @spec periods() :: [String.t()]
   def periods, do: @periods
 
@@ -363,11 +397,15 @@ defmodule Portfolixir.Dashboards.Widgets do
   @spec default_period() :: String.t()
   def default_period, do: @default_period
 
-  @doc "Whether the kind `key` answers the dashboard period `period`."
+  @doc """
+  Whether the kind `key` answers the dashboard period `period`: a key of
+  the vocabulary by its form (`Portfolixir.Periods.key?/1`), for a kind
+  with a period rule.
+  """
   @spec takes_period?(term(), term()) :: boolean()
   def takes_period?(key, period) when is_binary(period) do
     case fetch(key) do
-      {:ok, %{period: %{periods: periods}}} -> period in periods
+      {:ok, %{period: %{periods: periods}}} -> period in periods or Periods.key?(period)
       _none -> false
     end
   end
@@ -375,12 +413,29 @@ defmodule Portfolixir.Dashboards.Widgets do
   def takes_period?(_key, _period), do: false
 
   @doc """
+  Whether the kind `key` answers `period` with another span than the
+  period's own, which the screen says („folgt · 3M → Quartal“).
+  """
+  @spec translated?(term(), term()) :: boolean()
+  def translated?(key, period) do
+    case fetch(key) do
+      {:ok, %{period: %{translated: translated}}} when is_binary(period) ->
+        period in translated or (keyed?(period) and "year:YYYY" in translated)
+
+      _none ->
+        false
+    end
+  end
+
+  @doc """
   The query parameters of the kind's source route for the dashboard period
   `period` on `today`: `{:ok, %{"window" => "quarter"}}`, `{:ok,
-  %{"period" => "ytd"}}`, or for a range ending today `{:ok, %{"from" =>
-  "2026-10-22", "to" => "2026-11-21"}}`. `{:error, :no_period}` for a kind
-  that takes none, `{:error, :unknown_period}` for a period it does not
-  answer, `{:error, :unknown_kind}` for an unknown key.
+  %{"period" => "ytd"}}`, `{:ok, %{"year" => "2025"}}`, or for a range
+  `{:ok, %{"from" => "2026-10-22", "to" => "2026-11-21"}}`, as
+  `Portfolixir.Periods.resolve/2` spans it. `{:error, :no_period}` for a
+  kind that takes none, `{:error, :unknown_period}` for a period it does
+  not answer, or one that has not begun on `today`, `{:error,
+  :unknown_kind}` for an unknown key.
   """
   @spec source_params(term(), term(), Date.t()) ::
           {:ok, %{String.t() => String.t()}}
@@ -393,34 +448,35 @@ defmodule Portfolixir.Dashboards.Widgets do
     end
   end
 
-  defp rule_params(%{param: param, values: values, ranges: ranges}, period, today)
-       when is_binary(period) do
-    cond do
-      Map.has_key?(values, period) ->
-        {:ok, %{param => Map.fetch!(values, period)}}
+  # The period resolved first, so a quarter or a year not yet begun is no
+  # period for any kind; then the rule's own value, a range or a year as
+  # the vocabulary spans it.
+  defp rule_params(%{param: param, values: values, keyed: keyed}, period, today) do
+    case Periods.resolve(period, today) do
+      {:ok, term} ->
+        cond do
+          Map.has_key?(values, period) ->
+            {:ok, %{param => Map.fetch!(values, period)}}
 
-      period in ranges ->
-        {:ok,
-         %{"from" => Date.to_iso8601(range_start(period, today)), "to" => Date.to_iso8601(today)}}
+          keyed?(period) and is_map_key(keyed, "year:YYYY") ->
+            {:ok, %{param => keyed["year:YYYY"]}}
 
-      true ->
+          true ->
+            spelled(term)
+        end
+
+      {:error, _refusal} ->
         {:error, :unknown_period}
     end
   end
 
-  defp rule_params(_rule, _period, _today), do: {:error, :unknown_period}
+  defp spelled({:range, from, to}),
+    do: {:ok, %{"from" => Date.to_iso8601(from), "to" => Date.to_iso8601(to)}}
 
-  # A range's `from` is its first chained day: its baseline is the close
-  # of the day before (`Portfolixir.Portfolios.Performance`, as Wealth's
-  # own `ytd` starts on 1 January from 31 December's close). So each short
-  # period is ADR-0061 §3's money window, `S + 1` to `T`, its start day `S`
-  # one day, seven days, one month and three months before today: 1T is
-  # today alone, from the close before it, as the movers' Tag reads it
-  # (Sprint 31 closing act, correctness lens C1, money lens MO1).
-  defp range_start("1d", today), do: today
-  defp range_start("1w", today), do: Date.add(today, -6)
-  defp range_start("1m", today), do: today |> Date.shift(month: -1) |> Date.add(1)
-  defp range_start("3m", today), do: today |> Date.shift(month: -3) |> Date.add(1)
+  defp spelled({:year, year}), do: {:ok, %{"year" => Integer.to_string(year)}}
+  defp spelled(_key), do: {:error, :unknown_period}
+
+  defp keyed?(period), do: is_binary(period) and String.starts_with?(period, "year:")
 
   @doc "`{module, name, arity}` written as Elixir names it: `Mod.fun/2`."
   @spec function_name(mfa()) :: String.t()

@@ -7,6 +7,7 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   @moduletag :sweep
 
   alias Portfolixir.Dashboards.Widgets
+  alias Portfolixir.Periods
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Performance.Movers
 
@@ -175,38 +176,58 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   # I want each widget to follow it by a rule its kind states,
   # so that a widget without the period says which one it shows instead.
   #
-  # Acceptance criteria:
-  # - The dashboard's periods are 1d 1w 1m 3m ytd 1y 3y max, Wealth's keys,
-  #   with 1y the default.
-  # - Tops and flops map 1d→day, 1w→week, 1m→month, 3m→quarter, ytd→ytd and
-  #   1y, 3y, max→1y (their own window keys); 1d, 1w, 1m, 3m, 3y and max
-  #   are marked as translated (Tag, Woche and Monat are calendar windows
-  #   to date, not the trailing spans performance reads).
-  # - Performance takes ytd, 1y, 3y and max as its period and the four short
-  #   periods as the span ending today, ADR-0061 §3's money window.
+  # Acceptance criteria (Sprint 32 T1: the dashboard's list is the period
+  # vocabulary, `Portfolixir.Periods`, with 6m and 5y added):
+  # - The dashboard's periods are the vocabulary's fixed keys, with 1y the
+  #   default.
+  # - Tops and flops map 1d→day, 1w→week, 1m→month, 3m and 6m→quarter,
+  #   ytd→ytd and 1y, 3y, 5y, max→1y; by ADR-0062's amendment of
+  #   2026-11-25, point 6, mtd and prev_month→month, qtd, prev_quarter and
+  #   q1 to q4→quarter, prev_year and year:YYYY→1y. Every key but ytd and
+  #   1y is marked as translated (Tag, Woche and Monat are calendar windows
+  #   to date, not the trailing spans performance reads; a previous month
+  #   or quarter is read as the current one), and the screen says it.
+  # - Performance takes ytd, 1y, 3y, 5y and max as its period, every other
+  #   span as from/to (ADR-0061 §3's money window for the short ones),
+  #   prev_year and year:YYYY as year=: every period is its own, none
+  #   translated.
   # - A kind without a period takes none.
   test "period rules: none, the movers' windows, performance's periods and ranges" do
-    assert Widgets.periods() == ~w(1d 1w 1m 3m ytd 1y 3y max)
+    assert Widgets.periods() == Periods.keys()
+    assert "6m" in Widgets.periods() and "5y" in Widgets.periods()
     assert Widgets.default_period() == "1y"
 
     {:ok, movers} = Widgets.fetch("movers")
 
-    assert movers.period == %{
-             periods: Widgets.periods(),
-             param: "window",
-             values: %{
-               "1d" => "day",
-               "1w" => "week",
-               "1m" => "month",
-               "3m" => "quarter",
-               "ytd" => "ytd",
-               "1y" => "1y",
-               "3y" => "1y",
-               "max" => "1y"
-             },
-             ranges: [],
-             translated: ~w(1d 1w 1m 3m 3y max)
+    assert movers.period.periods == Widgets.periods()
+    assert movers.period.param == "window"
+
+    assert movers.period.values == %{
+             "1d" => "day",
+             "1w" => "week",
+             "1m" => "month",
+             "3m" => "quarter",
+             "6m" => "quarter",
+             "1y" => "1y",
+             "3y" => "1y",
+             "5y" => "1y",
+             "max" => "1y",
+             "mtd" => "month",
+             "prev_month" => "month",
+             "qtd" => "quarter",
+             "prev_quarter" => "quarter",
+             "q1" => "quarter",
+             "q2" => "quarter",
+             "q3" => "quarter",
+             "q4" => "quarter",
+             "ytd" => "ytd",
+             "prev_year" => "1y"
            }
+
+    assert movers.period.keyed == %{"year:YYYY" => "1y"}
+    assert movers.period.ranges == []
+    assert movers.period.years == []
+    assert movers.period.translated == (Widgets.periods() -- ~w(ytd 1y)) ++ ["year:YYYY"]
 
     for {_period, window} <- movers.period.values,
         do: assert(window in Movers.windows())
@@ -219,14 +240,25 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
              "ytd" => "ytd",
              "1y" => "1y",
              "3y" => "3y",
+             "5y" => "5y",
              "max" => "max"
            }
 
-    assert performance.period.ranges == ~w(1d 1w 1m 3m)
+    assert performance.period.ranges ==
+             ~w(1d 1w 1m 3m 6m mtd prev_month qtd prev_quarter q1 q2 q3 q4)
+
+    assert performance.period.years == ~w(prev_year year:YYYY)
+    assert performance.period.keyed == %{}
     assert performance.period.translated == []
 
     for {_period, value} <- performance.period.values,
         do: assert(value in Performance.periods())
+
+    # Every fixed key is answered exactly once by each rule.
+    for rule <- [movers.period, performance.period] do
+      answered = Map.keys(rule.values) ++ rule.ranges ++ (rule.years -- ["year:YYYY"])
+      assert Enum.sort(answered) == Enum.sort(Widgets.periods())
+    end
 
     # „Gesamtwert“ draws, at S, the change the performance read gives for
     # its period (Sprint 31 D8, the width walk's finding 3): it takes the
@@ -275,8 +307,35 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     assert Widgets.source_params("performance", "3m", ~D[2026-05-31]) ==
              {:ok, %{"from" => "2026-03-01", "to" => "2026-05-31"}}
 
+    # Sprint 32 T1: the new keys, as `Portfolixir.Periods` resolves them.
+    assert Widgets.source_params("performance", "5y", today) == {:ok, %{"period" => "5y"}}
+
+    assert Widgets.source_params("performance", "6m", today) ==
+             {:ok, %{"from" => "2026-05-22", "to" => "2026-11-21"}}
+
+    assert Widgets.source_params("performance", "mtd", today) ==
+             {:ok, %{"from" => "2026-11-01", "to" => "2026-11-21"}}
+
+    assert Widgets.source_params("performance", "prev_quarter", today) ==
+             {:ok, %{"from" => "2026-07-01", "to" => "2026-09-30"}}
+
+    assert Widgets.source_params("performance", "prev_year", today) == {:ok, %{"year" => "2025"}}
+    assert Widgets.source_params("performance", "year:2023", today) == {:ok, %{"year" => "2023"}}
+    assert Widgets.source_params("movers", "prev_month", today) == {:ok, %{"window" => "month"}}
+    assert Widgets.source_params("movers", "q1", today) == {:ok, %{"window" => "quarter"}}
+    assert Widgets.source_params("movers", "6m", today) == {:ok, %{"window" => "quarter"}}
+    assert Widgets.source_params("movers", "5y", today) == {:ok, %{"window" => "1y"}}
+    assert Widgets.source_params("movers", "year:2023", today) == {:ok, %{"window" => "1y"}}
+
+    # A quarter or a year not yet begun is no period any kind answers.
+    assert Widgets.source_params("performance", "year:2027", today) == {:error, :unknown_period}
+
+    assert Widgets.source_params("movers", "year:2027", ~D[2026-11-21]) ==
+             {:error, :unknown_period}
+
+    assert Widgets.source_params("performance", "q2", ~D[2026-03-31]) == {:error, :unknown_period}
+
     assert Widgets.source_params("crashes", "1y", today) == {:error, :no_period}
-    assert Widgets.source_params("movers", "5y", today) == {:error, :unknown_period}
     assert Widgets.source_params("movers", "quarter", today) == {:error, :unknown_period}
     assert Widgets.source_params("nope", "1y", today) == {:error, :unknown_kind}
   end
@@ -285,9 +344,24 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     assert Widgets.takes_period?("movers", "3y")
     assert Widgets.takes_period?("performance", "1d")
     assert Widgets.takes_period?("total_value", "max")
-    refute Widgets.takes_period?("movers", "5y")
+    assert Widgets.takes_period?("movers", "5y")
+    assert Widgets.takes_period?("movers", "q3")
+    assert Widgets.takes_period?("performance", "year:2024")
+    refute Widgets.takes_period?("movers", "quarter")
     refute Widgets.takes_period?("crashes", "1y")
     refute Widgets.takes_period?("nope", "1y")
     refute Widgets.takes_period?("movers", :"1y")
+  end
+
+  test "translated?/2 marks what tops and flops read with another span" do
+    for key <-
+          ~w(1d 1w 1m 3m 6m 3y 5y max mtd prev_month qtd prev_quarter q1 q4 prev_year year:2024),
+        do: assert(Widgets.translated?("movers", key), key)
+
+    refute Widgets.translated?("movers", "ytd")
+    refute Widgets.translated?("movers", "1y")
+    refute Widgets.translated?("performance", "mtd")
+    refute Widgets.translated?("performance", "year:2024")
+    refute Widgets.translated?("crashes", "1y")
   end
 end

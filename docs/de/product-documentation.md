@@ -2363,11 +2363,14 @@ nennt und zum ganzen Screen führt.
   inzwischen gelöscht, liest es den Umfang des Dashboards, und seine
   Fußzeile sagt „Seine Ansicht gibt es nicht mehr · liest …“.
 - **Ein Zeitraum über jedem Dashboard** (ADR-0062 §5). Neben dem Umfang
-  setzt **1T · 1W · 1M · 3M · YTD · 1J · 3J · Max** den Zeitraum, den jedes
-  Widget mit Zeitraum liest; **1J** ist der Standard, wie auf Vermögen. Die
-  Adresse trägt ihn, wenn er nicht 1J ist (`/?period=3m`), so öffnet ein
-  Link ein Dashboard auf seinem Zeitraum; ein Wert, der kein Zeitraum ist,
-  öffnet 1J. Ihre Wahl merkt sich dieser Browser (wie den Zeitraum von
+  setzt **1T · 1W · 1M · 3M · 6M · YTD · 1J · 3J · 5J · Max** den Zeitraum,
+  den jedes Widget mit Zeitraum liest; **1J** ist der Standard, wie auf
+  Vermögen. Die Adresse trägt ihn, wenn er nicht 1J ist (`/?period=3m`),
+  und nimmt jeden Schlüssel des Zeitraum-Vokabulars, auch die des Kalenders
+  (`/?period=prev_quarter`, „Vorquartal“; siehe „Das Zeitraum-Vokabular“ in
+  der API-Referenz), so öffnet ein Link ein Dashboard auf seinem Zeitraum;
+  ein Wert, der kein Zeitraum ist, oder ein Quartal oder Jahr, das noch
+  nicht begonnen hat, öffnet 1J. Ihre Wahl merkt sich dieser Browser (wie den Zeitraum von
   Vermögen und das Thema; auf dem Server wird nichts gespeichert), und sie
   bleibt, wenn Sie ein anderes Dashboard öffnen. Unter 600 px sind die
   Zeiträume eine eigene Leiste, die Sie seitwärts wischen.
@@ -2378,8 +2381,10 @@ nennt und zum ganzen Screen führt.
   Snapshots); auch **Gesamtwert** folgt ihr, die Zeile unter dem Wert der
   kleinen Größe gilt dem Zeitraum; und wo das Widget stattdessen sein
   nächstes eigenes Fenster liest, beides: **Tops und Flops** liest 1T als
-  Tag, 1W als Woche, 1M als Monat, 3M als Quartal, YTD als YTD und 1J, 3J
-  und Max als 1J, bei 3M steht also **folgt · 3M → Quartal**.
+  Tag, 1W als Woche, 1M als Monat, 3M und 6M als Quartal, YTD als YTD und
+  1J, 3J, 5J und Max als 1J; lfd. Monat und Vormonat als Monat, lfd.
+  Quartal, Vorquartal und Q1 bis Q4 als Quartal, Vorjahr und ein Jahr als
+  1J — bei 3M steht also **folgt · 3M → Quartal**.
 - **Ein Widget kann seinen eigenen Zeitraum festlegen.** Sein Menü ⋯ bietet
   **Zeitraum festlegen** mit den Zeiträumen, die sein Lesezugriff kennt;
   die Festlegung steht im Eintrag des Widgets im Layout
@@ -2630,8 +2635,9 @@ bewegt, und was hieß das für mich?“ für denselben Umfang wie die Wert-Karte
 Standard-Ansicht, sonst **Alles**. Sein Fenster — **Tag**, **Woche**,
 **Monat**, **Quartal**, **YTD** oder **1J**, jeweils bis heute — ist der
 Zeitraum des Dashboards (oder die Festlegung des Widgets) nach der Regel
-oben: 1T ist Tag, 1W Woche, 1M Monat, 3M Quartal, YTD YTD, und 1J, 3J und
-Max sind 1J; eigene Zeitraum-Chips hat das Widget nicht mehr (Sprint 31,
+oben: 1T ist Tag, 1W Woche, 1M Monat, 3M und 6M Quartal, YTD YTD, und 1J,
+3J, 5J und Max sind 1J, ein Kalenderzeitraum sein Monat, Quartal oder Jahr;
+eigene Zeitraum-Chips hat das Widget nicht mehr (Sprint 31,
 ADR-0062 §5). Zwei Spalten stehen nebeneinander, wo
 das Widget breit genug ist (sonst untereinander), je mit **Höchste** über
 **Niedrigste**, je fünf (unter zehn teilt sich die Liste, kein Name steht in

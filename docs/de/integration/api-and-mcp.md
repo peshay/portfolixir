@@ -4038,14 +4038,32 @@ Beispiel-Payloads für Konten:
   optionales `include_positions=false` (FR-37) liefert nur den Roll-up —
   Summen, Cash-Salden und Cash-Quote ohne die Positionszeilen; die Antwort
   benennt die gelieferte Form über `positions_included`.
+- **Das Zeitraum-Vokabular** (Ergänzung von ADR-0062 vom 2026-11-25,
+  Punkt 6): jeder Lesezugriff mit `period=` — Performance, Benchmark,
+  Beitrag und Bänder, je Portfolio, je View und ohne View — und die
+  Zeiträume und Pins der Dashboards nehmen dieselben Schlüssel, gegen den
+  heutigen Tag aufgelöst. Rollierend: `1d`, `1w`, `1m`, `3m`, `6m`
+  (Bereiche bis heute, das Geldfenster aus ADR-0061 §3 vom Tag nach dem
+  Starttag, seine Basis dessen Schlusskurs: `1d` ist die Änderung heute
+  gegenüber dem Schlusskurs davor, `1w` beginnt sechs Tage zurück, `1m`,
+  `3m` und `6m` am Tag nach dem Datum einen, drei oder sechs Monate
+  zurück), `1y`, `3y`, `5y`, `max`. Kalender: `mtd` (dieser Monat bis
+  heute), `prev_month`, `qtd` (dieses Quartal bis heute), `prev_quarter`
+  (beide ganz), `q1` bis `q4` des laufenden Jahres, `ytd`, `prev_year`. Mit
+  Schlüssel: `year:YYYY`, ein Kalenderjahr. Ein Quartal oder Jahr, das noch
+  nicht begonnen hat, wird mit `422` abgelehnt, nie als leer gelesen; ein
+  Bereich, der nach heute endet, wird auf heute begrenzt. `from`/`to` gehen
+  vor `year`, `year` vor `period`.
 - `GET /api/v1/portfolios/:portfolio_id/performance` liefert die **echte
   zeitgewichtete Rendite (TTWROR)** des Portfolios, berechnet auf die
   Portfolio-Performance-Art: das Portfolio wird täglich bewertet (Kurse am oder vor
   jedem Tag, zu den Kursen jenes Tages umgerechnet, plus Cash), externe Flüsse —
   Einzahlungen, Entnahmen, Lieferungen und Saldo-Snapshot-Sprünge — werden
   neutralisiert, und tägliche Renditen werden geometrisch verkettet (siehe
-  ADR-0010). Optionale Query-Parameter: `period` (`ytd`, `1y`, `3y`, `5y`, `max` —
-  Standard `max`; ein unbekannter Zeitraum liefert `422 Unprocessable Entity`),
+  ADR-0010). Optionale Query-Parameter: `period` (ein Schlüssel des
+  Zeitraum-Vokabulars oben — Standard `max`; ein unbekannter Schlüssel oder
+  ein Quartal oder Jahr, das noch nicht begonnen hat, liefert
+  `422 Unprocessable Entity`),
   `year=YYYY` für ein einzelnes Kalenderjahr, `from=`/`to=` (ISO-Daten, beide
   erforderlich, `from <= to`) für einen freien Zeitraum — beide ehrlich auf die
   vorhandene Historie begrenzt, ein rückwärtiger oder fehlerhafter Zeitraum
@@ -5564,8 +5582,8 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
   Konten-Scope, den auch die View-Bewertung abdeckt, sodass Gesamtwert und
   Rendite immer über dieselben Konten sprechen. Geld, das die View-Grenze
   überquert, zählt als externer Fluss (ADR-0019); Geld zwischen zwei Konten
-  innerhalb der View saldiert sich. `?period=` (`ytd|1y|3y|5y|max`, Standard
-  `max`), `?year=YYYY`, `?from=`/`?to=` (freier Zeitraum) und `?series=true`
+  innerhalb der View saldiert sich. `?period=` (ein Schlüssel des
+  Zeitraum-Vokabulars, Standard `max`), `?year=YYYY`, `?from=`/`?to=` (freier Zeitraum) und `?series=true`
   verhalten sich wie beim Portfolio-Performance-Endpunkt; die Antwort spiegelt
   dessen Form mit `view_id` statt `portfolio_id`, alle Finanzwerte sind
   Decimal-Strings. Unbekannte und fehlerhafte View-ids liefern `404`, ein
@@ -5748,9 +5766,11 @@ zusammenstellen lässt, ohne den Code zu lesen: `{"data": {"widgets",
   `XL` und `full`, die kleinste zuerst), `source` (`routes`, die `GET /api/v1/...`-Routen,
   die es zeichnet; `function`, die Kontextfunktion dahinter; `note`, wo die
   Zahlen keine eigene Route haben), `period` (`"none"` oder `{periods, param,
-  values, ranges, translated}`: die Dashboard-Zeiträume, die es beantwortet,
-  der Abfrageparameter der Quelle, sein Wert je Zeitraum, die Zeiträume,
-  die es als `from`/`to`-Bereich bis heute liest, und die, die es mit
+  values, ranges, years, keyed, translated}`: die Dashboard-Zeiträume, die
+  es beantwortet, der Abfrageparameter der Quelle, sein Wert je Zeitraum,
+  die Zeiträume, die es als `from`/`to`-Bereich liest, die, die es als
+  `year=` schickt (`year:YYYY` steht für jedes Jahr mit Schlüssel), der
+  Wert des Parameters für einen Zeitraum mit Schlüssel, und die, die es mit
   einer anderen Spanne beantwortet, was der Bildschirm beschriftet, etwa
   `3m` als `quarter`), `scope` (`view`, wenn es eine View nimmt, sonst
   `none`) und `compact` (`true`: jede Art hat ihre Telefon-Form).
@@ -5774,14 +5794,13 @@ zusammenstellen lässt, ohne den Code zu lesen: `{"data": {"widgets",
   Größe, die seine Art nicht mehr nimmt, als die nächste, die sie nimmt),
   geordnet wie im Bearbeitungsmodus, von jeder Lesung gleich — Bildschirm,
   `GET` und Begleiter; das nächste Speichern speichert es so.
-- `periods`: `values` (`1d`, `1w`, `1m`, `3m`, `ytd`, `1y`, `3y`, `max`) und
-  `default` (`1y`). Ein Bereich bis heute ist das Geldfenster aus
-  ADR-0061 §3, vom Tag nach seinem Starttag bis heute, seine Basis der
-  Schlusskurs des Starttags: `1d` ist `from` = `to` = heute (die Änderung
-  heute gegenüber dem Schlusskurs davor), `1w` beginnt sechs Tage zurück,
-  `1m` und `3m` am Tag nach dem Datum einen und drei Monate zurück. Die
-  Tops und Flops lesen für `1d`, `1w` und `1m` `day`, `week` und `month`,
-  Kalenderfenster bis heute; dort sind sie deshalb `translated`.
+- `periods`: `values` (die festen Schlüssel des Vokabulars, oben), `keyed`
+  (`year:YYYY`) und `default` (`1y`). Die Tops und Flops lesen für `1d`,
+  `1w` und `1m` `day`, `week` und `month`, Kalenderfenster bis heute, und
+  einen vorigen Monat, ein voriges Quartal oder Jahr als das laufende
+  Fenster (`prev_month` und `mtd` als `month`, `prev_quarter`, `qtd` und
+  `q1` bis `q4` als `quarter`, `6m` als `quarter`, `5y`, `prev_year` und
+  `year:YYYY` als `1y`); dort sind sie deshalb `translated`.
 
 **`GET /api/v1/dashboards`** listet die gespeicherten Dashboards in der
 Reihenfolge des Menüs (nach `position`, dann `id`), danach die Vorlagen.

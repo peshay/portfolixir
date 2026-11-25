@@ -89,13 +89,13 @@ const STEER: Record<TwinFigures, string> = {
 
 function portfolioScopeTwin(twin: string, figures: TwinFigures): string {
   return (
-    ` Scope twin: ${twin} — this tool answers ${PORTFOLIO_SCOPE}; the twin answers ` +
+    ` Scope twin: ${twin} — this tool: ${PORTFOLIO_SCOPE}; the twin: ` +
     `${VIEW_SCOPE_OF[figures]}. ${STEER[figures]}.`
   );
 }
 
 function viewScopeTwin(twin: string, figures: TwinFigures): string {
-  return ` Scope twin: ${twin} — this tool answers ${VIEW_SCOPE_OF[figures]}; the twin answers ${PORTFOLIO_SCOPE}.`;
+  return ` Scope twin: ${twin} — this tool: ${VIEW_SCOPE_OF[figures]}; the twin: ${PORTFOLIO_SCOPE}.`;
 }
 
 const emptyObjectSchema = {
@@ -1716,6 +1716,16 @@ const incomeZ = z.object({
 // Period selection (#563): besides the fixed period strings, a single
 // calendar year or a custom from/to date range (both dates required, from
 // on or before to; the server clamps to the available history).
+// --- S32 T1 begin ---
+// The period is a key of the vocabulary (ADR-0062's amendment of
+// 2026-11-25, point 6; Sprint 32 T1), matched exactly, so a key that is
+// none never leaves the companion: 1d 1w 1m 3m 6m 1y 3y 5y max, mtd
+// prev_month qtd prev_quarter q1..q4 ytd prev_year, and year:YYYY.
+const PERIOD_KEY = "^(1[dwmy]|[36]m|[35]y|max|[mqy]td|q[1-4]|prev_(month|quarter|year)|year:\\d{4})$";
+const periodKey = { type: "string", pattern: PERIOD_KEY };
+const periodKeyZ = z.string().regex(new RegExp(PERIOD_KEY));
+// --- S32 T1 end ---
+
 const performanceSchema = {
   type: "object",
   additionalProperties: false,
@@ -1723,7 +1733,7 @@ const performanceSchema = {
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
     view: { type: "integer", minimum: 1 },
-    period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
+    period: periodKey,
     year: { type: "integer", minimum: 1970 },
     from: { type: "string", format: "date" },
     to: { type: "string", format: "date" },
@@ -1734,7 +1744,7 @@ const performanceSchema = {
 const performanceZ = z.object({
   portfolio_id: z.number().int().positive(),
   view: z.number().int().positive().optional(),
-  period: z.enum(["ytd", "1y", "3y", "5y", "max"]).optional(),
+  period: periodKeyZ.optional(),
   year: z.number().int().min(1970).optional(),
   from: z.string().optional(),
   to: z.string().optional(),
@@ -1748,7 +1758,7 @@ const viewPerformanceSchema = {
   additionalProperties: false,
   properties: {
     id: { type: "integer", minimum: 1 },
-    period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
+    period: periodKey,
     year: { type: "integer", minimum: 1970 },
     from: { type: "string", format: "date" },
     to: { type: "string", format: "date" },
@@ -1758,7 +1768,7 @@ const viewPerformanceSchema = {
 
 const viewPerformanceZ = z.object({
   id: z.number().int().positive().optional(),
-  period: z.enum(["ytd", "1y", "3y", "5y", "max"]).optional(),
+  period: periodKeyZ.optional(),
   year: z.number().int().min(1970).optional(),
   from: z.string().optional(),
   to: z.string().optional(),
@@ -1774,7 +1784,7 @@ const benchmarkSelector = {
   type: "string",
   pattern: "^(security:[0-9]+|rate:-?[0-9]+(\\.[0-9]+)?)$",
   description:
-    "`rate:<decimal>`, a fixed effective annual rate compounding daily from a base of 1 (rate:0.02 is 2 % p.a., the savings or inflation baseline; -0.999999 to 10 with at most 15 decimals), or `security:<id>`, any security with a stored quote, flagged or not (else 422, a merged-away one naming merged_into)."
+    "`rate:<decimal>`, a fixed effective annual rate compounding daily (rate:0.02 is 2 % p.a., the savings or inflation baseline; -0.999999 to 10 with at most 15 decimals), or `security:<id>`, any security with a stored quote, flagged or not (else 422, a merged-away one naming merged_into)."
 };
 
 const benchmarkSelectorZ = z.string().regex(/^(security:\d+|rate:-?\d+(\.\d+)?)$/);
@@ -1816,7 +1826,7 @@ const contributionSchema = {
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
     view: { type: "integer", minimum: 1 },
-    period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
+    period: periodKey,
     year: { type: "integer", minimum: 1970 },
     from: { type: "string", format: "date" },
     to: { type: "string", format: "date" }
@@ -1830,7 +1840,7 @@ const viewContributionSchema = {
   additionalProperties: false,
   properties: {
     id: { type: "integer", minimum: 1 },
-    period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
+    period: periodKey,
     year: { type: "integer", minimum: 1970 },
     from: { type: "string", format: "date" },
     to: { type: "string", format: "date" }
@@ -3832,13 +3842,13 @@ const securityCyclesZ = z
 // The dashboards (ADR-0062 §8; Sprint 31, D2). An item names a kind of the
 // catalogue dashboards.list answers, as a string the API checks against its
 // registry; the shape is checked here. A size is a grid size (full is a
-// page, never placed); settings take a view and a pinned period only. An
+// page, never placed); settings take a view and a pinned period only, a
+// pin a key of the period vocabulary the API checks (Sprint 32 T1). An
 // item's title and source, as get answers them, are taken and not sent:
 // read-only, the registry's, ignored on write (Sprint 31 closing act, C3).
 // Apple's widget families (Sprint 32 E4; ADR-0062's amendment of 2026-11-25,
 // point 3): small, medium, large and extra large.
 const DASHBOARD_SIZES = ["S", "M", "L", "XL"] as const;
-const DASHBOARD_PERIODS = ["1d", "1w", "1m", "3m", "ytd", "1y", "3y", "max"] as const;
 const DASHBOARD_NAME_MAX = 60;
 
 const dashboardsListSchema = { type: "object", additionalProperties: false, properties: {} };
@@ -3887,7 +3897,7 @@ const dashboardsPutSchema = {
                 additionalProperties: false,
                 properties: {
                   view_id: { type: "integer", minimum: 1 },
-                  period: { type: "string", enum: [...DASHBOARD_PERIODS] }
+                  period: { type: "string", maxLength: 25 }
                 }
               }
             }
@@ -3909,7 +3919,7 @@ const dashboardItemZ = z
     col: z.number().int().min(1).max(12),
     row: z.number().int().min(1).max(200),
     settings: z
-      .object({ view_id: z.number().int().positive().optional(), period: z.enum(DASHBOARD_PERIODS).optional() })
+      .object({ view_id: z.number().int().positive().optional(), period: z.string().max(25).optional() })
       .strict()
       .optional(),
     title: z.string().max(80).nullable().optional(),
@@ -4776,7 +4786,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.performance",
     "Portfolio performance (TTWROR + IRR)",
-    "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (default max; year=YYYY for one calendar year; from/to ISO dates, clamped to history). TTWROR neutralises external cash flows the Portfolio Performance way; irr is the annualised money-weighted return of the same dated flows, a Decimal string or null when no rate exists (no sign change, no convergence). Also invested_capital (start_value + net_external_flows), wealth_multiple (end_value / invested_capital; null unless net invested is positive, never negative) and mwr, the non-annualized period rate: read it instead of irr under a year (ADR-0034). series=true adds the daily valuation series; optional view (a view id) scopes to that bucket view's holdings and is echoed. Freshness (ADR-0039): as_of is the walk's compute instant (older than the request when nothing changed since; any write that can affect it invalidates it), stale marks a superseded value served while a fresh one computes, and computation_basis states input series, window, reference and gaps." +
+    "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (default max; year=YYYY for one calendar year; from/to ISO dates, clamped to history). TTWROR neutralises external cash flows; irr is the annualised money-weighted return of the same flows, a Decimal string or null (no sign change, no convergence). Also invested_capital (start_value + net_external_flows), wealth_multiple (end_value / invested_capital; null unless net invested is positive, never negative) and mwr, the non-annualized period rate: read it instead of irr under a year (ADR-0034). series=true adds the daily valuation series; view (a view id) scopes to its holdings, echoed. Freshness (ADR-0039): as_of is the walk's compute instant (a write that can affect it invalidates it), stale marks a superseded value served while a fresh one computes, and computation_basis states input series, window, reference and gaps." +
       portfolioScopeTwin("portfolixir.views.performance", "returns"),
     performanceSchema,
     performanceZ
@@ -4784,7 +4794,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.benchmark",
     "Portfolio benchmark comparison",
-    "The benchmark comparison of a portfolio (ADR-0046, FR-9): its own external flows replayed into a benchmark. benchmark is required (security:<id> takes any security with a stored quote). Two comparisons: bought_once — benchmark_return beside portfolio_ttwror (series=true adds daily points) — and savings_plan — invested_capital, portfolio_end_value, benchmark_end_value (the opening value and every external flow bought at that day's price; a rate at par), end_value_delta = real minus synthetic, portfolio_irr and benchmark_irr on identical dated flows, portfolio_mwr and benchmark_mwr (read them under a year), and benchmark_units. requested_window and window give the days covered, window.rebase_day the close the benchmark is rebased to (the close before the window, or its first day if it opens empty): a flow before the benchmark's first priced day (a close and a rate path to the base currency) enters through the opening value and is listed in excluded_flows; both sides chain over the covered window. costs_paid: the fees and taxes this scope booked in requested_window (the costs read's rule, scoped by the paying cash account), excluded {count, currencies}, own computation_basis; never subtracted from the gap. period, year, from/to and view as in portfolixir.portfolios.performance. Financial values are Decimal strings; as_of and stale: the walk's freshness (ADR-0039); computation_basis states input series, window, reference, benchmark_security (flagged, held or unheld), gaps and assumptions: the synthetic portfolio is frictionless (frictionless: true), biasing it against the real one. Nothing to walk, or no benchmark quote in the window: null figures, window.start_date null, every flow named." +
+    "The benchmark comparison of a portfolio (ADR-0046): its own external flows replayed into a benchmark. benchmark is required (security:<id> takes any security with a stored quote). Two comparisons: bought_once — benchmark_return beside portfolio_ttwror (series=true adds daily points) — and savings_plan — invested_capital, portfolio_end_value, benchmark_end_value (the opening value and every external flow bought at that day's price; a rate at par), end_value_delta = real minus synthetic, portfolio_irr and benchmark_irr on the same flows, portfolio_mwr and benchmark_mwr (read them under a year), and benchmark_units. requested_window and window give the days covered, window.rebase_day the close the benchmark is rebased to (the close before the window, else its first day): a flow before the benchmark's first priced day (a close and a rate path to the base currency) enters through the opening value, listed in excluded_flows; both sides chain over the covered window. costs_paid: the fees and taxes this scope booked in requested_window (the costs read's rule, by paying cash account), excluded {count, currencies}, own computation_basis; never subtracted from the gap. period, year, from/to and view as in portfolixir.portfolios.performance. Decimal strings; as_of and stale: the walk's freshness (ADR-0039); computation_basis states input series, window, reference, benchmark_security (flagged, held or unheld), gaps and assumptions: the synthetic portfolio is frictionless (frictionless: true), biasing it against the real one. Nothing to walk, or no benchmark quote in the window: null figures, window.start_date null, every flow named." +
       portfolioScopeTwin("portfolixir.views.benchmark", "returns"),
     benchmarkSchema,
     benchmarkZ
@@ -4792,7 +4802,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.contribution",
     "Portfolio contribution analysis",
-    "Which position made how much of a portfolio's money result over a period (FR-41, ADR-0051). Per row, in the base currency, currency move included: contribution = end_value - start_value - net_flows + income - costs, plus held_at_start, held_at_end, unvalued_days and unvalued_reason (no_price|no_rate: such a day counts zero, the row stays in the sum); largest first, sold positions included. remainder: interest, standalone_fees_and_taxes and cash_currency_effect; totals.positions + totals.remainder = totals.result, the performance read's money result. period, year, from/to and view as in portfolixir.portfolios.performance; an empty window has start_date null and no rows. Decimal strings; as_of, stale and computation_basis (with assumptions) as there." +
+    "Which position made how much of a portfolio's money result over a period (ADR-0051). Per row, in base currency, currency move included: contribution = end_value - start_value - net_flows + income - costs, plus held_at_start, held_at_end, unvalued_days and unvalued_reason (no_price|no_rate: such a day counts zero, the row stays in the sum); largest first, sold positions included. remainder: interest, standalone_fees_and_taxes and cash_currency_effect; totals.positions + totals.remainder = totals.result, the performance read's money result. period, year, from/to and view as in portfolixir.portfolios.performance; an empty window has start_date null and no rows. Decimal strings; as_of, stale and computation_basis (with assumptions) as there." +
       portfolioScopeTwin("portfolixir.views.contribution", "contributions"),
     contributionSchema,
     contributionZ
@@ -4925,7 +4935,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.views.performance",
     "View performance (cross-portfolio TTWROR + IRR)",
-    "TTWROR and money-weighted IRR of a bucket view across ALL portfolios (id), over the accounts portfolixir.views.valuation values. Money crossing the view boundary is an external flow (a deposit or withdrawal to the slice); money between two in-scope accounts nets out. invested_capital, wealth_multiple, mwr (read it instead of irr under a year), period (default max), year, from/to, series, as_of, stale and computation_basis read as in portfolixir.portfolios.performance. Decimal strings." +
+    "TTWROR and money-weighted IRR of a bucket view (id) over the accounts portfolixir.views.valuation values. Money crossing the view boundary is an external flow; money between two in-scope accounts nets out. invested_capital, wealth_multiple, mwr (read it instead of irr under a year), period (default max), year, from/to, series, as_of, stale and computation_basis read as in portfolixir.portfolios.performance. Decimal strings." +
       viewScopeTwin("portfolixir.portfolios.performance", "returns"),
     viewPerformanceSchema,
     viewPerformanceZ
@@ -4933,7 +4943,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.views.benchmark",
     "View benchmark comparison (cross-portfolio)",
-    "The benchmark comparison of a bucket view across ALL portfolios (id is the view id; ADR-0046 §3), over the accounts of portfolixir.views.performance. benchmark is required, as its property says; the response is the portfolixir.portfolios.benchmark shape keyed by view_id: bought_once, savings_plan (end_value_delta, benchmark_mwr and the rest), requested_window and window (with rebase_day), excluded_flows, costs_paid (the costs of the view's cash accounts), as_of, stale and computation_basis (frictionless: true); financial values are Decimal strings. period, year, from/to and series as in portfolixir.portfolios.performance." +
+    "The benchmark comparison of a bucket view (id; ADR-0046 §3) over the accounts of portfolixir.views.performance. benchmark is required; the response is the portfolixir.portfolios.benchmark shape keyed by view_id: bought_once, savings_plan (end_value_delta, benchmark_mwr and the rest), requested_window and window (with rebase_day), excluded_flows, costs_paid (the costs of the view's cash accounts), as_of, stale and computation_basis (frictionless: true); values are Decimal strings. period, year, from/to and series as in portfolixir.portfolios.performance." +
       viewScopeTwin("portfolixir.portfolios.benchmark", "returns"),
     viewBenchmarkSchema,
     viewBenchmarkZ
@@ -4941,7 +4951,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.views.contribution",
     "View contribution analysis (cross-portfolio)",
-    "Contribution analysis of a bucket view (id is the view id): the portfolixir.portfolios.contribution shape with portfolio_id null, over the accounts of portfolixir.views.performance, whose money result totals.result is; a position held in several portfolios is one row. period, year and from/to as there. Decimal strings." +
+    "Contribution analysis of a bucket view (id: the view): the portfolixir.portfolios.contribution shape with portfolio_id null, over the accounts of portfolixir.views.performance, whose money result totals.result is; a position held in several portfolios is one row. period, year and from/to as there. Decimal strings." +
       viewScopeTwin("portfolixir.portfolios.contribution", "contributions"),
     viewContributionSchema,
     viewContributionZ
