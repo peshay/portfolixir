@@ -104,7 +104,8 @@ defmodule Portfolixir.Dashboards.FamiliesTest do
              "allocation_drift" => ~w(L),
              "crashes" => ~w(L),
              "bitcoin_cycle" => ~w(L XL full),
-             "sale_review" => ~w(L row)
+             "sale_review" => ~w(L row),
+             "distance_to_high" => ~w(L XL)
            } == Map.new(Widgets.kinds(), &{&1.key, &1.sizes})
 
     area = fn size ->

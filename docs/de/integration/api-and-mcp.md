@@ -5760,7 +5760,8 @@ zusammenstellen lässt, ohne den Code zu lesen: `{"data": {"widgets",
 - `widgets`: jede registrierte Art in der Reihenfolge des Katalogs, jede mit
   `key` (der stabile String, den ein Layout nennt: `total_value`,
   `data_quality`, `due`, `off_target`, `performance`, `movers`, `snapshots`,
-  `allocation_drift`, `crashes`, `bitcoin_cycle`, `sale_review`), `title`
+  `allocation_drift`, `crashes`, `bitcoin_cycle`, `sale_review`, seit
+  Sprint 32 auch `distance_to_high`), `title`
   (englisch) und `title_key` (`{context, msgid}`, die Meldung, die der
   Bildschirm übersetzt), `group`, `sizes` (eine Teilmenge von `S`, `M`, `L`,
   `XL`, `row` und `full`, die kleinste zuerst), `source` (`routes`, die `GET /api/v1/...`-Routen,

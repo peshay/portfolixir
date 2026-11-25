@@ -26,7 +26,9 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     "allocation_drift" => {~w(L), "allocation", "Allokation und Drift"},
     "crashes" => {~w(L), "risk", "Crashes im Vergleich"},
     "bitcoin_cycle" => {~w(L XL full), "analyses", "Bitcoin-Zyklus"},
-    "sale_review" => {~w(L row), "analyses", "Verkaufsrückblick"}
+    "sale_review" => {~w(L row), "analyses", "Verkaufsrückblick"},
+    # Sprint 32 S5 (I61): the themes' kinds.
+    "distance_to_high" => {~w(L XL), "analyses", "Abstand zum Hoch"}
   }
 
   # User story:
@@ -36,14 +38,16 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   # so that a layout can name a kind and the server knows what it shows.
   #
   # Acceptance criteria:
-  # - The registry holds exactly the slice's eleven kinds, each with the
+  # - The registry holds exactly the twelve kinds (eleven of Sprint 31 and
+  #   Sprint 32 S5's „Abstand zum Hoch“), each with the
   #   sizes and the group the board draws, in the catalogue's order.
   # - Every kind is registered with its compact form (ADR-0062 §1).
   # - Lookup is by string key; an unknown string, an atom or another term
   #   finds nothing.
-  test "the registry holds the slice's eleven kinds with their sizes and groups" do
+  test "the registry holds the twelve kinds with their sizes and groups" do
     assert Widgets.keys() == ~w(total_value data_quality due off_target performance movers
-                                snapshots allocation_drift crashes bitcoin_cycle sale_review)
+                                snapshots allocation_drift crashes bitcoin_cycle sale_review
+                                distance_to_high)
 
     for {key, {sizes, group, _german}} <- @slice do
       assert {:ok, kind} = Widgets.fetch(key)

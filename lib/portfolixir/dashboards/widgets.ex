@@ -337,7 +337,35 @@ defmodule Portfolixir.Dashboards.Widgets do
       period: :none,
       scope: :none,
       compact: true
+    },
+    # --- S32 S5 begin ---
+    %{
+      key: "distance_to_high",
+      title: "Distance to high",
+      group: "analyses",
+      # Sprint 32 S5 (I61; boards 03, 05): the scope's holdings with their
+      # distance to the 52-week high and their largest drawdown, from the
+      # per-security metrics read (ADR-0047); L a list, XL a longer one.
+      sizes: ~w(L XL),
+      source: %{
+        routes: [
+          "GET /api/v1/valuation",
+          "GET /api/v1/views/:view_id/valuation",
+          "GET /api/v1/securities/:security_id/metrics"
+        ],
+        function: {Portfolixir.Catalog.SecurityMetrics, :for_security, 2},
+        note:
+          "The securities are the positions the scope holds today (the valuation read's, " <>
+            "a view's or every depot's); one metrics read per security: " <>
+            "metrics.distance_to_extremes.distance_to_high_pct and its high, and " <>
+            "metrics.max_drawdown[\"365d\"].value; listed by the distance, ascending, a " <>
+            "refused one last."
+      },
+      period: :none,
+      scope: :view,
+      compact: true
     }
+    # --- S32 S5 end ---
   ]
 
   @by_key Map.new(@kinds, &{&1.key, &1})
@@ -545,6 +573,7 @@ defmodule Portfolixir.Dashboards.Widgets do
   def title("crashes"), do: pgettext("widget kind", "Crashes compared")
   def title("bitcoin_cycle"), do: pgettext("widget kind", "Bitcoin cycle")
   def title("sale_review"), do: pgettext("widget kind", "Sale review")
+  def title("distance_to_high"), do: pgettext("widget kind", "Distance to high")
   def title(_key), do: nil
 
   @doc "The group's title in the current locale; `nil` for an unknown group."

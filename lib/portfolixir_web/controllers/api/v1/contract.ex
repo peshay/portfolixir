@@ -111,8 +111,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             "Sprint 32, S4 (ADR-0062's amendment of 2026-11-25, point 5): a template entry " <>
               "names its gallery group (starter or theme), whether it is a starter, whether " <>
               "it asks for a scope (asks_scope) and its subtitle; only a template whose kinds " <>
-              "are all built is listed. No endpoint or tool is added."
+              "are all built is listed. No endpoint or tool is added.",
             # --- S32 S4 end ---
+            # --- S32 S5 begin ---
+            "Sprint 32, S5 (I61): the widget kind distance_to_high, the scope's holdings " <>
+              "with their distance to the 52-week high and their largest drawdown from GET " <>
+              "/api/v1/securities/:security_id/metrics. No endpoint or tool is added."
+            # --- S32 S5 end ---
           ],
           " "
         ),
@@ -209,8 +214,11 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         # --- S32 S4 begin ---
         "GET /api/v1/dashboards and GET /api/v1/dashboards/template:<key> " <>
           "(portfolixir.dashboards.list, portfolixir.dashboards.get), added: a template's " <>
-          "group, starter, asks_scope and subtitle"
+          "group, starter, asks_scope and subtitle",
         # --- S32 S4 end ---
+        # --- S32 S5 begin ---
+        "GET /api/v1/widgets (portfolixir.dashboards.list), added: the kind distance_to_high"
+        # --- S32 S5 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],
