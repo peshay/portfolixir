@@ -116,7 +116,10 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- S32 S5 begin ---
             "Sprint 32, S5 (I61): the widget kind distance_to_high, the scope's holdings " <>
               "with their distance to the 52-week high and their largest drawdown from GET " <>
-              "/api/v1/securities/:security_id/metrics. No endpoint or tool is added."
+              "/api/v1/securities/:security_id/metrics; the kind crash_chart, the crash " <>
+              "benchmark's quotes over the period with the crash windows of GET /api/v1/crashes; " <>
+              "its period rule answers every dashboard period as a from/to range. No endpoint " <>
+              "or tool is added."
             # --- S32 S5 end ---
           ],
           " "
@@ -217,7 +220,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "group, starter, asks_scope and subtitle",
         # --- S32 S4 end ---
         # --- S32 S5 begin ---
-        "GET /api/v1/widgets (portfolixir.dashboards.list), added: the kind distance_to_high"
+        "GET /api/v1/widgets (portfolixir.dashboards.list), added: the kinds " <>
+          "distance_to_high and crash_chart"
         # --- S32 S5 end ---
       ],
       removed_endpoints: [],

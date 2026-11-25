@@ -86,6 +86,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.Dashboard.PeriodMenu
   alias PortfolixirWeb.Dashboard.Widget
   alias PortfolixirWeb.Dashboard.Widgets.AllocationDrift, as: AllocationDriftWidget
+  alias PortfolixirWeb.Dashboard.Widgets.CrashChart, as: CrashChartWidget
   alias PortfolixirWeb.Dashboard.Widgets.Crashes, as: CrashesWidget
   alias PortfolixirWeb.Dashboard.Widgets.DistanceToHigh, as: DistanceToHighWidget
   alias PortfolixirWeb.Dashboard.Widgets.Line
@@ -759,7 +760,8 @@ defmodule PortfolixirWeb.DashboardLive do
         crashes: %{},
         crash_universe: Map.get(socket.assigns, :crash_universe, "held"),
         # --- S32 S5 begin ---
-        distance_to_high: %{}
+        distance_to_high: %{},
+        crash_chart: %{}
         # --- S32 S5 end ---
       )
 
@@ -846,9 +848,25 @@ defmodule PortfolixirWeb.DashboardLive do
       :distance_to_high,
       &DistanceToHighWidget.read/1
     )
+    |> start_each(
+      once.(:crash_chart, item_periods(items, "crash_chart", period)),
+      :crash_chart,
+      &CrashChartWidget.read/1
+    )
 
     # --- S32 S5 end ---
   end
+
+  # --- S32 S5 begin ---
+  # The periods the items of `kind` read: each its pin, else the
+  # dashboard's (`Widget.with_period/3`).
+  defp item_periods(items, kind, period) do
+    for item <- items, item.kind == kind, uniq: true do
+      Widget.with_period(item, period, false).period
+    end
+  end
+
+  # --- S32 S5 end ---
 
   # One read per `{name, key}` whose key `field` neither holds nor has
   # last asked under its name (`read/4`).
@@ -1030,7 +1048,8 @@ defmodule PortfolixirWeb.DashboardLive do
               :performance_bands,
               :allocation_drift,
               :crashes,
-              :distance_to_high
+              :distance_to_high,
+              :crash_chart
             ] do
     answer =
       case result do
@@ -2222,7 +2241,8 @@ defmodule PortfolixirWeb.DashboardLive do
       :snapshots,
       :crashes,
       :crash_universe,
-      :distance_to_high
+      :distance_to_high,
+      :crash_chart
     ])
   end
 
@@ -2766,6 +2786,14 @@ defmodule PortfolixirWeb.DashboardLive do
 
     ~H"""
     <DistanceToHighWidget.widget item={@item} card={@card} scope_label={scope_label(@item, @views)} />
+    """
+  end
+
+  defp widget(%{item: %{kind: "crash_chart"}} = assigns) do
+    assigns = assign(assigns, :card, Map.get(assigns.crash_chart, assigns.period))
+
+    ~H"""
+    <CrashChartWidget.widget item={@item} card={@card} />
     """
   end
 

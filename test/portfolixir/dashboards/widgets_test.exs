@@ -28,7 +28,8 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     "bitcoin_cycle" => {~w(L XL full), "analyses", "Bitcoin-Zyklus"},
     "sale_review" => {~w(L row), "analyses", "Verkaufsrückblick"},
     # Sprint 32 S5 (I61): the themes' kinds.
-    "distance_to_high" => {~w(L XL), "analyses", "Abstand zum Hoch"}
+    "distance_to_high" => {~w(L XL), "analyses", "Abstand zum Hoch"},
+    "crash_chart" => {~w(L XL), "risk", "Crash-Chart"}
   }
 
   # User story:
@@ -38,16 +39,16 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   # so that a layout can name a kind and the server knows what it shows.
   #
   # Acceptance criteria:
-  # - The registry holds exactly the twelve kinds (eleven of Sprint 31 and
-  #   Sprint 32 S5's „Abstand zum Hoch“), each with the
+  # - The registry holds exactly the kinds: eleven of Sprint 31 and
+  #   Sprint 32 S5's „Abstand zum Hoch“ and „Crash-Chart“, each with the
   #   sizes and the group the board draws, in the catalogue's order.
   # - Every kind is registered with its compact form (ADR-0062 §1).
   # - Lookup is by string key; an unknown string, an atom or another term
   #   finds nothing.
-  test "the registry holds the twelve kinds with their sizes and groups" do
+  test "the registry holds every kind with its sizes and group" do
     assert Widgets.keys() == ~w(total_value data_quality due off_target performance movers
                                 snapshots allocation_drift crashes bitcoin_cycle sale_review
-                                distance_to_high)
+                                distance_to_high crash_chart)
 
     for {key, {sizes, group, _german}} <- @slice do
       assert {:ok, kind} = Widgets.fetch(key)
@@ -195,6 +196,10 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   #   span as from/to (ADR-0061 §3's money window for the short ones),
   #   prev_year and year:YYYY as year=: every period is its own, none
   #   translated.
+  # - „Crash-Chart“ (Sprint 32 S5) answers every period as a whole range
+  #   from its first day to its last: 1W seven days, YTD from 1 January,
+  #   1J and 3J the day after the date a year and three years back, Max
+  #   from 1900, a past year its 1 January to 31 December.
   # - A kind without a period takes none.
   test "period rules: none, the movers' windows, performance's periods and ranges" do
     assert Widgets.periods() == Periods.keys()
@@ -282,7 +287,34 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
       assert route in kind.source.routes, "#{kind.key}: #{route}"
     end
 
-    for key <- Widgets.keys() -- ~w(movers performance total_value) do
+    # Sprint 32 S5: „Crash-Chart“ draws the benchmark's quotes from the
+    # period's first day to today, every period a from/to range.
+    {:ok, crash_chart} = Widgets.fetch("crash_chart")
+
+    assert crash_chart.period.whole_ranges
+    assert crash_chart.period.periods == Widgets.periods()
+    assert crash_chart.period.values == %{}
+    assert crash_chart.period.translated == []
+
+    today = ~D[2026-11-21]
+
+    for {period, from} <- [
+          {"1w", "2026-11-15"},
+          {"ytd", "2026-01-01"},
+          {"1y", "2025-11-22"},
+          {"3y", "2023-11-22"},
+          {"max", "1900-01-01"},
+          {"mtd", "2026-11-01"}
+        ] do
+      assert Widgets.source_params("crash_chart", period, today) ==
+               {:ok, %{"from" => from, "to" => "2026-11-21"}},
+             period
+    end
+
+    assert Widgets.source_params("crash_chart", "year:2024", today) ==
+             {:ok, %{"from" => "2024-01-01", "to" => "2024-12-31"}}
+
+    for key <- Widgets.keys() -- ~w(movers performance total_value crash_chart) do
       {:ok, kind} = Widgets.fetch(key)
       assert kind.period == :none, key
     end

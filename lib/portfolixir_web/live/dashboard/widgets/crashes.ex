@@ -22,6 +22,14 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
   widget shows the lowest return in the chosen universe and the dates,
   which the rankings route answers, rather than a figure of its own.
 
+  **The running fall first, and „erholt nach“** (Sprint 32 S5; board
+  `ux-design-2026-11-25-sprint32/11` ③): a window still running heads the
+  list, the others follow newest first, and each recovered window says
+  after how many calendar days from its low the benchmark was back at its
+  high — its `recovered_on` less its `trough`, both dates the same read
+  answers (`GET /api/v1/crashes`); a running window and a manual one,
+  which carries no recovery, read „—“.
+
   No verdict (ADR-0058 §8): the table compares prices and names no action.
   """
   use Phoenix.Component
@@ -92,6 +100,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
       kind: window.kind,
       start: window.start,
       trough: window.trough,
+      recovered_on: Map.get(window, :recovered_on),
       provisional: Map.get(window, :provisional, false),
       benchmark_return: reference && reference.return,
       lowest:
@@ -104,16 +113,24 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
     }
   end
 
-  # Every window, newest first, as the Risk tab orders them: by start, a
-  # detected one before a manual one of the same day, then by key.
+  # Every window, the running one first (Sprint 32 S5), then newest first,
+  # as the Risk tab orders them: by start, a detected one before a manual
+  # one of the same day, then by key.
   defp ordered(listing) do
     Enum.sort(listing.detected ++ listing.manual, fn a, b ->
-      case Date.compare(a.start, b.start) do
-        :gt -> true
-        :lt -> false
-        :eq -> {a.kind, a.key} <= {b.kind, b.key}
-      end
+      running_a = Map.get(a, :provisional, false)
+      running_b = Map.get(b, :provisional, false)
+
+      if running_a != running_b, do: running_a, else: newer?(a, b)
     end)
+  end
+
+  defp newer?(a, b) do
+    case Date.compare(a.start, b.start) do
+      :gt -> true
+      :lt -> false
+      :eq -> {a.kind, a.key} <= {b.kind, b.key}
+    end
   end
 
   # -- the widget ---------------------------------------------------------------
@@ -184,6 +201,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
             <th scope="col"><%= gettext("Window") %></th>
             <th scope="col" class="num"><%= gettext("Benchmark") %></th>
             <th scope="col"><%= lowest_label(@universe) %></th>
+            <th scope="col" class="num"><%= gettext("Recovered") %></th>
           </tr>
         </thead>
         <tbody>
@@ -201,6 +219,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
                 <span class="muted">—</span>
               <% end %>
             </td>
+            <td class="num" data-role="crash-recovered"><%= recovered(window) %></td>
           </tr>
         </tbody>
       </table>
@@ -225,6 +244,15 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
     </Widget.frame>
     """
   end
+
+  # „erholt nach“: the calendar days from the window's low to its recovery,
+  # „—“ while it runs or for a window without one (a manual one).
+  defp recovered(%{recovered_on: %Date{} = recovered, trough: %Date{} = trough}) do
+    days = Date.diff(recovered, trough)
+    ngettext("after %{count} day", "after %{count} days", days)
+  end
+
+  defp recovered(_window), do: "—"
 
   defp universe_label("held"), do: pgettext("crash universe", "In depot")
   defp universe_label("catalogue"), do: pgettext("crash universe", "Catalogue")

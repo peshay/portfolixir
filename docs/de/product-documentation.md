@@ -2495,6 +2495,20 @@ nennt und zum ganzen Screen führt.
   /api/v1/securities/<id>/metrics`), in der eigenen Währung des
   Wertpapiers, und sein ⓘ sagt, wie sie gemessen sind. Es sagt, wo ein
   Kurs steht, und nichts darüber, was zu tun ist.
+- **Crash-Chart** (Sprint 32, L und XL; für das Thema Rücksetzer)
+  zeichnet die gespeicherten Schlusskurse der Crash-Benchmark über den
+  Zeitraum des Widgets, jedes Crash-Fenster darin rot hinterlegt und mit
+  seinem Rückgang benannt, das laufende kräftiger („läuft −11,2 %“);
+  darunter der erste und der letzte Schlusskurs des Zeitraums, sein Tief
+  und sein Hoch. Es folgt dem Zeitraum des Dashboards, eine auf 1M
+  festgepinnte Kopie ist also der Zoom. Seine Fenster sind die von `GET
+  /api/v1/crashes`, seine Linie die bereinigten Schlusskurse der
+  Kurs-Route.
+- **Crashes im Vergleich** zeigt den laufenden Fall zuerst, dann die
+  anderen, neueste zuerst, und sagt seit Sprint 32 für jedes erholte
+  Fenster, nach wie vielen Tagen ab seinem Tief die Benchmark wieder auf
+  ihrem Hoch stand („Erholt: nach 94 Tagen“); ein laufendes oder ein
+  manuelles Fenster zeigt „—“.
 - **Die Größen sind Apples Widget-Familien** (Sprint 32; Ergänzung von
   ADR-0062 vom 25.11.2026, Punkt 3): **S** (3 Spalten mal 2 Zeilen),
   **M** (6 × 2), **L** (6 × 4) und **XL** (12 × 4, die volle Breite), jede

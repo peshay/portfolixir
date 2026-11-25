@@ -2255,6 +2255,17 @@ screen.
   /api/v1/securities/<id>/metrics`), in each security's own currency, and
   its ⓘ states how they are measured. It says where a price stands and
   nothing about what to do.
+- **Crash chart** (Sprint 32, L and XL; for the theme Pullbacks) draws the
+  crash benchmark's stored closes over the widget's period with every
+  crash window that falls into it shaded in red and named with its
+  decline, the running one stronger ("running −11.2%"); under it the
+  period's first and last close, its low and its high. It follows the
+  dashboard's period, so a copy pinned to 1M is the zoom. Its windows are
+  `GET /api/v1/crashes`'s, its line the quotes route's adjusted closes.
+- **Crashes compared** lists the running fall first, then the others
+  newest first, and since Sprint 32 says for each recovered window after
+  how many days from its low the benchmark was back at its high
+  ("Recovered: after 94 days"); a running or manual window reads "—".
 - **The sizes are Apple's widget families** (Sprint 32; ADR-0062's
   amendment of 2026-11-25, point 3): **S** (3 columns by 2 rows), **M**
   (6 × 2), **L** (6 × 4) and **XL** (12 × 4, the full width), each a
