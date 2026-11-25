@@ -370,7 +370,7 @@ msgstr ""
 msgid "is not a size this widget kind takes: the sizes are the families S, M, L and XL"
 msgstr ""
 
-#: lib/portfolixir/periods.ex:364
+#: lib/portfolixir/periods.ex:458
 #, elixir-autogen, elixir-format
 msgid "must be the whole number the period was read with"
 msgstr ""

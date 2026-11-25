@@ -44,6 +44,7 @@ defmodule Portfolixir.Periods do
   alias Portfolixir.Journal
   alias Portfolixir.Periods.SavedPeriod
   alias Portfolixir.Repo
+  alias Portfolixir.Settings
 
   @rolling ~w(1d 1w 1m 3m 6m 1y 3y 5y max)
   @calendar ~w(mtd prev_month qtd prev_quarter q1 q2 q3 q4 ytd prev_year)
@@ -57,6 +58,8 @@ defmodule Portfolixir.Periods do
   @saved_key ~r/\Asaved:([1-9][0-9]{0,18})\z/
 
   @max_saved 50
+  @max_quick 6
+  @default_quick ~w(1w mtd ytd 1y max)
   @max_id 9_223_372_036_854_775_807
   @resource_type "period"
   # The transaction advisory lock a create takes before it counts
@@ -182,6 +185,97 @@ defmodule Portfolixir.Periods do
 
   defp saved_span(%SavedPeriod{from: from, to: to}, today), do: {:ok, {:range, from, to || today}}
   defp saved_span(nil, _today), do: {:error, :not_found}
+
+  # --- the quick choice (Sprint 32 T3) ---------------------------------------
+
+  @doc "The most keys the quick choice holds."
+  @spec max_quick() :: pos_integer()
+  def max_quick, do: @max_quick
+
+  @doc "The quick choice while none is stored: 1W, lfd. Monat, YTD, 1J, Max."
+  @spec default_quick_choice() :: [String.t()]
+  def default_quick_choice, do: @default_quick
+
+  @doc """
+  The quick choice of the dashboard's top bar: `keys`, the stored keys in
+  their order (the default while none is stored, `default: true`), without
+  a `saved:<id>` whose period was deleted, which `dropped` names. A read
+  never writes: the next `put_quick_choice/2` stores the choice without
+  it.
+  """
+  @spec quick_choice() :: %{keys: [String.t()], default: boolean(), dropped: [String.t()]}
+  def quick_choice do
+    case Settings.period_quick_choice() do
+      nil ->
+        %{keys: @default_quick, default: true, dropped: []}
+
+      stored ->
+        saved_ids = MapSet.new(list_saved(), & &1.id)
+
+        {kept, dropped} =
+          Enum.split_with(stored, fn key ->
+            case saved_id(key) do
+              {:ok, id} -> MapSet.member?(saved_ids, id)
+              :error -> key?(key)
+            end
+          end)
+
+        %{keys: kept, default: false, dropped: dropped}
+    end
+  end
+
+  @doc """
+  Stores `keys` as the quick choice on behalf of `actor`, journaled as a
+  setting: at most `max_quick/0` keys of the vocabulary, each once, in the
+  order shown; a `saved:<id>` must name a stored period, checked under the
+  setting's lock. `{:ok, keys}`, or `{:error, {reason, message}}` with
+  `reason` one of `:not_a_list`, `:too_many`, `:duplicate`,
+  `:unknown_key`, writing nothing.
+  """
+  @spec put_quick_choice(Actor.t(), term()) ::
+          {:ok, [String.t()]}
+          | {:error, {:not_a_list | :too_many | :duplicate | :unknown_key, String.t()}}
+  def put_quick_choice(%Actor{} = actor, keys) do
+    with :ok <- quick_shape(keys),
+         :ok <- Settings.set_period_quick_choice(actor, keys, fn -> quick_saved(keys) end) do
+      {:ok, keys}
+    end
+  end
+
+  defp quick_shape(keys) when not is_list(keys),
+    do: {:error, {:not_a_list, "must be a list of period keys"}}
+
+  defp quick_shape(keys) do
+    cond do
+      length(keys) > @max_quick ->
+        {:error, {:too_many, "holds at most #{@max_quick} keys"}}
+
+      not Enum.all?(keys, &key?/1) ->
+        bad = Enum.find(keys, &(not key?(&1)))
+        {:error, {:unknown_key, "#{inspect(bad)} is no period key"}}
+
+      length(Enum.uniq(keys)) != length(keys) ->
+        {:error, {:duplicate, "names a key twice"}}
+
+      true ->
+        :ok
+    end
+  end
+
+  # Under the setting's lock: every own period it names is stored now.
+  defp quick_saved(keys) do
+    missing =
+      Enum.find(keys, fn key ->
+        case saved_id(key) do
+          {:ok, id} -> get_saved(id) == nil
+          :error -> false
+        end
+      end)
+
+    if missing,
+      do: {:error, {:unknown_key, "#{missing} names no stored period"}},
+      else: :ok
+  end
 
   # --- the stored periods: reads ----------------------------------------------
 

@@ -13,6 +13,12 @@ defmodule PortfolixirWeb.Api.V1.PeriodController do
       lock_version}}` replaces; a stale lock_version answers 409 with the
       period as stored under `errors.stored`.
     * `DELETE /api/v1/periods/:id` — 204; a pin that names it dangles.
+    * `GET /api/v1/periods/quick` — the quick choice of the dashboard's top
+      bar (Sprint 32 T3): `keys` in their order (the default while none is
+      stored, `default: true`), `dropped` (the keys of deleted periods the
+      read left out) and `max`.
+    * `PUT /api/v1/periods/quick` — `{"quick": {"keys": [...]}}` stores up
+      to six keys of the vocabulary; a refused list answers 422 on `keys`.
 
   Every read and write is closed: a parameter or field it does not take
   answers 422 naming it. Every write is journaled under the request's
@@ -27,6 +33,7 @@ defmodule PortfolixirWeb.Api.V1.PeriodController do
   alias PortfolixirWeb.Api.V1.JSON
 
   plug(PortfolixirWeb.Api.V1.BodyObject, "period" when action in [:create, :replace])
+  plug(PortfolixirWeb.Api.V1.BodyObject, "quick" when action in [:put_quick])
 
   @create_fields ~w(name from to)
   @replace_fields ~w(name from to lock_version)
@@ -66,6 +73,37 @@ defmodule PortfolixirWeb.Api.V1.PeriodController do
     else
       refusal -> refuse(conn, refusal)
     end
+  end
+
+  def quick(conn, _params) do
+    case ClosedBody.check(conn, nil, []) do
+      :ok -> json(conn, %{data: quick_choice()})
+      {:error, errors} -> ClosedBody.refuse(conn, errors)
+    end
+  end
+
+  def put_quick(conn, _params) do
+    keys =
+      case conn.body_params do
+        %{"quick" => %{"keys" => keys}} -> keys
+        _absent -> nil
+      end
+
+    with :ok <- ClosedBody.check(conn, "quick", ~w(keys)),
+         {:ok, _keys} <- Periods.put_quick_choice(conn.assigns.actor, keys) do
+      json(conn, %{data: quick_choice()})
+    else
+      {:error, {reason, message}} when is_atom(reason) ->
+        ClosedBody.refuse(conn, %{keys: [message]})
+
+      refusal ->
+        refuse(conn, refusal)
+    end
+  end
+
+  defp quick_choice do
+    choice = Periods.quick_choice()
+    Map.put(choice, :max, Periods.max_quick())
   end
 
   @doc "One stored period as the API answers it."

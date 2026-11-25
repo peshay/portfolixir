@@ -58,7 +58,12 @@ describe("the dashboard tools", () => {
     await callTool(client, DELETE, { id: 4, dry_run: true });
 
     assert.deepEqual(listing.structuredContent, {
-      data: { dashboards: [{ type: "template" }], widgets: [{ type: "template" }], periods: [{ type: "template" }] }
+      data: {
+        dashboards: [{ type: "template" }],
+        widgets: [{ type: "template" }],
+        periods: [{ type: "template" }],
+        quick: [{ type: "template" }]
+      }
     });
 
     assert.deepEqual(
@@ -68,6 +73,8 @@ describe("the dashboard tools", () => {
         ["GET", "/api/v1/widgets", undefined],
         // Sprint 32 T2: the own periods ride on list's answer.
         ["GET", "/api/v1/periods", undefined],
+        // Sprint 32 T3: and the quick choice.
+        ["GET", "/api/v1/periods/quick", undefined],
         ["GET", "/api/v1/dashboards/4", undefined],
         ["GET", "/api/v1/dashboards/template%3Aoverview", undefined],
         ["POST", "/api/v1/dashboards", { dashboard: { name: "Kurzfristig", layout } }],

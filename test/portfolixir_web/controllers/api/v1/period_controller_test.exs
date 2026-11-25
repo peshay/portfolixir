@@ -197,4 +197,73 @@ defmodule PortfolixirWeb.Api.V1.PeriodControllerTest do
            |> get("/api/v1/performance?period=saved:#{period.id}")
            |> json_response(422) == %{"errors" => %{"period" => ["is invalid"]}}
   end
+
+  # User story (T3):
+  # As the agent the operator runs,
+  # I want to read and set the quick choice of the dashboard's top bar,
+  # so that „leg Vorquartal in die Schnellwahl“ is one call, on every
+  # device the operator uses.
+  #
+  # Acceptance criteria:
+  # - GET /api/v1/periods/quick answers keys (the default 1w mtd ytd 1y
+  #   max while none is stored), default, dropped and max (6).
+  # - PUT /api/v1/periods/quick {quick: {keys}} stores up to six keys,
+  #   saved:<id> of a stored period among them, and answers the choice;
+  #   journaled as a setting under the token.
+  # - A seventh key, a key twice, a key that is none, a saved key of no
+  #   stored period, and a field the write does not take answer 422 naming
+  #   it, writing nothing.
+  # - A deleted period's key drops from the read and is named under
+  #   dropped.
+  test "the quick choice is read and written, a deleted period's key dropped", %{conn: conn} do
+    assert %{
+             "data" => %{
+               "keys" => ~w(1w mtd ytd 1y max),
+               "default" => true,
+               "dropped" => [],
+               "max" => 6
+             }
+           } =
+             conn |> authed() |> get("/api/v1/periods/quick") |> json_response(200)
+
+    {:ok, summer} =
+      Periods.create_saved(Actor.owner_ui(), %{
+        "name" => "Sommer 2026",
+        "from" => "2026-06-01",
+        "to" => "2026-08-31"
+      })
+
+    keys = ["1w", "saved:#{summer.id}", "prev_quarter", "1y"]
+
+    assert %{"data" => %{"keys" => ^keys, "default" => false, "dropped" => []}} =
+             conn
+             |> authed()
+             |> put("/api/v1/periods/quick", %{"quick" => %{"keys" => keys}})
+             |> json_response(200)
+
+    assert [%{actor_type: :api_token_rw}] =
+             Journal.list_entries(resource_type: "setting")
+             |> Enum.filter(&((&1.after || %{})["key"] == "period_quick_choice"))
+
+    for {body, field} <- [
+          {%{"keys" => ~w(1d 1w 1m 3m 6m 1y 3y)}, "keys"},
+          {%{"keys" => ~w(1w 1w)}, "keys"},
+          {%{"keys" => ~w(1w fortnight)}, "keys"},
+          {%{"keys" => ["saved:#{summer.id + 1000}"]}, "keys"},
+          {%{"keys" => "1w"}, "keys"},
+          {%{"keys" => ["1w"], "pinned" => true}, "pinned"}
+        ] do
+      assert %{"errors" => %{^field => [_ | _]}} =
+               conn
+               |> authed()
+               |> put("/api/v1/periods/quick", %{"quick" => body})
+               |> json_response(422),
+             inspect(body)
+    end
+
+    {:ok, _} = Periods.delete_saved(Actor.owner_ui(), summer.id)
+
+    assert %{"data" => %{"keys" => ~w(1w prev_quarter 1y), "dropped" => ["saved:" <> _]}} =
+             conn |> authed() |> get("/api/v1/periods/quick") |> json_response(200)
+  end
 end

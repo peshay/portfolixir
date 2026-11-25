@@ -5417,10 +5417,11 @@ registered. Keys are matched as strings and no atom is made from one; the name
 is stored as text and drawn escaped.
 
 **MCP.** Four tools call these routes. `portfolixir.dashboards.list` reads
-`GET /api/v1/dashboards`, `GET /api/v1/widgets` and `GET /api/v1/periods`
-and answers them as `{"data": {"dashboards", "widgets", "periods"}}`: the
-menu, the catalogue and the own periods in one call, so the catalogue
-needs no tool of its own. `portfolixir.dashboards.get`
+`GET /api/v1/dashboards`, `GET /api/v1/widgets`, `GET /api/v1/periods`
+and `GET /api/v1/periods/quick` and answers them as `{"data":
+{"dashboards", "widgets", "periods", "quick"}}`: the menu, the catalogue,
+the own periods and the quick choice in one call, so the catalogue needs
+no tool of its own. `portfolixir.dashboards.get`
 reads one dashboard by `id`, or a template by `template` (its key). Both
 are reads in every profile and answer compact JSON.
 `portfolixir.dashboards.put` writes: without `id`, it creates from
@@ -5493,12 +5494,23 @@ and a widget pinned to it reads the dashboard's period.
   passed answers `409` with `code` `stale` and the period as stored under
   `errors.stored`.
 - `DELETE /api/v1/periods/:id` answers `204`.
+- `GET /api/v1/periods/quick` answers the quick choice of the dashboard's
+  top bar: `{"data": {"keys", "default", "dropped", "max"}}`, `keys` in the
+  bar's order (`1w`, `mtd`, `ytd`, `1y`, `max` while none is stored,
+  `default` `true`), `dropped` the keys of deleted periods the read left
+  out (the next write stores the choice without them), `max` 6.
+- `PUT /api/v1/periods/quick` with `{"quick": {"keys": [...]}}` stores up
+  to six keys of the vocabulary, each once, a `saved:<id>` only of a stored
+  period; none at all is a choice too. A refused list answers `422` on
+  `keys`. It is journaled as a setting under the token.
 
 A field or a parameter a request does not take answers `422` naming it;
 every write is journaled under the token (resource type `period`).
 **MCP:** `portfolixir.dashboards.list` answers the stored periods as
-`data.periods`; `portfolixir.periods.put` writes: `period` without `id`
-creates, with `id` replaces, and `id` with `delete: true` deletes. Since
+`data.periods` and the quick choice as `data.quick`;
+`portfolixir.periods.put` writes: `period` without `id` creates, with `id`
+replaces, `id` with `delete: true` deletes, and `quick` alone sets the
+quick choice. Since
 it can remove a period, it is admin (the `full` profile); the companion
 checks the shape (a name of at most 40 characters, ISO dates) and the API
 the rest.
