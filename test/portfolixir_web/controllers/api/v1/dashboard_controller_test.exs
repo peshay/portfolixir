@@ -143,10 +143,16 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
     # Sprint 32 E4: Apple's families, each named, rows of a fixed height,
     # and the rule each kind's sizes are read against.
     assert data["grid"]["sizes"] == %{
-             "S" => %{"columns" => 3, "rows" => 2, "family" => "small"},
-             "M" => %{"columns" => 6, "rows" => 2, "family" => "medium"},
-             "L" => %{"columns" => 6, "rows" => 4, "family" => "large"},
-             "XL" => %{"columns" => 12, "rows" => 4, "family" => "extra large"}
+             "S" => %{"columns" => 3, "rows" => 2, "family" => "small", "height" => "fixed"},
+             "M" => %{"columns" => 6, "rows" => 2, "family" => "medium", "height" => "fixed"},
+             "L" => %{"columns" => 6, "rows" => 4, "family" => "large", "height" => "fixed"},
+             "XL" => %{
+               "columns" => 12,
+               "rows" => 4,
+               "family" => "extra large",
+               "height" => "fixed"
+             },
+             "row" => %{"columns" => 12, "rows" => 1, "family" => nil, "height" => "content"}
            }
 
     assert data["grid"]["row_height"] == "7rem"

@@ -16,7 +16,12 @@ defmodule Portfolixir.Dashboards.Widgets do
       amendment of 2026-11-25, point 3; Sprint 32 E4): one square unit of 3
       columns by 2 rows, every size a multiple of it, every size of a fixed
       height. Each size of a kind shows more of the same, never something
-      else, and a size that adds nothing is not offered. `full` is its own
+      else, and a size that adds nothing is not offered. **„Zeile“**
+      (`row`; the amendment's point 3, Sprint 32 S2) is the size of a
+      section widget: the full width, 12 columns by 1 row in the stored
+      grid, so validation and the arrangement treat it as any item, and
+      drawn at its content's height (`height/1`), every row after it
+      starting below it. `full` is its own
       page, reached through „Ganze Ansicht“, and never a size a layout item
       may take.
     * `source` — the one existing read it draws: the `/api/v1` route
@@ -57,8 +62,10 @@ defmodule Portfolixir.Dashboards.Widgets do
   @periods Periods.keys()
   @default_period "1y"
 
-  @sizes ~w(S M L XL full)
-  @dimensions %{"S" => {3, 2}, "M" => {6, 2}, "L" => {6, 4}, "XL" => {12, 4}}
+  @sizes ~w(S M L XL row full)
+  # „Zeile“ (`row`, Sprint 32 S2): 12 × 1 in the stored grid, drawn at its
+  # content's height.
+  @dimensions %{"S" => {3, 2}, "M" => {6, 2}, "L" => {6, 4}, "XL" => {12, 4}, "row" => {12, 1}}
   @families %{"S" => "small", "M" => "medium", "L" => "large", "XL" => "extra large"}
 
   @groups ~w(overview performance allocation risk analyses)
@@ -315,7 +322,10 @@ defmodule Portfolixir.Dashboards.Widgets do
       key: "sale_review",
       title: "Sale review",
       group: "analyses",
-      sizes: ~w(L),
+      # „Zeile“ (Sprint 32 S2): the Overview's card „Closed trades“ is a
+      # section of today's screens, its list of five one band across the
+      # page; the first kind to take the size before Lane W's sections.
+      sizes: ~w(L row),
       source: %{
         routes: ["GET /api/v1/realized_gains"],
         function: {Portfolixir.Portfolios.RealizedGains, :newest_trades, 2},
@@ -374,7 +384,7 @@ defmodule Portfolixir.Dashboards.Widgets do
   def fetch(key) when is_binary(key), do: Map.fetch(@by_key, key)
   def fetch(_key), do: :error
 
-  @doc "The sizes a kind may support: the four grid sizes and `full`."
+  @doc "The sizes a kind may support: the four families, `row` and `full`."
   @spec sizes() :: [size()]
   def sizes, do: @sizes
 
@@ -394,6 +404,16 @@ defmodule Portfolixir.Dashboards.Widgets do
   @spec family(term()) :: String.t() | nil
   def family(size) when is_binary(size), do: Map.get(@families, size)
   def family(_size), do: nil
+
+  @doc """
+  How a grid size is drawn: `"fixed"`, its rows' fixed height (the
+  families), or `"content"`, as tall as its content (`row`, „Zeile“);
+  `nil` for anything else.
+  """
+  @spec height(term()) :: String.t() | nil
+  def height("row"), do: "content"
+  def height(size) when is_map_key(@families, size), do: "fixed"
+  def height(_size), do: nil
 
   @doc "The catalogue's groups, in its order."
   @spec groups() :: [String.t()]

@@ -100,8 +100,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "default view and overridden by an item's own; written on POST (a create, a " <>
               "template's copy) and PATCH, null clearing it; a view that names none is 422; " <>
               "read back with view_dangling once its view was deleted, and template_key, the " <>
-              "template a copy came from. No endpoint or tool is added."
+              "template a copy came from. No endpoint or tool is added.",
             # --- S32 S1 end ---
+            # --- S32 S2 begin ---
+            "Sprint 32, S2 (ADR-0062's amendment of 2026-11-25, point 3): one more size, " <>
+              "row („Zeile“), 12 x 1 in the grid and drawn as tall as its content, the size " <>
+              "of a section widget; sale_review takes it. No endpoint or tool is added."
+            # --- S32 S2 end ---
           ],
           " "
         ),
@@ -187,8 +192,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "(null clears it on PATCH)",
         "GET /api/v1/dashboards and GET /api/v1/dashboards/:id (portfolixir.dashboards.list, " <>
           "portfolixir.dashboards.get), added: view_id, view_dangling and template_key on a " <>
-          "stored dashboard"
+          "stored dashboard",
         # --- S32 S1 end ---
+        # --- S32 S2 begin ---
+        "GET /api/v1/widgets (portfolixir.dashboards.list), added: grid.sizes.row (12 x 1, " <>
+          "family null) and each grid size's height (fixed, or content for row); sale_review's " <>
+          "sizes are L and row",
+        "POST, PUT /api/v1/dashboards (portfolixir.dashboards.put), added: the size row"
+        # --- S32 S2 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

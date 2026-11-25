@@ -77,7 +77,8 @@ defmodule Portfolixir.Dashboards.FamiliesTest do
   # - Each kind's sizes are listed smallest first, each larger than the
   #   one before it.
   test "the sizes are Apple's families, each kind's smallest first" do
-    assert Widgets.sizes() == ~w(S M L XL full)
+    # Sprint 32 S2: and „Zeile“ (`row`), no family, as tall as its content.
+    assert Widgets.sizes() == ~w(S M L XL row full)
     assert Widgets.dimensions("S") == {:ok, {3, 2}}
     assert Widgets.dimensions("M") == {:ok, {6, 2}}
     assert Widgets.dimensions("L") == {:ok, {6, 4}}
@@ -103,7 +104,7 @@ defmodule Portfolixir.Dashboards.FamiliesTest do
              "allocation_drift" => ~w(L),
              "crashes" => ~w(L),
              "bitcoin_cycle" => ~w(L XL full),
-             "sale_review" => ~w(L)
+             "sale_review" => ~w(L row)
            } == Map.new(Widgets.kinds(), &{&1.key, &1.sizes})
 
     area = fn size ->
@@ -112,7 +113,9 @@ defmodule Portfolixir.Dashboards.FamiliesTest do
     end
 
     for kind <- Widgets.kinds() do
-      grid = Enum.filter(kind.sizes, &(&1 != "full"))
+      # The families only: „Zeile“ is drawn at its content's height, no
+      # multiple of S (Sprint 32 S2), and listed after them.
+      grid = Enum.filter(kind.sizes, &(&1 not in ["full", "row"]))
       assert grid == Enum.sort_by(grid, area), kind.key
       assert grid == Enum.uniq_by(grid, area), kind.key
     end

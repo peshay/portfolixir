@@ -2156,6 +2156,7 @@ defmodule PortfolixirWeb.DashboardLive do
       <div
         id="dashboard-grid"
         class="dashboard-grid"
+        style={Widget.grid_rows(@items)}
         data-role="dashboard-grid"
         phx-hook="DashboardEdit"
         data-editing={to_string(not is_nil(@edit))}

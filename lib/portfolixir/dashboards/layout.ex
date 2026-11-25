@@ -225,7 +225,7 @@ defmodule Portfolixir.Dashboards.Layout do
     do:
       dgettext_noop(
         "errors",
-        "is not a size this widget kind takes: the sizes are the families S, M, L and XL"
+        "is not a size this widget kind takes: the sizes are the families S, M, L and XL, and row"
       )
 
   def message(:not_an_integer), do: dgettext_noop("errors", "must be a whole number")

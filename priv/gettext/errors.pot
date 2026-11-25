@@ -365,11 +365,6 @@ msgstr ""
 msgid "leaves no place up to row 200 for the widgets it would move"
 msgstr ""
 
-#: lib/portfolixir/dashboards/layout.ex:226
-#, elixir-autogen, elixir-format
-msgid "is not a size this widget kind takes: the sizes are the families S, M, L and XL"
-msgstr ""
-
 #: lib/portfolixir/periods.ex:458
 #, elixir-autogen, elixir-format
 msgid "must be the whole number the period was read with"
@@ -393,4 +388,9 @@ msgstr ""
 #: lib/portfolixir/dashboards/layout.ex:249
 #, elixir-autogen, elixir-format
 msgid "names no own period"
+msgstr ""
+
+#: lib/portfolixir/dashboards/layout.ex:226
+#, elixir-autogen, elixir-format
+msgid "is not a size this widget kind takes: the sizes are the families S, M, L and XL, and row"
 msgstr ""

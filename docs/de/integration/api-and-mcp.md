@@ -5763,7 +5763,7 @@ zusammenstellen lässt, ohne den Code zu lesen: `{"data": {"widgets",
   `allocation_drift`, `crashes`, `bitcoin_cycle`, `sale_review`), `title`
   (englisch) und `title_key` (`{context, msgid}`, die Meldung, die der
   Bildschirm übersetzt), `group`, `sizes` (eine Teilmenge von `S`, `M`, `L`,
-  `XL` und `full`, die kleinste zuerst), `source` (`routes`, die `GET /api/v1/...`-Routen,
+  `XL`, `row` und `full`, die kleinste zuerst), `source` (`routes`, die `GET /api/v1/...`-Routen,
   die es zeichnet; `function`, die Kontextfunktion dahinter; `note`, wo die
   Zahlen keine eigene Route haben), `period` (`"none"` oder `{periods, param,
   values, ranges, years, keyed, translated}`: die Dashboard-Zeiträume, die
@@ -5777,9 +5777,13 @@ zusammenstellen lässt, ohne den Code zu lesen: `{"data": {"widgets",
 - `groups`: `{key, title}` in ihrer Reihenfolge (`overview`, `performance`,
   `allocation`, `risk`, `analyses`).
 - `grid`: `columns` (12), `max_row` (200), `max_items` (40), `sizes` (je
-  Rastergröße `{columns, rows, family}`: `S` 3 × 2, `M` 6 × 2, `L` 6 × 4,
-  `XL` 12 × 4, Apples Widget-Familien klein, mittel, groß und extra groß,
-  jede ein Vielfaches von S), `row_height` (`7rem`: jede Zeile hat im
+  Rastergröße `{columns, rows, family, height}`: `S` 3 × 2, `M` 6 × 2, `L`
+  6 × 4, `XL` 12 × 4, Apples Widget-Familien klein, mittel, groß und extra
+  groß, jede ein Vielfaches von S, `height` `fixed`; und `row` („Zeile“,
+  Sprint 32), 12 × 1, `family` `null`, `height` `content`: die Größe eines
+  Abschnitt-Widgets, die volle Breite, geprüft und geordnet wie jedes
+  Element und so hoch gezeichnet wie sein Inhalt, jede Zeile danach
+  beginnt darunter; `sale_review` nimmt sie), `row_height` (`7rem`: jede Zeile hat im
   breiten Raster eine feste Höhe, und keine Zeile wächst mit ihrem Inhalt,
   ein Widget zeigt also, was in seine Kachel passt), `size_rule` (jede
   Größe einer Art zeigt mehr vom Gleichen: S eine Zahl, M die Zahl mit
@@ -5952,7 +5956,7 @@ optional, `view_id: null` entfernt sie). `portfolixir.dashboards.put` nimmt
 vorige Platz, wieder gesendet, sie wiederherstellt.
 `portfolixir.dashboards.delete` nimmt `id` und `dry_run`; es ist Admin. Der
 Begleiter prüft die Form eines Layouts vor jeder Anfrage (die Schlüssel
-eines Elements, eine Größe aus `S`, `M`, `L` und `XL`, `col` 1 bis 12,
+eines Elements, eine Größe aus `S`, `M`, `L`, `XL` und `row`, `col` 1 bis 12,
 höchstens 40 Elemente, ein Name von höchstens 60 Zeichen) und nimmt
 `title` und `source` eines Elements, wie `get` sie liefert, ohne sie zu
 senden, damit `get`, eine Änderung und `put` ein Durchgang sind; den Rest

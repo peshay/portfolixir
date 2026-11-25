@@ -120,6 +120,41 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   defp scope_of(_item, scope_id, _view_ids), do: %{scope: scope_id, dangling: false}
 
   @doc """
+  The grid's row template where a „Zeile“ item stands on it (ADR-0062's
+  amendment of 2026-11-25, point 3; Sprint 32 S2): `--dashboard-rows`,
+  every row of the layout 7rem and the row of each `row` item `auto`, so
+  that item is as tall as its content and every row after it starts below
+  it (the wide class reads it, `app.css`); `nil` for a layout without one,
+  whose rows are the grid's fixed 7rem.
+  """
+  @spec grid_rows([map()]) :: String.t() | nil
+  def grid_rows(items) do
+    case for(%{size: "row", row: row} <- items, do: row) do
+      [] ->
+        nil
+
+      content_rows ->
+        last = items |> Enum.map(&(&1.row + &1.h - 1)) |> Enum.max()
+
+        tracks =
+          Enum.map_join(1..last, " ", fn row ->
+            if row in content_rows, do: "auto", else: "7rem"
+          end)
+
+        "--dashboard-rows: #{tracks};"
+    end
+  end
+
+  @doc """
+  A size's short label: the families as they are named (S, M, L, XL), `row`
+  as „Zeile“ (Sprint 32 S2), `full` as „Ganz“.
+  """
+  @spec size_label(String.t()) :: String.t()
+  def size_label("row"), do: pgettext("widget size", "Row")
+  def size_label("full"), do: pgettext("widget size", "Full")
+  def size_label(size), do: size
+
+  @doc """
   The item with its period (ADR-0062 §5): `period`, the period its figures
   are for — its pin where it holds one the kind takes, else the
   dashboard's `dashboard_period` —, `nil` for a kind that takes none;
@@ -498,7 +533,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
         aria-pressed={to_string(size == @item.size)}
         data-role="edit-size"
         data-size={size}
-      ><%= size %></button>
+      ><%= size_label(size) %></button>
     </div>
     """
   end

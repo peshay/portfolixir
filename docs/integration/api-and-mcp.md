@@ -5278,8 +5278,8 @@ without reading the code: `{"data": {"widgets", "groups", "grid",
   `due`, `off_target`, `performance`, `movers`, `snapshots`,
   `allocation_drift`, `crashes`, `bitcoin_cycle`, `sale_review`), `title`
   (English) and `title_key` (`{context, msgid}`, the message the screen
-  translates), `group`, `sizes` (a subset of `S`, `M`, `L`, `XL` and
-  `full`, smallest first), `source` (`routes`, the `GET /api/v1/...` routes it draws;
+  translates), `group`, `sizes` (a subset of `S`, `M`, `L`, `XL`, `row`
+  and `full`, smallest first), `source` (`routes`, the `GET /api/v1/...` routes it draws;
   `function`, the context function behind them; `note`, where the figures
   have no route of their own), `period` (`"none"`, or `{periods, param,
   values, ranges, years, keyed, translated}`: the dashboard periods it
@@ -5293,9 +5293,13 @@ without reading the code: `{"data": {"widgets", "groups", "grid",
 - `groups`: `{key, title}` in order (`overview`, `performance`,
   `allocation`, `risk`, `analyses`).
 - `grid`: `columns` (12), `max_row` (200), `max_items` (40), `sizes` (each
-  grid size's `{columns, rows, family}`: `S` 3 × 2, `M` 6 × 2, `L` 6 × 4,
-  `XL` 12 × 4, Apple's widget families small, medium, large and extra
-  large, each a multiple of S), `row_height` (`7rem`: every row has a
+  grid size's `{columns, rows, family, height}`: `S` 3 × 2, `M` 6 × 2, `L`
+  6 × 4, `XL` 12 × 4, Apple's widget families small, medium, large and
+  extra large, each a multiple of S, `height` `fixed`; and `row`
+  („Zeile“, Sprint 32), 12 × 1, `family` `null`, `height` `content`: the
+  size of a section widget, the full width, checked and arranged as any
+  item and drawn as tall as its content, every row after it starting
+  below it; `sale_review` takes it), `row_height` (`7rem`: every row has a
   fixed height at the wide class, and no row grows with its content, so a
   widget shows what fits its tile), `size_rule` (each size of a kind shows
   more of the same: S one figure, M the figure with two or three
@@ -5451,7 +5455,7 @@ as the replace does, and only on a replace. It is a write in `book` and `full`, 
 the previous name, layout or place back restores them.
 `portfolixir.dashboards.delete` takes `id` and `dry_run`; it is admin.
 The companion checks a layout's shape before any request (an item's keys,
-a size among `S`, `M`, `L` and `XL`, `col` 1 to 12, at most 40 items, a
+a size among `S`, `M`, `L`, `XL` and `row`, `col` 1 to 12, at most 40 items, a
 name of at most 60 characters) and takes an item's `title` and `source` as
 `get` answers them without sending them, so `get`, a change and `put` is
 one round trip; the API checks the rest and its refusals

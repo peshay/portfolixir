@@ -32,6 +32,7 @@ defmodule PortfolixirWeb.WidgetsLive do
   alias Portfolixir.Dashboards.Templates
   alias Portfolixir.Dashboards.Widgets
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.Dashboard.Widget
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.StoredText
 
@@ -240,7 +241,7 @@ defmodule PortfolixirWeb.WidgetsLive do
   defp sizes(assigns) do
     ~H"""
     <ul class="widget-card__sizes" aria-label={gettext("Sizes")} role="list">
-      <li :for={size <- @sizes} class="widget-size" data-role="widget-size"><%= size_label(size) %></li>
+      <li :for={size <- @sizes} class="widget-size" data-role="widget-size"><%= Widget.size_label(size) %></li>
     </ul>
     """
   end
@@ -408,7 +409,4 @@ defmodule PortfolixirWeb.WidgetsLive do
   defp later_title("income"), do: pgettext("widget kind", "Income")
   defp later_title("fees_and_taxes"), do: pgettext("widget kind", "Fees and taxes")
   defp later_title("tax_allowance"), do: pgettext("widget kind", "Tax allowance")
-
-  defp size_label("full"), do: pgettext("widget size", "Full")
-  defp size_label(size), do: size
 end

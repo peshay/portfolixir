@@ -77,7 +77,13 @@ defmodule PortfolixirWeb.WidgetCatalogueTest do
       card = "[data-group='#{kind.group}'] [data-widget-kind='#{kind.key}']"
       assert has_element?(view, card, german_title(kind.key))
 
-      expected = Enum.map(kind.sizes, &if(&1 == "full", do: "Voll", else: &1))
+      expected =
+        Enum.map(kind.sizes, fn
+          "full" -> "Voll"
+          "row" -> "Zeile"
+          size -> size
+        end)
+
       assert chips(view, card) == expected
 
       assert has_element?(view, card <> " [data-role='add-widget']", "hinzufügen ›")

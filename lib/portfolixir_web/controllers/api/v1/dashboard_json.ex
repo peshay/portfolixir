@@ -27,7 +27,9 @@ defmodule PortfolixirWeb.Api.V1.DashboardJSON do
                "(rows of 7rem at the wide class, none growing with its content); each size " <>
                "of a kind shows more of the same: S one figure, M the figure with two or " <>
                "three companions, L the figure with its course, XL the figure, its course " <>
-               "and a breakdown; a size that adds nothing is not offered"
+               "and a breakdown; a size that adds nothing is not offered. row („Zeile“) is " <>
+               "the size of a section widget: the full width, 12 x 1 in the grid, drawn at " <>
+               "its content's height, every row after it starting below it"
 
   @doc "The widget catalogue (§1): every kind, the groups, the grid, the periods, the limits."
   @spec catalogue() :: map()
@@ -74,7 +76,14 @@ defmodule PortfolixirWeb.Api.V1.DashboardJSON do
     for size <- Widgets.sizes(),
         {:ok, {columns, rows}} <- [Widgets.dimensions(size)],
         into: %{},
-        do: {size, %{columns: columns, rows: rows, family: Widgets.family(size)}}
+        do:
+          {size,
+           %{
+             columns: columns,
+             rows: rows,
+             family: Widgets.family(size),
+             height: Widgets.height(size)
+           }}
   end
 
   defp source(kind) do
