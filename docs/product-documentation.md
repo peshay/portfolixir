@@ -2248,6 +2248,11 @@ screen.
   before Sprint 32 is read on the families (S stays S, W becomes M, M and
   T become L, L becomes XL, the rows doubled) and arranged as the edit mode
   arranges, and stored so on its next save.
+- **"Row"** (Sprint 32) is one more size, for a section of a screen
+  placed as a widget: the full width and as tall as its content, every
+  widget after it starting below it; on a narrow window it draws its
+  compact form, across both columns between 600 and 1000 px. **Sale
+  review** takes it first; the sections of Wealth follow.
 - **Each size shows more of the same, never something else.** S one
   figure, M the figure with two or three companions, L the figure with its
   course, XL the figure, its course and a breakdown; a size that adds

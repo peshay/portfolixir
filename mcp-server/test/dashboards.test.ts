@@ -305,8 +305,8 @@ describe("the dashboard tools", () => {
     assert.equal(item.additionalProperties, false);
     assert.deepEqual(item.required, ["kind", "size", "col", "row"]);
     // Apple's families since Sprint 32 E4; list names them with their grid.
-    assert.deepEqual(item.properties.size.enum, ["S", "M", "L", "XL"]);
-    assert.match(description(LIST), /families S 3x2, M 6x2, L 6x4, XL 12x4/);
+    assert.deepEqual(item.properties.size.enum, ["S", "M", "L", "XL", "row"]);
+    assert.match(description(LIST), /families S 3x2, M 6x2, L 6x4, XL 12x4; row 12x1, content height/);
     assert.equal(item.properties.kind.maxLength, 40);
     assert.equal(item.properties.settings.additionalProperties, false);
     assert.deepEqual(Object.keys(item.properties.settings.properties).sort(), ["period", "view_id"]);

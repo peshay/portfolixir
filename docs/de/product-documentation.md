@@ -2488,6 +2488,12 @@ nennt und zum ganzen Screen führt.
   gespeichert wurde, wird auf den Familien gelesen (S bleibt S, W wird M,
   M und T werden L, L wird XL, die Zeilen verdoppelt), geordnet wie im
   Bearbeitungsmodus und beim nächsten Speichern so gespeichert.
+- **„Zeile“** (Sprint 32) ist eine weitere Größe, für einen Abschnitt
+  einer Seite als Widget: die volle Breite und so hoch wie sein Inhalt,
+  jedes Widget danach beginnt darunter; im schmalen Fenster zeichnet es
+  seine kompakte Form, zwischen 600 und 1000 px über beide Spalten.
+  **Verkaufsrückblick** nimmt sie als Erstes; die Abschnitte von Vermögen
+  folgen.
 - **Jede Größe zeigt mehr vom Gleichen, nie etwas anderes.** S eine Zahl,
   M die Zahl mit zwei, drei Begleitern, L die Zahl mit ihrem Verlauf, XL
   die Zahl, ihren Verlauf und eine Aufteilung; eine Größe, die nichts

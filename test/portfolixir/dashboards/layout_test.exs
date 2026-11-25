@@ -291,7 +291,7 @@ defmodule Portfolixir.Dashboards.LayoutTest do
     assert refusal.reason == :unsupported_size
 
     assert refusal.message ==
-             "is not a size this widget kind takes: the sizes are the families S, M, L and XL"
+             "is not a size this widget kind takes: the sizes are the families S, M, L and XL, and row"
   end
 
   # User story:

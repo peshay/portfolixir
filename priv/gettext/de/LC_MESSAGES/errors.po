@@ -357,11 +357,6 @@ msgstr "diese Widget-Art hat keine Ansicht"
 msgid "leaves no place up to row 200 for the widgets it would move"
 msgstr "lässt bis Zeile 200 keinen Platz für die Widgets, die es verschieben würde"
 
-#: lib/portfolixir/dashboards/layout.ex:226
-#, elixir-autogen, elixir-format
-msgid "is not a size this widget kind takes: the sizes are the families S, M, L and XL"
-msgstr "ist keine Größe, die diese Widget-Art kennt: die Größen sind die Familien S, M, L und XL"
-
 #: lib/portfolixir/periods.ex:458
 #, elixir-autogen, elixir-format
 msgid "must be the whole number the period was read with"
@@ -386,3 +381,8 @@ msgstr "darf nicht nach heute liegen"
 #, elixir-autogen, elixir-format
 msgid "names no own period"
 msgstr "nennt keinen gespeicherten eigenen Zeitraum"
+
+#: lib/portfolixir/dashboards/layout.ex:226
+#, elixir-autogen, elixir-format
+msgid "is not a size this widget kind takes: the sizes are the families S, M, L and XL, and row"
+msgstr "ist keine Größe, die diese Widget-Art kennt: die Größen sind die Familien S, M, L und XL sowie Zeile"

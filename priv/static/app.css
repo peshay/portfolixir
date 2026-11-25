@@ -15088,6 +15088,12 @@ a.widget-row:hover .widget-row__name {
   .dashboard-grid > .dashboard-widget {
     margin-bottom: var(--space-3);
   }
+
+  /* „Zeile“ (Sprint 32 S2): across both columns, the widgets after it
+     below it, in its compact form. */
+  .dashboard-grid > .dashboard-widget.widget--row {
+    column-span: all;
+  }
 }
 
 /* Sprint 32 E4 (ADR-0062's amendment of 2026-11-25, point 3; board
@@ -15158,6 +15164,19 @@ a.widget-row:hover .widget-row__name {
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
+  }
+
+  /* „Zeile“ (Sprint 32 S2; ADR-0062's amendment of 2026-11-25, point 3):
+     the grid's row template names the row a „Zeile“ item stands on as
+     auto (`Widget.grid_rows/1`), so the item is as tall as its content
+     and every row after it starts below it; the other rows stay 7rem. */
+  .dashboard-grid {
+    grid-template-rows: var(--dashboard-rows, none);
+  }
+
+  .dashboard-grid > .dashboard-widget.widget--row,
+  .dashboard-grid > .dashboard-widget.widget--row > .widget__wide {
+    overflow: visible;
   }
 
   .widget__wide {

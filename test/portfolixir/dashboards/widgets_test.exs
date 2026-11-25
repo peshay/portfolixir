@@ -26,7 +26,7 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     "allocation_drift" => {~w(L), "allocation", "Allokation und Drift"},
     "crashes" => {~w(L), "risk", "Crashes im Vergleich"},
     "bitcoin_cycle" => {~w(L XL full), "analyses", "Bitcoin-Zyklus"},
-    "sale_review" => {~w(L), "analyses", "Verkaufsrückblick"}
+    "sale_review" => {~w(L row), "analyses", "Verkaufsrückblick"}
   }
 
   # User story:
@@ -61,7 +61,7 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   end
 
   test "the sizes are the grid's, and full is a page, not a grid size" do
-    assert Widgets.sizes() == ~w(S M L XL full)
+    assert Widgets.sizes() == ~w(S M L XL row full)
     assert Widgets.dimensions("S") == {:ok, {3, 2}}
     assert Widgets.dimensions("M") == {:ok, {6, 2}}
     assert Widgets.dimensions("L") == {:ok, {6, 4}}
