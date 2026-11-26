@@ -369,6 +369,68 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert journal_count() == 1
   end
 
+  # User story (Sprint 32 E2):
+  # As the operator removing the last widget of a dashboard,
+  # I want the removal said where I can still read it, and the focus on
+  # „Fertig“,
+  # so that the step is not lost with the widget it stood at.
+  #
+  # Acceptance criteria:
+  # - × on the only widget removes it; no widget is left, and the bar's
+  #   status line says „Wertentwicklung entfernt“ (no widget is left to
+  #   say it at); the focus goes to „Fertig“.
+  # - Nothing is stored until „Fertig“, which stores the empty layout.
+  test "the last widget removed is said in the bar, the focus on „Fertig“", %{conn: conn} do
+    seed()
+    dashboard = dashboard!("Einzeln", [hd(@layout)])
+    view = open_editing(conn, dashboard)
+
+    view
+    |> element("[data-widget-kind='performance'] [data-role='edit-remove']")
+    |> render_click()
+
+    refute has_element?(view, "[data-widget-kind]")
+    assert bar(view) == "Wertentwicklung entfernt"
+    assert_push_event(view, "dashboard-edit-focus", %{ids: ["dashboard-edit-done"]})
+    assert stored_layout(dashboard.id) == dashboard.layout
+
+    view |> element("[data-role='edit-done']") |> render_click()
+    assert stored_layout(dashboard.id) == []
+  end
+
+  # User story (ADR-0062's amendment of 2026-11-25, point 1):
+  # As the operator dropping a full-width widget at the foot of the grid,
+  # I want a drop that leaves no place for what it covers refused and said
+  # at the widget,
+  # so that no widget is pushed off the grid unseen.
+  #
+  # Acceptance criteria:
+  # - „Wertentwicklung“ (XL) dropped at row 200 onto „Tops und Flops“
+  #   there is refused: „Wertentwicklung kann nicht an Spalte 1, Zeile 200:
+  #   Das Raster hat keinen freien Platz.“, said at it, without
+  #   „Rückgängig“; nothing moves.
+  test "a drop that leaves no room is refused at the widget", %{conn: conn} do
+    seed()
+
+    dashboard =
+      dashboard!("Tief", [
+        %{"kind" => "performance", "size" => "XL", "col" => 1, "row" => 1},
+        %{"kind" => "movers", "size" => "L", "col" => 1, "row" => 200}
+      ])
+
+    view = open_editing(conn, dashboard)
+    performance = item_key(view, "performance")
+    render_hook(view, "edit_place", %{"item" => performance, "col" => 1, "row" => 200})
+
+    assert place(view, "performance") == {1, 1, "XL"}
+    assert place(view, "movers") == {1, 200, "L"}
+
+    assert announced(view) ==
+             "Wertentwicklung kann nicht an Spalte 1, Zeile 200: Das Raster hat keinen freien Platz."
+
+    refute has_element?(view, "[data-widget-kind='performance'] [data-role='edit-undo']")
+  end
+
   # User story:
   # As the operator composing a dashboard,
   # I want to add a widget from the catalogue in one tap,

@@ -258,6 +258,47 @@ defmodule PortfolixirWeb.WidgetCatalogueTest do
   end
 
   # User story:
+  # As the operator adding a widget to a dashboard my agent deleted
+  # meanwhile,
+  # I want to be told it no longer exists, and the choice to list what is
+  # stored now,
+  # so that nothing is written and I can choose another.
+  #
+  # Acceptance criteria:
+  # - A dashboard deleted since the dialog read it answers the replace's
+  #   404: nothing is stored or journaled, the dialog says „… gibt es
+  #   nicht mehr“ by its name and no longer offers it; the other stays.
+  test "a dashboard deleted since the dialog read it is said gone", %{conn: conn} do
+    {:ok, board} =
+      Dashboards.create_dashboard(Actor.owner_ui(), %{
+        "name" => "Verworfen",
+        "layout" => [item("total_value", "S", 1, 1)]
+      })
+
+    {:ok, other} = Dashboards.create_dashboard(Actor.owner_ui(), %{"name" => "Bleibt"})
+
+    {:ok, view, _html} = live(conn, "/widgets?locale=de")
+    view |> element("[data-widget-kind='due'] [data-role='add-widget']") |> render_click()
+
+    {:ok, _} = Dashboards.delete_dashboard(Actor.api_token_rw("agent"), board.id)
+    before = length(journal())
+
+    view |> element("[data-role='add-to'][phx-value-id='#{board.id}']") |> render_click()
+
+    assert length(journal()) == before
+    assert Repo.get(Dashboard, board.id) == nil
+
+    assert has_element?(
+             view,
+             "#widget-add-dialog [data-role='widget-add-stale']",
+             "Verworfen gibt es nicht mehr"
+           )
+
+    refute has_element?(view, "[data-role='add-to'][phx-value-id='#{board.id}']")
+    assert has_element?(view, "[data-role='add-to'][phx-value-id='#{other.id}']")
+  end
+
+  # User story:
   # As the operator adding a widget to a dashboard that is full,
   # I want to be told so,
   # so that the widget is never dropped or stacked unseen.
