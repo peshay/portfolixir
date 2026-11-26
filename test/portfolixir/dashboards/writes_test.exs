@@ -496,9 +496,11 @@ defmodule Portfolixir.Dashboards.WritesTest do
   #   item sent at index 1: the stored layout is the one the same request
   #   gives on a twin dashboard without the retired item at index 0, and
   #   the retired item is dropped.
-  # - With the retired item last, `arranged_index` naming it is refused
-  #   naming the field, and nothing is written.
-  test "the arranged index counts a retired item before it; naming the last one is refused" do
+  # - An `arranged_index` naming the retired item is refused naming the
+  #   field, and nothing is written: with the retired item last, and with
+  #   it first (where it once arranged around its neighbour instead, a
+  #   finding of Sprint 32's closing act).
+  test "the arranged index counts a retired item before it; naming a retired one is refused" do
     gone = %{"kind" => "gone_kind", "size" => "S", "col" => 1, "row" => 9, "settings" => %{}}
     movers = %{"kind" => "movers", "size" => "L", "col" => 7, "row" => 1, "settings" => %{}}
     crashes = %{"kind" => "crashes", "size" => "L", "col" => 1, "row" => 5, "settings" => %{}}
@@ -546,6 +548,21 @@ defmodule Portfolixir.Dashboards.WritesTest do
 
     assert message =~ "retired kind"
     assert Dashboards.get_dashboard(last.id).lock_version == 1
+
+    named = create!("Retired named", [movers, crashes])
+    force_layout!(named, [gone, movers, crashes])
+
+    assert {:error, {:invalid_fields, %{"arranged_index" => [message]}}} =
+             Dashboards.replace_dashboard(Actor.owner_ui(), named.id, %{
+               "name" => "Retired named",
+               "layout" => [gone, moved, crashes],
+               "lock_version" => 1,
+               "arrange" => "push",
+               "arranged_index" => 0
+             })
+
+    assert message =~ "retired kind"
+    assert Dashboards.get_dashboard(named.id).lock_version == 1
   end
 
   # User story:
