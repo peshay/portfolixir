@@ -242,8 +242,16 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Positions do
   defp holdings_column_label("unrealized_pnl_abs"), do: gettext("P&L")
   defp holdings_column_label("unrealized_pnl_pct"), do: gettext("P&L %")
 
+  # #1366 line 7 (Sprint 32 W5): a percent in a name („4,00 %“) is bound
+  # to its figure with a no-break space, so the name column, which breaks
+  # anywhere, never splits it; the stored name is unchanged.
+  defp bound_percent(name) when is_binary(name),
+    do: String.replace(name, ~r/(\d) %/u, "\\1\u00A0%")
+
+  defp bound_percent(name), do: name
+
   defp holdings_cell(row, "depot"), do: row.securities_account_name
-  defp holdings_cell(row, "security"), do: row.security_name
+  defp holdings_cell(row, "security"), do: bound_percent(row.security_name)
   defp holdings_cell(row, "quantity"), do: holdings_decimal(row.quantity)
   defp holdings_cell(row, "isin"), do: row.isin
   defp holdings_cell(row, "wkn"), do: row.wkn
@@ -436,7 +444,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Positions do
         data-restore-event="set_holdings_columns"
         data-current-columns={Jason.encode!(@columns)}
       >
-        <table id={@prefix <> "-positions-table"} class="data-table">
+        <table id={@prefix <> "-positions-table"} class="data-table holdings-positions-table">
           <thead>
             <tr>
               <th :for={key <- @columns} {holdings_num_attrs(key)}>

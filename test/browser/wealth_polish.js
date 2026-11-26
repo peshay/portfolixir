@@ -28,6 +28,10 @@ const { FONTS, eachFont } = require("./fonts");
 const args = JSON.parse(process.argv[2]);
 const base = args.base_url;
 
+// A classic scrollbar's width, which a window with visible scrollbars takes
+// from the page (#1366 line 1).
+const SCROLLBAR = 16;
+
 const COLUMNS = [
   "depot",
   "security",
@@ -61,7 +65,7 @@ async function open(page, path) {
 // ① Each note and each depot: the lines its text takes (the distinct tops
 // of its text's boxes), and each row's height.
 function measureHoldings(page) {
-  return page.evaluate(() => {
+  return page.evaluate((scrollbar) => {
     // The lines a node's text takes: its text boxes' tops, those within
     // 4 px of each other one line (an element's own box and its text's
     // differ by the font's half-leading).
@@ -83,6 +87,15 @@ function measureHoldings(page) {
     return {
       scroll: wrapper.scrollWidth,
       client: wrapper.clientWidth,
+      // The scroller a scrollbar's width narrower, as on a window with
+      // visible scrollbars: what the table then needs, and the room.
+      narrowed: (() => {
+        const before = wrapper.style.width;
+        wrapper.style.width = wrapper.clientWidth - scrollbar + "px";
+        const seen = { scroll: wrapper.scrollWidth, client: wrapper.clientWidth };
+        wrapper.style.width = before;
+        return seen;
+      })(),
       columns: Array.from(document.querySelectorAll("#holdings-positions-table thead th")).length,
       rows: rows.map((row) => {
         const depot = row.querySelector("td[data-column='depot']");
@@ -114,7 +127,7 @@ function measureHoldings(page) {
         };
       })
     };
-  });
+  }, SCROLLBAR);
 }
 
 async function holdings(browser) {
@@ -155,10 +168,17 @@ async function holdings(browser) {
         if (row.depot.lines !== 1) errors.push(label + "the depot „" + row.depot.text + "“ takes " + row.depot.lines + " lines");
         if (row.depot.title !== row.depot.text) errors.push(label + "the depot „" + row.depot.text + "“ has no whole title");
       }
-      // The table's width is fractional (922.8 px on the seed in a 922 px
-      // scroller, the board's „922 in 922“): one pixel is its rounding.
-      if (font === FONTS[0] && m.scroll > m.client + 1)
-        errors.push(label + "the table scrolls sideways: " + m.scroll + " in " + m.client);
+      // #1366 line 1 (Sprint 32 W5): the table keeps a scrollbar's width
+      // of headroom in its scroller, so a window with visible scrollbars
+      // (about 15 px narrower) or a six-figure value does not make it scroll
+      // sideways; measured as it is drawn, fraction included, no rounding
+      // excused.
+      if (font === FONTS[0] && m.client - m.narrowed.client < SCROLLBAR)
+        errors.push(label + "the scroller was not narrowed by a scrollbar's width");
+      if (font === FONTS[0] && m.narrowed.scroll > m.narrowed.client)
+        errors.push(
+          label + "the table leaves no scrollbar's headroom: " + m.narrowed.scroll + " in " + m.narrowed.client
+        );
       console.error(label + JSON.stringify({ scroll: m.scroll, client: m.client, floor, noted: noted.map((r) => r.height) }));
     });
     await leave(ctx);

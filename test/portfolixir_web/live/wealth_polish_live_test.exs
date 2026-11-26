@@ -241,16 +241,21 @@ defmodule PortfolixirWeb.WealthPolishLiveTest do
       [first_head | _] = Floki.find(html, "thead th")
       assert "cell-name" in class_list(first_head)
 
-      fits = rule(".data-table-wrapper > #holdings-positions-table")
+      # Sprint 32 W5 (#1366 line 1): the rules hang on the table's class,
+      # which the section widget „Positionen“ draws too, and the name
+      # column's floor is 8rem, so the table keeps a scrollbar's headroom
+      # (test/browser/wealth_polish_test.exs measures it).
+      assert "holdings-positions-table" in class_list(Floki.find(html, "table") |> hd())
+      fits = rule(".data-table-wrapper > .holdings-positions-table")
       assert fits =~ "min-width: 0;"
       assert fits =~ "width: 100%;"
-      assert rule("#holdings-positions-table th.cell-name") =~ "min-width: 9.5rem;"
-      assert rule("#holdings-positions-table td.cell-name") =~ "overflow-wrap: anywhere;"
+      assert rule(".holdings-positions-table th.cell-name") =~ "min-width: 8rem;"
+      assert rule(".holdings-positions-table td.cell-name") =~ "overflow-wrap: anywhere;"
 
-      assert rule("#holdings-positions-table th.num,\n#holdings-positions-table td.num") =~
+      assert rule(".holdings-positions-table th.num,\n.holdings-positions-table td.num") =~
                "white-space: nowrap;"
 
-      assert rule("#holdings-positions-table td .cell-note") =~ "white-space: normal;"
+      assert rule(".holdings-positions-table td .cell-note") =~ "white-space: normal;"
     end
   end
 
