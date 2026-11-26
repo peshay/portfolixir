@@ -119,6 +119,34 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert Enum.any?(newest["parameters"], &(&1 =~ "unknown_period"))
     # --- S32 T5 end ---
 
+    # --- S32 W1 begin ---
+    # W1 (I57): the sections of Wealth's tab Holdings as widget kinds, the
+    # size row for performance and the starter template holdings; no
+    # endpoint or tool. The S32 closing act found the entry missing.
+    assert newest["summary"] =~ "Sprint 32, W1 (I57; ADR-0062's amendment of 2026-11-25"
+
+    assert [kinds] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(
+                 &1,
+                 "GET /api/v1/widgets (portfolixir.dashboards.list), added: the kinds " <>
+                   "wealth_key_figures"
+               )
+             )
+
+    for kind <- ~w(wealth_key_figures data_notes contribution positions cash_accounts),
+        do: assert(kinds =~ kind)
+
+    assert kinds =~ "performance takes the size row"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "added: the template holdings, group starter, not in_menu")
+           )
+
+    # --- S32 W1 end ---
+
     # The security review's fixes of 2026-11 (version 32, one PR), found by
     # version from Sprint 32 on. Dated strictly after entry 31, so
     # since=2026-11-21 still returns it. Each row appends its own items

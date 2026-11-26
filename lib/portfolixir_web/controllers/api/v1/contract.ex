@@ -123,6 +123,18 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "by side; the themes krypto_lover (asks_scope) and pullbacks, offered beside the " <>
               "starter and never in the menu (in_menu false). No endpoint or tool is added.",
             # --- S32 S5 end ---
+            # --- S32 W1 begin ---
+            "Sprint 32, W1 (I57; ADR-0062's amendment of 2026-11-25, points 3 and 5): the " <>
+              "sections of Wealth's tab Holdings as widget kinds in the size row, " <>
+              "wealth_key_figures (the total incl. cash with its split, the period's result, " <>
+              "TTWROR and IRR and the value bridge, from the valuation and the performance " <>
+              "read; also S and M), data_notes (the tab's data notes, drawn only when one " <>
+              "exists), contribution (the contribution per position; also L and XL), " <>
+              "positions (the holdings table) and cash_accounts (each cash account's balance; " <>
+              "also S); performance takes the size row, the tab's section with its series, " <>
+              "level, benchmark and table; the starter template holdings, stored once by the " <>
+              "boot. No endpoint or tool is added.",
+            # --- S32 W1 end ---
             # --- S32 W2 begin ---
             "Sprint 32, W2 (I57; ADR-0062's amendment of 2026-11-25, points 3 and 5): the " <>
               "sections of Wealth's tab Allocation & targets as widget kinds in the size row, " <>
@@ -253,6 +265,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "(portfolixir.dashboards.put) copies them; an unknown template's refusal lists " <>
           "every key offered",
         # --- S32 S5 end ---
+        # --- S32 W1 begin ---
+        "GET /api/v1/widgets (portfolixir.dashboards.list), added: the kinds " <>
+          "wealth_key_figures (S, M, row), data_notes (row), contribution (L, XL, row), " <>
+          "positions (row) and cash_accounts (S, row); performance takes the size row",
+        "GET /api/v1/dashboards and GET /api/v1/dashboards/template:<key> " <>
+          "(portfolixir.dashboards.list, portfolixir.dashboards.get), added: the template " <>
+          "holdings, group starter, not in_menu; POST /api/v1/dashboards " <>
+          "(portfolixir.dashboards.put) copies it",
+        # --- S32 W1 end ---
         # --- S32 W2 begin ---
         "GET /api/v1/widgets (portfolixir.dashboards.list), added: the kinds summary_line " <>
           "and allocation, size row",
