@@ -84,15 +84,16 @@ defmodule PortfolixirWeb.Api.V1.DashboardController do
     case ClosedBody.check(conn, nil, []) do
       :ok ->
         stored = Dashboards.list_dashboards()
-        templates_in_menu = stored == []
-
         # A theme is never in the menu; a starter only while no dashboard is
-        # stored (Sprint 32 S4, S5).
+        # stored (Sprint 32 S4, S5), and of the starters the one the menu
+        # offers, „Überblick“ (Sprint 32 W2, `Dashboards.menu_templates/0`).
+        in_menu = if stored == [], do: Enum.map(Dashboards.menu_templates(), & &1.key), else: []
+
         data =
           Enum.map(stored, &DashboardJSON.entry(&1, true)) ++
             Enum.map(
               Dashboards.templates(),
-              &DashboardJSON.entry(&1, templates_in_menu and &1.starter)
+              &DashboardJSON.entry(&1, &1.key in in_menu)
             )
 
         json(conn, %{data: data})

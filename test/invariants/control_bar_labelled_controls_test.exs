@@ -96,15 +96,17 @@ defmodule Portfolixir.Invariants.ControlBarLabelledControlsTest do
       labelled: false,
       reason: @no_visible_label
     },
+    # Wealth's allocation bar, moved with its section into the widget
+    # „Allokation“'s module (Sprint 32 W2), which Wealth renders.
     %{
-      file: "live/portfolio_live.ex",
+      file: "live/dashboard/widgets/allocation.ex",
       match: ~s|aria-label={gettext("Allocation view")}|,
       labelled: false,
       reason: @no_visible_label
     },
     %{
-      file: "live/portfolio_live.ex",
-      match: ~s(id="allocation-classification"),
+      file: "live/dashboard/widgets/allocation.ex",
+      match: ~s|id={@prefix <> "allocation-classification"}|,
       labelled: false,
       reason: @no_visible_label
     },
@@ -239,7 +241,8 @@ defmodule Portfolixir.Invariants.ControlBarLabelledControlsTest do
   #   stands outside `ControlBar.bar` in lib/portfolixir_web/, unless an
   #   exception names it with its reason.
   # - The bars the inventory found without a visible label (`income_live.ex`,
-  #   `portfolio_live.ex`'s performance and allocation bars, `tax_live.ex`,
+  #   `portfolio_live.ex`'s performance bars and the allocation bar it
+  #   draws from `dashboard/widgets/allocation.ex` (Sprint 32 W2), `tax_live.ex`,
   #   Prognosen' status) are registered with that reason, and each still has
   #   no visible label.
   # - Every exception carries a reason and matches at least one family of

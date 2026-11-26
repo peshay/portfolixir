@@ -48,8 +48,9 @@ defmodule Portfolixir.Dashboards.RowSizeTest do
     {:ok, sale_review} = Widgets.fetch("sale_review")
     assert sale_review.sizes == ~w(L row)
 
+    # Sprint 32 W2 adds the sections of „Allokation & Ziele“.
     taking = for kind <- Widgets.kinds(), "row" in kind.sizes, do: kind.key
-    assert taking == ["sale_review"]
+    assert taking == ~w(sale_review summary_line allocation)
 
     assert {:ok, [stored]} = Layout.validate([item("sale_review", "row", 1, 3)])
     assert stored == item("sale_review", "row", 1, 3)

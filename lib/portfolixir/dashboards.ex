@@ -134,17 +134,31 @@ defmodule Portfolixir.Dashboards do
 
   @doc """
   The menu's dashboard entries, each marked: the stored dashboards in
-  their order, or, while none is stored, the starter templates (ADR-0062
-  §3: the first entry is „Überblick“, read-only; the themes are offered in
-  the gallery, not the menu, Sprint 32 S4). Writes nothing.
+  their order, or, while none is stored, the template the page opens at
+  `/` (`menu_templates/0`; ADR-0062 §3: the first entry is „Überblick“,
+  read-only; the themes are offered in the gallery, not the menu, Sprint
+  32 S4). Writes nothing.
   """
   @spec entries() :: [entry()]
   def entries do
     case list_dashboards() do
-      [] -> Enum.map(Templates.offered(Templates.starters()), &%{type: :template, template: &1})
+      [] -> Enum.map(menu_templates(), &%{type: :template, template: &1})
       stored -> Enum.map(stored, &%{type: :dashboard, dashboard: &1})
     end
   end
+
+  # --- S32 W2 begin ---
+  @doc """
+  The templates the menu offers while no dashboard is stored: the first
+  starter offered, „Überblick“, the one the page opens at `/`. The other
+  starters (Sprint 32 W: „Allokation & Ziele“, …) have no address of
+  their own until the boot stores them (`Portfolixir.Dashboards.Starters`),
+  so the menu does not offer them; the gallery does.
+  """
+  @spec menu_templates() :: [Templates.t()]
+  def menu_templates, do: Templates.starters() |> Templates.offered() |> Enum.take(1)
+
+  # --- S32 W2 end ---
 
   @doc """
   The name a screen shows for `dashboard` (the S32 closing act; the

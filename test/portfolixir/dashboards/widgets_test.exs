@@ -30,7 +30,10 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     # Sprint 32 S5 (I61): the themes' kinds.
     "distance_to_high" => {~w(L XL), "analyses", "Abstand zum Hoch"},
     "crash_chart" => {~w(L XL), "risk", "Crash-Chart"},
-    "rebounders" => {~w(L XL), "risk", "Erholer nach Crashes"}
+    "rebounders" => {~w(L XL), "risk", "Erholer nach Crashes"},
+    # Sprint 32 W2 (I57): the sections of Wealth's tab „Allokation & Ziele“.
+    "summary_line" => {~w(row), "allocation", "Kennzahlen-Zeile"},
+    "allocation" => {~w(row), "allocation", "Allokation"}
   }
 
   # User story:
@@ -42,7 +45,8 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   # Acceptance criteria:
   # - The registry holds exactly the kinds: eleven of Sprint 31 and
   #   Sprint 32 S5's „Abstand zum Hoch“, „Crash-Chart“ and „Erholer nach
-  #   Crashes“, each with the
+  #   Crashes“, and Sprint 32 W2's sections of „Allokation & Ziele“, each
+  #   with the
   #   sizes and the group the board draws, in the catalogue's order.
   # - Every kind is registered with its compact form (ADR-0062 §1).
   # - Lookup is by string key; an unknown string, an atom or another term
@@ -50,7 +54,8 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   test "the registry holds every kind with its sizes and group" do
     assert Widgets.keys() == ~w(total_value data_quality due off_target performance movers
                                 snapshots allocation_drift crashes bitcoin_cycle sale_review
-                                distance_to_high crash_chart rebounders)
+                                distance_to_high crash_chart rebounders summary_line
+                                allocation)
 
     for {key, {sizes, group, _german}} <- @slice do
       assert {:ok, kind} = Widgets.fetch(key)
@@ -316,7 +321,12 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     assert Widgets.source_params("crash_chart", "year:2024", today) ==
              {:ok, %{"from" => "2024-01-01", "to" => "2024-12-31"}}
 
-    for key <- Widgets.keys() -- ~w(movers performance total_value crash_chart) do
+    # Sprint 32 W2: „Kennzahlen-Zeile“ draws the performance read, by its rule.
+    {:ok, performance} = Widgets.fetch("performance")
+    {:ok, summary_line} = Widgets.fetch("summary_line")
+    assert summary_line.period == performance.period
+
+    for key <- Widgets.keys() -- ~w(movers performance total_value crash_chart summary_line) do
       {:ok, kind} = Widgets.fetch(key)
       assert kind.period == :none, key
     end

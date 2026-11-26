@@ -435,3 +435,60 @@ hinter ⓘ.
 </picture>
 <figcaption>XL</figcaption>
 </figure>
+
+<!-- S32 W2 begin -->
+
+## Kennzahlen-Zeile
+
+`summary_line` · Größen Zeile
+
+Die Zeile über dem Tab „Allokation & Ziele“ in Vermögen: Gesamt inkl. Cash,
+die Cashquote und die TTWROR des Zeitraums, dazu der Weg zu allen
+Kennzahlen unter Bestände. **Zeile** zeichnet sie über die ganze Breite,
+wie der Tab; auf dem Handy bricht sie um. Sie folgt dem Zeitraum des
+Dashboards oder ihrem eigenen. Nicht „Kennzahlen“ (`wealth_key_figures`),
+das Band des Tabs Bestände.
+
+**Quelle:**
+
+- `GET /api/v1/valuation`
+- `GET /api/v1/views/:view_id/valuation`
+- `GET /api/v1/performance`
+- `GET /api/v1/views/:view_id/performance`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/summary_line-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/summary_line-row-light.png 2x" src="/assets/widgets/summary_line-row-light.png" alt="Kennzahlen-Zeile in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>
+
+## Allokation
+
+`allocation` · Größen Zeile
+
+Der Abschnitt „Allokation“ aus Vermögen, wie der Tab ihn zeichnet: Baum
+oder Positionen, das Sunburst mit seiner Legende, die Drift-Tabelle (je
+Kategorie Wert, Ist- und Sollgewicht und die Drift, eine Kategorie öffnet
+ihre Wertpapiere), die Drift-Chips und die Wahl des Baums. Die Hinweise
+neben einer Drift („Verkauf ≈ 3,20 Stück“) sind Rechnung zum Kurs der
+Bewertung, nur zur Anzeige, nie ein Auftrag (ADR-0023). Die Bedienelemente
+ändern nur dieses Widget, solange die Seite offen ist; gespeichert wird
+nichts. Die Sollwerte werden auf der Seite Klassifikationen bearbeitet, die
+die Plan-Zeile verlinkt. **Zeile** zeichnet den Abschnitt über die ganze
+Breite; auf dem Handy nimmt er die schmale Form des Abschnitts.
+
+**Quelle:**
+
+- `GET /api/v1/portfolios/:portfolio_id/allocation`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/allocation-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/allocation-row-light.png 2x" src="/assets/widgets/allocation-row-light.png" alt="Allokation in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>
+
+<!-- S32 W2 end -->

@@ -38,9 +38,11 @@ defmodule PortfolixirWeb.DashboardStarterNameTest do
     |> get_in(["data", "name"])
   end
 
+  # „Überblick“ and the other starters (Sprint 32 W2: „Allokation &
+  # Ziele“), „Überblick“ first.
   defp seeded! do
-    {:ok, %{stored: ["overview"]}} = Starters.seed()
-    [overview] = Dashboards.list_dashboards()
+    {:ok, %{stored: ["overview" | _screens]}} = Starters.seed()
+    [overview | _screens] = Dashboards.list_dashboards()
     overview
   end
 
@@ -77,7 +79,9 @@ defmodule PortfolixirWeb.DashboardStarterNameTest do
 
     {:ok, widgets, _html} = conn |> german() |> live("/widgets")
     widgets |> element("[data-role='add-widget'][phx-value-kind='snapshots']") |> render_click()
-    assert text(find(widgets, "[data-role='add-to']")) == "Überblick"
+    # The picker lists every stored dashboard, the other starters after it
+    # (Sprint 32 W2).
+    assert text(find(widgets, "li:first-child [data-role='add-to']")) == "Überblick"
 
     {:ok, gallery, _html} = conn |> german() |> live("/dashboards/new")
     gallery |> element("[data-template='overview']") |> render_click()
@@ -112,7 +116,7 @@ defmodule PortfolixirWeb.DashboardStarterNameTest do
 
     {:ok, widgets, _html} = conn |> german() |> live("/widgets")
     widgets |> element("[data-role='add-widget'][phx-value-kind='snapshots']") |> render_click()
-    assert text(find(widgets, "[data-role='add-to']")) == "Mein Blick"
+    assert text(find(widgets, "li:first-child [data-role='add-to']")) == "Mein Blick"
 
     assert api_name(overview.id) == "Mein Blick"
   end

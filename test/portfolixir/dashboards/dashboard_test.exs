@@ -155,8 +155,12 @@ defmodule Portfolixir.Dashboards.DashboardTest do
     assert {:ok, %{key: "movers"}} = Dashboards.fetch_widget("movers")
     assert Dashboards.fetch_widget("nope") == :error
 
-    assert [%{key: "overview"}, %{key: "krypto_lover"}, %{key: "pullbacks"}] =
-             Dashboards.templates()
+    assert [
+             %{key: "overview"},
+             %{key: "allocation_targets"},
+             %{key: "krypto_lover"},
+             %{key: "pullbacks"}
+           ] = Dashboards.templates()
 
     assert {:ok, %{key: "overview"}} = Dashboards.fetch_template("overview")
     assert Dashboards.max_dashboards() == 50

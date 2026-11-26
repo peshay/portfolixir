@@ -5761,7 +5761,9 @@ zusammenstellen lässt, ohne den Code zu lesen: `{"data": {"widgets",
   `key` (der stabile String, den ein Layout nennt: `total_value`,
   `data_quality`, `due`, `off_target`, `performance`, `movers`, `snapshots`,
   `allocation_drift`, `crashes`, `bitcoin_cycle`, `sale_review`, seit
-  Sprint 32 auch `distance_to_high`, `crash_chart` und `rebounders`), `title`
+  Sprint 32 auch `distance_to_high`, `crash_chart`, `rebounders` und die
+  Abschnitte des Vermögens-Tabs Allokation & Ziele, `summary_line` und
+  `allocation`), `title`
   (englisch) und `title_key` (`{context, msgid}`, die Meldung, die der
   Bildschirm übersetzt), `group`, `sizes` (eine Teilmenge von `S`, `M`, `L`,
   `XL`, `row` und `full`, die kleinste zuerst), `source` (`routes`, die `GET /api/v1/...`-Routen,
@@ -5818,15 +5820,18 @@ die heutigen Seiten als Start-Dashboards, oder `theme`), `starter`,
 die Galerie danach fragt) und `subtitle`, und nur eine Vorlage, deren
 Arten alle gebaut sind, wird gelistet; ein gespeichertes zusätzlich `position`,
 `lock_version`, `view_id`, `view_dangling`, `template_key`, `inserted_at`
-und `updated_at`. Eine Vorlage ist nur
-`in_menu`, solange kein Dashboard gespeichert ist, und die Lesung schreibt
+und `updated_at`. Eine Start-Vorlage ist nur
+`in_menu`, solange kein Dashboard gespeichert ist, und dann nur
+`overview`, die die Seite unter `/` öffnet; die Lesung schreibt
 nie. Seit Sprint 32 speichert die Instanz jede **Start**-Vorlage einmal,
 beim ersten Start der Version, die sie mitbringt (diese Version:
-`overview`), im Journal unter dem Systemakteur `dashboard_starters`
+`overview` und `allocation_targets`, der Vermögens-Tab Allokation & Ziele),
+im Journal unter dem Systemakteur `dashboard_starters`
 (`resource_type` `dashboard_seed` hält den Schlüssel fest, sodass ein
-gelöschtes Start-Dashboard nie wieder gespeichert wird); die Kopie
-liefert `template_key` `overview`. Eine Instanz, die schon ein Dashboard
-speichert, zählt es als gespeichert und speichert keines.
+gelöschtes Start-Dashboard nie wieder gespeichert wird); jede Kopie
+liefert ihren `template_key`. Eine Instanz, die schon ein Dashboard
+speichert, zählt `overview` als gespeichert und speichert die übrigen
+Start-Vorlagen.
 
 **`GET /api/v1/dashboards/:id`** liefert ein gespeichertes Dashboard; eine
 Vorlage liest **`GET /api/v1/dashboards/template:<key>`**
@@ -5842,7 +5847,8 @@ Elements und speichert keines von beiden, damit ein Layout so
 zurückgeschickt werden kann, wie es gelesen wurde. Eine unbekannte id, ein
 Schlüssel ohne Vorlage und eine id, die keines von beiden ist, liefern
 `404`; ein Schlüssel ohne Vorlage nennt die angebotenen Schlüssel (`"not
-found: names no template; offered: overview, krypto_lover, pullbacks"`).
+found: names no template; offered: overview, allocation_targets, krypto_lover,
+pullbacks"`).
 
 **`POST /api/v1/dashboards`** legt eines aus `{"dashboard": {"name",
 "layout", "view_id"}}` an (das Layout ist ohne Angabe leer, die Ansicht

@@ -430,3 +430,59 @@ survivorship is named behind ⓘ.
 </picture>
 <figcaption>XL</figcaption>
 </figure>
+
+<!-- S32 W2 begin -->
+
+## Key figures line
+
+`summary_line` · sizes Row
+
+The line that heads Wealth's tab "Allocation & targets": the total incl.
+cash, the cash quote and the period's TTWROR, and the way to all key
+figures on Holdings. **Row** draws it across the full width, as the tab
+does; on a phone it wraps. It follows the dashboard's period, or its pin.
+Not "Key figures" (`wealth_key_figures`), the Holdings tab's band.
+
+**Source:**
+
+- `GET /api/v1/valuation`
+- `GET /api/v1/views/:view_id/valuation`
+- `GET /api/v1/performance`
+- `GET /api/v1/views/:view_id/performance`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/summary_line-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/summary_line-row-light.png 2x" src="/assets/widgets/summary_line-row-light.png" alt="Key figures line at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>
+
+## Allocation
+
+`allocation` · sizes Row
+
+Wealth's section "Allocation", as the tab draws it: tree or positions, the
+sunburst with its legend, the drift table (each category's value, actual
+and target weight and its drift, a category opening its securities), the
+drift chips and the choice of the tree. The hints beside a drift ("Sell ≈
+3.20 units") are arithmetic at the valuation's price, display only, never
+an order (ADR-0023). The controls change only this widget, for as long as
+the page is open; nothing is stored. The targets are edited on the
+Classifications page, which the plan line links. **Row** draws the section
+across the full width; on a phone it takes the section's own narrow
+layout.
+
+**Source:**
+
+- `GET /api/v1/portfolios/:portfolio_id/allocation`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/allocation-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/allocation-row-light.png 2x" src="/assets/widgets/allocation-row-light.png" alt="Allocation at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>
+
+<!-- S32 W2 end -->

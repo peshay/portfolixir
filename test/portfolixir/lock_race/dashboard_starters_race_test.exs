@@ -43,18 +43,22 @@ defmodule Portfolixir.LockRace.DashboardStartersRaceTest do
     :ok
   end
 
-  defp seeds, do: Seed |> Repo.all() |> Enum.map(& &1.template_key)
+  defp seeds, do: Seed |> Repo.all() |> Enum.map(& &1.template_key) |> Enum.sort()
+
+  # The starters of this release: „Überblick“ and, since Sprint 32 W2,
+  # „Allokation & Ziele“.
+  @starters ~w(overview allocation_targets)
 
   # User story:
   # As the operator whose instance starts twice at once (a restart while
   # the first start still seeds),
-  # I want „Überblick“ stored once,
+  # I want each starter stored once,
   # so that the update never doubles a starter.
   #
   # Acceptance criteria:
   # - The second run waits for the first's lock on the starters, then
   #   finds the record and stores nothing.
-  # - One dashboard, one seed record.
+  # - One dashboard and one seed record per starter.
   test "two boots at once: the second waits on the starters' lock and stores nothing", %{
     db: db
   } do
@@ -65,10 +69,10 @@ defmodule Portfolixir.LockRace.DashboardStartersRaceTest do
         fn -> Starters.seed() end
       )
 
-    assert {:ok, %{stored: ["overview"]}} = first
+    assert {:ok, %{stored: @starters}} = first
     assert {:ok, %{stored: [], counted: []}} = second
-    assert [%Dashboard{template_key: "overview"}] = Dashboards.list_dashboards()
-    assert seeds() == ["overview"]
+    assert Enum.map(Dashboards.list_dashboards(), & &1.template_key) == @starters
+    assert seeds() == Enum.sort(@starters)
   end
 
   # User story:
@@ -82,7 +86,8 @@ defmodule Portfolixir.LockRace.DashboardStartersRaceTest do
   # - The boot holds the starters' lock; the operator's create passes it
   #   (it takes only the count lock) and commits.
   # - The boot then sees a dashboard and counts „Überblick“ as seeded:
-  #   the operator's dashboard alone is stored, and the record is written.
+  #   the operator's dashboard and the other starters are stored, and the
+  #   records are written.
   test "a boot against the operator's create: the create passes, the boot counts", %{db: db} do
     {first, second} =
       LockRace.race!(
@@ -92,9 +97,10 @@ defmodule Portfolixir.LockRace.DashboardStartersRaceTest do
         second: :passes
       )
 
-    assert {:ok, %{stored: [], counted: ["overview"]}} = first
+    assert {:ok, %{stored: tl(@starters), counted: ["overview"]}} == first
     assert {:ok, %Dashboard{name: "Meins"}} = second
-    assert [%Dashboard{name: "Meins"}] = Dashboards.list_dashboards()
-    assert seeds() == ["overview"]
+    assert [%Dashboard{name: "Meins"} | others] = Dashboards.list_dashboards()
+    assert Enum.map(others, & &1.template_key) == tl(@starters)
+    assert seeds() == Enum.sort(@starters)
   end
 end
