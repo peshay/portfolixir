@@ -18180,6 +18180,12 @@ a.widget-row:hover .widget-row__label {
   color: var(--color-text);
 }
 
+/* The cash quote keeps its name and figure together: where the S tile is
+   too narrow, the pair wraps as one (S32 closing act). */
+.key-figures__quote {
+  white-space: nowrap;
+}
+
 .key-figures__swatch {
   display: inline-block;
   width: 10px;

@@ -295,7 +295,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.KeyFigures do
       </span>
       <p class="key-figures__legend">
         <span data-role="kf-securities"><span class="key-figures__swatch key-figures__swatch--securities" aria-hidden="true"></span><%= gettext("Securities") %> <b class="num"><%= Format.money(@valuation.total_value) %></b></span>
-        <span data-role="kf-cash"><span class="key-figures__swatch" style={"background: #{CategoryColors.cash()}"} aria-hidden="true"></span><%= gettext("Cash") %> <b class="num"><%= Format.money(@valuation.total_cash) %></b> · <%= gettext("Cash quote") %> <%= Format.percent(@valuation.cash_quote) %> %</span>
+        <span data-role="kf-cash"><span class="key-figures__swatch" style={"background: #{CategoryColors.cash()}"} aria-hidden="true"></span><%= gettext("Cash") %> <b class="num"><%= Format.money(@valuation.total_cash) %></b> · <span class="key-figures__quote"><%= gettext("Cash quote") %> <%= Format.percent(@valuation.cash_quote) %> %</span></span>
       </p>
     </div>
     """
