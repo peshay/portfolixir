@@ -17027,6 +17027,14 @@ a.widget-row:hover .widget-row__name {
   gap: var(--space-3);
 }
 
+/* The dialog's footer lies inside its form, where `.modal >
+   .modal-footer` never reaches: it takes the body's 18 px itself (S32
+   closing act; issue 1138's rule for a footer that is the dialog's own
+   child). */
+.new-dashboard-dialog form > .modal-footer {
+  padding: 0 18px 18px;
+}
+
 .new-dashboard__name {
   display: grid;
   gap: var(--space-1);
@@ -17051,7 +17059,10 @@ a.widget-row:hover .widget-row__name {
   gap: var(--space-3);
 }
 
-.gallery-group {
+/* Scoped under the gallery: `.workspace-section h2` (0,1,1) otherwise
+   drew these at the section heading's 20 px in the text colour, not the
+   board's small muted labels (03 ①; S32 closing act). */
+.dashboard-gallery .gallery-group {
   margin: var(--space-3) 0 0;
   color: var(--color-text-muted);
   font-size: 12px;

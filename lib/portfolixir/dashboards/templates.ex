@@ -177,4 +177,27 @@ defmodule Portfolixir.Dashboards.Templates do
     do: pgettext("dashboard template", "the falls compared, short tops and flops, rebounders")
 
   def subtitle(_key), do: nil
+
+  @doc """
+  The names of the view a template that asks for a scope suggests (board
+  03 ②, where „Krypto Lover“'s dialog shows „Krypto ▾“; the S32 closing
+  act): the name in every language the release speaks („Crypto“,
+  „Krypto“), since a view's name is the operator's word in whichever
+  language they wrote it; the dialog matches them against the stored
+  views' names, ignoring case, to preselect the first that matches. `nil`
+  for a template that suggests none.
+  """
+  @spec suggested_scope(term()) :: [String.t()] | nil
+  def suggested_scope("krypto_lover"),
+    do: in_every_locale(fn -> pgettext("dashboard template scope", "Crypto") end)
+
+  def suggested_scope(_key), do: nil
+
+  defp in_every_locale(fun) do
+    PortfolixirWeb.Gettext
+    |> Gettext.known_locales()
+    |> Enum.map(&Gettext.with_locale(PortfolixirWeb.Gettext, &1, fun))
+    |> then(&[fun.() | &1])
+    |> Enum.uniq()
+  end
 end
