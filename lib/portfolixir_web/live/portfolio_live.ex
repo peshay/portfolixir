@@ -895,6 +895,11 @@ defmodule PortfolixirWeb.PortfolioLive do
         # contradict its own bookings (#1101, D-7). The twin cash accounts'
         # portfolio tags (#1333) load here too, not in the page process each
         # time this lands (#1366).
+        # #1366 line 8 (#1320's remainder, Sprint 32 W5): the twins among
+        # the positions the total leaves out ride with the valuation, read
+        # here once, so the data notes tell them apart.
+        valuation = DataNotesWidget.with_twin_ids(valuation)
+
         {valuation, classification_id, allocation, Ledger.negative_holdings_report(),
          DataNotesWidget.two_scales_in(valuation),
          DataNotesWidget.implausible_quotes_in(valuation), AccountNames.load_portfolio_tags()}

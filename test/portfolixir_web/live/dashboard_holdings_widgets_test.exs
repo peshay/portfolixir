@@ -521,4 +521,72 @@ defmodule PortfolixirWeb.DashboardHoldingsWidgetsTest do
       assert Portfolixir.Repo.reload!(dashboard).lock_version == dashboard.lock_version
     end
   end
+
+  describe "Wealth's polish list #1366 (Sprint 32 W5)" do
+    # User story (#1366 line 7):
+    # As the operator reading the positions,
+    # I want a coupon such as „4,00 %“ kept on one line in the name column,
+    # so that a name never breaks between the figure and its percent sign.
+    #
+    # Acceptance criteria:
+    # - On Wealth's table and in the widget „Positionen“, the name „Larkspur
+    #   Rail AG 4,00 % Anleihe 2031“ binds „4,00“ to „%“ with a no-break
+    #   space; the stored name is unchanged.
+    test "a percent in a security's name never breaks from its figure", %{conn: conn} do
+      %{home: home} = seed()
+      today = Clock.today()
+      bond = create_security!(name: "Larkspur Rail AG 4,00 % Anleihe 2031")
+      put_quotes!(bond, [{Date.add(today, -10), "100"}, {today, "101"}])
+      buy!(home, bond, quantity: "10", price: "100", date: Date.add(today, -10))
+      dashboard!([{"positions", "row"}])
+
+      bound = "Larkspur Rail AG 4,00\u00A0% Anleihe 2031"
+
+      for {path, selector} <- [
+            {"/portfolio", "#holdings-positions-table"},
+            {"/", "#dashboard-positions table"}
+          ] do
+        cells =
+          conn
+          |> rendered(path)
+          |> Floki.find(selector <> " td[data-column='security']")
+          |> Enum.map(&Floki.text/1)
+
+        assert Enum.any?(cells, &String.contains?(&1, bound)), "#{path}: #{inspect(cells)}"
+      end
+
+      assert Portfolixir.Repo.reload!(bond).name == "Larkspur Rail AG 4,00 % Anleihe 2031"
+    end
+
+    # User story (#1366 line 8, #1320's remainder):
+    # As the operator reading a data note on Wealth or on a dashboard,
+    # I want two securities of the same name told apart in it,
+    # so that I know which of the two the total leaves out.
+    #
+    # Acceptance criteria:
+    # - Two held securities named alike, neither priced: the note „no price
+    #   at all“ names each with what tells it apart (its ISIN), as the
+    #   Overview's note does since Sprint 31 D3; on Wealth and in the
+    #   widget „Datenhinweise“ alike.
+    test "a data note tells twin securities apart", %{conn: conn} do
+      %{home: home} = seed()
+      today = Clock.today()
+
+      for isin <- ~w(DE000TWIN001 DE000TWIN002) do
+        twin = create_security!(name: "Zwilling Werke", isin: isin, ticker: nil)
+        deliver_untraded!(home, twin, "2", date: Date.add(today, -20))
+      end
+
+      dashboard!([{"data_notes", "row"}])
+
+      for {path, selector} <- [
+            {"/portfolio", "#portfolio-data-quality [data-role='dq-no-price']"},
+            {"/", "#dashboard-data-notes [data-form='wide'] [data-role='dq-no-price']"}
+          ] do
+        note = conn |> rendered(path) |> Floki.find(selector) |> text()
+        assert note =~ "Zwilling Werke · ISIN DE000TWIN001", "#{path}: #{note}"
+        assert note =~ "Zwilling Werke · ISIN DE000TWIN002", "#{path}: #{note}"
+      end
+    end
+  end
 end

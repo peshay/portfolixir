@@ -140,7 +140,39 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     |> Map.fetch!("data")
   end
 
-  defp settle(view), do: Enum.each(1..4, fn _round -> render_async(view) end)
+  # #1366 line 2 (Sprint 32 W5): the page's reads land in chains (the walk,
+  # then the bands, then their axis), and four rounds of `render_async/2`
+  # each bounded by the receive timeout failed under load, a read slower
+  # than its round raising „expected async processes to finish“. The page
+  # is settled when a round's reads have all landed and the page no longer
+  # changes: a landed read may start the next of its chain. A round that
+  # times out is waited again, up to a deadline.
+  @settle_deadline_ms 30_000
+
+  defp settle(view, opts \\ []) do
+    wait =
+      Keyword.get(opts, :round_wait, Application.fetch_env!(:ex_unit, :assert_receive_timeout))
+
+    settle_until(view, wait, nil, System.monotonic_time(:millisecond) + @settle_deadline_ms)
+  end
+
+  defp settle_until(view, wait, before, deadline) do
+    landed? =
+      try do
+        render_async(view, wait)
+        true
+      rescue
+        RuntimeError -> false
+      end
+
+    now = render(view)
+
+    cond do
+      landed? and now == before -> :ok
+      System.monotonic_time(:millisecond) > deadline -> flunk("the page's reads did not land")
+      true -> settle_until(view, wait, if(landed?, do: now), deadline)
+    end
+  end
 
   defp doc(view), do: view |> render() |> Floki.parse_document!()
 
@@ -1961,6 +1993,27 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     settle(de)
     assert text_of(de, "#lines-legend tr:first-child .lines-legend__name") == "Ansicht (fett)"
     assert text_of(de, "#lines-legend th:last-child") == "TTWROR"
+  end
+
+  # User story (#1366 line 2, Sprint 32 W5):
+  # As the maintainer whose suite runs on a loaded machine,
+  # I want the stack's tests to wait until the page's reads have landed,
+  # not for a fixed four rounds,
+  # so that the TTWROR lines' basis test passes however slow a read is.
+  #
+  # Acceptance criteria:
+  # - With each round's wait cut to 1 ms (a read slower than the round, as
+  #   under load), the page still shows the lines' basis line after
+  #   `settle/2`, the same as with the default wait.
+  test "the stack's tests wait until the reads have landed, however slow a read is",
+       %{conn: conn} do
+    lines_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=category&scale=ttwror")
+    settle(view, round_wait: 1)
+
+    assert text_of(view, "[data-role='stack-basis'] [data-role='stack-basis-line']") =~
+             "TTWROR per category of “Strategy”"
   end
 
   # User story (FR-57; I22, DESIGN.md's privacy rule: percentages stay):

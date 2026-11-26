@@ -13152,25 +13152,29 @@ dialog.merge-dialog {
    note („Handelspreis · …“, „ohne Wechselkurs · …“) wraps between words,
    where on one line it set the widest columns. With all eleven columns the
    table is still wider than the scroller, which stays the fallback. */
-.data-table-wrapper > #holdings-positions-table {
+.data-table-wrapper > .holdings-positions-table {
   min-width: 0;
   width: 100%;
 }
 
-#holdings-positions-table th.cell-name {
-  min-width: 9.5rem;
+/* Issue 1366, line 1 (Sprint 32 W5): the floor 8rem, not 9.5rem, so the eight
+   columns leave a scrollbar's width of headroom in the 922 px scroller
+   (922.8 px before, 898.8 after); a longer name breaks inside its cell.
+   A class, so the section widget „Positionen“ draws the same table. */
+.holdings-positions-table th.cell-name {
+  min-width: 8rem;
 }
 
-#holdings-positions-table td.cell-name {
+.holdings-positions-table td.cell-name {
   overflow-wrap: anywhere;
 }
 
-#holdings-positions-table th.num,
-#holdings-positions-table td.num {
+.holdings-positions-table th.num,
+.holdings-positions-table td.num {
   white-space: nowrap;
 }
 
-#holdings-positions-table td .cell-note {
+.holdings-positions-table td .cell-note {
   white-space: normal;
 }
 
@@ -13187,19 +13191,19 @@ dialog.merge-dialog {
    ellipsis past 7rem, whole in its title; the Security column's floor
    drops from 12rem to 9.5rem to make the room (with 12rem the table was
    956 px in 922). Rows 49 px, the table 922 px in 922 in Inter. */
-#holdings-positions-table td .cell-note__lead {
+.holdings-positions-table td .cell-note__lead {
   white-space: nowrap;
 }
 
-#holdings-positions-table td.num .cell-note {
+.holdings-positions-table td.num .cell-note {
   margin-left: -9rem;
 }
 
-#holdings-positions-table td[data-column="depot"] {
+.holdings-positions-table td[data-column="depot"] {
   white-space: nowrap;
 }
 
-#holdings-positions-table .cell-depot {
+.holdings-positions-table .cell-depot {
   display: block;
   max-width: 7rem;
   overflow: hidden;

@@ -38,6 +38,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.DataNotes do
   alias PortfolixirWeb.Dashboard.Widget
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.PrivacyMode
+  alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.ValuationNotes
 
   # -- the read -----------------------------------------------------------------
@@ -66,6 +67,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.DataNotes do
         {:error, :view_not_found} -> Valuation.for_view(nil, opts)
         valuation -> valuation
       end
+      |> with_twin_ids()
 
     analysis =
       case Performance.view_analysis(view_id, opts) do
@@ -81,6 +83,19 @@ defmodule PortfolixirWeb.Dashboard.Widgets.DataNotes do
       implausible_quotes: implausible_quotes_in(valuation)
     }
   end
+
+  @doc """
+  The valuation with the twins among the positions it leaves out of its
+  total (`:unvalued_twin_ids`, `%{security_id => twin_id}`; #1320, #1366
+  line 8, Sprint 32 W5), read in the background with the valuation, so the
+  notes name each twin with what tells it apart, as the Overview's note
+  does since Sprint 31 D3.
+  """
+  @spec with_twin_ids(map()) :: map()
+  def with_twin_ids(%{positions: _} = valuation),
+    do: Map.put(valuation, :unvalued_twin_ids, ValuationNotes.unvalued_twin_ids(valuation))
+
+  def with_twin_ids(valuation), do: valuation
 
   @doc """
   The notes' findings from the section's inputs (Wealth's assigns or
@@ -435,15 +450,28 @@ defmodule PortfolixirWeb.Dashboard.Widgets.DataNotes do
   defp unvalued_entries(nil, _reason), do: %{count: 0, names: []}
 
   defp unvalued_entries(valuation, reason) do
+    # #1366 line 8 (#1320's remainder): a twin named with what tells it
+    # apart, so two of one name are two entries, not one.
+    twin_ids = Map.get(valuation, :unvalued_twin_ids, %{})
+
     names =
       valuation.positions
       |> Enum.filter(&(&1.unvalued_reason == reason))
       |> reject_retired(reason)
+      |> Enum.map(&twin_named(&1, Map.get(twin_ids, &1.security_id)))
       |> Enum.map(&ValuationNotes.unvalued_entry_label(&1, reason))
       |> Enum.uniq()
 
     %{count: length(names), names: ValuationNotes.shorten_list(names)}
   end
+
+  defp twin_named(position, nil), do: position
+
+  defp twin_named(position, tag),
+    do: %{
+      position
+      | security_name: SecurityNames.twin_name(position.security_name || gettext("Unsorted"), tag)
+    }
 
   # The no-price row links to ?dq=missing_quote&holding=held (#1366: the
   # held ones it counts, as the implausible-quote row's link), which leaves
