@@ -179,6 +179,10 @@ defmodule PortfolixirWeb.Dashboard.Widgets.KeyFigures do
         # A window the read walked no day of (start_date nil: before the
         # first booking, or nothing booked yet) has no bridge to draw.
         bridge: walked?(performance) && bridge(performance),
+        bridge_start_label:
+          walked?(performance) &&
+            gettext("Start %{date}", date: Format.date(performance.start_date)),
+        bridge_end_label: walked?(performance) && end_label(performance.end_date, Clock.today()),
         apart: performance && valuation && apart(performance, valuation, Clock.today())
       )
 
@@ -256,6 +260,38 @@ defmodule PortfolixirWeb.Dashboard.Widgets.KeyFigures do
               <:name><%= money_weighted_label(@performance) %> · <%= @label %></:name>
               <:figure><span class={sign_class(money_weighted_value(@performance))}><%= percent(money_weighted_value(@performance)) %></span></:figure>
             </Widget.row>
+            <%!-- The bridge as rows (the S32 closing act; board 06 A, DESIGN
+                 „Zeile“: the compact form is the section's own narrow
+                 layout, and the Wealth tab keeps Anfang, Nettoflüsse and
+                 the multiplier at every width). The result stands above;
+                 a period that has ended ends „am“ its last day. --%>
+            <%= if @bridge do %>
+              <Widget.row title={@bridge_start_label} data-compact-role="key-figures-bridge-start">
+                <:name><%= @bridge_start_label %></:name>
+                <:figure><%= Format.money(@bridge.start) %></:figure>
+              </Widget.row>
+              <Widget.row title={gettext("Net flows")} data-compact-role="key-figures-bridge-flows">
+                <:name><%= gettext("Net flows") %></:name>
+                <:figure><%= Format.signed_decimal(@bridge.flows, 2) %></:figure>
+              </Widget.row>
+              <Widget.row title={@bridge_end_label} data-compact-role="key-figures-bridge-end">
+                <:name><%= @bridge_end_label %></:name>
+                <:figure><%= Format.money(@bridge.end) %> <%= @performance.base_currency %></:figure>
+                <:figure_sub :if={@bridge.gap}>
+                  <%= gettext("⚠ rounding gap %{gap}: each figure is rounded to the cent, none is changed",
+                    gap: Format.signed_decimal(@bridge.gap, 2)
+                  ) %>
+                </:figure_sub>
+              </Widget.row>
+              <Widget.row
+                :if={@performance.wealth_multiple}
+                title={gettext("Multiple")}
+                data-compact-role="key-figures-bridge-multiple"
+              >
+                <:name><%= gettext("Multiple") %></:name>
+                <:figure>×<%= Format.plain_decimal(@performance.wealth_multiple, 2) %></:figure>
+              </Widget.row>
+            <% end %>
           <% end %>
         <% end %>
       </:compact>
