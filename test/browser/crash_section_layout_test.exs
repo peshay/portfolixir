@@ -77,6 +77,11 @@ defmodule PortfolixirWeb.Browser.CrashSectionLayoutTest do
   #   the crash benchmark's long name, the losers' „ggü. ‹benchmark›“ head
   #   wraps at 1200 px and the name column keeps at least 10rem, in Inter
   #   and in DejaVu Sans.
+  # - Sprint 32 W5 (#1366, lines 3 to 6): at 1200 px the rebounders'
+  #   days head wraps (line 3); at 390 px the list's axis spans each row's
+  #   track to the pixel (line 4), each table of names without a window
+  #   fits its wrapper (line 5), and an ongoing window's tinted row keeps
+  #   its text 6 px or more off the tint's edges (line 6).
   test "the Crashes section at 1200 and 390 px", %{base_url: base_url} do
     world = base_world()
     # The crash benchmark's name is long, as the review seed's is, so the
@@ -167,6 +172,11 @@ defmodule PortfolixirWeb.Browser.CrashSectionLayoutTest do
       })
 
     put_quotes!(index, [{~D[2022-01-04], "121"}])
+
+    # Sprint 32 W5 (#1366, line 6): a fall still running, its window row
+    # tinted on the phone.
+    today = Portfolixir.Clock.today()
+    put_quotes!(index, [{Date.add(today, -40), "130"}, {Date.add(today, -5), "110"}])
 
     query = fn list ->
       URI.encode_query(

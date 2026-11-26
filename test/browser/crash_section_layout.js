@@ -17,7 +17,11 @@
 // names without a window per reason, each in its wrapper. Its closing act
 // (the design critic, finding 2) adds: at 1200 px the list's „ggü.
 // ‹benchmark›“ head wraps under a long benchmark name, and the name column
-// keeps its floor.
+// keeps its floor. Sprint 32 W5 (#1366, lines 3 to 6) adds: at 1200 px
+// the rebounders' „Tage bis Vor-Crash-Schluss“ head wraps; at 390 px the
+// list's axis spans its rows' tracks, so a mark reads where the bars do;
+// each table of names without a window fits its wrapper; and a tinted
+// window row (an ongoing window's) keeps its text off the tint's edge.
 //
 // Prints one JSON object on stdout: {"ok": true} or {"ok": false, "error":
 // "...", "seen": {...}}; the exit status is 0 either way unless the browser
@@ -114,7 +118,20 @@ async function measure(page) {
           name: box(section.querySelector("table.crash-table th.crash-name"))
         }
       : null;
+    // Sprint 32 W5 (#1366, lines 3, 4 and 6): the days' head, the axis
+    // against the rows' tracks, and the tinted window rows on a phone.
+    const daysHead = section.querySelector("table.crash-table th.crash-days");
+    const days = daysHead ? { lines: lines(daysHead), whiteSpace: getComputedStyle(daysHead).whiteSpace } : null;
+    const axis = box(section.querySelector("table.crash-table .crash-axis"));
+    const tinted = disclosure
+      ? Array.from(disclosure.querySelectorAll("#crash-windows-phone-rows li.phone-row.is-ongoing"))
+          .filter(shown)
+          .map((row) => ({ row: box(row), name: box(row.querySelector(".phone-row__name")), figure: box(row.querySelector(".phone-row__figures")) }))
+      : [];
     return {
+      days,
+      axis,
+      tinted,
       scrollers,
       phoneRows,
       windowsShown: shown(section.querySelector("#crash-windows-table")),
@@ -215,6 +232,36 @@ function check(seen, width, font) {
       const right = table.wrapper.right + 0.5;
       if (table.scroll > table.client + 0.5) errors.push("1200 px: a names table scrolls sideways: " + table.scroll + " in " + table.client);
       if (table.actions.some((a) => a.right > right)) errors.push("1200 px: an action of a names table is cut off");
+    }
+  }
+
+  // Sprint 32 W5 (#1366, line 3): the days' head wraps as the „ggü.“ head
+  // does, never kept on one line by the figures' nowrap.
+  if (width >= 1000 && seen.days) {
+    if (seen.days.whiteSpace === "nowrap" || seen.days.lines < 2)
+      errors.push("1200 px: the days' head does not wrap (" + seen.days.whiteSpace + ", " + seen.days.lines + " line)");
+  }
+  if (width < 600) {
+    // Line 4: the axis spans the rows' tracks, so a mark reads where the
+    // bars do.
+    for (const [index, r] of seen.rows.entries()) {
+      if (!seen.axis || !r.track) continue;
+      if (Math.abs(seen.axis.left - r.track.left) > 1 || Math.abs(seen.axis.right - r.track.right) > 1)
+        errors.push(
+          width + " px: the axis spans " + seen.axis.left + "–" + seen.axis.right + ", row " + (index + 1) + "'s track " +
+            r.track.left + "–" + r.track.right
+        );
+    }
+    // Line 5: each table of names without a window fits its wrapper.
+    if (seen.unmatched.length === 0) errors.push(width + " px: no names table measured");
+    for (const table of seen.unmatched) {
+      if (table.scroll > table.client + 0.5) errors.push(width + " px: a names table scrolls sideways: " + table.scroll + " in " + table.client);
+    }
+    // Line 6: a tinted window row keeps its text off the tint's edge.
+    if (seen.tinted.length === 0) errors.push(width + " px: no tinted window row measured");
+    for (const t of seen.tinted) {
+      if (t.name.left - t.row.left < 6 || t.row.right - t.figure.right < 6)
+        errors.push(width + " px: the tinted window row's text touches its edge (" + (t.name.left - t.row.left) + " px, " + (t.row.right - t.figure.right) + " px)");
     }
   }
 
