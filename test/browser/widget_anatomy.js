@@ -111,20 +111,32 @@ function measure(page) {
         // A figure is cut where it is wider than its box, or where its
         // right or left edge passes the frame or a box between them that
         // cuts what overflows.
-        const figures = Array.from(w.querySelectorAll(".widget-figure__value, .widget-row__figure")).filter(shown);
+        // A table's figure cell is a figure too (the S32 closing act: the
+        // walk missed „≈ zum Soll“ cut by the drift table's 437 px in a
+        // 425 px body, and the lowest return of „Crashes im Vergleich“
+        // behind its name's ellipsis): a cell of figures (`td.num`) and a
+        // figure inside a cell; a table that scrolls sideways keeps its
+        // cells reachable, so only a box that clips cuts one.
+        const figures = Array.from(
+          w.querySelectorAll(".widget-figure__value, .widget-row__figure, td.num, td .num")
+        ).filter(shown);
         const cut = [];
         for (const f of figures) {
           const r = rect(f);
+          const cell = !f.matches(".widget-figure__value, .widget-row__figure");
           if (f.scrollWidth > f.clientWidth + 1) {
-            cut.push(f.textContent.trim() + " is " + f.scrollWidth + " px wide in " + f.clientWidth);
+            cut.push(f.textContent.replace(/\s+/g, " ").trim() + " is " + f.scrollWidth + " px wide in " + f.clientWidth);
             continue;
           }
           for (let box = f.parentElement; box && box !== w.parentElement; box = box.parentElement) {
             const bs = getComputedStyle(box);
             if (box !== w && bs.overflowX === "visible") continue;
+            if (cell && box !== w && (bs.overflowX === "auto" || bs.overflowX === "scroll")) break;
             const b = rect(box);
             if (r.right > b.right + 1 || r.left < b.left - 1) {
-              cut.push(f.textContent.trim() + " passes the edge of " + (box === w ? "its frame" : box.className));
+              cut.push(
+                f.textContent.replace(/\s+/g, " ").trim() + " passes the edge of " + (box === w ? "its frame" : box.className || box.tagName)
+              );
               break;
             }
           }
@@ -133,7 +145,7 @@ function measure(page) {
         // A warning box: a data note drawn with a frame or a fill. Inside
         // a widget the note is a line (its glyph, word and colour), never
         // a box.
-        const boxes = Array.from(w.querySelectorAll(".data-note"))
+        const boxes = Array.from(w.querySelectorAll(".data-note, .data-note-group"))
           .filter(shown)
           .filter((n) => {
             const ns = getComputedStyle(n);
@@ -144,6 +156,80 @@ function measure(page) {
             return framed || filled;
           })
           .map((n) => n.className);
+
+        // A card inside the widget (the S32 closing act; board 10 D „Eine
+        // Fläche“, board 07 ② 3 "no card inside the card, no colour
+        // strip"): a part of the body that casts a shadow, carries a
+        // colour strip (a ::before laid over its edge with a gradient) or
+        // is framed on all four sides and filled or rounded. Controls,
+        // badges, tracks, a table's cells (the pinned column's seam is an
+        // inset shadow) and charts are not cards.
+        const cards = [];
+        for (const el of w.querySelectorAll("*")) {
+          if (
+            el.closest(
+              ".widget__head, .widget__edit, .widget__sizes, .widget__note, button, a, input, select, textarea, summary, label, svg, td, th, .segmented-control, .badge, .drift-bar, .widget-bar, .risk-hhi__track, .key-figures__bar"
+            ) ||
+            !shown(el)
+          ) {
+            continue;
+          }
+          const r = rect(el);
+          if (r.width < 60 || r.height < 24) continue;
+          const cs = getComputedStyle(el);
+          const before = getComputedStyle(el, "::before");
+          const strip =
+            before.content !== "none" &&
+            before.content !== "normal" &&
+            before.position === "absolute" &&
+            before.backgroundImage !== "none";
+          const framed = ["Top", "Right", "Bottom", "Left"].every(
+            (side) => parseFloat(cs["border" + side + "Width"]) > 0 && cs["border" + side + "Style"] !== "none"
+          );
+          const filled = cs.backgroundColor !== "rgba(0, 0, 0, 0)" && cs.backgroundColor !== "transparent";
+          const rounded = parseFloat(cs.borderTopLeftRadius) > 0;
+          const why = cs.boxShadow !== "none" ? "a shadow" : strip ? "a colour strip" : framed && (filled || rounded) ? "a frame" : null;
+          if (why) cards.push((el.className || el.tagName) + " with " + why);
+        }
+
+        // The figures of a card the tabs share (`.stat`) are set in the
+        // anatomy's sizes inside a widget: 34, 28 or 24 px, 30 or 22 in a
+        // compact form, at the figure's weight.
+        const offSizes = [];
+        for (const f of w.querySelectorAll(".stat strong")) {
+          if (!shown(f) || f.classList.contains("stat-empty")) continue;
+          const fs = getComputedStyle(f);
+          const px = parseFloat(fs.fontSize);
+          if (![34, 30, 28, 24, 22].includes(px) || parseInt(fs.fontWeight, 10) < 750) {
+            offSizes.push(f.textContent.replace(/\s+/g, " ").trim() + " at " + px + " px/" + fs.fontWeight);
+          }
+        }
+
+        // The cycle chart in a widget (the S32 closing act: its labels
+        // stood at 10.4 units, 9 CSS px, in „Krypto Lover“'s XL): every
+        // text it draws at 12 CSS px or more, its size in the viewBox's
+        // units times the units' CSS pixels.
+        const smallText = [];
+        for (const svg of w.querySelectorAll("[data-role='cycle-widget-chart'] svg")) {
+          if (!shown(svg) || !svg.viewBox || !svg.viewBox.baseVal || !svg.viewBox.baseVal.width) continue;
+          const px = rect(svg).width / svg.viewBox.baseVal.width;
+          for (const t of svg.querySelectorAll("text, tspan")) {
+            if (!shown(t) || !t.textContent.trim()) continue;
+            const size = parseFloat(getComputedStyle(t).fontSize) * px;
+            if (size < 11.95) smallText.push(t.textContent.replace(/\s+/g, " ").trim().slice(0, 30) + " at " + size.toFixed(1) + " px");
+          }
+        }
+
+        // The footer whole or wrapped, never cut, in the compact forms
+        // (the S32 closing act: „Ans…“ and „Nicht i…“ at 393 px).
+        const footCut = [];
+        if (!wideGrid) {
+          for (const el of w.querySelectorAll(":scope > .widget__foot > span, :scope > .widget__foot .widget-warning__text")) {
+            if (shown(el) && el.scrollWidth > el.clientWidth + 1) {
+              footCut.push(el.textContent.replace(/\s+/g, " ").trim().slice(0, 40));
+            }
+          }
+        }
 
         const edit = (sel) => {
           const el = w.querySelector(sel);
@@ -192,6 +278,10 @@ function measure(page) {
           offLine,
           cut,
           boxes,
+          cards,
+          offSizes,
+          footCut,
+          smallText,
           border: ws.borderTopWidth,
           radius: ws.borderTopLeftRadius,
           shadow: ws.boxShadow,
@@ -220,6 +310,10 @@ function check(tag, viewport, m, errors) {
     if (w.offLine.length > 0) errors.push(tag + ": " + w.name + "'s head wraps: " + w.offLine.join(", ") + " off the title's line");
     for (const c of w.cut) errors.push(tag + ": " + w.name + " clips a figure: " + c);
     if (w.boxes.length > 0) errors.push(tag + ": " + w.name + " carries a warning box (" + w.boxes[0] + ")");
+    for (const c of w.cards) errors.push(tag + ": " + w.name + " carries a card: " + c);
+    for (const s of w.offSizes) errors.push(tag + ": " + w.name + " sets a figure off the anatomy's sizes: " + s);
+    for (const f of w.footCut) errors.push(tag + ": " + w.name + "'s footer is cut: " + f);
+    for (const t of w.smallText) errors.push(tag + ": " + w.name + " draws chart text under 12 px: " + t);
     if (w.border !== "0px") errors.push(tag + ": " + w.name + " draws a card border of " + w.border);
     if (w.radius !== "0px") errors.push(tag + ": " + w.name + " rounds its own corner, " + w.radius);
     if (w.shadow !== "none" && !/^rgb[a]?\([^)]*\) 0px 0px 0px 1px$/.test(w.shadow)) {
@@ -285,6 +379,35 @@ function breakEach(page, viewport) {
     note.style.border = "1px solid currentColor";
     note.style.background = "var(--color-warning-soft)";
     second.appendChild(note);
+    // A table's figure cut by its cell (the S32 closing act), wider than
+    // any widget, so a stylesheet that widens the table cannot hide it.
+    const table = document.createElement("table");
+    table.style.display = "table";
+    table.style.tableLayout = "fixed";
+    table.style.width = "60px";
+    table.innerHTML =
+      "<tbody><tr><td style='width: 40px; overflow: hidden; white-space: nowrap'><span class='num'>Zelle −98,76 % · 1.234.567.890.123.456.789,01 EUR · 9.876.543.210,98 EUR</span></td></tr></tbody>";
+    second.appendChild(table);
+    // A card inside the widget, its figure off the anatomy's sizes.
+    const card = document.createElement("article");
+    card.className = "stat";
+    card.style.cssText =
+      "display: block; padding: 18px; border: 1px solid #ccc; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2)";
+    card.innerHTML = "<span>Karte</span> <strong style='font-size: 31px; font-weight: 700'>+1,0 %</strong>";
+    second.appendChild(card);
+    // A footer cut with an ellipsis (the compact forms, at 393 px).
+    const foot = document.createElement("footer");
+    foot.className = "widget__foot";
+    foot.innerHTML =
+      "<span style='display: block; width: 50px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis'>Ansicht Alles · ein langer Fuß</span>";
+    second.appendChild(foot);
+    // A chart in a widget whose label is drawn at 9 CSS px: a 960-unit
+    // viewBox drawn 480 px wide, its text 18 units.
+    const chart = document.createElement("div");
+    chart.dataset.role = "cycle-widget-chart";
+    chart.innerHTML =
+      "<svg viewBox='0 0 960 320' style='display: block; width: 480px; height: 160px'><text x='10' y='40' style='font-size: 18px'>Top-Band 4.500 USD</text></svg>";
+    second.appendChild(chart);
     second.style.border = "1px solid red";
     if (wide) {
       document.querySelector("#dashboard-grid").style.gap = "12px";

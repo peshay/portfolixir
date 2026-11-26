@@ -18247,3 +18247,203 @@ a.widget-row:hover .widget-row__label {
   column-gap: var(--space-4);
 }
 /* --- S32 W1 end --- */
+
+/* --- S32 closing act, PR 2 (the design critic) begin --- */
+
+/* One surface inside the widget too (board 10 D „Eine Fläche“; board 07
+   ② 3: no card inside the card, no colour strip; ② 6: never a box). The
+   section widgets draw the tabs' own markup, so the tabs keep their cards
+   and frames, and inside `.dashboard-widget` they stand on the widget's
+   surface: no border, shadow, corner, fill or strip, the figures in the
+   anatomy's sizes and weight (`Widget.figure`: 34, 28, 24 px). Code
+   moves, figures don't: only the drawing changes. */
+.dashboard-widget .stat {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  align-content: start;
+}
+
+.dashboard-widget .stat::before {
+  content: none;
+}
+
+.dashboard-widget .stat > span {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.dashboard-widget .stat strong {
+  font-size: var(--widget-figure-s);
+  font-weight: 760;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+
+.dashboard-widget .stat--compact strong {
+  font-size: var(--widget-figure-secondary);
+}
+
+/* „nicht berechenbar“ stays the quiet muted sentence (UX-DR20), never at
+   a figure's size or weight. */
+.dashboard-widget .stat strong.stat-empty {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* „Klumpenrisiko“: the HHI is the widget's one figure. */
+.dashboard-widget .stat.risk-hhi strong {
+  font-size: var(--widget-figure-s);
+}
+
+/* „Kennzahlen des Portfolios“: the basis line under the four figures
+   keeps the body's gap, not glued to them. */
+.dashboard-widget .kpi-band__support + .summary-basis {
+  margin-top: var(--space-2);
+}
+
+/* A table or a chart in a widget stands on the surface, its rows on
+   hairlines: no frame, shadow or corner around it. */
+.dashboard-widget .data-table-wrapper,
+.dashboard-widget .chart-frame {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.dashboard-widget .chart-frame {
+  background: transparent;
+}
+
+/* „Datenhinweise“: the fold of the other notes is a line — its glyph,
+   word and colour —, never a framed and filled box. */
+.dashboard-widget .data-note-group {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.dashboard-widget .data-note-group > summary {
+  padding: var(--space-1) 0;
+}
+
+.dashboard-widget .data-note-group__body {
+  padding: 0 0 var(--space-2);
+}
+
+/* „Crashes im Vergleich“: the lowest security's name wraps and its
+   return stays whole beside it (board 09), never behind an ellipsis. */
+.dashboard-widget .widget-crash-table td[data-role="crash-lowest"] {
+  max-width: none;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-widget .widget-crash-table td[data-role="crash-lowest"] .num {
+  margin-left: 0;
+}
+
+/* „Allokation und Drift“ at L: the „≈ zum Soll“ figure never cut — its
+   digits stay together and its currency goes under them where the
+   column has no room beside them; the drift bar gives way first. */
+.dashboard-widget .widget-drift-table__to-target {
+  white-space: normal;
+}
+
+.dashboard-widget .widget-drift-table__to-target .num {
+  white-space: nowrap;
+}
+
+/* An inline block drops the space its text starts with: the margin
+   stands in for it. */
+.dashboard-widget .widget-drift-table__to-target small {
+  display: inline-block;
+  margin-left: 0.25em;
+}
+
+.dashboard-widget .widget-drift-table__drift .drift-bar {
+  min-width: 24px;
+}
+
+/* The footer whole or wrapped in the compact forms, never cut (the
+   critic's „Ans…“ and „Nicht i…“ at 393 px): the scope and a warning
+   line wrap where the tile is narrow; the wide grid keeps its one line. */
+@media (width < 1000px) {
+  .widget__foot > span {
+    flex: 1 1 auto;
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .widget-warning--line {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+
+  /* The glyph and the sentence share the line, the sentence wrapping
+     beside the glyph; the link follows where it has room. */
+  .widget-warning--line .widget-warning__text {
+    flex: 1 1 0;
+    width: auto;
+    overflow: visible;
+    overflow-wrap: anywhere;
+  }
+
+  /* „Fällig“ at S: the footer's short basis, as in the wide grid; the
+     long sentence would make the tile half a screen tall. */
+  .widget--s[data-widget-kind="due"] > [data-role="upcoming-basis"] {
+    display: none;
+  }
+}
+
+/* „Crashes“ embedded (the widget `crash_section`): the section's inner
+   part on the widget's surface, without the tab's padding, fill and
+   hairline; the list and the universe stand in the frame's head. */
+.crash-section--embedded {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-4);
+}
+
+/* A quiet empty state in a widget is a line, not a dashed and filled
+   box („Anlageklassen-Obergrenzen“: „Keine Obergrenze konfiguriert“). */
+.dashboard-widget .empty-state {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: start;
+}
+
+/* „Bitcoin-Zyklus“ at XL: the chart's text at 12 CSS px at least, as
+   everything a widget draws (DESIGN.md: nothing under 12 px), through
+   --chart-upx as the security's page sizes its 9 px; the security's page
+   keeps its own. At that size the labels whose figures the card and the
+   full view hold — the segments' days and factors, a band's or an
+   extreme's further lines — give way, so none runs into a line or
+   another label; each band's and extreme's first line stays. */
+.dashboard-widget .widget-cycle__chart .security-chart text {
+  font-size: calc(12px * var(--chart-upx, 1));
+}
+
+.dashboard-widget .widget-cycle__chart .security-chart .cycle-label {
+  stroke-width: calc(4px * var(--chart-upx, 1));
+}
+
+.dashboard-widget .widget-cycle__chart .cycle-label--segment,
+.dashboard-widget .widget-cycle__chart .cycle-label__more,
+.dashboard-widget .widget-cycle__chart .cycle-label--top tspan:nth-child(n + 2),
+.dashboard-widget .widget-cycle__chart .cycle-label--low tspan:nth-child(n + 2) {
+  display: none;
+}
+
+/* --- S32 closing act, PR 2 (the design critic) end --- */
