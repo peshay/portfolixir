@@ -128,6 +128,51 @@ defmodule PortfolixirWeb.DashboardDomIdsTest do
     assert frames |> ids() |> Enum.uniq() |> length() == 2
   end
 
+  # User story (the S32 closing act, PR 2's coverage pass, S2):
+  # As the operator with two „Performance“ rows on one dashboard,
+  # I want each row's chart to keep its own ids at every level,
+  # so that the page patches both and each chart's scale hook finds its
+  # own chart.
+  #
+  # Acceptance criteria:
+  # - Two „Performance“ rows, each switched to „Kategorien“ and then to
+  #   „Wertpapiere“ in the % series (the TTWROR lines), draw no id twice;
+  #   each row's lines figure and its chart carry the widget's suffix, the
+  #   chart its scale hook.
+  test "two „Performance“ rows at a level draw their TTWROR lines under ids of their own",
+       %{conn: conn} do
+    seed()
+
+    board =
+      dashboard!("Zwei Performance", [
+        %{"kind" => "performance", "size" => "row", "col" => 1, "row" => 1},
+        %{"kind" => "performance", "size" => "row", "col" => 1, "row" => 2}
+      ])
+
+    {:ok, view, _html} = live(conn, "/dashboards/#{board.id}")
+    render_async(view)
+
+    for level <- ~w(category security) do
+      for frame <- ~w(dashboard-performance-section dashboard-performance-section-2) do
+        view
+        |> element("##{frame} [data-role='performance-level'] button[phx-value-level='#{level}']")
+        |> render_click()
+      end
+
+      render_async(view)
+      doc = view |> render() |> Floki.parse_document!()
+      all = ids(Floki.find(doc, "[id]"))
+      assert repeated(all) == [], "at #{level}: #{inspect(repeated(all))}"
+
+      for frame <- ~w(dashboard-performance-section dashboard-performance-section-2) do
+        assert [figure] = Floki.find(doc, "##{frame} figure.lines-figure")
+        assert [chart] = Floki.find(figure, ".stack-figure__chart")
+        assert Floki.attribute(chart, "phx-hook") == ["ChartScale"]
+        refute hd(Floki.attribute(figure, "id")) == "performance-figure-lines"
+      end
+    end
+  end
+
   test "every kind in every size draws ids that never repeat on a page or across kinds",
        %{conn: conn} do
     seed()

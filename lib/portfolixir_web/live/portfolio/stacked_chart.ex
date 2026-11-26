@@ -412,6 +412,12 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   attr(:drill_paths, :map, required: true)
   attr(:benchmark_note, :string, default: nil)
 
+  attr(:id_suffix, :string,
+    default: "",
+    doc:
+      "appended to the figure's ids where a page draws more than one (a dashboard's widgets; the S32 closing act: two „Performance“ rows drew one id twice)"
+  )
+
   @doc """
   The TTWROR series at a level or under a filter (FR-57, I28; board
   `ux-design-2026-11-08-sprint28/03-ttwror-levels`): one line per band, each
@@ -445,7 +451,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
 
     ~H"""
     <figure
-      id="performance-figure-lines"
+      id={"performance-figure-lines" <> @id_suffix}
       class="perf-figure stack-figure lines-figure"
       data-level={@result.level}
       data-scale="ttwror"
@@ -454,7 +460,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
         <p class="hint" data-role="stack-empty"><%= gettext("No values in this period.") %></p>
       <% else %>
         <div class="stack-figure__body">
-          <div class="stack-figure__chart" id="lines-figure-chart" phx-hook="ChartScale">
+          <div class="stack-figure__chart" id={"lines-figure-chart" <> @id_suffix} phx-hook="ChartScale">
             <svg
               class="stack-chart lines-chart"
               role="img"
@@ -532,7 +538,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
             </svg>
           </div>
           <table
-            id="lines-legend"
+            id={"lines-legend" <> @id_suffix}
             class="stack-legend lines-legend"
             data-role="lines-legend"
             data-date={Date.to_iso8601(@result.end_date)}

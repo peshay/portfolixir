@@ -68,8 +68,10 @@ defmodule Portfolixir.Invariants.CssTranslucentBandsTest do
     # table `stack-legend lines-legend`.
     markup = File.read!("lib/portfolixir_web/live/portfolio/stacked_chart.ex")
     # (Sprint 31 D4: the id carries a suffix where a dashboard draws the
-    # stack in a widget beside Wealth's.)
+    # stack in a widget beside Wealth's; the S32 closing act gave the
+    # TTWROR lines' legend the same suffix, two „Performance“ rows having
+    # drawn its id twice.)
     assert markup =~ ~r/id=\{"stack-legend" <> @id_suffix\}\s+class="stack-legend"\s/
-    assert markup =~ ~r/id="lines-legend"\s+class="stack-legend lines-legend"\s/
+    assert markup =~ ~r/id=\{"lines-legend" <> @id_suffix\}\s+class="stack-legend lines-legend"\s/
   end
 end
