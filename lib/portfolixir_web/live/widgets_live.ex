@@ -40,12 +40,10 @@ defmodule PortfolixirWeb.WidgetsLive do
   # sizes the board draws, read on Apple's families as a stored layout is
   # (Sprint 32 E4: W → M, M → L, L → XL). Keys name them on this page only;
   # none is a registered kind (`widget_catalogue_test.exs` holds that).
-  # „Allokation“ left the list when Sprint 32 W2 registered it.
+  # „Allokation“ left the list when Sprint 32 W2 registered it; „Kennzahlen“,
+  # „Konzentration“ and „Anlageklassen-Grenzen“ when W4 registered them.
   @later [
     %{key: "contribution", group: "performance", sizes: ~w(L XL)},
-    %{key: "key_figures", group: "risk", sizes: ~w(S L)},
-    %{key: "concentration", group: "risk", sizes: ~w(S)},
-    %{key: "asset_class_limits", group: "risk", sizes: ~w(L)},
     %{key: "predictions", group: "analyses", sizes: ~w(S L)},
     %{key: "income", group: "income_tax", sizes: ~w(M L)},
     %{key: "fees_and_taxes", group: "income_tax", sizes: ~w(L)},
@@ -404,9 +402,6 @@ defmodule PortfolixirWeb.WidgetsLive do
   defp group_title(group), do: Widgets.group_title(group)
 
   defp later_title("contribution"), do: pgettext("widget kind", "Contribution by position")
-  defp later_title("key_figures"), do: pgettext("widget kind", "Key figures")
-  defp later_title("concentration"), do: pgettext("widget kind", "Concentration")
-  defp later_title("asset_class_limits"), do: pgettext("widget kind", "Asset class limits")
   defp later_title("predictions"), do: pgettext("widget kind", "Predictions")
   defp later_title("income"), do: pgettext("widget kind", "Income")
   defp later_title("fees_and_taxes"), do: pgettext("widget kind", "Fees and taxes")

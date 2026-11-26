@@ -2359,7 +2359,8 @@ Zeile statt als Kasten und eine Fußzeile aus einer Zeile.
   ersten Start einer Version, die ein Start-Dashboard mitbringt, speichert
   die Instanz es einmal als Ihr Dashboard, im Journal unter dem System
   („dashboard_starters“) festgehalten: Diese Version bringt **Überblick**,
-  **Allokation & Ziele** und **Snapshots**, die Tabs aus Vermögen (jedes
+  **Allokation & Ziele**, **Snapshots** und **Risiko**, die Tabs aus
+  Vermögen (jedes
   gespeichert unter
   seinem englischen Namen, etwa „Overview“, umbenennbar). Danach
   gehört es Ihnen zum Umbenennen, Ändern, Umsortieren oder Löschen, und
@@ -2550,6 +2551,18 @@ Zeile statt als Kasten und eine Fußzeile aus einer Zeile.
   nichts. Angelegt und gelöscht wird ein Snapshot auf der Seite
   Snapshots: **Neuer Snapshot →** führt dorthin. Das Start-Dashboard
   **Snapshots** hält die beiden, in der Reihenfolge des Tabs.
+- **Die Abschnitte des Vermögens-Tabs Risiko als Widgets** (Sprint 32 W4),
+  jeder mit dem Code gezeichnet, mit dem der Tab ihn zeichnet, in der
+  Größe „Zeile“: **Eigene Regeln** (die Befunde, verletzte und unbestimmte
+  zuerst; Regeln werden im Dialog des Tabs angelegt und geändert, **Regeln
+  bearbeiten →**), **Kennzahlen des Portfolios** (auch M, Volatilität,
+  Rückgang und risikobereinigte Rendite), **Crashes** (der ganze Abschnitt
+  des Tabs, Fenster, Liste und Wertpapiere im Widget gewählt; Crash-Benchmark
+  und Fenster im Tab gesetzt), **Größte Einzelpositionen**,
+  **Klumpenrisiko** (auch S, der HHI und seine Skala) und
+  **Anlageklassen-Obergrenzen** mit den Korrelationen. Eine Schwelle oder
+  ein Band ist Rechnung der Linse, nie ein Rat. Das Start-Dashboard
+  **Risiko** hält die sechs, in der Reihenfolge des Tabs.
 - **Crashes im Vergleich** zeigt den laufenden Fall zuerst, dann die
   anderen, neueste zuerst, und sagt seit Sprint 32 für jedes erholte
   Fenster, nach wie vielen Tagen ab seinem Tief die Benchmark wieder auf
@@ -5766,8 +5779,7 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   **Überblick** mit dem Widget zu kopieren oder ein **Neues Dashboard**
   anzulegen. Die Widgets, die der Umbau der weiteren Screens bringt, stehen
   **gestrichelt** da, mit „kommt mit dem Umbau seines Screens“ (Beiträge je
-  Position, Kennzahlen, Konzentration, Anlageklassen-Grenzen,
-  Prognosen und unter **Einkommen und Steuer** Einkommen, Gebühren und
+  Position, Prognosen und unter **Einkommen und Steuer** Einkommen, Gebühren und
   Steuern, Freibetrag): Sie stehen dort, damit man weiß, dass sie kommen,
   und lassen sich noch nicht hinzufügen — auch die API lehnt sie in einem
   Layout als unbekannte Art ab.

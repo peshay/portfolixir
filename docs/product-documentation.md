@@ -2135,7 +2135,8 @@ loss, a warning as one line rather than a box, and a footer of one line.
   release that brings a starter dashboard, the instance stores it once as
   a dashboard of yours, recorded in the audit journal under the system
   ("dashboard_starters"): this release brings **Overview**,
-  **Allocation & targets** and **Snapshots**, Wealth's tabs (each stored
+  **Allocation & targets**, **Snapshots** and **Risk**, Wealth's tabs (each
+  stored
   under its English
   name, which you can rename). From then on
   it is yours to rename, change, reorder or delete, and one you deleted is
@@ -2304,6 +2305,17 @@ loss, a warning as one line rather than a box, and a footer of one line.
   the page is open, nothing stored. A snapshot is made and deleted on the
   Snapshots page: **New snapshot →** leads there. The starter dashboard
   **Snapshots** holds the two, in the tab's order.
+- **The sections of Wealth's tab Risk as widgets** (Sprint 32 W4), each
+  drawn with the code the tab draws it with, in the size "Row": **Own
+  rules** (the findings, breached and undetermined first; rules are made
+  and changed in the tab's dialog, **Edit rules →**), **Portfolio
+  metrics** (also M, the volatility, the drawdown and the risk-adjusted
+  return), **Crashes** (the tab's whole section, its window, list and
+  securities chosen in the widget; the crash benchmark and the windows set
+  on the tab), **Largest single names**, **Concentration risk** (also S,
+  the HHI and its track) and **Asset-class caps** with the correlations. A
+  threshold or a band is the lens's arithmetic, never advice. The starter
+  dashboard **Risk** holds the six, in the tab's order.
 - **Crashes compared** lists the running fall first, then the others
   newest first, and since Sprint 32 says for each recovered window after
   how many days from its low the benchmark was back at its high
@@ -5213,8 +5225,8 @@ naming the already-booked event) stays inline in the dialog.
   is refused. With no dashboard stored yet, the choice offers to copy the
   template **Overview** with the widget, or to start a **New dashboard**.
   The widgets each later screen's rework brings stand **dashed**, with
-  "comes with its screen's rework" (Contribution by position, Key figures, Concentration, Asset class limits, Predictions, and under
-  **Income and tax** Income, Fees and taxes, Tax allowance): they are
+  "comes with its screen's rework" (Contribution by position, Predictions,
+  and under **Income and tax** Income, Fees and taxes, Tax allowance): they are
   shown so you know they are coming, and cannot be added yet — the API
   refuses them in a layout as unknown kinds too.
 - **New dashboard** (`/dashboards/new`, Sprint 32) opens a gallery:

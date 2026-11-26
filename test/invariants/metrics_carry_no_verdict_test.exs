@@ -839,4 +839,140 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   end
 
   # --- S32 S5 end ---
+
+  # --- S32 W4 begin ---
+  # User story (Sprint 32 W4; I57; board 02 ②; ADR-0047 §7):
+  # As the maintainer holding the scope ladder, where risk stands closest
+  # to advice,
+  # I want the section widgets of „Risiko“ walked as a metric payload is —
+  # their reads' keys and the words they draw, in English and German,
+  # so that a breached rule, a band or a threshold never reads as what to
+  # do.
+  #
+  # Acceptance criteria:
+  # - The lens's read (`RiskLens.read/1`) walks top_holdings, hhi, metrics
+  #   and severity, the own rules' (`OwnRules.read/1`) findings, summary and
+  #   state; none carries a forbidden word.
+  # - Each widget — Kennzahlen des Portfolios (Zeile, M), Größte
+  #   Einzelpositionen, Klumpenrisiko (Zeile, S), Anlageklassen-
+  #   Obergrenzen, Eigene Regeln, and the crash section embedded — drawn
+  #   in English and in German holds no verdict word outside its ⓘ, whose
+  #   method lines name what the widget does not say.
+  # - The starter „Risiko“ as the API answers it carries none; the check
+  #   catches „Verkaufen“ in a drawn line.
+  test "the widgets of „Risiko“ carry no verdict, in their reads or their words" do
+    require Phoenix.LiveViewTest
+
+    alias Portfolixir.Portfolios.PolicyRules
+    alias PortfolixirWeb.Dashboard.Widget
+    alias PortfolixirWeb.Dashboard.Widgets.OwnRules
+    alias PortfolixirWeb.Dashboard.Widgets.RiskLens
+    alias PortfolixirWeb.Risk.CrashSection
+
+    world = base_world()
+    today = Portfolixir.Clock.today()
+    big = create_security!(name: "Synthetic Heavy")
+    small = create_security!(name: "Synthetic Light")
+    seed_series!(big.id, Enum.map(1..120, &to_string(100 + rem(&1, 13))), today)
+    seed_series!(small.id, Enum.map(1..120, &to_string(40 + rem(&1, 7))), today)
+    deposit!(world, "20000", Date.add(today, -119))
+    buy!(world, big, quantity: "100", price: "100", date: Date.add(today, -119))
+    buy!(world, small, quantity: "10", price: "40", date: Date.add(today, -119))
+
+    {:ok, _rule} =
+      PolicyRules.create_rule(
+        Actor.owner_ui(),
+        %{
+          portfolio_id: world.portfolio.id,
+          view_id: nil,
+          name: "Heavy cap",
+          version: %{
+            subject_type: "security",
+            security_id: big.id,
+            measure: "weight",
+            kind: "cap",
+            threshold: "10",
+            severity: "hard"
+          }
+        },
+        today: today
+      )
+
+    lens = RiskLens.read(nil)
+    rules = OwnRules.read(nil)
+    assert %{state: :ok} = lens
+    assert %{state: :ok} = rules
+
+    for key <- ~w(top_holdings hhi metrics severity band)a,
+        do: assert(key in keys(lens), "the walk misses #{inspect(key)}")
+
+    for key <- ~w(findings summary state)a,
+        do: assert(key in keys(rules), "the walk misses #{inspect(key)}")
+
+    assert offenders(lens) == []
+    assert offenders(rules) == []
+
+    item = fn kind, size ->
+      [%{"kind" => kind, "size" => size, "col" => 1, "row" => 1}]
+      |> Widget.items(nil, [])
+      |> Enum.map(&Widget.with_period(&1, "1y", true))
+      |> hd()
+    end
+
+    drawn = [
+      {&RiskLens.key_figures_widget/1, item.("key_figures", "row"), lens},
+      {&RiskLens.key_figures_widget/1, item.("key_figures", "M"), lens},
+      {&RiskLens.top_holdings_widget/1, item.("top_holdings", "row"), lens},
+      {&RiskLens.concentration_widget/1, item.("concentration", "row"), lens},
+      {&RiskLens.concentration_widget/1, item.("concentration", "S"), lens},
+      {&RiskLens.asset_class_limits_widget/1, item.("asset_class_limits", "row"), lens},
+      {&OwnRules.widget/1, item.("own_rules", "row"), rules}
+    ]
+
+    # The words a widget draws, its ⓘ left out.
+    words = fn html ->
+      html
+      |> Floki.parse_document!()
+      |> Floki.filter_out("[data-role='section-info']")
+      |> Floki.text(sep: " ")
+    end
+
+    for locale <- ~w(en de) do
+      Gettext.with_locale(PortfolixirWeb.Gettext, locale, fn ->
+        for {fun, item, card} <- drawn do
+          text = words.(Phoenix.LiveViewTest.render_component(fun, item: item, card: card))
+
+          assert text =~ "Synthetic Heavy" or item.kind in ~w(concentration key_figures),
+                 "#{item.kind}: #{text}"
+
+          assert verdict_words(text) == [],
+                 "#{locale} #{item.kind}: #{inspect(verdict_words(text))}"
+        end
+
+        crash =
+          Phoenix.LiveViewTest.render_component(CrashSection,
+            id: "verdict-crash",
+            params: %{},
+            view_id: nil,
+            base_currency: "EUR",
+            embedded: true
+          )
+
+        assert verdict_words(words.(crash)) == [], "#{locale} crash section"
+      end)
+    end
+
+    %{"data" => template} =
+      build_conn()
+      |> put_req_header("accept", "application/json")
+      |> put_req_header("authorization", "Bearer test-api-token")
+      |> get("/api/v1/dashboards/template:risk")
+      |> json_response(200)
+
+    assert offenders(template) == []
+    assert verdict_words(template["name"] <> " " <> template["subtitle"]) == []
+    assert verdict_words(words.("<p>Jetzt Verkaufen</p>")) == ["kauf", "verkauf"]
+  end
+
+  # --- S32 W4 end ---
 end

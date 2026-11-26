@@ -137,8 +137,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "the size row, snapshot_comparison (the comparison of the newest snapshot, " <>
               "or the one the list picks) and snapshot_list (the snapshots, newest first; " <>
               "a snapshot is made and deleted on the page); the starter template snapshots. " <>
-              "No endpoint or tool is added."
+              "No endpoint or tool is added.",
             # --- S32 W3 end ---
+            # --- S32 W4 begin ---
+            "Sprint 32, W4 (I57): the sections of Wealth's tab Risk as widget kinds, own_rules " <>
+              "(the policy findings), key_figures (the portfolio metrics, also M), " <>
+              "crash_section (the tab's crash section), top_holdings, concentration (the HHI, " <>
+              "also S) and asset_class_limits, from the risk read, the policy findings and " <>
+              "the crash rankings; the starter template risk. No endpoint or tool is added."
+            # --- S32 W4 end ---
           ],
           " "
         ),
@@ -260,8 +267,17 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/dashboards and GET /api/v1/dashboards/template:<key> " <>
           "(portfolixir.dashboards.list, portfolixir.dashboards.get), added: the template " <>
           "snapshots, group starter, not in_menu; POST /api/v1/dashboards " <>
-          "(portfolixir.dashboards.put) copies it"
+          "(portfolixir.dashboards.put) copies it",
         # --- S32 W3 end ---
+        # --- S32 W4 begin ---
+        "GET /api/v1/widgets (portfolixir.dashboards.list), added: the kinds own_rules, " <>
+          "key_figures (M, row), crash_section, top_holdings, concentration (S, row) and " <>
+          "asset_class_limits",
+        "GET /api/v1/dashboards and GET /api/v1/dashboards/template:<key> " <>
+          "(portfolixir.dashboards.list, portfolixir.dashboards.get), added: the template " <>
+          "risk, group starter, not in_menu; POST /api/v1/dashboards " <>
+          "(portfolixir.dashboards.put) copies it"
+        # --- S32 W4 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

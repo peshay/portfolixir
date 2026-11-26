@@ -515,8 +515,121 @@ defmodule Portfolixir.Dashboards.Widgets do
       period: :none,
       scope: :none,
       compact: true
-    }
+    },
     # --- S32 W3 end ---
+    # --- S32 W4 begin ---
+    %{
+      key: "own_rules",
+      title: "Own rules",
+      group: "risk",
+      # Sprint 32 W4 (I57; board 02 ②): the operator's own rules and their
+      # findings (ADR-0049 §9); the rule dialog stays on the Risk tab.
+      sizes: ~w(row),
+      source: %{
+        routes: [
+          "GET /api/v1/portfolios/:portfolio_id/policy_findings",
+          "GET /api/v1/portfolios/:portfolio_id/policy_rules"
+        ],
+        function: {Portfolixir.Portfolios.PolicyFindings, :for_portfolio, 2},
+        note:
+          "The findings of the rules in force for the widget's view, breached and " <>
+            "undetermined first, with view=; the rules' list for the scheduled and the " <>
+            "retired ones."
+      },
+      period: :none,
+      scope: :view,
+      compact: true
+    },
+    %{
+      key: "key_figures",
+      title: "Portfolio metrics",
+      group: "risk",
+      # Sprint 32 W4: the portfolio metrics of the Risk tab (ADR-0047 §3);
+      # M the volatility, the drawdown and the risk-adjusted return.
+      sizes: ~w(M row),
+      source: %{
+        routes: ["GET /api/v1/portfolios/:portfolio_id/risk"],
+        function: {Portfolixir.Portfolios.Risk, :for_portfolio, 2},
+        note:
+          "metrics of the risk read with view=: volatility, max_drawdown and " <>
+            "risk_adjusted_return of the window 365d, and correlations."
+      },
+      period: :none,
+      scope: :view,
+      compact: true
+    },
+    %{
+      key: "crash_section",
+      title: "Crashes",
+      group: "risk",
+      # Sprint 32 W4: the Risk tab's whole section „Crashes“ (ADR-0058 §9);
+      # „Crashes im Vergleich“ (`crashes`) stays its compact relative.
+      sizes: ~w(row),
+      source: %{
+        routes: [
+          "GET /api/v1/crashes",
+          "GET /api/v1/crashes/:key/rankings",
+          "GET /api/v1/views/:view_id/performance"
+        ],
+        function: {Portfolixir.Crashes, :rankings, 3},
+        note:
+          "The window picked (the newest until one is), its list (losers, winners or " <>
+            "rebounders) over universe=view:<id> (held without a view) or catalogue; the " <>
+            "view's first booking day, from its performance read, says whether Holdings " <>
+            "can show the window."
+      },
+      period: :none,
+      scope: :view,
+      compact: true
+    },
+    %{
+      key: "top_holdings",
+      title: "Largest single names",
+      group: "risk",
+      # Sprint 32 W4: the lens's Top-N single names, generic thresholds.
+      sizes: ~w(row),
+      source: %{
+        routes: ["GET /api/v1/portfolios/:portfolio_id/risk"],
+        function: {Portfolixir.Portfolios.Risk, :for_portfolio, 2},
+        note: "top_holdings of the risk read with view=, each weight on the steerable basis."
+      },
+      period: :none,
+      scope: :view,
+      compact: true
+    },
+    %{
+      key: "concentration",
+      title: "Concentration risk",
+      group: "risk",
+      # Sprint 32 W4: the HHI with its band; S the figure alone.
+      sizes: ~w(S row),
+      source: %{
+        routes: ["GET /api/v1/portfolios/:portfolio_id/risk"],
+        function: {Portfolixir.Portfolios.Risk, :for_portfolio, 2},
+        note: "hhi of the risk read with view=: its value and band."
+      },
+      period: :none,
+      scope: :view,
+      compact: true
+    },
+    %{
+      key: "asset_class_limits",
+      title: "Asset-class caps",
+      group: "risk",
+      # Sprint 32 W4: the asset-class caps and the correlations' table.
+      sizes: ~w(row),
+      source: %{
+        routes: ["GET /api/v1/portfolios/:portfolio_id/risk"],
+        function: {Portfolixir.Portfolios.Risk, :for_portfolio, 2},
+        note:
+          "asset_class_caps and asset_class_violations of the risk read (none " <>
+            "configured on the screen), and metrics.correlations."
+      },
+      period: :none,
+      scope: :view,
+      compact: true
+    }
+    # --- S32 W4 end ---
   ]
 
   @by_key Map.new(@kinds, &{&1.key, &1})
@@ -760,6 +873,14 @@ defmodule Portfolixir.Dashboards.Widgets do
   def title("snapshot_comparison"), do: pgettext("widget kind", "Comparison against a snapshot")
   def title("snapshot_list"), do: pgettext("widget kind", "Snapshot list")
   # --- S32 W3 end ---
+  # --- S32 W4 begin ---
+  def title("own_rules"), do: pgettext("widget kind", "Own rules")
+  def title("key_figures"), do: pgettext("widget kind", "Portfolio metrics")
+  def title("crash_section"), do: pgettext("widget kind", "Crashes")
+  def title("top_holdings"), do: pgettext("widget kind", "Largest single names")
+  def title("concentration"), do: pgettext("widget kind", "Concentration risk")
+  def title("asset_class_limits"), do: pgettext("widget kind", "Asset-class caps")
+  # --- S32 W4 end ---
   def title(_key), do: nil
 
   @doc "The group's title in the current locale; `nil` for an unknown group."

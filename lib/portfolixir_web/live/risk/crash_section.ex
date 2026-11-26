@@ -40,6 +40,16 @@ defmodule PortfolixirWeb.Risk.CrashSection do
 
   **No verdict** (ADR-0058 §8): the lists compare prices; nothing says what
   to buy.
+
+  **Embedded in a dashboard** (`embedded: true`; Sprint 32 W4, the widget
+  „Crashes“ `crash_section`, `PortfolixirWeb.Dashboard.Widgets.CrashWindows`):
+  the same section without its heading (the widget's frame carries the
+  title and this ⓘ, `info_lines/0`), its ids under the component's id, the
+  choice of window, list and universe kept in the component instead of the
+  address, and the writes left to the Risk tab (ADR-0022's amendment of
+  2026-11-21, point 3): the windows' disclosure with its forms is not
+  drawn, the benchmark's choice and „Fenster anlegen“ are links to the tab,
+  and a write pushed by hand changes nothing.
   """
   use Phoenix.LiveComponent
   use Gettext, backend: PortfolixirWeb.Gettext
@@ -63,6 +73,13 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   @param_keys ~w(crash crash_list crash_universe)
   @hundred Decimal.new(100)
   @steps [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000]
+  # --- S32 W4 begin ---
+  # The events that write or open a form: the tab's alone.
+  @writes ~w(crash_choose_benchmark crash_add_window crash_name_open crash_manual_edit
+             crash_from_name_open crash_cancel crash_save_benchmark crash_window_save
+             crash_from_name_save crash_unname crash_manual_delete)
+
+  # --- S32 W4 end ---
 
   @impl true
   def mount(socket) do
@@ -74,10 +91,22 @@ defmodule PortfolixirWeb.Risk.CrashSection do
 
   @impl true
   def update(assigns, socket) do
+    # --- S32 W4 begin ---
+    # Embedded, the choice is the component's own from its first update on.
+    embedded = Map.get(assigns, :embedded, false)
+
     socket =
       socket
-      |> assign(Map.take(assigns, [:id, :params, :view_id, :base_currency]))
+      |> assign(Map.take(assigns, [:id, :view_id, :base_currency]))
       |> assign(:catalogue_only, Map.get(assigns, :catalogue_only, false))
+      |> assign(:embedded, embedded)
+      |> then(fn socket ->
+        if embedded and Map.has_key?(socket.assigns, :params),
+          do: socket,
+          else: assign(socket, :params, assigns.params)
+      end)
+
+    # --- S32 W4 end ---
 
     key = {socket.assigns.params, socket.assigns.view_id}
 
@@ -192,6 +221,22 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   # -- the events -------------------------------------------------------------
 
   @impl true
+  # --- S32 W4 begin ---
+  # Embedded: no write and no form; the choice changes in the component.
+  def handle_event(event, _params, %{assigns: %{embedded: true}} = socket)
+      when event in @writes,
+      do: {:noreply, socket}
+
+  def handle_event("crash_window", %{"crash" => key}, %{assigns: %{embedded: true}} = socket)
+      when is_binary(key),
+      do: {:noreply, pick(socket, %{"crash" => key})}
+
+  def handle_event("crash_pick", %{"key" => key, "choice" => choice}, socket)
+      when key in ["crash_list", "crash_universe"] and is_binary(choice),
+      do: {:noreply, pick(socket, %{key => choice})}
+
+  # --- S32 W4 end ---
+
   def handle_event("crash_window", %{"crash" => key}, socket) when is_binary(key) do
     {:noreply, push_patch(socket, to: path(socket.assigns, %{"crash" => key}))}
   end
@@ -277,6 +322,49 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   end
 
   defp open_form(socket, form), do: assign(socket, form: form, errors: [], posted: %{})
+
+  # --- S32 W4 begin ---
+  # Embedded: the choice changed in the component, read at once.
+  defp pick(%{assigns: %{embedded: true}} = socket, changes) do
+    socket = update(socket, :params, &Map.merge(&1, changes))
+
+    socket
+    |> assign(:loaded_for, {socket.assigns.params, socket.assigns.view_id})
+    |> load()
+  end
+
+  defp pick(socket, _changes), do: socket
+
+  # An id of the section: its own on the tab, under the component's id
+  # embedded, so two widgets never share one.
+  defp dom(%{embedded: true, id: id}, name), do: id <> "-" <> name
+  defp dom(_assigns, name), do: name
+
+  @doc "What the section's ⓘ says: the rule, the prices, the lists, no verdict."
+  @spec info_lines() :: [String.t()]
+  def info_lines do
+    [
+      gettext(
+        "A window opens once the crash benchmark closes 10 % or more below its high; it starts on the last day at the high and ends on the lowest close before the recovery, the earliest of equal lows."
+      ),
+      gettext(
+        "Detected in the benchmark's currency, listed in EUR at each close's exchange rate; splits adjusted."
+      ),
+      gettext(
+        "The price on a day: the last close on or before it, at most 7 days old. Without a price or an exchange rate no answer, never a zero."
+      ),
+      gettext(
+        "Dashed: the crash benchmark over the same days; without its price or exchange rate on those days, no comparison."
+      ),
+      gettext(
+        "Rebounders: from the own low between high and low to three calendar months after the low; days to the pre-crash close in calendar days."
+      ),
+      gettext("Ties by figure, then name, then ISIN. Benchmarks are in no list."),
+      gettext("No verdict: the lists compare prices, they do not say what to buy.")
+    ]
+  end
+
+  # --- S32 W4 end ---
 
   defp save({:name, key}, attrs, socket) do
     attrs = Map.take(attrs, ["name"])
@@ -378,25 +466,28 @@ defmodule PortfolixirWeb.Risk.CrashSection do
       )
 
     ~H"""
-    <section class="workspace-section crash-section" id="risk-crashes" aria-labelledby="risk-crashes-title">
-      <header class="section-head">
+    <section
+      class="workspace-section crash-section"
+      id={dom(assigns, "risk-crashes")}
+      aria-labelledby={if not @embedded, do: "risk-crashes-title"}
+    >
+      <header :if={not @embedded} class="section-head">
         <div class="section-title">
           <h2 id="risk-crashes-title"><%= gettext("Crashes") %></h2>
           <AppShell.section_info>
-            <:line><%= gettext("A window opens once the crash benchmark closes 10 % or more below its high; it starts on the last day at the high and ends on the lowest close before the recovery, the earliest of equal lows.") %></:line>
-            <:line><%= gettext("Detected in the benchmark's currency, listed in EUR at each close's exchange rate; splits adjusted.") %></:line>
-            <:line><%= gettext("The price on a day: the last close on or before it, at most 7 days old. Without a price or an exchange rate no answer, never a zero.") %></:line>
-            <:line><%= gettext("Dashed: the crash benchmark over the same days; without its price or exchange rate on those days, no comparison.") %></:line>
-            <:line><%= gettext("Rebounders: from the own low between high and low to three calendar months after the low; days to the pre-crash close in calendar days.") %></:line>
-            <:line><%= gettext("Ties by figure, then name, then ISIN. Benchmarks are in no list.") %></:line>
-            <:line><%= gettext("No verdict: the lists compare prices, they do not say what to buy.") %></:line>
+            <:line :for={line <- info_lines()}><%= line %></:line>
           </AppShell.section_info>
         </div>
       </header>
 
       <AppShell.data_note :if={@reason} severity={:note} data-role="crash-no-benchmark">
         <%= reason_text(@reason) %>
+        <%!-- Sprint 32 W4: embedded, the choice is the tab's, linked. --%>
+        <.link :if={@embedded} navigate="/risk" class="link-button" data-role="crash-choose-benchmark">
+          <%= gettext("Choose crash benchmark") %>
+        </.link>
         <button
+          :if={not @embedded}
           type="button"
           class="link-button"
           data-role="crash-choose-benchmark"
@@ -410,7 +501,11 @@ defmodule PortfolixirWeb.Risk.CrashSection do
       <%= if @windows == [] do %>
         <p class="empty-state" data-role="crash-empty">
           <%= gettext("No window yet.") %>
+          <.link :if={@embedded} navigate="/risk" class="link-button" data-role="crash-add-window">
+            <%= gettext("Add window") %>
+          </.link>
           <button
+            :if={not @embedded}
             type="button"
             class="link-button"
             data-role="crash-add-window"
@@ -423,6 +518,8 @@ defmodule PortfolixirWeb.Risk.CrashSection do
       <% else %>
         <.bar
           myself={@myself}
+          embedded={@embedded}
+          prefix={dom(assigns, "")}
           windows={@windows}
           window={@window}
           list={@list}
@@ -464,7 +561,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
       <% end %>
 
       <.windows
-        :if={@windows != [] or @listing.unmatched_names != [] or @form != nil}
+        :if={not @embedded and (@windows != [] or @listing.unmatched_names != [] or @form != nil)}
         myself={@myself}
         listing={@listing}
         windows={@windows}
@@ -517,19 +614,35 @@ defmodule PortfolixirWeb.Risk.CrashSection do
     <ControlBar.bar class="crash-bar" fold={900} data-role="crash-bar">
       <:group
         label={pgettext("crash", "Window")}
-        for="crash-window"
-        form={[id: "crash-window-form", "phx-change": "crash_window", "phx-target": @myself]}
+        for={@prefix <> "crash-window"}
+        form={[id: @prefix <> "crash-window-form", "phx-change": "crash_window", "phx-target": @myself]}
       >
-        <select id="crash-window" name="crash">
+        <select id={@prefix <> "crash-window"} name="crash">
           <option :for={window <- @windows} value={window.key} selected={window.key == @window.key}>
             <%= option_label(window) %>
           </option>
         </select>
       </:group>
-      <:group label={pgettext("crash", "List")} label_id="crash-list-label">
-        <div class="segmented-control" data-role="crash-list" role="group" aria-labelledby="crash-list-label">
+      <:group label={pgettext("crash", "List")} label_id={@prefix <> "crash-list-label"}>
+        <div class="segmented-control" data-role="crash-list" role="group" aria-labelledby={@prefix <> "crash-list-label"}>
+          <%!-- Sprint 32 W4: embedded, a button the component answers. --%>
+          <button
+            :for={{list, label} <- lists()}
+            :if={@embedded}
+            type="button"
+            class={["segmented-control__option", @list == list && "is-active"]}
+            data-list={list}
+            aria-pressed={to_string(@list == list)}
+            phx-click="crash_pick"
+            phx-value-key="crash_list"
+            phx-value-choice={list}
+            phx-target={@myself}
+          >
+            <%= label %>
+          </button>
           <.link
             :for={{list, label} <- lists()}
+            :if={not @embedded}
             patch={@paths.lists[list]}
             class={["segmented-control__option", @list == list && "is-active"]}
             data-list={list}
@@ -539,10 +652,24 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           </.link>
         </div>
       </:group>
-      <:group :if={not @catalogue_only} label={gettext("Securities")} label_id="crash-universe-label">
-        <div class="segmented-control" data-role="crash-universe" role="group" aria-labelledby="crash-universe-label">
+      <:group :if={not @catalogue_only} label={gettext("Securities")} label_id={@prefix <> "crash-universe-label"}>
+        <div class="segmented-control" data-role="crash-universe" role="group" aria-labelledby={@prefix <> "crash-universe-label"}>
           <%= for {universe, label} <- universes() do %>
+            <button
+              :if={@embedded}
+              type="button"
+              class={["segmented-control__option", @universe == universe && "is-active"]}
+              data-universe={universe}
+              aria-pressed={to_string(@universe == universe)}
+              phx-click="crash_pick"
+              phx-value-key="crash_universe"
+              phx-value-choice={universe}
+              phx-target={@myself}
+            >
+              <%= label %>
+            </button>
             <.link
+              :if={not @embedded}
               patch={@paths.universes[universe]}
               class={["segmented-control__option", @universe == universe && "is-active"]}
               data-universe={universe}

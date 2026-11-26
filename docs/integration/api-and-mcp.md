@@ -5279,8 +5279,9 @@ without reading the code: `{"data": {"widgets", "groups", "grid",
   `allocation_drift`, `crashes`, `bitcoin_cycle`, `sale_review`, and since
   Sprint 32 `distance_to_high`, `crash_chart`, `rebounders` and the
   sections of Wealth's tabs Allocation & targets, `summary_line` and
-  `allocation`, and Snapshots, `snapshot_comparison` and
-  `snapshot_list`), `title`
+  `allocation`, Snapshots, `snapshot_comparison` and `snapshot_list`, and
+  Risk, `own_rules`, `key_figures`, `crash_section`, `top_holdings`,
+  `concentration` and `asset_class_limits`), `title`
   (English) and `title_key` (`{context, msgid}`, the message the screen
   translates), `group`, `sizes` (a subset of `S`, `M`, `L`, `XL`, `row`
   and `full`, smallest first), `source` (`routes`, the `GET /api/v1/...` routes it draws;
@@ -5339,8 +5340,8 @@ dashboard is stored, and then only `overview`, the one the page opens at
 `/`; the read never writes. Since
 Sprint 32 the instance stores each **starter** template once, on the first
 start of the release that brings it (this release: `overview`,
-`allocation_targets` and `snapshots`, Wealth's tabs Allocation & targets
-and Snapshots), journaled
+`allocation_targets`, `snapshots` and `risk`, Wealth's tabs Allocation &
+targets, Snapshots and Risk), journaled
 under the system actor `dashboard_starters` (`resource_type`
 `dashboard_seed` records the key, so a starter deleted is never stored
 again); each copy answers its `template_key`. An instance that
@@ -5360,7 +5361,7 @@ layout says. Both are read-only: a write ignores an item's `title` and
 unknown id, a key that names no template and an id that is neither answer
 `404`; a key that names no template says which keys are offered (`"not
 found: names no template; offered: overview, allocation_targets, snapshots,
-krypto_lover, pullbacks"`).
+risk, krypto_lover, pullbacks"`).
 
 **`POST /api/v1/dashboards`** creates one from `{"dashboard": {"name",
 "layout", "view_id"}}` (the layout defaults to empty, the view to none) or

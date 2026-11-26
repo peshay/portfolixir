@@ -48,12 +48,13 @@ defmodule Portfolixir.Dashboards.RowSizeTest do
     {:ok, sale_review} = Widgets.fetch("sale_review")
     assert sale_review.sizes == ~w(L row)
 
-    # Sprint 32 W2 and W3 add the sections of „Allokation & Ziele“ and
-    # „Snapshots“.
+    # Sprint 32 W2 to W4 add the sections of „Allokation & Ziele“,
+    # „Snapshots“ and „Risiko“.
     taking = for kind <- Widgets.kinds(), "row" in kind.sizes, do: kind.key
 
     assert taking ==
-             ~w(sale_review summary_line allocation snapshot_comparison snapshot_list)
+             ~w(sale_review summary_line allocation snapshot_comparison snapshot_list own_rules
+                key_figures crash_section top_holdings concentration asset_class_limits)
 
     assert {:ok, [stored]} = Layout.validate([item("sale_review", "row", 1, 3)])
     assert stored == item("sale_review", "row", 1, 3)

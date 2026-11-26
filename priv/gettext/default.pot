@@ -19,7 +19,7 @@ msgstr ""
 msgid "Cash account created"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4591
+#: lib/portfolixir_web/live/dashboard_live.ex:4713
 #: lib/portfolixir_web/live/journal/row.ex:188
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:343
 #: lib/portfolixir_web/live/portfolio_live.ex:2710
@@ -55,7 +55,7 @@ msgstr ""
 #: lib/portfolixir_web/live/transaction_management_live.ex:2511
 #: lib/portfolixir_web/live/transaction_management_live.ex:2909
 #: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:190
-#: lib/portfolixir_web/live/widgets_live.ex:269
+#: lib/portfolixir_web/live/widgets_live.ex:267
 #, elixir-autogen
 msgid "Close"
 msgstr ""
@@ -65,7 +65,7 @@ msgstr ""
 msgid "Create cash account"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2471
+#: lib/portfolixir_web/live/dashboard_live.ex:2528
 #, elixir-autogen
 msgid "Create securities"
 msgstr ""
@@ -128,7 +128,7 @@ msgstr ""
 msgid "Depot"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4595
+#: lib/portfolixir_web/live/dashboard_live.ex:4717
 #: lib/portfolixir_web/live/imports_live.ex:376
 #: lib/portfolixir_web/live/imports_live.ex:1291
 #: lib/portfolixir_web/live/journal/row.ex:189
@@ -199,7 +199,7 @@ msgstr ""
 msgid "Light"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2470
+#: lib/portfolixir_web/live/dashboard_live.ex:2527
 #, elixir-autogen
 msgid "Link one depot to one cash account"
 msgstr ""
@@ -217,12 +217,12 @@ msgstr ""
 msgid "Coral"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2047
+#: lib/portfolixir_web/live/dashboard_live.ex:2104
 #, elixir-autogen
 msgid "Local portfolio tracking"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2463
+#: lib/portfolixir_web/live/dashboard_live.ex:2520
 #, elixir-autogen
 msgid "Workflow path"
 msgstr ""
@@ -248,11 +248,11 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:94
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:119
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:338
-#: lib/portfolixir_web/live/risk/crash_section.ex:342
-#: lib/portfolixir_web/live/risk/crash_section.ex:962
-#: lib/portfolixir_web/live/risk/crash_section.ex:1076
-#: lib/portfolixir_web/live/risk/crash_section.ex:1286
-#: lib/portfolixir_web/live/risk/crash_section.ex:1339
+#: lib/portfolixir_web/live/risk/crash_section.ex:430
+#: lib/portfolixir_web/live/risk/crash_section.ex:1089
+#: lib/portfolixir_web/live/risk/crash_section.ex:1203
+#: lib/portfolixir_web/live/risk/crash_section.ex:1413
+#: lib/portfolixir_web/live/risk/crash_section.ex:1466
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:225
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1069
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:417
@@ -311,7 +311,7 @@ msgstr ""
 msgid "Quantity"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2473
+#: lib/portfolixir_web/live/dashboard_live.ex:2530
 #, elixir-autogen
 msgid "Record manual buy and sell transactions"
 msgstr ""
@@ -324,7 +324,7 @@ msgstr ""
 msgid "Record transaction"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2475
+#: lib/portfolixir_web/live/dashboard_live.ex:2532
 #, elixir-autogen
 msgid "Review current holdings"
 msgstr ""
@@ -333,7 +333,7 @@ msgstr ""
 #: lib/portfolixir_web/components/app_shell.ex:593
 #: lib/portfolixir_web/live/dashboard/widgets/crashes.ex:176
 #: lib/portfolixir_web/live/dashboard/widgets/rebounders.ex:166
-#: lib/portfolixir_web/live/dashboard_live.ex:4587
+#: lib/portfolixir_web/live/dashboard_live.ex:4709
 #: lib/portfolixir_web/live/imports_live.ex:366
 #: lib/portfolixir_web/live/imports_live.ex:1283
 #: lib/portfolixir_web/live/journal/row.ex:190
@@ -341,7 +341,7 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:207
 #: lib/portfolixir_web/live/portfolio_live.ex:1759
 #: lib/portfolixir_web/live/portfolio_live.ex:1853
-#: lib/portfolixir_web/live/risk/crash_section.ex:542
+#: lib/portfolixir_web/live/risk/crash_section.ex:655
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:572
 #: lib/portfolixir_web/live/securities_live.ex:536
 #: lib/portfolixir_web/live/securities_live.ex:920
@@ -352,6 +352,7 @@ msgstr ""
 #: lib/portfolixir_web/field_label.ex:46
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:921
 #: lib/portfolixir_web/live/dashboard/widgets/distance_to_high.ex:147
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:205
 #: lib/portfolixir_web/live/income_live.ex:620
 #: lib/portfolixir_web/live/income_live.ex:1400
 #: lib/portfolixir_web/live/income_live.ex:1476
@@ -364,8 +365,7 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:490
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:392
 #: lib/portfolixir_web/live/portfolio_live.ex:2911
-#: lib/portfolixir_web/live/risk/crash_section.ex:704
-#: lib/portfolixir_web/live/risk_live.ex:401
+#: lib/portfolixir_web/live/risk/crash_section.ex:831
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:437
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:959
 #: lib/portfolixir_web/live/transaction_management_live.ex:1876
@@ -429,7 +429,7 @@ msgid "Transaction recorded"
 msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:624
-#: lib/portfolixir_web/live/dashboard_live.ex:4599
+#: lib/portfolixir_web/live/dashboard_live.ex:4721
 #: lib/portfolixir_web/live/securities/bond_strip.ex:332
 #: lib/portfolixir_web/live/securities_live.ex:1881
 #: lib/portfolixir_web/live/securities_live.ex:4562
@@ -455,7 +455,7 @@ msgstr ""
 #: lib/portfolixir/catalog/security_fields.ex:74
 #: lib/portfolixir_web/classification_name.ex:17
 #: lib/portfolixir_web/field_label.ex:60
-#: lib/portfolixir_web/live/risk_live.ex:402
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:206
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1070
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:456
 #: lib/portfolixir_web/live/securities_live.ex:5103
@@ -672,8 +672,8 @@ msgstr ""
 #: lib/portfolixir_web/live/buckets_live.ex:153
 #: lib/portfolixir_web/live/buckets_live.ex:272
 #: lib/portfolixir_web/live/classifications_live.ex:1239
-#: lib/portfolixir_web/live/risk/crash_section.ex:1250
-#: lib/portfolixir_web/live/risk/crash_section.ex:1315
+#: lib/portfolixir_web/live/risk/crash_section.ex:1377
+#: lib/portfolixir_web/live/risk/crash_section.ex:1442
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:554
 #: lib/portfolixir_web/live/securities_live.ex:2152
 #, elixir-autogen, elixir-format
@@ -757,9 +757,9 @@ msgstr ""
 #: lib/portfolixir_web/live/classifications_live.ex:532
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:619
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:943
-#: lib/portfolixir_web/live/dashboard_live.ex:3359
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:207
+#: lib/portfolixir_web/live/dashboard_live.ex:3481
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:356
-#: lib/portfolixir_web/live/risk_live.ex:403
 #: lib/portfolixir_web/live/securities/filter_popover.ex:89
 #: lib/portfolixir_web/live/securities/filter_popover.ex:102
 #: lib/portfolixir_web/live/securities_live.ex:2008
@@ -1066,9 +1066,9 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:158
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:697
 #: lib/portfolixir_web/live/portfolio_live.ex:2233
-#: lib/portfolixir_web/live/risk/crash_section.ex:1252
-#: lib/portfolixir_web/live/risk/crash_section.ex:1317
-#: lib/portfolixir_web/live/risk/crash_section.ex:1361
+#: lib/portfolixir_web/live/risk/crash_section.ex:1379
+#: lib/portfolixir_web/live/risk/crash_section.ex:1444
+#: lib/portfolixir_web/live/risk/crash_section.ex:1488
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:443
 #: lib/portfolixir_web/live/securities/merge_dialog.ex:255
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:237
@@ -1122,8 +1122,8 @@ msgstr ""
 #: lib/portfolixir_web/live/classifications_live.ex:781
 #: lib/portfolixir_web/live/dashboard/period_menu.ex:442
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:658
-#: lib/portfolixir_web/live/risk/crash_section.ex:1107
-#: lib/portfolixir_web/live/risk/crash_section.ex:1176
+#: lib/portfolixir_web/live/risk/crash_section.ex:1234
+#: lib/portfolixir_web/live/risk/crash_section.ex:1303
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:191
 #: lib/portfolixir_web/live/snapshots_live.ex:383
 #: lib/portfolixir_web/live/tax_live.ex:1083
@@ -1137,8 +1137,8 @@ msgstr ""
 msgid "Deleted %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2252
-#: lib/portfolixir_web/live/risk/crash_section.ex:1165
+#: lib/portfolixir_web/live/dashboard_live.ex:2309
+#: lib/portfolixir_web/live/risk/crash_section.ex:1292
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:44
 #: lib/portfolixir_web/live/securities_live.ex:1160
 #: lib/portfolixir_web/live/securities_live.ex:2124
@@ -1422,7 +1422,7 @@ msgstr ""
 msgid "Open positions (FIFO)"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2096
+#: lib/portfolixir_web/live/dashboard_live.ex:2153
 #: lib/portfolixir_web/live/securities_live.ex:4560
 #, elixir-autogen, elixir-format
 msgid "Overview"
@@ -1433,7 +1433,7 @@ msgstr ""
 msgid "Percent"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3473
+#: lib/portfolixir_web/live/dashboard_live.ex:3595
 #: lib/portfolixir_web/live/journal/row.ex:84
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:128
 #: lib/portfolixir_web/live/securities/bond_strip.ex:361
@@ -1921,7 +1921,7 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:1700
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:1924
 #: lib/portfolixir_web/live/dashboard/widgets/allocation_drift.ex:379
-#: lib/portfolixir_web/live/dashboard_live.ex:4131
+#: lib/portfolixir_web/live/dashboard_live.ex:4253
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:878
 #: lib/portfolixir_web/live/portfolio_live.ex:1760
 #: lib/portfolixir_web/policy_rule_label.ex:30
@@ -1937,8 +1937,8 @@ msgstr ""
 msgid "TTWROR"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3970
-#: lib/portfolixir_web/live/dashboard_live.ex:3976
+#: lib/portfolixir_web/live/dashboard_live.ex:4092
+#: lib/portfolixir_web/live/dashboard_live.ex:4098
 #: lib/portfolixir_web/live/portfolio_live.ex:3867
 #: lib/portfolixir_web/live/portfolio_live.ex:4654
 #, elixir-autogen
@@ -2214,7 +2214,7 @@ msgid "Description"
 msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:1259
-#: lib/portfolixir_web/live/dashboard_live.ex:2242
+#: lib/portfolixir_web/live/dashboard_live.ex:2299
 #: lib/portfolixir_web/live/securities_live.ex:712
 #: lib/portfolixir_web/live/transaction_management_live.ex:319
 #, elixir-autogen, elixir-format
@@ -2565,7 +2565,7 @@ msgstr ""
 msgid "Cash quote info"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2640
+#: lib/portfolixir_web/live/dashboard_live.ex:2702
 #: lib/portfolixir_web/live/portfolio_live.ex:1878
 #, elixir-autogen
 msgid "Cash quote: deployable cash ÷ (securities value + deployable cash). Reserve and credit-line accounts are excluded."
@@ -2577,7 +2577,7 @@ msgid "TTWROR info"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/widgets/performance.ex:141
-#: lib/portfolixir_web/live/dashboard_live.ex:2634
+#: lib/portfolixir_web/live/dashboard_live.ex:2696
 #: lib/portfolixir_web/live/portfolio_live.ex:1782
 #, elixir-autogen
 msgid "TTWROR — time-weighted return for the selected period (not annualized). Deposits and withdrawals are neutralised so only investment performance counts."
@@ -3015,7 +3015,7 @@ msgstr ""
 msgid "No securities yet."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1180
+#: lib/portfolixir_web/live/dashboard_live.ex:1228
 #, elixir-autogen, elixir-format
 msgid "Couldn't load the dashboard figures."
 msgstr ""
@@ -3134,7 +3134,7 @@ msgstr ""
 msgid "Wealth"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2952
+#: lib/portfolixir_web/live/dashboard_live.ex:3014
 #, elixir-autogen, elixir-format
 msgid "All targets within ±5 pp — nothing needs rebalancing."
 msgstr ""
@@ -3238,12 +3238,12 @@ msgstr ""
 msgid "Tree"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4158
+#: lib/portfolixir_web/live/dashboard_live.ex:4280
 #, elixir-autogen, elixir-format
 msgid "%{pp} pp above target"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4156
+#: lib/portfolixir_web/live/dashboard_live.ex:4278
 #, elixir-autogen, elixir-format
 msgid "%{pp} pp below target"
 msgstr ""
@@ -3281,20 +3281,21 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard/movers_card.ex:488
 #: lib/portfolixir_web/live/dashboard/movers_card.ex:522
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:1329
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:352
 #: lib/portfolixir_web/live/dashboard/widgets/snapshot_comparison.ex:315
 #: lib/portfolixir_web/live/dashboard/widgets/snapshot_list.ex:45
 #: lib/portfolixir_web/live/dashboard/widgets/snapshot_list.ex:49
-#: lib/portfolixir_web/live/dashboard_live.ex:2136
-#: lib/portfolixir_web/live/dashboard_live.ex:2439
-#: lib/portfolixir_web/live/dashboard_live.ex:2444
-#: lib/portfolixir_web/live/dashboard_live.ex:3255
-#: lib/portfolixir_web/live/dashboard_live.ex:3310
-#: lib/portfolixir_web/live/dashboard_live.ex:3443
-#: lib/portfolixir_web/live/dashboard_live.ex:3924
-#: lib/portfolixir_web/live/dashboard_live.ex:3925
-#: lib/portfolixir_web/live/dashboard_live.ex:4117
+#: lib/portfolixir_web/live/dashboard_live.ex:2193
+#: lib/portfolixir_web/live/dashboard_live.ex:2496
+#: lib/portfolixir_web/live/dashboard_live.ex:2501
+#: lib/portfolixir_web/live/dashboard_live.ex:3377
+#: lib/portfolixir_web/live/dashboard_live.ex:3432
+#: lib/portfolixir_web/live/dashboard_live.ex:3565
+#: lib/portfolixir_web/live/dashboard_live.ex:4046
+#: lib/portfolixir_web/live/dashboard_live.ex:4047
+#: lib/portfolixir_web/live/dashboard_live.ex:4239
 #: lib/portfolixir_web/live/portfolio_live.ex:3966
-#: lib/portfolixir_web/live/risk_live.ex:819
+#: lib/portfolixir_web/live/risk_live.ex:308
 #: lib/portfolixir_web/live/snapshots_live.ex:338
 #, elixir-autogen, elixir-format
 msgid "Everything"
@@ -3348,7 +3349,7 @@ msgstr ""
 msgid "Create a depot and cash account"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2469
+#: lib/portfolixir_web/live/dashboard_live.ex:2526
 #, elixir-autogen, elixir-format
 msgid "Create one cash account"
 msgstr ""
@@ -3379,7 +3380,7 @@ msgstr ""
 msgid "Seeded"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4585
+#: lib/portfolixir_web/live/dashboard_live.ex:4707
 #, elixir-autogen, elixir-format
 msgid "Setup counts"
 msgstr ""
@@ -3827,7 +3828,7 @@ msgid "Real (TTWROR)"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/widgets/snapshot_list.ex:81
-#: lib/portfolixir_web/live/dashboard_live.ex:2169
+#: lib/portfolixir_web/live/dashboard_live.ex:2226
 #: lib/portfolixir_web/live/snapshots_live.ex:336
 #, elixir-autogen, elixir-format
 msgid "Scope"
@@ -3881,7 +3882,7 @@ msgstr ""
 #: lib/portfolixir_web/live/classifications_live.ex:1353
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:161
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:620
-#: lib/portfolixir_web/live/risk/crash_section.ex:1142
+#: lib/portfolixir_web/live/risk/crash_section.ex:1269
 #, elixir-autogen, elixir-format
 msgid "Rename"
 msgstr ""
@@ -4866,7 +4867,7 @@ msgstr ""
 msgid "This position target is stale: the security was moved or unassigned. It keeps counting under the category it was filed under until re-filed on the Classifications page."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2637
+#: lib/portfolixir_web/live/dashboard_live.ex:2699
 #: lib/portfolixir_web/live/portfolio_live.ex:1816
 #, elixir-autogen, elixir-format
 msgid "IRR — money-weighted return, annualized. Discounts the timing and size of cashflows over the period. Windows shorter than a year show the period MWR — the same figure, not annualized."
@@ -4882,7 +4883,7 @@ msgstr ""
 msgid "Invested capital info"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3975
+#: lib/portfolixir_web/live/dashboard_live.ex:4097
 #: lib/portfolixir_web/live/portfolio_live.ex:3863
 #: lib/portfolixir_web/live/portfolio_live.ex:4654
 #, elixir-autogen, elixir-format
@@ -4927,7 +4928,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/widgets/performance.ex:242
 #: lib/portfolixir_web/live/dashboard/widgets/summary_line.ex:133
-#: lib/portfolixir_web/live/dashboard_live.ex:3303
+#: lib/portfolixir_web/live/dashboard_live.ex:3425
 #: lib/portfolixir_web/live/portfolio/contribution_table.ex:144
 #: lib/portfolixir_web/live/portfolio_live.ex:1798
 #: lib/portfolixir_web/live/portfolio_live.ex:1839
@@ -4998,7 +4999,7 @@ msgstr ""
 msgid "Computation failed. Reload retries."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3280
+#: lib/portfolixir_web/live/dashboard_live.ex:3402
 #, elixir-autogen, elixir-format
 msgid "Last known value —"
 msgstr ""
@@ -5019,14 +5020,14 @@ msgstr ""
 msgid "Retry logo lookup for all"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4394
+#: lib/portfolixir_web/live/dashboard_live.ex:4516
 #, elixir-autogen, elixir-format
 msgid "one without a logo"
 msgid_plural "%{count} without a logo"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4377
+#: lib/portfolixir_web/live/dashboard_live.ex:4499
 #, elixir-autogen, elixir-format
 msgid "one without an asset class"
 msgid_plural "%{count} without an asset class"
@@ -5072,17 +5073,17 @@ msgstr ""
 msgid "Set balances on Accounts & depots"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4103
+#: lib/portfolixir_web/live/dashboard_live.ex:4225
 #, elixir-autogen, elixir-format
 msgid "View %{view} · plan “%{plan}” on %{tree}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4111
+#: lib/portfolixir_web/live/dashboard_live.ex:4233
 #, elixir-autogen, elixir-format
 msgid "View %{view} · several active plans on %{tree}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4096
+#: lib/portfolixir_web/live/dashboard_live.ex:4218
 #, elixir-autogen, elixir-format
 msgid "View %{view} — no active plan on %{tree}"
 msgstr ""
@@ -5461,7 +5462,7 @@ msgstr[1] ""
 msgid "Cash flow facet"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3595
+#: lib/portfolixir_web/live/dashboard_live.ex:3717
 #: lib/portfolixir_web/live/income_live.ex:611
 #: lib/portfolixir_web/live/income_live.ex:819
 #, elixir-autogen, elixir-format
@@ -5528,13 +5529,13 @@ msgstr ""
 msgid "No fees or taxes booked yet."
 msgstr ""
 
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:390
 #: lib/portfolixir_web/live/journal/row.ex:69
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:394
 #: lib/portfolixir_web/live/predictions_live.ex:195
 #: lib/portfolixir_web/live/predictions_live.ex:478
 #: lib/portfolixir_web/live/predictions_live.ex:488
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:843
-#: lib/portfolixir_web/live/risk_live.ex:712
 #: lib/portfolixir_web/live/securities_live.ex:3884
 #: lib/portfolixir_web/live/tax_live.ex:605
 #: lib/portfolixir_web/live/tax_live.ex:616
@@ -5640,7 +5641,7 @@ msgstr ""
 #: lib/portfolixir_web/live/journal_live.ex:299
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:489
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:268
-#: lib/portfolixir_web/live/risk/crash_section.ex:968
+#: lib/portfolixir_web/live/risk/crash_section.ex:1095
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:293
 #: lib/portfolixir_web/live/securities/merge_preview.ex:712
 #: lib/portfolixir_web/live/securities/merge_preview.ex:961
@@ -5719,7 +5720,7 @@ msgid "Retracts #%{id}"
 msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:529
-#: lib/portfolixir_web/live/risk_live.ex:230
+#: lib/portfolixir_web/live/risk_live.ex:144
 #: lib/portfolixir_web/live/securities/predictions_tab.ex:203
 #: lib/portfolixir_web/live/securities_live.ex:3860
 #, elixir-autogen, elixir-format
@@ -6194,7 +6195,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:2737
-#: lib/portfolixir_web/live/risk/crash_section.ex:888
+#: lib/portfolixir_web/live/risk/crash_section.ex:1015
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:929
 #: lib/portfolixir_web/prediction_label.ex:75
 #, elixir-autogen, elixir-format
@@ -6340,8 +6341,8 @@ msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/widgets/snapshot_list.ex:84
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:136
-#: lib/portfolixir_web/live/risk/crash_section.ex:969
-#: lib/portfolixir_web/live/risk/crash_section.ex:1079
+#: lib/portfolixir_web/live/risk/crash_section.ex:1096
+#: lib/portfolixir_web/live/risk/crash_section.ex:1206
 #: lib/portfolixir_web/live/transaction_management_live.ex:401
 #, elixir-autogen, elixir-format
 msgid "Actions"
@@ -6603,13 +6604,13 @@ msgid "All key figures → Holdings"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/widgets/summary_line.ex:113
-#: lib/portfolixir_web/live/dashboard_live.ex:3459
+#: lib/portfolixir_web/live/dashboard_live.ex:3581
 #: lib/portfolixir_web/live/portfolio_live.ex:1874
 #, elixir-autogen, elixir-format
 msgid "Cash quote"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3466
+#: lib/portfolixir_web/live/dashboard_live.ex:3588
 #, elixir-autogen, elixir-format
 msgid "Last booking"
 msgstr ""
@@ -6619,7 +6620,7 @@ msgstr ""
 msgid "annualized"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3461
+#: lib/portfolixir_web/live/dashboard_live.ex:3583
 #: lib/portfolixir_web/live/portfolio_live.ex:1892
 #, elixir-autogen, elixir-format
 msgid "cash"
@@ -6642,7 +6643,7 @@ msgstr ""
 msgid "Holding"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2233
+#: lib/portfolixir_web/live/dashboard_live.ex:2290
 #: lib/portfolixir_web/live/securities_live.ex:704
 #: lib/portfolixir_web/live/transaction_management_live.ex:311
 #, elixir-autogen, elixir-format
@@ -6870,7 +6871,7 @@ msgstr ""
 msgid "Transaction updated"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3618
+#: lib/portfolixir_web/live/dashboard_live.ex:3740
 #: lib/portfolixir_web/live/income_live.ex:597
 #: lib/portfolixir_web/live/income_live.ex:647
 #: lib/portfolixir_web/live/income_live.ex:732
@@ -7062,10 +7063,10 @@ msgstr ""
 msgid "Volatility"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2853
-#: lib/portfolixir_web/live/dashboard_live.ex:2875
-#: lib/portfolixir_web/live/dashboard_live.ex:3205
-#: lib/portfolixir_web/live/dashboard_live.ex:3224
+#: lib/portfolixir_web/live/dashboard_live.ex:2915
+#: lib/portfolixir_web/live/dashboard_live.ex:2937
+#: lib/portfolixir_web/live/dashboard_live.ex:3327
+#: lib/portfolixir_web/live/dashboard_live.ex:3346
 #, elixir-autogen, elixir-format
 msgid "no position"
 msgstr ""
@@ -7075,9 +7076,10 @@ msgstr ""
 msgid "no window measured"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:503
-#: lib/portfolixir_web/live/risk_live.ex:753
-#: lib/portfolixir_web/live/risk_live.ex:794
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:316
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:520
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:556
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:597
 #: lib/portfolixir_web/live/securities/bond_strip.ex:266
 #: lib/portfolixir_web/live/securities_live.ex:4450
 #: lib/portfolixir_web/live/securities_live.ex:4481
@@ -7157,178 +7159,184 @@ msgstr ""
 msgid "No classification trees yet."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:808
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:614
 #, elixir-autogen, elixir-format
 msgid "%{count} of %{required} observations"
 msgid_plural "%{count} of %{required} observations"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk_live.ex:439
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:247
 #, elixir-autogen, elixir-format
 msgid "0 · low below %{low} · %{high} and above concentrated · 10,000"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:450
+#: lib/portfolixir_web/live/risk_live.ex:246
 #, elixir-autogen, elixir-format
 msgid "Asset-class caps"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:428
+#: lib/portfolixir_web/live/risk_live.ex:237
 #: lib/portfolixir_web/policy_rule_label.ex:20
 #, elixir-autogen, elixir-format
 msgid "Concentration (HHI)"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:231
+#: lib/portfolixir_web/live/risk_live.ex:145
 #, elixir-autogen, elixir-format
 msgid "Concentration and movement · view: %{view}"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:491
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:304
 #, elixir-autogen, elixir-format
 msgid "Correlation"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:783
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:586
 #, elixir-autogen, elixir-format
 msgid "Correlations"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:388
+#: lib/portfolixir_web/live/risk_live.ex:225
 #, elixir-autogen, elixir-format
 msgid "Largest single names"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:511
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:324
 #, elixir-autogen, elixir-format
 msgid "Left out, no stored exchange-rate path: %{names}"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:323
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:143
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:366
 #, elixir-autogen, elixir-format
 msgid "Max. drawdown"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:239
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:343
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:495
+#: lib/portfolixir_web/live/risk_live.ex:153
 #, elixir-autogen, elixir-format
 msgid "No portfolio yet — risk is measured over holdings, and there are none."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:395
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:199
 #, elixir-autogen, elixir-format
 msgid "No valued position in this view."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:492
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:305
 #, elixir-autogen, elixir-format
 msgid "Observations"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:490
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:303
 #, elixir-autogen, elixir-format
 msgid "Pair"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:474
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:287
 #, elixir-autogen, elixir-format
 msgid "Pearson correlation of daily returns over one year between the %{count} largest position, only on days both closed; at least %{required} shared observations per pair."
 msgid_plural "Pearson correlation of daily returns over one year between the %{count} largest positions, only on days both closed; at least %{required} shared observations per pair."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk_live.ex:481
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:294
 #, elixir-autogen, elixir-format
 msgid "Pearson correlation of daily returns over one year, only on days both closed; at least %{required} shared observations per pair."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:282
+#: lib/portfolixir_web/live/risk_live.ex:196
 #, elixir-autogen, elixir-format
 msgid "Portfolio metrics"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:345
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:165
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:373
 #, elixir-autogen, elixir-format
 msgid "Risk-adjusted return"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:467
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:280
 #, elixir-autogen, elixir-format
 msgid "Show the correlations of the largest positions"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:307
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:127
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:360
 #, elixir-autogen, elixir-format
 msgid "Volatility, annualized"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:404
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:208
 #: lib/portfolixir_web/policy_rule_label.ex:18
 #, elixir-autogen, elixir-format
 msgid "Weight"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:844
-#: lib/portfolixir_web/live/risk_live.ex:850
-#: lib/portfolixir_web/live/risk_live.ex:853
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:647
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:653
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:656
 #, elixir-autogen, elixir-format
 msgid "above %{pct} %"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:847
-#: lib/portfolixir_web/live/risk_live.ex:856
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:650
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:659
 #, elixir-autogen, elixir-format
 msgid "below %{pct} %"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:860
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:663
 #, elixir-autogen, elixir-format
 msgid "concentrated"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:798
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:601
 #, elixir-autogen, elixir-format
 msgid "fewer than two names"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:858
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:661
 #, elixir-autogen, elixir-format
 msgid "low"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:859
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:662
 #, elixir-autogen, elixir-format
 msgid "moderate"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:336
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:156
 #, elixir-autogen, elixir-format
 msgid "not recovered"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:335
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:155
 #, elixir-autogen, elixir-format
 msgid "recovered %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:351
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:171
 #, elixir-autogen, elixir-format
 msgid "risk-free rate %{rate} % · return per unit of risk"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:347
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:167
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:377
 #, elixir-autogen, elixir-format
 msgid "undefined — volatility is 0"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:312
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:132
 #, elixir-autogen, elixir-format
 msgid "1 year · %{count} observation · min. %{required}"
 msgid_plural "1 year · %{count} observations · min. %{required}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk_live.ex:787
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:590
 #, elixir-autogen, elixir-format
 msgid "highest of %{count} pair · 1 year"
 msgid_plural "highest of %{count} pairs · 1 year"
@@ -7469,21 +7477,21 @@ msgstr ""
 msgid "Read by policy rules: %{names}. A rule that has been in force keeps its subject as part of its history; retiring it on Wealth → Risk stops its evaluation."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:549
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:172
 #, elixir-autogen, elixir-format
 msgid "%{count} breached"
 msgid_plural "%{count} breached"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk_live.ex:551
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:174
 #, elixir-autogen, elixir-format
 msgid "%{count} met"
 msgid_plural "%{count} met"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk_live.ex:550
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:173
 #, elixir-autogen, elixir-format
 msgid "%{count} undetermined"
 msgid_plural "%{count} undetermined"
@@ -7510,7 +7518,7 @@ msgstr ""
 msgid "Evaluated in the view “%{view}”, on its steerable basis."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:405
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:209
 #, elixir-autogen, elixir-format
 msgid "Generic threshold"
 msgstr ""
@@ -7520,8 +7528,8 @@ msgstr ""
 msgid "In force from"
 msgstr ""
 
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:213
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:501
-#: lib/portfolixir_web/live/risk_live.ex:588
 #, elixir-autogen, elixir-format
 msgid "Line"
 msgstr ""
@@ -7536,18 +7544,18 @@ msgstr ""
 msgid "Measure"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:587
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:212
 #, elixir-autogen, elixir-format
 msgid "Measured"
 msgstr ""
 
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:187
-#: lib/portfolixir_web/live/risk_live.ex:564
+#: lib/portfolixir_web/live/risk_live.ex:288
 #, elixir-autogen, elixir-format
 msgid "New rule"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:579
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:204
 #, elixir-autogen, elixir-format
 msgid "No rule in force for this view. A rule sets a line over a weight, a drift, the HHI or a portfolio metric; its finding says which side of the line the figure is on."
 msgstr ""
@@ -7557,7 +7565,7 @@ msgstr ""
 msgid "Note (optional)"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:547
+#: lib/portfolixir_web/live/risk_live.ex:280
 #, elixir-autogen, elixir-format
 msgid "Own rules"
 msgstr ""
@@ -7582,8 +7590,8 @@ msgstr ""
 msgid "Retire this rule? Its version in force started today, so it ends tonight. The rule and its versions stay readable."
 msgstr ""
 
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:211
 #: lib/portfolixir_web/live/journal/row.ex:108
-#: lib/portfolixir_web/live/risk_live.ex:586
 #, elixir-autogen, elixir-format
 msgid "Rule"
 msgstr ""
@@ -7633,7 +7641,7 @@ msgstr ""
 msgid "Severity"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:670
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:286
 #, elixir-autogen, elixir-format
 msgid "Show the retired rule (%{count})"
 msgid_plural "Show the retired rules (%{count})"
@@ -7641,8 +7649,8 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/portfolixir_web/components/cycle_chart.ex:1778
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:214
 #: lib/portfolixir_web/live/predictions_live.ex:553
-#: lib/portfolixir_web/live/risk_live.ex:589
 #, elixir-autogen, elixir-format
 msgid "State"
 msgstr ""
@@ -7694,15 +7702,15 @@ msgstr ""
 msgid "Window"
 msgstr ""
 
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:275
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:576
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:629
 #: lib/portfolixir_web/live/risk/policy_rule_format.ex:65
-#: lib/portfolixir_web/live/risk_live.ex:659
 #, elixir-autogen, elixir-format
 msgid "from %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:390
+#: lib/portfolixir_web/live/risk_live.ex:227
 #, elixir-autogen, elixir-format
 msgid "generic thresholds, not policy rules"
 msgstr ""
@@ -7714,7 +7722,7 @@ msgstr ""
 msgid "pp"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:620
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:238
 #, elixir-autogen, elixir-format
 msgid "Line %{line}"
 msgstr ""
@@ -7829,12 +7837,12 @@ msgid_plural "Positions (%{count})"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk_live.ex:611
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:229
 #, elixir-autogen, elixir-format
 msgid "From %{date}: line %{line}"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:652
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:270
 #, elixir-autogen, elixir-format
 msgid "Scheduled rules"
 msgstr ""
@@ -9674,13 +9682,13 @@ msgstr ""
 msgid "“%{name}” is already the name of another depot. Choose another name, or merge or rename that depot."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:603
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:221
 #, elixir-autogen, elixir-format
 msgid "Version in force by:"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:661
-#: lib/portfolixir_web/live/risk_live.ex:680
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:277
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:294
 #, elixir-autogen, elixir-format
 msgid "Version by:"
 msgstr ""
@@ -9836,14 +9844,14 @@ msgid_plural "The %{count} sales"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3779
+#: lib/portfolixir_web/live/dashboard_live.ex:3901
 #, elixir-autogen, elixir-format
 msgid "%{count} sale with no stored rate on its close date is left out of the trades: %{securities}. The rate backfill is under “All trades”."
 msgid_plural "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities}. The rate backfill is under “All trades”."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3558
+#: lib/portfolixir_web/live/dashboard_live.ex:3680
 #, elixir-autogen, elixir-format
 msgid "All trades →"
 msgstr ""
@@ -9863,7 +9871,7 @@ msgstr ""
 msgid "Closed trades and their realized result"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3604
+#: lib/portfolixir_web/live/dashboard_live.ex:3726
 #, elixir-autogen, elixir-format
 msgid "Couldn't load the closed trades."
 msgstr ""
@@ -9892,7 +9900,7 @@ msgstr ""
 msgid "not annualized, under one year of holding"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3635
+#: lib/portfolixir_web/live/dashboard_live.ex:3757
 #: lib/portfolixir_web/live/income_live.ex:630
 #: lib/portfolixir_web/live/income_live.ex:753
 #: lib/portfolixir_web/live/securities/bond_strip.ex:132
@@ -9900,13 +9908,13 @@ msgstr ""
 msgid "p. a."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3618
-#: lib/portfolixir_web/live/dashboard_live.ex:3667
+#: lib/portfolixir_web/live/dashboard_live.ex:3740
+#: lib/portfolixir_web/live/dashboard_live.ex:3789
 #, elixir-autogen, elixir-format
 msgid "sold %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3641
+#: lib/portfolixir_web/live/dashboard_live.ex:3763
 #: lib/portfolixir_web/live/income_live.ex:755
 #, elixir-autogen, elixir-format
 msgid "total"
@@ -11381,7 +11389,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:506
 #: lib/portfolixir_web/live/dashboard/widgets/snapshot_comparison.ex:236
-#: lib/portfolixir_web/live/risk/crash_section.ex:603
+#: lib/portfolixir_web/live/risk/crash_section.ex:730
 #, elixir-autogen, elixir-format
 msgid "in %{currency}"
 msgstr ""
@@ -11444,18 +11452,18 @@ msgid_plural "%{count} held positions with no price — %{names}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3870
-#: lib/portfolixir_web/live/dashboard_live.ex:3912
+#: lib/portfolixir_web/live/dashboard_live.ex:3992
+#: lib/portfolixir_web/live/dashboard_live.ex:4034
 #, elixir-autogen, elixir-format
 msgid "Details in Wealth →"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3939
+#: lib/portfolixir_web/live/dashboard_live.ex:4061
 #, elixir-autogen, elixir-format
 msgid "Not in the total: %{groups}."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3940
+#: lib/portfolixir_web/live/dashboard_live.ex:4062
 #, elixir-autogen, elixir-format
 msgid "Not in the total: %{groups}"
 msgstr ""
@@ -11673,7 +11681,7 @@ msgstr ""
 msgid "Corrects the booking in place; the derived holdings follow, and the journal records the change."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3285
+#: lib/portfolixir_web/live/dashboard_live.ex:3407
 #, elixir-autogen, elixir-format
 msgid "Last known: %{ttwror}% year to date — one booking through %{last}, as of %{date}. Recomputing."
 msgid_plural "Last known: %{ttwror}% year to date — %{count} bookings through %{last}, as of %{date}. Recomputing."
@@ -11752,9 +11760,9 @@ msgstr ""
 msgid "outflow from the position %{amount}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3278
-#: lib/portfolixir_web/live/dashboard_live.ex:3330
-#: lib/portfolixir_web/live/dashboard_live.ex:3333
+#: lib/portfolixir_web/live/dashboard_live.ex:3400
+#: lib/portfolixir_web/live/dashboard_live.ex:3452
+#: lib/portfolixir_web/live/dashboard_live.ex:3455
 #, elixir-autogen, elixir-format
 msgid "year to date"
 msgstr ""
@@ -12159,7 +12167,7 @@ msgstr ""
 msgid "no annualized return, no cost basis"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3647
+#: lib/portfolixir_web/live/dashboard_live.ex:3769
 #: lib/portfolixir_web/live/income_live.ex:745
 #: lib/portfolixir_web/live/securities_live.ex:2868
 #, elixir-autogen, elixir-format
@@ -12192,7 +12200,7 @@ msgid_plural "%{count} held positions are valued at quotes that do not match the
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4425
+#: lib/portfolixir_web/live/dashboard_live.ex:4547
 #, elixir-autogen, elixir-format
 msgid "one held security whose quotes do not match its bookings"
 msgid_plural "%{count} held securities whose quotes do not match their bookings"
@@ -12372,10 +12380,10 @@ msgstr ""
 msgid "A price sync of every security is already running; it was not started a second time."
 msgstr ""
 
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:220
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:273
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:290
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:207
-#: lib/portfolixir_web/live/risk_live.ex:602
-#: lib/portfolixir_web/live/risk_live.ex:657
-#: lib/portfolixir_web/live/risk_live.ex:676
 #, elixir-autogen, elixir-format
 msgid "Named by:"
 msgstr ""
@@ -12803,7 +12811,7 @@ msgid_plural "%{count} sales are not convertible — a buy each closes has no fi
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3797
+#: lib/portfolixir_web/live/dashboard_live.ex:3919
 #, elixir-autogen, elixir-format
 msgid "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}."
 msgid_plural "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}."
@@ -12815,7 +12823,7 @@ msgstr[1] ""
 msgid "Not convertible: a buy in %{lot_currency} has no figure in %{currency}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3810
+#: lib/portfolixir_web/live/dashboard_live.ex:3932
 #, elixir-autogen, elixir-format
 msgid "The rate backfill is under “All trades”."
 msgstr ""
@@ -13033,14 +13041,14 @@ msgstr[1] ""
 msgid "The daily rate sync cannot fill a past date. The backfill fetches the historical ECB series once, stores every published day and derives from it the settlement legs imported buys and sells lack; a day the ECB did not publish stays excluded."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4431
+#: lib/portfolixir_web/live/dashboard_live.ex:4553
 #, elixir-autogen, elixir-format
 msgid "— so its value in the total above, or its cost, is wrong"
 msgid_plural "— so their value in the total above, or their cost, is wrong"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3920
+#: lib/portfolixir_web/live/dashboard_live.ex:4042
 #, elixir-autogen, elixir-format
 msgid "Wealth is currently scoped to the view “%{active}”; this total counts “%{card}”."
 msgstr ""
@@ -13059,14 +13067,14 @@ msgid_plural "%{count} sales are not convertible — a buy each closes has no fi
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3803
+#: lib/portfolixir_web/live/dashboard_live.ex:3925
 #, elixir-autogen, elixir-format
 msgid "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}"
 msgid_plural "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3785
+#: lib/portfolixir_web/live/dashboard_live.ex:3907
 #, elixir-autogen, elixir-format
 msgid "%{count} sale with no stored rate on its close date is left out of the trades: %{securities} The rate backfill is under “All trades”."
 msgid_plural "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities} The rate backfill is under “All trades”."
@@ -13388,14 +13396,14 @@ msgid_plural "%{count} sales are not convertible — each or a buy it closes is 
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3726
+#: lib/portfolixir_web/live/dashboard_live.ex:3848
 #, elixir-autogen, elixir-format
 msgid "%{count} sale not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — is left out of the trades: %{securities}"
 msgid_plural "%{count} sales not convertible — each or a buy it closes is priced in a currency that is neither the security's nor its account's — are left out of the trades: %{securities}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3720
+#: lib/portfolixir_web/live/dashboard_live.ex:3842
 #, elixir-autogen, elixir-format
 msgid "%{count} sale not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — is left out of the trades: %{securities}."
 msgid_plural "%{count} sales not convertible — each or a buy it closes is priced in a currency that is neither the security's nor its account's — are left out of the trades: %{securities}."
@@ -13464,28 +13472,28 @@ msgid_plural "%{count} sales are not convertible — a buy each closes was paid 
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3764
+#: lib/portfolixir_web/live/dashboard_live.ex:3886
 #, elixir-autogen, elixir-format
 msgid "%{count} sale not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — is left out of the trades: %{securities}"
 msgid_plural "%{count} sales not convertible — a buy each closes has an amount of zero, which the rate backfill does not complete — are left out of the trades: %{securities}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3758
+#: lib/portfolixir_web/live/dashboard_live.ex:3880
 #, elixir-autogen, elixir-format
 msgid "%{count} sale not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — is left out of the trades: %{securities}."
 msgid_plural "%{count} sales not convertible — a buy each closes has an amount of zero, which the rate backfill does not complete — are left out of the trades: %{securities}."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3745
+#: lib/portfolixir_web/live/dashboard_live.ex:3867
 #, elixir-autogen, elixir-format
 msgid "%{count} sale not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — is left out of the trades: %{securities}"
 msgid_plural "%{count} sales not convertible — a buy each closes was paid in another currency than its sale's, which no stored figure bridges — are left out of the trades: %{securities}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3739
+#: lib/portfolixir_web/live/dashboard_live.ex:3861
 #, elixir-autogen, elixir-format
 msgid "%{count} sale not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — is left out of the trades: %{securities}."
 msgid_plural "%{count} sales not convertible — a buy each closes was paid in another currency than its sale's, which no stored figure bridges — are left out of the trades: %{securities}."
@@ -13820,7 +13828,7 @@ msgid_plural "Already imported into portfolio “%{portfolio}”: %{count} entri
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk_live.ex:338
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:158
 #, elixir-autogen, elixir-format
 msgid "no decline in the period"
 msgstr ""
@@ -13891,24 +13899,24 @@ msgstr ""
 msgid "start value: the close of the day before the period"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2806
+#: lib/portfolixir_web/live/dashboard_live.ex:2868
 #, elixir-autogen, elixir-format
 msgid "A date given as a range or a month counts as due when any day it could fall on is inside the horizon."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2812
+#: lib/portfolixir_web/live/dashboard_live.ex:2874
 #, elixir-autogen, elixir-format
 msgid "Dated facts about any security in the catalog — held or not — falling in the next %{days} days."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3571
+#: lib/portfolixir_web/live/dashboard_live.ex:3693
 #, elixir-autogen, elixir-format
 msgid "The most recently closed · result in %{currency} · FIFO across every depot, whatever the view"
 msgid_plural "The %{count} most recently closed · result in %{currency} · FIFO across every depot, whatever the view"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3563
+#: lib/portfolixir_web/live/dashboard_live.ex:3685
 #: lib/portfolixir_web/live/income_live.ex:355
 #: lib/portfolixir_web/live/securities_live.ex:2564
 #, elixir-autogen, elixir-format
@@ -13992,13 +14000,13 @@ msgstr[1] ""
 msgid "Excluded from every total: %{counts}."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3708
+#: lib/portfolixir_web/live/dashboard_live.ex:3830
 #, elixir-autogen, elixir-format
 msgid "Left out of the trades: %{counts}."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3862
-#: lib/portfolixir_web/live/dashboard_live.ex:3897
+#: lib/portfolixir_web/live/dashboard_live.ex:3984
+#: lib/portfolixir_web/live/dashboard_live.ex:4019
 #, elixir-autogen, elixir-format
 msgid "Not in the total: %{counts}."
 msgstr ""
@@ -14071,7 +14079,7 @@ msgstr ""
 msgid "from its figures: %{amount}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4472
+#: lib/portfolixir_web/live/dashboard_live.ex:4594
 #, elixir-autogen, elixir-format
 msgid "one booking whose cash misses its quantity × price, fees and taxes"
 msgid_plural "%{count} bookings whose cash misses their quantity × price, fees and taxes"
@@ -14083,7 +14091,7 @@ msgstr[1] ""
 msgid "so the cash balance and the cost read different amounts. State the cash in the booking form (Edit): the amount settled, or the one the figures give. Nothing is changed automatically."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4477
+#: lib/portfolixir_web/live/dashboard_live.ex:4599
 #, elixir-autogen, elixir-format
 msgid "— so the cash balance and the cost read different amounts"
 msgstr ""
@@ -14100,7 +14108,7 @@ msgstr[1] ""
 msgid "settlement amount at its own rate %{rate}: %{amount}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4486
+#: lib/portfolixir_web/live/dashboard_live.ex:4608
 #, elixir-autogen, elixir-format
 msgid "one cross-currency buy or sell with a rate and no cash amount"
 msgid_plural "%{count} cross-currency buys or sells with a rate and no cash amount"
@@ -14112,7 +14120,7 @@ msgstr[1] ""
 msgid "the ledger books quantity × price with fees and taxes, in the security's currency, as the account's cash, and never applies the rate. Enter the settlement amount in the booking form (Edit): the amount before fees and taxes, from which the form books the cash; backfilling rates does not change these bookings. Nothing is changed automatically."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4492
+#: lib/portfolixir_web/live/dashboard_live.ex:4614
 #, elixir-autogen, elixir-format
 msgid "— it books quantity × price to the account unconverted"
 msgid_plural "— they book quantity × price to the account unconverted"
@@ -14136,14 +14144,14 @@ msgstr[1] ""
 msgid "There the FIFO lots are split and the holding is not. Record the split again with the same date and ratio (“Record split” on the security): it adds only the missing rows. If the split is wrong, delete the whole split. Nothing is changed automatically."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4505
+#: lib/portfolixir_web/live/dashboard_live.ex:4627
 #, elixir-autogen, elixir-format
 msgid "one split missing a portfolio that held the security"
 msgid_plural "%{count} splits each missing a portfolio that held the security"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4510
+#: lib/portfolixir_web/live/dashboard_live.ex:4632
 #, elixir-autogen, elixir-format
 msgid "— there the lots are split and the holding is not"
 msgstr ""
@@ -14700,49 +14708,49 @@ msgstr ""
 msgid "income received while a trade was open not included"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:285
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:94
 #, elixir-autogen, elixir-format
 msgid "A day without a return base yields no observation, never a zero."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:560
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:160
 #, elixir-autogen, elixir-format
 msgid "A finding does not say what to do."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:363
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:183
 #, elixir-autogen, elixir-format
 msgid "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:452
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:110
 #, elixir-autogen, elixir-format
 msgid "Caps are set per request over the API."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:289
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:96
 #, elixir-autogen, elixir-format
 msgid "Correlations convert to %{currency} first and run over the %{count} largest position."
 msgid_plural "Correlations convert to %{currency} first and run over the %{count} largest positions."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk_live.ex:296
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:103
 #, elixir-autogen, elixir-format
 msgid "Correlations convert to %{currency} first."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:556
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:157
 #, elixir-autogen, elixir-format
 msgid "Each rule names the figure it reads; a figure that cannot be read is undetermined, never met."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:641
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:259
 #, elixir-autogen, elixir-format
 msgid "Evaluated on read, as of %{date}, on the steerable basis of the view “%{view}”."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:461
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:274
 #, elixir-autogen, elixir-format
 msgid "No cap configured — there is nothing to exceed."
 msgstr ""
@@ -14846,7 +14854,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/portfolixir_web/live/predictions_live.ex:677
-#: lib/portfolixir_web/live/risk/crash_section.ex:743
+#: lib/portfolixir_web/live/risk/crash_section.ex:870
 #: lib/portfolixir_web/prediction_label.ex:181
 #, elixir-autogen, elixir-format
 msgid "%{value} pp"
@@ -16213,7 +16221,7 @@ msgid "Candidates"
 msgstr ""
 
 #: lib/portfolixir_web/live/news_live.ex:204
-#: lib/portfolixir_web/live/risk/crash_section.ex:237
+#: lib/portfolixir_web/live/risk/crash_section.ex:282
 #, elixir-autogen, elixir-format
 msgid "Choose a security first."
 msgstr ""
@@ -16796,42 +16804,42 @@ msgctxt "benchmark picker"
 msgid "Other"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1217
+#: lib/portfolixir_web/live/risk/crash_section.ex:1344
 #, elixir-autogen, elixir-format
 msgid "%{count} detected"
 msgid_plural "%{count} detected"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1218
+#: lib/portfolixir_web/live/risk/crash_section.ex:1345
 #, elixir-autogen, elixir-format
 msgid "%{count} manual"
 msgid_plural "%{count} manual"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1220
+#: lib/portfolixir_web/live/risk/crash_section.ex:1347
 #, elixir-autogen, elixir-format
 msgid "%{count} name without a window"
 msgid_plural "%{count} names without a window"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:877
+#: lib/portfolixir_web/live/risk/crash_section.ex:1004
 #, elixir-autogen, elixir-format
 msgid "%{count} without a close at its end"
 msgid_plural "%{count} without a close at its end"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:869
+#: lib/portfolixir_web/live/risk/crash_section.ex:996
 #, elixir-autogen, elixir-format
 msgid "%{count} without a close at the window's start"
 msgid_plural "%{count} without a close at the window's start"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:848
+#: lib/portfolixir_web/live/risk/crash_section.ex:975
 #, elixir-autogen, elixir-format
 msgid "%{count} without an answer: %{reasons}"
 msgid_plural "%{count} without an answer: %{reasons}"
@@ -16839,301 +16847,303 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/portfolixir_web/live/dashboard/movers_card.ex:612
-#: lib/portfolixir_web/live/risk/crash_section.ex:884
+#: lib/portfolixir_web/live/risk/crash_section.ex:1011
 #, elixir-autogen, elixir-format
 msgid "%{count} without an exchange rate"
 msgid_plural "%{count} without an exchange rate"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:565
+#: lib/portfolixir_web/live/risk/crash_section.ex:692
 #, elixir-autogen, elixir-format
 msgid "%{name} · since %{date} · ongoing"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:843
+#: lib/portfolixir_web/live/risk/crash_section.ex:970
 #, elixir-autogen, elixir-format
 msgid "%{shown} of %{count} security with an answer shown"
 msgid_plural "%{shown} of %{count} securities with an answer shown"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:618
+#: lib/portfolixir_web/live/risk/crash_section.ex:745
 #, elixir-autogen, elixir-format
 msgid "(low + 3 months)"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1323
+#: lib/portfolixir_web/live/risk/crash_section.ex:1450
 #, elixir-autogen, elixir-format
 msgid "A manual window's dates are chosen by hand, and it reads „manual“ wherever it is read."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1367
+#: lib/portfolixir_web/live/risk/crash_section.ex:1494
 #, elixir-autogen, elixir-format
 msgid "A name keeps only the day of its high: the low is entered here. The window is then „manual“, and the name without a window goes."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:386
+#: lib/portfolixir_web/live/risk/crash_section.ex:347
 #, elixir-autogen, elixir-format
 msgid "A window opens once the crash benchmark closes 10 % or more below its high; it starts on the last day at the high and ends on the lowest close before the recovery, the earliest of equal lows."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:420
-#: lib/portfolixir_web/live/risk/crash_section.ex:944
+#: lib/portfolixir_web/live/risk/crash_section.ex:505
+#: lib/portfolixir_web/live/risk/crash_section.ex:515
+#: lib/portfolixir_web/live/risk/crash_section.ex:1071
 #, elixir-autogen, elixir-format
 msgid "Add window"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1259
+#: lib/portfolixir_web/live/risk/crash_section.ex:1386
 #, elixir-autogen, elixir-format
 msgid "Applies to this page and every agent: all read the same windows. The change is in the audit journal."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:786
+#: lib/portfolixir_web/live/risk/crash_section.ex:913
 #, elixir-autogen, elixir-format
 msgid "Basis: EUR price return from the window's high to its low"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:406
-#: lib/portfolixir_web/live/risk/crash_section.ex:934
+#: lib/portfolixir_web/live/risk/crash_section.ex:487
+#: lib/portfolixir_web/live/risk/crash_section.ex:497
+#: lib/portfolixir_web/live/risk/crash_section.ex:1061
 #, elixir-autogen, elixir-format
 msgid "Choose crash benchmark"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1236
+#: lib/portfolixir_web/live/risk/crash_section.ex:1363
 #, elixir-autogen, elixir-format
 msgid "Crash benchmark"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1014
-#: lib/portfolixir_web/live/risk/crash_section.ex:1224
+#: lib/portfolixir_web/live/risk/crash_section.ex:1141
+#: lib/portfolixir_web/live/risk/crash_section.ex:1351
 #, elixir-autogen, elixir-format
 msgid "Crash windows"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:384
+#: lib/portfolixir_web/live/risk/crash_section.ex:476
 #, elixir-autogen, elixir-format
 msgid "Crashes"
 msgstr ""
 
 #: lib/portfolixir_web/live/new_dashboard_live.ex:332
-#: lib/portfolixir_web/live/risk/crash_section.ex:1359
+#: lib/portfolixir_web/live/risk/crash_section.ex:1486
 #, elixir-autogen, elixir-format
 msgid "Create"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:714
-#: lib/portfolixir_web/live/risk/crash_section.ex:746
+#: lib/portfolixir_web/live/risk/crash_section.ex:841
+#: lib/portfolixir_web/live/risk/crash_section.ex:873
 #, elixir-autogen, elixir-format
 msgid "Days to pre-crash close"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:965
+#: lib/portfolixir_web/live/risk/crash_section.ex:1092
 #, elixir-autogen, elixir-format
 msgid "Decline"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1154
+#: lib/portfolixir_web/live/risk/crash_section.ex:1281
 #, elixir-autogen, elixir-format
 msgid "Delete name"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1174
+#: lib/portfolixir_web/live/risk/crash_section.ex:1301
 #, elixir-autogen, elixir-format
 msgid "Delete the manual window „%{name}“?"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1105
-#: lib/portfolixir_web/live/risk/crash_section.ex:1152
+#: lib/portfolixir_web/live/risk/crash_section.ex:1232
+#: lib/portfolixir_web/live/risk/crash_section.ex:1279
 #, elixir-autogen, elixir-format
 msgid "Delete the name „%{name}“?"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:387
+#: lib/portfolixir_web/live/risk/crash_section.ex:350
 #, elixir-autogen, elixir-format
 msgid "Detected in the benchmark's currency, listed in EUR at each close's exchange rate; splits adjusted."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:967
-#: lib/portfolixir_web/live/risk/crash_section.ex:1033
+#: lib/portfolixir_web/live/risk/crash_section.ex:1094
+#: lib/portfolixir_web/live/risk/crash_section.ex:1160
 #, elixir-autogen, elixir-format
 msgid "Gap, days"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1077
+#: lib/portfolixir_web/live/risk/crash_section.ex:1204
 #, elixir-autogen, elixir-format
 msgid "Given for"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1096
+#: lib/portfolixir_web/live/risk/crash_section.ex:1223
 #, elixir-autogen, elixir-format
 msgid "Make a manual window …"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1262
+#: lib/portfolixir_web/live/risk/crash_section.ex:1389
 #, elixir-autogen, elixir-format
 msgid "Names stay with the former benchmark and return when it is chosen again."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:927
+#: lib/portfolixir_web/live/risk/crash_section.ex:1054
 #, elixir-autogen, elixir-format
 msgid "No crash benchmark chosen."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:482
+#: lib/portfolixir_web/live/risk/crash_section.ex:579
 #, elixir-autogen, elixir-format
 msgid "No crash benchmark chosen: the rule detects no windows, manual ones still apply."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:697
+#: lib/portfolixir_web/live/risk/crash_section.ex:824
 #, elixir-autogen, elixir-format
 msgid "No security with an answer."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:392
+#: lib/portfolixir_web/live/risk/crash_section.ex:363
 #, elixir-autogen, elixir-format
 msgid "No verdict: the lists compare prices, they do not say what to buy."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:412
+#: lib/portfolixir_web/live/risk/crash_section.ex:503
 #, elixir-autogen, elixir-format
 msgid "No window yet."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:708
+#: lib/portfolixir_web/live/risk/crash_section.ex:835
 #, elixir-autogen, elixir-format
 msgid "Price return high → low, EUR"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:390
+#: lib/portfolixir_web/live/risk/crash_section.ex:359
 #, elixir-autogen, elixir-format
 msgid "Rebounders: from the own low between high and low to three calendar months after the low; days to the pre-crash close in calendar days."
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/widgets/crashes.ex:206
-#: lib/portfolixir_web/live/risk/crash_section.ex:966
+#: lib/portfolixir_web/live/risk/crash_section.ex:1093
 #, elixir-autogen, elixir-format
 msgid "Recovered"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:611
+#: lib/portfolixir_web/live/risk/crash_section.ex:738
 #, elixir-autogen, elixir-format
 msgid "Recovery measured to"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:707
+#: lib/portfolixir_web/live/risk/crash_section.ex:834
 #, elixir-autogen, elixir-format
 msgid "Rise from own low, EUR"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:914
+#: lib/portfolixir_web/live/risk/crash_section.ex:1041
 #, elixir-autogen, elixir-format
 msgid "Rule: high → low from 10 % in the crash benchmark's close · crash benchmark"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:486
+#: lib/portfolixir_web/live/risk/crash_section.ex:583
 #, elixir-autogen, elixir-format
 msgid "The crash benchmark is no longer available: the rule detects no windows, manual ones still apply."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:388
+#: lib/portfolixir_web/live/risk/crash_section.ex:353
 #, elixir-autogen, elixir-format
 msgid "The price on a day: the last close on or before it, at most 7 days old. Without a price or an exchange rate no answer, never a zero."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:636
+#: lib/portfolixir_web/live/risk/crash_section.ex:763
 #, elixir-autogen, elixir-format
 msgid "The view begins on %{date}: there was no depot in this window."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:632
+#: lib/portfolixir_web/live/risk/crash_section.ex:759
 #, elixir-autogen, elixir-format
 msgid "The view has no booking yet."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:448
+#: lib/portfolixir_web/live/risk/crash_section.ex:545
 #, elixir-autogen, elixir-format
 msgid "The window is ongoing: while %{benchmark} closes lower, the low and the lists move with it."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:461
+#: lib/portfolixir_web/live/risk/crash_section.ex:558
 #, elixir-autogen, elixir-format
 msgid "This list cannot be read for this view."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:337
+#: lib/portfolixir_web/live/risk/crash_section.ex:425
 #, elixir-autogen, elixir-format
 msgid "This name has a window again: it is read there."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:229
+#: lib/portfolixir_web/live/risk/crash_section.ex:274
 #, elixir-autogen, elixir-format
 msgid "This security cannot be the crash benchmark."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:340
+#: lib/portfolixir_web/live/risk/crash_section.ex:428
 #, elixir-autogen, elixir-format
 msgid "This window no longer exists: the section was read again."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:391
+#: lib/portfolixir_web/live/risk/crash_section.ex:362
 #, elixir-autogen, elixir-format
 msgid "Ties by figure, then name, then ISIN. Benchmarks are in no list."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:561
-#: lib/portfolixir_web/live/risk/crash_section.ex:591
+#: lib/portfolixir_web/live/risk/crash_section.ex:688
+#: lib/portfolixir_web/live/risk/crash_section.ex:718
 #, elixir-autogen, elixir-format
 msgid "Unnamed"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:628
+#: lib/portfolixir_web/live/risk/crash_section.ex:755
 #, elixir-autogen, elixir-format
 msgid "View in holdings →"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1085
+#: lib/portfolixir_web/live/risk/crash_section.ex:1212
 #, elixir-autogen, elixir-format
 msgid "a removed security"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:615
+#: lib/portfolixir_web/live/risk/crash_section.ex:742
 #, elixir-autogen, elixir-format
 msgid "complete on %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:855
+#: lib/portfolixir_web/live/risk/crash_section.ex:982
 #, elixir-autogen, elixir-format
 msgid "hide"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:887
+#: lib/portfolixir_web/live/risk/crash_section.ex:1014
 #, elixir-autogen, elixir-format
 msgid "no close at its end"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:886
+#: lib/portfolixir_web/live/risk/crash_section.ex:1013
 #, elixir-autogen, elixir-format
 msgid "no close at the window's start"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:811
+#: lib/portfolixir_web/live/risk/crash_section.ex:938
 #, elixir-autogen, elixir-format
 msgid "no comparison: no crash benchmark chosen"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:747
+#: lib/portfolixir_web/live/risk/crash_section.ex:874
 #, elixir-autogen, elixir-format
 msgid "not yet"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:608
-#: lib/portfolixir_web/live/risk/crash_section.ex:1046
+#: lib/portfolixir_web/live/risk/crash_section.ex:735
+#: lib/portfolixir_web/live/risk/crash_section.ex:1173
 #, elixir-autogen, elixir-format
 msgid "recovered on %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:855
+#: lib/portfolixir_web/live/risk/crash_section.ex:982
 #, elixir-autogen, elixir-format
 msgid "show"
 msgstr ""
@@ -17145,124 +17155,124 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard/widgets/crashes.ex:235
 #: lib/portfolixir_web/live/dashboard/widgets/rebounders.ex:192
 #: lib/portfolixir_web/live/dashboard/widgets/rebounders.ex:214
-#: lib/portfolixir_web/live/risk/crash_section.ex:978
-#: lib/portfolixir_web/live/risk/crash_section.ex:1023
+#: lib/portfolixir_web/live/risk/crash_section.ex:1105
+#: lib/portfolixir_web/live/risk/crash_section.ex:1150
 #, elixir-autogen, elixir-format
 msgid "unnamed"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:712
+#: lib/portfolixir_web/live/risk/crash_section.ex:839
 #, elixir-autogen, elixir-format
 msgid "vs. %{benchmark}"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:924
+#: lib/portfolixir_web/live/risk/crash_section.ex:1051
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "Change"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:343
-#: lib/portfolixir_web/live/risk/crash_section.ex:594
-#: lib/portfolixir_web/live/risk/crash_section.ex:963
-#: lib/portfolixir_web/live/risk/crash_section.ex:1026
-#: lib/portfolixir_web/live/risk/crash_section.ex:1078
-#: lib/portfolixir_web/live/risk/crash_section.ex:1291
-#: lib/portfolixir_web/live/risk/crash_section.ex:1343
+#: lib/portfolixir_web/live/risk/crash_section.ex:431
+#: lib/portfolixir_web/live/risk/crash_section.ex:721
+#: lib/portfolixir_web/live/risk/crash_section.ex:1090
+#: lib/portfolixir_web/live/risk/crash_section.ex:1153
+#: lib/portfolixir_web/live/risk/crash_section.ex:1205
+#: lib/portfolixir_web/live/risk/crash_section.ex:1418
+#: lib/portfolixir_web/live/risk/crash_section.ex:1470
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "High"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:529
+#: lib/portfolixir_web/live/risk/crash_section.ex:626
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "List"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:344
-#: lib/portfolixir_web/live/risk/crash_section.ex:964
-#: lib/portfolixir_web/live/risk/crash_section.ex:1303
-#: lib/portfolixir_web/live/risk/crash_section.ex:1347
+#: lib/portfolixir_web/live/risk/crash_section.ex:432
+#: lib/portfolixir_web/live/risk/crash_section.ex:1091
+#: lib/portfolixir_web/live/risk/crash_section.ex:1430
+#: lib/portfolixir_web/live/risk/crash_section.ex:1474
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "Low"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:519
+#: lib/portfolixir_web/live/risk/crash_section.ex:616
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "Window"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:730
+#: lib/portfolixir_web/live/risk/crash_section.ex:857
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "in depot"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:596
+#: lib/portfolixir_web/live/risk/crash_section.ex:723
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "low so far"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:607
-#: lib/portfolixir_web/live/risk/crash_section.ex:988
-#: lib/portfolixir_web/live/risk/crash_section.ex:1045
+#: lib/portfolixir_web/live/risk/crash_section.ex:734
+#: lib/portfolixir_web/live/risk/crash_section.ex:1115
+#: lib/portfolixir_web/live/risk/crash_section.ex:1172
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "ongoing"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:598
-#: lib/portfolixir_web/live/risk/crash_section.ex:613
-#: lib/portfolixir_web/live/risk/crash_section.ex:982
-#: lib/portfolixir_web/live/risk/crash_section.ex:1028
+#: lib/portfolixir_web/live/risk/crash_section.ex:725
+#: lib/portfolixir_web/live/risk/crash_section.ex:740
+#: lib/portfolixir_web/live/risk/crash_section.ex:1109
+#: lib/portfolixir_web/live/risk/crash_section.ex:1155
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "provisional"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1142
+#: lib/portfolixir_web/live/risk/crash_section.ex:1269
 #, elixir-autogen, elixir-format
 msgctxt "crash action"
 msgid "Name"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:673
+#: lib/portfolixir_web/live/risk/crash_section.ex:800
 #, elixir-autogen, elixir-format
 msgctxt "crash kind"
 msgid "detected"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:571
-#: lib/portfolixir_web/live/risk/crash_section.ex:672
+#: lib/portfolixir_web/live/risk/crash_section.ex:698
+#: lib/portfolixir_web/live/risk/crash_section.ex:799
 #, elixir-autogen, elixir-format
 msgctxt "crash kind"
 msgid "manual"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:596
-#: lib/portfolixir_web/live/risk/crash_section.ex:1026
+#: lib/portfolixir_web/live/risk/crash_section.ex:723
+#: lib/portfolixir_web/live/risk/crash_section.ex:1153
 #, elixir-autogen, elixir-format
 msgctxt "crash line"
 msgid "low"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:492
+#: lib/portfolixir_web/live/risk/crash_section.ex:589
 #, elixir-autogen, elixir-format
 msgctxt "crash list"
 msgid "Losers"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:494
+#: lib/portfolixir_web/live/risk/crash_section.ex:591
 #, elixir-autogen, elixir-format
 msgctxt "crash list"
 msgid "Rebounders"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:493
+#: lib/portfolixir_web/live/risk/crash_section.ex:590
 #, elixir-autogen, elixir-format
 msgctxt "crash list"
 msgid "Winners"
@@ -17270,14 +17280,14 @@ msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/widgets/crashes.ex:259
 #: lib/portfolixir_web/live/dashboard/widgets/rebounders.ex:234
-#: lib/portfolixir_web/live/risk/crash_section.ex:499
+#: lib/portfolixir_web/live/risk/crash_section.ex:596
 #, elixir-autogen, elixir-format
 msgctxt "crash universe"
 msgid "In depot"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:500
-#: lib/portfolixir_web/live/risk/crash_section.ex:624
+#: lib/portfolixir_web/live/risk/crash_section.ex:597
+#: lib/portfolixir_web/live/risk/crash_section.ex:751
 #, elixir-autogen, elixir-format
 msgctxt "crash universe"
 msgid "Whole catalogue"
@@ -17295,75 +17305,75 @@ msgctxt "journal kind"
 msgid "Manual crash window"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1061
+#: lib/portfolixir_web/live/risk/crash_section.ex:1188
 #, elixir-autogen, elixir-format
 msgid "Name without a window (%{count})"
 msgid_plural "Names without a window (%{count})"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1238
+#: lib/portfolixir_web/live/risk/crash_section.ex:1365
 #, elixir-autogen, elixir-format
 msgid "— choose —"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3475
+#: lib/portfolixir_web/live/dashboard_live.ex:3597
 #, elixir-autogen, elixir-format
 msgid "%{count} held stale"
 msgid_plural "%{count} held stale"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3513
+#: lib/portfolixir_web/live/dashboard_live.ex:3635
 #, elixir-autogen, elixir-format
 msgid "%{count} in the catalog"
 msgid_plural "%{count} in the catalog"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4406
+#: lib/portfolixir_web/live/dashboard_live.ex:4528
 #, elixir-autogen, elixir-format
 msgid "one held bond priced on two scales"
 msgid_plural "%{count} held bonds priced on two scales"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4449
+#: lib/portfolixir_web/live/dashboard_live.ex:4571
 #, elixir-autogen, elixir-format
 msgid "one held security whose provider reports another currency than its own"
 msgid_plural "%{count} held securities whose provider reports another currency than their own"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4389
+#: lib/portfolixir_web/live/dashboard_live.ex:4511
 #, elixir-autogen, elixir-format
 msgid "one held security without a logo"
 msgid_plural "%{count} held securities without a logo"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4357
+#: lib/portfolixir_web/live/dashboard_live.ex:4479
 #, elixir-autogen, elixir-format
 msgid "one held security without a quote in 7 days"
 msgid_plural "%{count} held securities without a quote in 7 days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4372
+#: lib/portfolixir_web/live/dashboard_live.ex:4494
 #, elixir-autogen, elixir-format
 msgid "one held security without an asset class"
 msgid_plural "%{count} held securities without an asset class"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4412
+#: lib/portfolixir_web/live/dashboard_live.ex:4534
 #, elixir-autogen, elixir-format
 msgid "— it counts a hundredfold too high or too low in the total above"
 msgid_plural "— each counts a hundredfold too high or too low in the total above"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4455
+#: lib/portfolixir_web/live/dashboard_live.ex:4577
 #, elixir-autogen, elixir-format
 msgid "— its quotes may be stored in the wrong currency, so its value in the total above is wrong"
 msgid_plural "— their quotes may be stored in the wrong currency, so their value in the total above is wrong"
@@ -18347,21 +18357,21 @@ msgctxt "weekday"
 msgid "Wed"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1208
+#: lib/portfolixir_web/live/risk/crash_section.ex:1335
 #, elixir-autogen, elixir-format
 msgid "%{count} name: hidden because another crash benchmark is chosen; it returns once its benchmark is the crash benchmark again."
 msgid_plural "%{count} names: hidden because another crash benchmark is chosen; they return once their benchmark is the crash benchmark again."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1200
+#: lib/portfolixir_web/live/risk/crash_section.ex:1327
 #, elixir-autogen, elixir-format
 msgid "%{count} name: hidden because no crash benchmark is chosen; it returns once its benchmark is the crash benchmark again."
 msgid_plural "%{count} names: hidden because no crash benchmark is chosen; they return once their benchmark is the crash benchmark again."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1192
+#: lib/portfolixir_web/live/risk/crash_section.ex:1319
 #, elixir-autogen, elixir-format
 msgid "%{count} name: the closes have changed, no detected window starts on this day any more. A name is never attached to another window by a guess."
 msgid_plural "%{count} names: the closes have changed, no detected window starts on these days any more. A name is never attached to another window by a guess."
@@ -18392,148 +18402,148 @@ msgstr[1] ""
 msgid "No close before the period, none in it, or no exchange rate: no price return. A day without a price counts zero in the contribution, as in Wealth; a position valued on no day, or whose contribution is exactly zero, is counted, not ranked."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:789
+#: lib/portfolixir_web/live/risk/crash_section.ex:916
 #, elixir-autogen, elixir-format
 msgid "Basis: EUR rise from own low to the last close (%{date}), span open"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:794
+#: lib/portfolixir_web/live/risk/crash_section.ex:921
 #, elixir-autogen, elixir-format
 msgid "Basis: EUR rise from own low to the recovery span's end"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:389
+#: lib/portfolixir_web/live/risk/crash_section.ex:356
 #, elixir-autogen, elixir-format
 msgid "Dashed: the crash benchmark over the same days; without its price or exchange rate on those days, no comparison."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:800
+#: lib/portfolixir_web/live/risk/crash_section.ex:927
 #, elixir-autogen, elixir-format
 msgid "dashed: crash benchmark (%{return} %)"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:803
+#: lib/portfolixir_web/live/risk/crash_section.ex:930
 #, elixir-autogen, elixir-format
 msgid "dashed: crash benchmark, same days (%{return} %)"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:808
+#: lib/portfolixir_web/live/risk/crash_section.ex:935
 #, elixir-autogen, elixir-format
 msgid "no comparison: crash benchmark unpriced"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:817
+#: lib/portfolixir_web/live/risk/crash_section.ex:944
 #, elixir-autogen, elixir-format
 msgid "only securities in the catalogue."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:818
+#: lib/portfolixir_web/live/risk/crash_section.ex:945
 #, elixir-autogen, elixir-format
 msgid "only securities held today."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:819
+#: lib/portfolixir_web/live/risk/crash_section.ex:946
 #, elixir-autogen, elixir-format
 msgid "only securities the view holds today."
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:769
+#: lib/portfolixir/dashboards/widgets.ex:890
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Allocation"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:771
+#: lib/portfolixir/dashboards/widgets.ex:892
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Analyses"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:767
+#: lib/portfolixir/dashboards/widgets.ex:888
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Overview"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:768
+#: lib/portfolixir/dashboards/widgets.ex:889
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Performance"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:770
+#: lib/portfolixir/dashboards/widgets.ex:891
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Risk"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:748
+#: lib/portfolixir/dashboards/widgets.ex:861
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Allocation and drift"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:750
+#: lib/portfolixir/dashboards/widgets.ex:863
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Bitcoin cycle"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:749
+#: lib/portfolixir/dashboards/widgets.ex:862
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Crashes compared"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:742
+#: lib/portfolixir/dashboards/widgets.ex:855
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Data quality"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:743
+#: lib/portfolixir/dashboards/widgets.ex:856
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Due"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:744
+#: lib/portfolixir/dashboards/widgets.ex:857
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Off target"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:745
+#: lib/portfolixir/dashboards/widgets.ex:858
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Performance"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:751
+#: lib/portfolixir/dashboards/widgets.ex:864
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Sale review"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:747
+#: lib/portfolixir/dashboards/widgets.ex:860
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Snapshots"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:746
+#: lib/portfolixir/dashboards/widgets.ex:859
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Tops and flops"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:741
+#: lib/portfolixir/dashboards/widgets.ex:854
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Total value"
 msgstr ""
 
-#: lib/portfolixir/dashboards/templates.ex:210
+#: lib/portfolixir/dashboards/templates.ex:239
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "Overview"
@@ -18546,46 +18556,46 @@ msgid "Dashboard"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/widgets/allocation_drift.ex:395
-#: lib/portfolixir_web/live/dashboard_live.ex:4172
+#: lib/portfolixir_web/live/dashboard_live.ex:4294
 #, elixir-autogen, elixir-format
 msgid "%{pp} pp"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1271
+#: lib/portfolixir_web/live/dashboard_live.ex:1328
 #, elixir-autogen, elixir-format
 msgid "Couldn't copy the template."
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/widget.ex:661
-#: lib/portfolixir_web/live/dashboard_live.ex:2280
+#: lib/portfolixir_web/live/dashboard_live.ex:2337
 #, elixir-autogen, elixir-format
 msgid "Customize"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2144
+#: lib/portfolixir_web/live/dashboard_live.ex:2201
 #, elixir-autogen, elixir-format
 msgid "Dashboard"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/widgets/allocation_drift.ex:218
-#: lib/portfolixir_web/live/dashboard_live.ex:2906
+#: lib/portfolixir_web/live/dashboard_live.ex:2968
 #, elixir-autogen, elixir-format
 msgid "Drift is the actual weight minus the target weight of the active plan, per category of the steering tree; a category without a target is not listed."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2742
+#: lib/portfolixir_web/live/dashboard_live.ex:2804
 #, elixir-autogen, elixir-format
 msgid "Each set is counted over the held securities, by the rule the list its link opens applies; the catalogue's count follows where it differs. The ledger's checks count bookings."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3556
+#: lib/portfolixir_web/live/dashboard_live.ex:3678
 #, elixir-autogen, elixir-format
 msgid "Every depot, whatever the view"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1267
+#: lib/portfolixir_web/live/dashboard_live.ex:1324
 #: lib/portfolixir_web/live/new_dashboard_live.ex:88
-#: lib/portfolixir_web/live/widgets_live.ex:364
+#: lib/portfolixir_web/live/widgets_live.ex:362
 #, elixir-autogen, elixir-format
 msgid "Fifty dashboards are stored, the most an instance keeps."
 msgstr ""
@@ -18595,28 +18605,28 @@ msgstr ""
 msgid "Half"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2587
+#: lib/portfolixir_web/live/dashboard_live.ex:2649
 #, elixir-autogen, elixir-format
 msgid "Its view no longer exists · reads %{scope}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2165
+#: lib/portfolixir_web/live/dashboard_live.ex:2222
 #, elixir-autogen, elixir-format
 msgid "Scope: %{name}"
 msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:674
-#: lib/portfolixir_web/live/dashboard_live.ex:2272
+#: lib/portfolixir_web/live/dashboard_live.ex:2329
 #, elixir-autogen, elixir-format
 msgid "Template"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2592
+#: lib/portfolixir_web/live/dashboard_live.ex:2654
 #, elixir-autogen, elixir-format
 msgid "View %{view}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2272
+#: lib/portfolixir_web/live/dashboard_live.ex:2329
 #, elixir-autogen, elixir-format
 msgid "shipped, read-only"
 msgstr ""
@@ -18631,7 +18641,7 @@ msgstr ""
 msgid "1W"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2038
+#: lib/portfolixir_web/live/dashboard_live.ex:2095
 #, elixir-autogen, elixir-format
 msgid "Couldn't store the widget's period."
 msgstr ""
@@ -18667,68 +18677,68 @@ msgstr ""
 msgid "A template is read-only; only its copy takes a period of its own per widget."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2031
+#: lib/portfolixir_web/live/dashboard_live.ex:2088
 #, elixir-autogen, elixir-format
 msgid "This dashboard was changed elsewhere and is shown as stored; the period was not set."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4276
+#: lib/portfolixir_web/live/dashboard_live.ex:4398
 #, elixir-autogen, elixir-format
 msgid "%{count} bond on two price scales"
 msgid_plural "%{count} bonds on two price scales"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4299
+#: lib/portfolixir_web/live/dashboard_live.ex:4421
 #, elixir-autogen, elixir-format
 msgid "%{count} booking with a rate and no cash"
 msgid_plural "%{count} bookings with a rate and no cash"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4291
+#: lib/portfolixir_web/live/dashboard_live.ex:4413
 #, elixir-autogen, elixir-format
 msgid "%{count} booking with mismatched cash"
 msgid_plural "%{count} bookings with mismatched cash"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4306
+#: lib/portfolixir_web/live/dashboard_live.ex:4428
 #, elixir-autogen, elixir-format
 msgid "%{count} incomplete split"
 msgid_plural "%{count} incomplete splits"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4287
+#: lib/portfolixir_web/live/dashboard_live.ex:4409
 #, elixir-autogen, elixir-format
 msgid "%{count} quote currency in doubt"
 msgid_plural "%{count} quote currencies in doubt"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4262
+#: lib/portfolixir_web/live/dashboard_live.ex:4384
 #, elixir-autogen, elixir-format
 msgid "%{count} quote older than 7 days"
 msgid_plural "%{count} quotes older than 7 days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4280
+#: lib/portfolixir_web/live/dashboard_live.ex:4402
 #, elixir-autogen, elixir-format
 msgid "%{count} quote series against its bookings"
 msgid_plural "%{count} quote series against their bookings"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4273
+#: lib/portfolixir_web/live/dashboard_live.ex:4395
 #, elixir-autogen, elixir-format
 msgid "%{count} security without a logo"
 msgid_plural "%{count} securities without a logo"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4266
+#: lib/portfolixir_web/live/dashboard_live.ex:4388
 #, elixir-autogen, elixir-format
 msgid "%{count} security without an asset class"
 msgid_plural "%{count} securities without an asset class"
@@ -18812,8 +18822,10 @@ msgid "Edit targets →"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:1074
+#: lib/portfolixir_web/live/dashboard/widgets/crash_windows.ex:41
 #: lib/portfolixir_web/live/dashboard/widgets/cycle.ex:78
 #: lib/portfolixir_web/live/dashboard/widgets/performance.ex:137
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:485
 #: lib/portfolixir_web/live/dashboard/widgets/snapshot_comparison.ex:305
 #, elixir-autogen, elixir-format
 msgid "Full view →"
@@ -18851,7 +18863,7 @@ msgstr ""
 msgid "No crash window in the benchmark's closes."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2753
+#: lib/portfolixir_web/live/dashboard_live.ex:2815
 #, elixir-autogen, elixir-format
 msgid "No open points."
 msgstr ""
@@ -18871,7 +18883,7 @@ msgstr ""
 msgid "No snapshot yet."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2820
+#: lib/portfolixir_web/live/dashboard_live.ex:2882
 #, elixir-autogen, elixir-format
 msgid "Nothing due in the next %{days} days."
 msgstr ""
@@ -18898,10 +18910,10 @@ msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/widgets/performance.ex:185
 #: lib/portfolixir_web/live/dashboard/widgets/performance.ex:212
-#: lib/portfolixir_web/live/dashboard_live.ex:3366
-#: lib/portfolixir_web/live/dashboard_live.ex:3404
-#: lib/portfolixir_web/live/dashboard_live.ex:3450
-#: lib/portfolixir_web/live/dashboard_live.ex:3454
+#: lib/portfolixir_web/live/dashboard_live.ex:3488
+#: lib/portfolixir_web/live/dashboard_live.ex:3526
+#: lib/portfolixir_web/live/dashboard_live.ex:3572
+#: lib/portfolixir_web/live/dashboard_live.ex:3576
 #, elixir-autogen, elixir-format
 msgid "TTWROR · %{period}"
 msgstr ""
@@ -18981,54 +18993,54 @@ msgctxt "crash universe"
 msgid "Catalogue"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:349
+#: lib/portfolixir_web/live/widgets_live.ex:347
 #, elixir-autogen, elixir-format
 msgid "%{name} already holds %{max} widgets, the most a dashboard takes."
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:359
+#: lib/portfolixir_web/live/widgets_live.ex:357
 #, elixir-autogen, elixir-format
 msgid "%{name} has no free place left on its grid."
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:332
+#: lib/portfolixir_web/live/widgets_live.ex:330
 #, elixir-autogen, elixir-format
 msgid "%{name} no longer exists, so nothing was added."
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:318
+#: lib/portfolixir_web/live/widgets_live.ex:316
 #, elixir-autogen, elixir-format
 msgid "%{name} was changed elsewhere since this list was read, so nothing was added. The list shows the dashboards as stored now; choose again."
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:184
+#: lib/portfolixir_web/live/widgets_live.ex:182
 #, elixir-autogen, elixir-format
 msgid "%{widget} was added to %{name}."
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:268
+#: lib/portfolixir_web/live/widgets_live.ex:266
 #, elixir-autogen, elixir-format
 msgid "Add %{widget}"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:219
+#: lib/portfolixir_web/live/widgets_live.ex:217
 #, elixir-autogen, elixir-format
 msgid "Add %{widget} to a dashboard"
 msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:610
-#: lib/portfolixir_web/live/dashboard_live.ex:2082
-#: lib/portfolixir_web/live/widgets_live.ex:163
+#: lib/portfolixir_web/live/dashboard_live.ex:2139
+#: lib/portfolixir_web/live/widgets_live.ex:161
 #, elixir-autogen, elixir-format
 msgid "All widgets"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:284
+#: lib/portfolixir_web/live/widgets_live.ex:282
 #, elixir-autogen, elixir-format
 msgid "Copy %{template} with this widget"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:366
+#: lib/portfolixir_web/live/widgets_live.ex:364
 #, elixir-autogen, elixir-format
 msgid "Couldn't add the widget."
 msgstr ""
@@ -19038,49 +19050,49 @@ msgstr ""
 msgid "Couldn't create the dashboard."
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:164
+#: lib/portfolixir_web/live/widgets_live.ex:162
 #, elixir-autogen, elixir-format
 msgid "Every widget a dashboard can hold, by topic"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:292
+#: lib/portfolixir_web/live/widgets_live.ex:290
 #, elixir-autogen, elixir-format
 msgid "It is placed at the first free place; arrange it on the dashboard."
 msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:694
 #: lib/portfolixir_web/live/new_dashboard_live.ex:175
-#: lib/portfolixir_web/live/widgets_live.ex:288
+#: lib/portfolixir_web/live/widgets_live.ex:286
 #, elixir-autogen, elixir-format
 msgid "New dashboard"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:277
+#: lib/portfolixir_web/live/widgets_live.ex:275
 #, elixir-autogen, elixir-format
 msgid "No dashboard is stored yet. Copy the template %{template} with this widget, or start a new dashboard."
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:193
+#: lib/portfolixir_web/live/widgets_live.ex:191
 #, elixir-autogen, elixir-format
 msgid "No widget's name holds this text."
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:189
+#: lib/portfolixir_web/live/widgets_live.ex:187
 #, elixir-autogen, elixir-format
 msgid "Open it"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:175
+#: lib/portfolixir_web/live/widgets_live.ex:173
 #, elixir-autogen, elixir-format
 msgid "Search widgets"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:174
+#: lib/portfolixir_web/live/widgets_live.ex:172
 #, elixir-autogen, elixir-format
 msgid "Search …"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:246
+#: lib/portfolixir_web/live/widgets_live.ex:244
 #, elixir-autogen, elixir-format
 msgid "Sizes"
 msgstr ""
@@ -19095,76 +19107,58 @@ msgstr ""
 msgid "Start empty or from a template"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2079
+#: lib/portfolixir_web/live/dashboard_live.ex:2136
 #, elixir-autogen, elixir-format
 msgid "This dashboard is empty. Add widgets from %{catalogue}."
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:221
+#: lib/portfolixir_web/live/widgets_live.ex:219
 #, elixir-autogen, elixir-format
 msgid "add ›"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:231
+#: lib/portfolixir_web/live/widgets_live.ex:229
 #, elixir-autogen, elixir-format
 msgid "comes with its screen's rework"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:403
+#: lib/portfolixir_web/live/widgets_live.ex:401
 #, elixir-autogen, elixir-format
 msgctxt "widget group"
 msgid "Income and tax"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:757
+#: lib/portfolixir/dashboards/widgets.ex:870
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Allocation"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:409
-#, elixir-autogen, elixir-format
-msgctxt "widget kind"
-msgid "Asset class limits"
-msgstr ""
-
-#: lib/portfolixir_web/live/widgets_live.ex:408
-#, elixir-autogen, elixir-format
-msgctxt "widget kind"
-msgid "Concentration"
-msgstr ""
-
-#: lib/portfolixir_web/live/widgets_live.ex:406
+#: lib/portfolixir_web/live/widgets_live.ex:404
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Contribution by position"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:412
+#: lib/portfolixir_web/live/widgets_live.ex:407
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Fees and taxes"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:411
+#: lib/portfolixir_web/live/widgets_live.ex:406
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Income"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:407
-#, elixir-autogen, elixir-format
-msgctxt "widget kind"
-msgid "Key figures"
-msgstr ""
-
-#: lib/portfolixir_web/live/widgets_live.ex:410
+#: lib/portfolixir_web/live/widgets_live.ex:405
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Predictions"
 msgstr ""
 
-#: lib/portfolixir_web/live/widgets_live.ex:413
+#: lib/portfolixir_web/live/widgets_live.ex:408
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Tax allowance"
@@ -19209,7 +19203,7 @@ msgstr ""
 msgid "Sections"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2323
+#: lib/portfolixir_web/live/dashboard_live.ex:2380
 #, elixir-autogen, elixir-format
 msgid "%{size} · column %{col}, row %{row}"
 msgstr ""
@@ -19275,38 +19269,38 @@ msgstr ""
 msgid "%{widget} removed"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2430
+#: lib/portfolixir_web/live/dashboard_live.ex:2487
 #, elixir-autogen, elixir-format
 msgid "A tap adds a widget at the first free place. An agent can do the same over the API and MCP."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2225
-#: lib/portfolixir_web/live/dashboard_live.ex:2385
+#: lib/portfolixir_web/live/dashboard_live.ex:2282
+#: lib/portfolixir_web/live/dashboard_live.ex:2442
 #, elixir-autogen, elixir-format
 msgid "Add widget"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1626
+#: lib/portfolixir_web/live/dashboard_live.ex:1683
 #, elixir-autogen, elixir-format
 msgid "Couldn't save the dashboard."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1613
+#: lib/portfolixir_web/live/dashboard_live.ex:1670
 #, elixir-autogen, elixir-format
 msgid "Dashboard saved."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1659
+#: lib/portfolixir_web/live/dashboard_live.ex:1716
 #, elixir-autogen, elixir-format
 msgid "Editing continues; “Done” replaces the stored version shown before."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2340
+#: lib/portfolixir_web/live/dashboard_live.ex:2397
 #, elixir-autogen, elixir-format
 msgid "Keep editing"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2337
+#: lib/portfolixir_web/live/dashboard_live.ex:2394
 #, elixir-autogen, elixir-format
 msgid "Load the stored version"
 msgstr ""
@@ -19329,7 +19323,7 @@ msgstr ""
 msgid "Move %{widget} up"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1631
+#: lib/portfolixir_web/live/dashboard_live.ex:1688
 #, elixir-autogen, elixir-format
 msgid "No changes to save."
 msgstr ""
@@ -19345,27 +19339,27 @@ msgstr ""
 msgid "Size of %{widget}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2316
+#: lib/portfolixir_web/live/dashboard_live.ex:2373
 #, elixir-autogen, elixir-format
 msgid "Stored version"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2267
+#: lib/portfolixir_web/live/dashboard_live.ex:2324
 #, elixir-autogen, elixir-format
 msgid "The arrow keys move the widget one grid step; Delete removes it."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1649
+#: lib/portfolixir_web/live/dashboard_live.ex:1706
 #, elixir-autogen, elixir-format
 msgid "The stored version is shown."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1964
+#: lib/portfolixir_web/live/dashboard_live.ex:2021
 #, elixir-autogen, elixir-format
 msgid "This dashboard was changed elsewhere since the edit began. Nothing was saved; the stored version is shown with the edit."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1602
+#: lib/portfolixir_web/live/dashboard_live.ex:1659
 #, elixir-autogen, elixir-format
 msgid "Unsaved changes discarded."
 msgstr ""
@@ -19410,7 +19404,7 @@ msgctxt "move direction"
 msgid "up"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1821
+#: lib/portfolixir_web/live/dashboard_live.ex:1878
 #, elixir-autogen, elixir-format
 msgid "Editing: nothing is stored until “Done”."
 msgstr ""
@@ -19432,7 +19426,7 @@ msgstr ""
 msgid "Portfolio %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:462
+#: lib/portfolixir_web/live/dashboard_live.ex:465
 #, elixir-autogen, elixir-format
 msgid "The dashboard being edited was deleted elsewhere; the edit ended unsaved."
 msgstr ""
@@ -19447,12 +19441,12 @@ msgstr ""
 msgid "Σ target top level %{sum}: target and drift against the allocated portion"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2917
+#: lib/portfolixir_web/live/dashboard_live.ex:2979
 #, elixir-autogen, elixir-format
 msgid "Categories ±%{pp} pp or more off their target weight, at every tree level, in every portfolio."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2922
+#: lib/portfolixir_web/live/dashboard_live.ex:2984
 #, elixir-autogen, elixir-format
 msgid "Categories ±%{pp} pp or more off their target weight, at every tree level."
 msgstr ""
@@ -19473,44 +19467,44 @@ msgstr ""
 msgid "Ranking"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2936
+#: lib/portfolixir_web/live/dashboard_live.ex:2998
 #, elixir-autogen, elixir-format
 msgid "beyond ±%{pp} pp"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2964
+#: lib/portfolixir_web/live/dashboard_live.ex:3026
 #, elixir-autogen, elixir-format
 msgid "category"
 msgid_plural "categories"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2392
-#: lib/portfolixir_web/live/dashboard_live.ex:2393
+#: lib/portfolixir_web/live/dashboard_live.ex:2449
+#: lib/portfolixir_web/live/dashboard_live.ex:2450
 #, elixir-autogen, elixir-format
 msgid "Close the catalogue"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3912
+#: lib/portfolixir_web/live/dashboard_live.ex:4034
 #, elixir-autogen, elixir-format
 msgid "Details →"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/movers_card.ex:101
-#: lib/portfolixir_web/live/dashboard_live.ex:2631
-#: lib/portfolixir_web/live/dashboard_live.ex:2903
+#: lib/portfolixir_web/live/dashboard_live.ex:2693
+#: lib/portfolixir_web/live/dashboard_live.ex:2965
 #, elixir-autogen, elixir-format
 msgid "In Wealth →"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2801
+#: lib/portfolixir_web/live/dashboard_live.ex:2863
 #, elixir-autogen, elixir-format
 msgid "Whole catalogue · next %{days} days"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/movers_card.ex:353
-#: lib/portfolixir_web/live/dashboard_live.ex:2729
-#: lib/portfolixir_web/live/dashboard_live.ex:2831
+#: lib/portfolixir_web/live/dashboard_live.ex:2791
+#: lib/portfolixir_web/live/dashboard_live.ex:2893
 #, elixir-autogen, elixir-format
 msgctxt "dashboard widget"
 msgid "+%{count} more"
@@ -19533,7 +19527,7 @@ msgstr ""
 msgid "One day: no line"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2214
+#: lib/portfolixir_web/live/dashboard_live.ex:2271
 #, elixir-autogen, elixir-format
 msgctxt "dashboard edit bar"
 msgid "Editing"
@@ -19561,7 +19555,7 @@ msgstr ""
 msgid "a dashboard holds at most 40 widgets"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:3370
+#: lib/portfolixir_web/live/dashboard_live.ex:3492
 #, elixir-autogen, elixir-format
 msgid "Result · %{period}"
 msgstr ""
@@ -19627,13 +19621,13 @@ msgstr[1] ""
 msgid "Change or delete “%{name}”"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1415
+#: lib/portfolixir_web/live/dashboard_live.ex:1472
 #, elixir-autogen, elixir-format
 msgid "Couldn't store the period."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:290
-#: lib/portfolixir_web/live/dashboard_live.ex:405
+#: lib/portfolixir_web/live/dashboard_live.ex:293
+#: lib/portfolixir_web/live/dashboard_live.ex:408
 #, elixir-autogen, elixir-format
 msgid "Couldn't store the quick choice."
 msgstr ""
@@ -19648,7 +19642,7 @@ msgstr ""
 msgid "Delete this own period? Widgets pinned to it then follow the dashboard's period."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1410
+#: lib/portfolixir_web/live/dashboard_live.ex:1467
 #, elixir-autogen, elixir-format
 msgid "Fifty own periods are stored, the most an instance keeps."
 msgstr ""
@@ -19694,18 +19688,18 @@ msgstr ""
 msgid "Show in the quick choice"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:286
-#: lib/portfolixir_web/live/dashboard_live.ex:403
+#: lib/portfolixir_web/live/dashboard_live.ex:289
+#: lib/portfolixir_web/live/dashboard_live.ex:406
 #, elixir-autogen, elixir-format
 msgid "The quick choice holds at most %{max} periods."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1447
+#: lib/portfolixir_web/live/dashboard_live.ex:1504
 #, elixir-autogen, elixir-format
 msgid "This period no longer exists."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1398
+#: lib/portfolixir_web/live/dashboard_live.ex:1455
 #, elixir-autogen, elixir-format
 msgid "This period was changed elsewhere; the dialog shows it as stored."
 msgstr ""
@@ -19716,22 +19710,22 @@ msgstr ""
 msgid "today"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:386
+#: lib/portfolixir_web/live/dashboard_live.ex:389
 #, elixir-autogen, elixir-format
 msgid "“%{name}” is stored and applied."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1431
+#: lib/portfolixir_web/live/dashboard_live.ex:1488
 #, elixir-autogen, elixir-format
 msgid "“%{name}” was deleted."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:277
+#: lib/portfolixir_web/live/dashboard_live.ex:280
 #, elixir-autogen, elixir-format
 msgid "“%{period}” is in the quick choice."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:276
+#: lib/portfolixir_web/live/dashboard_live.ex:279
 #, elixir-autogen, elixir-format
 msgid "“%{period}” is no longer in the quick choice."
 msgstr ""
@@ -19791,12 +19785,12 @@ msgstr ""
 msgid "pinned period not yet begun · follows %{period}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2184
+#: lib/portfolixir_web/live/dashboard_live.ex:2241
 #, elixir-autogen, elixir-format
 msgid "This dashboard's own view no longer exists · reads %{scope}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2157
+#: lib/portfolixir_web/live/dashboard_live.ex:2214
 #, elixir-autogen, elixir-format
 msgid "this dashboard's view"
 msgstr ""
@@ -19849,7 +19843,7 @@ msgstr ""
 msgid "Themes"
 msgstr ""
 
-#: lib/portfolixir/dashboards/templates.ex:226
+#: lib/portfolixir/dashboards/templates.ex:258
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "as today's start page"
@@ -19907,7 +19901,7 @@ msgstr ""
 msgid "The securities the view holds today; a figure that needs more closes than are stored reads —. Sorted by the distance; it states where a price stands, nothing more."
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:752
+#: lib/portfolixir/dashboards/widgets.ex:865
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Distance to high"
@@ -19960,7 +19954,7 @@ msgstr[1] ""
 msgid "running %{decline}"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:753
+#: lib/portfolixir/dashboards/widgets.ex:866
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Crash chart"
@@ -20008,31 +20002,31 @@ msgstr ""
 msgid "“several” marks a name that stands in more than one list, by its name only: nothing is added up or ranked across the crashes. Survivorship: a security that failed and was removed is in no list, so the lists read better than the market did."
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:754
+#: lib/portfolixir/dashboards/widgets.ex:867
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Rebounders after crashes"
 msgstr ""
 
-#: lib/portfolixir/dashboards/templates.ex:211
+#: lib/portfolixir/dashboards/templates.ex:240
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "Crypto Lover"
 msgstr ""
 
-#: lib/portfolixir/dashboards/templates.ex:212
+#: lib/portfolixir/dashboards/templates.ex:241
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "Pullbacks"
 msgstr ""
 
-#: lib/portfolixir/dashboards/templates.ex:229
+#: lib/portfolixir/dashboards/templates.ex:261
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "cycle, halving, a crypto view"
 msgstr ""
 
-#: lib/portfolixir/dashboards/templates.ex:232
+#: lib/portfolixir/dashboards/templates.ex:264
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "the falls compared, short tops and flops, rebounders"
@@ -20063,7 +20057,7 @@ msgstr ""
 msgid "%{window} · since %{date}"
 msgstr ""
 
-#: lib/portfolixir/dashboards/templates.ex:258
+#: lib/portfolixir/dashboards/templates.ex:295
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template scope"
 msgid "Crypto"
@@ -20097,12 +20091,12 @@ msgctxt "widget kind at S"
 msgid "Return"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:2739
+#: lib/portfolixir_web/live/dashboard_live.ex:2801
 #, elixir-autogen, elixir-format
 msgid "Check securities →"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4333
+#: lib/portfolixir_web/live/dashboard_live.ex:4455
 #, elixir-autogen, elixir-format
 msgctxt "data quality"
 msgid "%{count} attention"
@@ -20110,7 +20104,7 @@ msgid_plural "%{count} attention"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4330
+#: lib/portfolixir_web/live/dashboard_live.ex:4452
 #, elixir-autogen, elixir-format
 msgctxt "data quality"
 msgid "%{count} problem"
@@ -20118,19 +20112,19 @@ msgid_plural "%{count} problems"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4336
+#: lib/portfolixir_web/live/dashboard_live.ex:4458
 #, elixir-autogen, elixir-format
 msgctxt "data quality"
 msgid "Attention"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4337
+#: lib/portfolixir_web/live/dashboard_live.ex:4459
 #, elixir-autogen, elixir-format
 msgctxt "data quality"
 msgid "Note"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:4335
+#: lib/portfolixir_web/live/dashboard_live.ex:4457
 #, elixir-autogen, elixir-format
 msgctxt "data quality"
 msgid "Problem"
@@ -20146,20 +20140,21 @@ msgstr ""
 msgid "The total incl. cash and the cash quote of the view valuation, GET /api/v1/valuation; the TTWROR of the performance read over the widget's period, GET /api/v1/performance; both in the first portfolio's base currency."
 msgstr ""
 
-#: lib/portfolixir/dashboards/templates.ex:214
+#: lib/portfolixir/dashboards/templates.ex:243
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "Allocation & targets"
 msgstr ""
 
-#: lib/portfolixir/dashboards/templates.ex:236
-#: lib/portfolixir/dashboards/templates.ex:241
+#: lib/portfolixir/dashboards/templates.ex:268
+#: lib/portfolixir/dashboards/templates.ex:273
+#: lib/portfolixir/dashboards/templates.ex:278
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "as Wealth's tab today"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:756
+#: lib/portfolixir/dashboards/widgets.ex:869
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Key figures line"
@@ -20175,20 +20170,87 @@ msgstr ""
 msgid "The snapshots of GET /api/v1/snapshots, newest as-of date first: each one's name, scope and as-of date. A name picks the snapshot this dashboard compares; a snapshot is made and deleted on the Snapshots page."
 msgstr ""
 
-#: lib/portfolixir/dashboards/templates.ex:217
+#: lib/portfolixir/dashboards/templates.ex:246
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "Snapshots"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:760
+#: lib/portfolixir/dashboards/widgets.ex:873
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Comparison against a snapshot"
 msgstr ""
 
-#: lib/portfolixir/dashboards/widgets.ex:761
+#: lib/portfolixir/dashboards/widgets.ex:874
 #, elixir-autogen, elixir-format
 msgctxt "widget kind"
 msgid "Snapshot list"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:492
+#, elixir-autogen, elixir-format
+msgid "Couldn't load the risk figures."
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:340
+#, elixir-autogen, elixir-format
+msgid "Couldn't load the rules."
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:333
+#, elixir-autogen, elixir-format
+msgid "Edit rules →"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:398
+#, elixir-autogen, elixir-format
+msgid "Generic thresholds, not policy rules: the lens's shipped lines over each single name's weight on the steerable basis."
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:427
+#, elixir-autogen, elixir-format
+msgid "The Herfindahl index of the single names' weights on the steerable basis, from 0 to 10,000, with the lens's bands."
+msgstr ""
+
+#: lib/portfolixir/dashboards/templates.ex:249
+#, elixir-autogen, elixir-format
+msgctxt "dashboard template"
+msgid "Risk"
+msgstr ""
+
+#: lib/portfolixir/dashboards/widgets.ex:882
+#, elixir-autogen, elixir-format
+msgctxt "widget kind"
+msgid "Asset-class caps"
+msgstr ""
+
+#: lib/portfolixir/dashboards/widgets.ex:881
+#, elixir-autogen, elixir-format
+msgctxt "widget kind"
+msgid "Concentration risk"
+msgstr ""
+
+#: lib/portfolixir/dashboards/widgets.ex:879
+#, elixir-autogen, elixir-format
+msgctxt "widget kind"
+msgid "Crashes"
+msgstr ""
+
+#: lib/portfolixir/dashboards/widgets.ex:880
+#, elixir-autogen, elixir-format
+msgctxt "widget kind"
+msgid "Largest single names"
+msgstr ""
+
+#: lib/portfolixir/dashboards/widgets.ex:877
+#, elixir-autogen, elixir-format
+msgctxt "widget kind"
+msgid "Own rules"
+msgstr ""
+
+#: lib/portfolixir/dashboards/widgets.ex:878
+#, elixir-autogen, elixir-format
+msgctxt "widget kind"
+msgid "Portfolio metrics"
 msgstr ""

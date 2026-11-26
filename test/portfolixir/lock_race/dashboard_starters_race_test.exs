@@ -45,9 +45,9 @@ defmodule Portfolixir.LockRace.DashboardStartersRaceTest do
 
   defp seeds, do: Seed |> Repo.all() |> Enum.map(& &1.template_key) |> Enum.sort()
 
-  # The starters of this release: „Überblick“ and, since Sprint 32 W2 and
-  # W3, „Allokation & Ziele“ and „Snapshots“.
-  @starters ~w(overview allocation_targets snapshots)
+  # The starters of this release: „Überblick“ and, since Sprint 32 W2 to
+  # W4, „Allokation & Ziele“, „Snapshots“ and „Risiko“.
+  @starters ~w(overview allocation_targets snapshots risk)
 
   # User story:
   # As the operator whose instance starts twice at once (a restart while

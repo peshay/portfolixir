@@ -89,11 +89,14 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.Dashboard.Widgets.AllocationDrift, as: AllocationDriftWidget
   alias PortfolixirWeb.Dashboard.Widgets.CrashChart, as: CrashChartWidget
   alias PortfolixirWeb.Dashboard.Widgets.Crashes, as: CrashesWidget
+  alias PortfolixirWeb.Dashboard.Widgets.CrashWindows, as: CrashWindowsWidget
   alias PortfolixirWeb.Dashboard.Widgets.Cycle, as: CycleWidget
   alias PortfolixirWeb.Dashboard.Widgets.DistanceToHigh, as: DistanceToHighWidget
   alias PortfolixirWeb.Dashboard.Widgets.Line
+  alias PortfolixirWeb.Dashboard.Widgets.OwnRules, as: OwnRulesWidget
   alias PortfolixirWeb.Dashboard.Widgets.Performance, as: PerformanceWidget
   alias PortfolixirWeb.Dashboard.Widgets.Rebounders, as: ReboundersWidget
+  alias PortfolixirWeb.Dashboard.Widgets.RiskLens, as: RiskLensWidget
   alias PortfolixirWeb.Dashboard.Widgets.SnapshotComparison, as: SnapshotComparisonWidget
   alias PortfolixirWeb.Dashboard.Widgets.SnapshotList, as: SnapshotListWidget
   alias PortfolixirWeb.Dashboard.Widgets.Snapshots, as: SnapshotsWidget
@@ -835,8 +838,15 @@ defmodule PortfolixirWeb.DashboardLive do
         # read once, and the snapshot the list picked, for the page's life.
         snapshot_comparisons: %{},
         snapshot_lists: %{},
-        snapshot_selected: nil
+        snapshot_selected: nil,
         # --- S32 W3 end ---
+        # --- S32 W4 begin ---
+        # The lens and the own rules by scope; the first portfolio the
+        # crash section reads, once a „Crashes“ widget asks.
+        risk_lenses: %{},
+        own_rules: %{},
+        risk_portfolio: :unread
+        # --- S32 W4 end ---
       )
 
   defp start_widget_reads(%{assigns: %{transactions_count: 0}} = socket), do: socket
@@ -949,7 +959,45 @@ defmodule PortfolixirWeb.DashboardLive do
     |> start_snapshot_sections(items)
 
     # --- S32 W3 end ---
+    # --- S32 W4 begin ---
+    |> start_risk_sections(items)
+
+    # --- S32 W4 end ---
   end
+
+  # --- S32 W4 begin ---
+  # Sprint 32 W4 (I57; board 02 ②): the section widgets of Wealth's tab
+  # „Risiko“. The four lens widgets share one read per scope, the own
+  # rules theirs; the crash section reads in its own component, as on the
+  # tab, and needs the first portfolio.
+  @lens_kinds ~w(key_figures top_holdings concentration asset_class_limits)
+
+  defp start_risk_sections(socket, items) do
+    scopes = fn kinds ->
+      for item <- items,
+          item.kind in kinds,
+          uniq: true,
+          do: {{:risk_lens, item.scope}, item.scope}
+    end
+
+    rules =
+      for item <- items,
+          item.kind == "own_rules",
+          uniq: true,
+          do: {{:own_rules, item.scope}, item.scope}
+
+    socket
+    |> start_each(scopes.(@lens_kinds), :risk_lenses, &RiskLensWidget.read/1)
+    |> start_each(rules, :own_rules, &OwnRulesWidget.read/1)
+    |> then(fn socket ->
+      if socket.assigns.risk_portfolio == :unread and
+           Enum.any?(items, &(&1.kind == "crash_section")),
+         do: assign(socket, :risk_portfolio, Portfolios.first_portfolio()),
+         else: socket
+    end)
+  end
+
+  # --- S32 W4 end ---
 
   # --- S32 W3 begin ---
   # Sprint 32 W3 (I57; board 02 ②): the section widgets of Wealth's tab
@@ -1240,6 +1288,15 @@ defmodule PortfolixirWeb.DashboardLive do
     do: update(socket, :snapshot_lists, &Map.put(&1, key, section_answer(result)))
 
   # --- S32 W3 end ---
+
+  # --- S32 W4 begin ---
+  defp land({:risk_lens, _scope}, key, result, socket),
+    do: update(socket, :risk_lenses, &Map.put(&1, key, section_answer(result)))
+
+  defp land({:own_rules, _scope}, key, result, socket),
+    do: update(socket, :own_rules, &Map.put(&1, key, section_answer(result)))
+
+  # --- S32 W4 end ---
 
   # --- S32 W2 begin ---
   # A section widget's answer as it lands: the read's, or :error.
@@ -2572,8 +2629,13 @@ defmodule PortfolixirWeb.DashboardLive do
       # --- S32 W3 begin ---
       :snapshot_comparisons,
       :snapshot_lists,
-      :snapshot_selected
+      :snapshot_selected,
       # --- S32 W3 end ---
+      # --- S32 W4 begin ---
+      :risk_lenses,
+      :own_rules,
+      :risk_portfolio
+      # --- S32 W4 end ---
     ])
   end
 
@@ -3175,6 +3237,66 @@ defmodule PortfolixirWeb.DashboardLive do
     """
   end
 
+  # --- S32 W3 end ---
+
+  # --- S32 W4 begin ---
+  # The section widgets of Wealth's tab „Risiko“ (Sprint 32 W4), each
+  # drawn by the module the tab draws its section with.
+  defp widget(%{item: %{kind: "own_rules"} = item} = assigns) do
+    assigns = assign(assigns, :card, Map.get(assigns.own_rules, item.scope))
+
+    ~H"""
+    <OwnRulesWidget.widget item={@item} card={@card} scope_label={scope_label(@item, @views)} />
+    """
+  end
+
+  defp widget(%{item: %{kind: "crash_section"}} = assigns) do
+    assigns =
+      assign(
+        assigns,
+        :portfolio,
+        if(assigns.risk_portfolio == :unread, do: nil, else: assigns.risk_portfolio)
+      )
+
+    ~H"""
+    <CrashWindowsWidget.widget item={@item} portfolio={@portfolio} scope_label={scope_label(@item, @views)} />
+    """
+  end
+
+  defp widget(%{item: %{kind: kind} = item} = assigns) when kind in @lens_kinds do
+    assigns = assign(assigns, :card, Map.get(assigns.risk_lenses, item.scope))
+
+    ~H"""
+    <RiskLensWidget.key_figures_widget
+      :if={@item.kind == "key_figures"}
+      item={@item}
+      card={@card}
+      scope_label={scope_label(@item, @views)}
+    />
+    <RiskLensWidget.top_holdings_widget
+      :if={@item.kind == "top_holdings"}
+      item={@item}
+      card={@card}
+      scope_label={scope_label(@item, @views)}
+    />
+    <RiskLensWidget.concentration_widget
+      :if={@item.kind == "concentration"}
+      item={@item}
+      card={@card}
+      scope_label={scope_label(@item, @views)}
+    />
+    <RiskLensWidget.asset_class_limits_widget
+      :if={@item.kind == "asset_class_limits"}
+      item={@item}
+      card={@card}
+      scope_label={scope_label(@item, @views)}
+    />
+    """
+  end
+
+  # --- S32 W4 end ---
+
+  # --- S32 W3 begin ---
   # The snapshot marked „Im Vergleich“: the one picked, else the newest,
   # which the comparison reads until one is picked.
   defp compared_snapshot(%{snapshot_selected: id}, %{snapshots: snapshots})
