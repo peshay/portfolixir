@@ -1316,7 +1316,12 @@ per browser, the address, the pin, the translation, „ohne Zeitraum“).
 - **A pick closes the menu** and puts the focus back on its button; so
   does Escape, without a pick; a click elsewhere closes it where the
   click went. Under 600 px the menu is a sheet on the bottom edge, the
-  window's width, every target in it 44 px.
+  window's width, every target in it 44 px; it stands on the tab bar,
+  never under it, and scrolls within itself, so its last row of years
+  is tapped like any other (S32 closing act).
+- **A footnote ends the menu** *(S32 closing act; board 04 ②)*: what ★
+  means, that a quarter not yet begun is dashed and cannot be chosen,
+  and why „lfd. Quartal“ and this quarter's chip both stand there.
 - **„Eigenen Zeitraum anlegen …“ opens a native dialog**: Name, Von, Bis
   „heute“ or a date, „in der Schnellwahl zeigen“; „Speichern und
   anwenden“ stores it (journaled), applies it and closes. A refused field

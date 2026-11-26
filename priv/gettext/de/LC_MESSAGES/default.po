@@ -29,7 +29,7 @@ msgstr "Verrechnungskonten"
 
 #: lib/portfolixir_web/components/column_picker.ex:61
 #: lib/portfolixir_web/live/buckets_live.ex:445
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:352
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:364
 #: lib/portfolixir_web/live/delete_preview_dialog.ex:330
 #: lib/portfolixir_web/live/delete_preview_dialog.ex:419
 #: lib/portfolixir_web/live/imports_live.ex:3903
@@ -92,7 +92,7 @@ msgid "Dark"
 msgstr "Dunkel"
 
 #: lib/portfolixir_web/field_label.ex:29
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:395
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:407
 #: lib/portfolixir_web/live/imports_live.ex:494
 #: lib/portfolixir_web/live/imports_live.ex:2562
 #: lib/portfolixir_web/live/income_live.ex:1398
@@ -242,7 +242,7 @@ msgstr "Violett"
 #: lib/portfolixir_web/live/classifications_live.ex:626
 #: lib/portfolixir_web/live/classifications_live.ex:1207
 #: lib/portfolixir_web/live/classifications_live.ex:3700
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:362
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:374
 #: lib/portfolixir_web/live/new_dashboard_live.ex:275
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:94
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:119
@@ -1057,7 +1057,7 @@ msgstr "Kurse"
 #: lib/portfolixir_web/live/buckets_live.ex:274
 #: lib/portfolixir_web/live/buckets_live.ex:498
 #: lib/portfolixir_web/live/classifications_live.ex:1240
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:434
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:446
 #: lib/portfolixir_web/live/delete_preview_dialog.ex:429
 #: lib/portfolixir_web/live/delete_preview_dialog.ex:448
 #: lib/portfolixir_web/live/imports_live.ex:3951
@@ -1120,7 +1120,7 @@ msgstr "Status konnte nicht geändert werden."
 #: lib/portfolixir_web/live/buckets_live.ex:548
 #: lib/portfolixir_web/live/buckets_live.ex:586
 #: lib/portfolixir_web/live/classifications_live.ex:781
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:430
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:442
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:658
 #: lib/portfolixir_web/live/risk/crash_section.ex:1107
 #: lib/portfolixir_web/live/risk/crash_section.ex:1176
@@ -1355,7 +1355,7 @@ msgstr "PNG exportieren"
 msgid "Export SVG"
 msgstr "SVG exportieren"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:374
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:386
 #: lib/portfolixir_web/live/portfolio_live.ex:2308
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:317
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:151
@@ -1484,7 +1484,7 @@ msgstr "Quelle"
 msgid "This view is not implemented yet."
 msgstr "Diese Ansicht ist noch nicht verfügbar."
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:388
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:400
 #: lib/portfolixir_web/live/portfolio_live.ex:2323
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:332
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:166
@@ -1945,7 +1945,7 @@ msgstr "TTWROR"
 msgid "IRR"
 msgstr "IRR"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:71
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:73
 #: lib/portfolixir_web/live/portfolio_live.ex:2260
 #, elixir-autogen
 msgid "Period"
@@ -19646,15 +19646,15 @@ msgctxt "period"
 msgid "Own period deleted"
 msgstr "eigener Zeitraum gelöscht"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:177
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:180
 #, elixir-autogen, elixir-format
 msgid "An own period of the quick choice was deleted; it is no longer in the bar."
 msgid_plural "%{count} own periods of the quick choice were deleted; they are no longer in the bar."
 msgstr[0] "Ein eigener Zeitraum der Schnellwahl wurde gelöscht; er steht nicht mehr in der Leiste."
 msgstr[1] "%{count} eigene Zeiträume der Schnellwahl wurden gelöscht; sie stehen nicht mehr in der Leiste."
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:224
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:225
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:227
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:228
 #, elixir-autogen, elixir-format
 msgid "Change or delete “%{name}”"
 msgstr "„%{name}“ ändern oder löschen"
@@ -19670,12 +19670,12 @@ msgstr "Der Zeitraum konnte nicht gespeichert werden."
 msgid "Couldn't store the quick choice."
 msgstr "Die Schnellwahl konnte nicht gespeichert werden."
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:238
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:241
 #, elixir-autogen, elixir-format
 msgid "Create own period …"
 msgstr "Eigenen Zeitraum anlegen …"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:427
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:439
 #, elixir-autogen, elixir-format
 msgid "Delete this own period? Widgets pinned to it then follow the dashboard's period."
 msgstr "Diesen eigenen Zeitraum löschen? Widgets, die auf ihn festgepinnt sind, folgen dann dem Zeitraum des Dashboards."
@@ -19685,43 +19685,43 @@ msgstr "Diesen eigenen Zeitraum löschen? Widgets, die auf ihn festgepinnt sind,
 msgid "Fifty own periods are stored, the most an instance keeps."
 msgstr "Es sind fünfzig eigene Zeiträume gespeichert, mehr hält eine Instanz nicht."
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:405
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:417
 #, elixir-autogen, elixir-format
 msgid "Last day"
 msgstr "Letzter Tag"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:301
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:313
 #, elixir-autogen, elixir-format
 msgid "Not yet begun"
 msgstr "noch nicht begonnen"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:348
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:360
 #, elixir-autogen, elixir-format
 msgid "Own period"
 msgstr "Eigener Zeitraum"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:115
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:117
 #, elixir-autogen, elixir-format
 msgid "Period: %{period}"
 msgstr "Zeitraum: %{period}"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:90
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:92
 #, elixir-autogen, elixir-format
 msgid "Quick choice"
 msgstr "Schnellwahl"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:324
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:325
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:336
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:337
 #, elixir-autogen, elixir-format
 msgid "Quick choice: %{period}"
 msgstr "Schnellwahl: %{period}"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:437
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:449
 #, elixir-autogen, elixir-format
 msgid "Save and apply"
 msgstr "Speichern und anwenden"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:412
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:424
 #, elixir-autogen, elixir-format
 msgid "Show in the quick choice"
 msgstr "in der Schnellwahl zeigen"
@@ -19742,8 +19742,8 @@ msgstr "Diesen Zeitraum gibt es nicht mehr."
 msgid "This period was changed elsewhere; the dialog shows it as stored."
 msgstr "Dieser Zeitraum wurde anderswo geändert; der Dialog zeigt ihn, wie er gespeichert ist."
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:391
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:466
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:403
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:478
 #, elixir-autogen, elixir-format
 msgid "today"
 msgstr "heute"
@@ -19768,37 +19768,37 @@ msgstr "„%{period}“ steht in der Schnellwahl."
 msgid "“%{period}” is no longer in the quick choice."
 msgstr "„%{period}“ steht nicht mehr in der Schnellwahl."
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:416
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:428
 #, elixir-autogen, elixir-format
 msgid "“until today” grows by a day every day; a fixed end stays. Stored for every device and recorded in the audit journal."
 msgstr "„bis heute“ wächst jeden Tag mit; ein festes Ende bleibt stehen. Gespeichert für alle Geräte, im Audit-Journal vermerkt."
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:194
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:197
 #, elixir-autogen, elixir-format
 msgctxt "period menu"
 msgid "Calendar"
 msgstr "Kalender"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:205
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:208
 #, elixir-autogen, elixir-format
 msgctxt "period menu"
 msgid "Own · stored"
 msgstr "Eigene · gespeichert"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:183
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:186
 #, elixir-autogen, elixir-format
 msgctxt "period menu"
 msgid "Rolling · to today"
 msgstr "Rollierend · bis heute"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:240
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:243
 #, elixir-autogen, elixir-format
 msgctxt "period menu"
 msgid "Year"
 msgstr "Jahr"
 
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:165
-#: lib/portfolixir_web/live/dashboard/period_menu.ex:174
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:168
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:177
 #, elixir-autogen, elixir-format
 msgid "Pin a period for “%{widget}”"
 msgstr "Zeitraum für „%{widget}“ festpinnen"
@@ -20069,3 +20069,8 @@ msgstr "Zyklus, Halving, Krypto-Ansicht"
 msgctxt "dashboard template"
 msgid "the falls compared, short tops and flops, rebounders"
 msgstr "Crashes im Vergleich, kurze Tops und Flops, Erholer"
+
+#: lib/portfolixir_web/live/dashboard/period_menu.ex:257
+#, elixir-autogen, elixir-format
+msgid "★ = in the bar as a quick choice; a click on the star puts a period in or takes it out. A quarter not yet begun is drawn dashed and cannot be chosen. “%{current}” and “%{quarter}” are the same quarter today; both stand here because the one moves on and the other stays."
+msgstr "★ = in der Leiste als Schnellwahl; ein Klick auf den Stern nimmt einen Zeitraum hinein oder heraus. Ein Quartal, das noch nicht begonnen hat, erscheint gestrichelt und ist nicht wählbar. „%{current}“ und „%{quarter}“ sind heute dasselbe Quartal; beide stehen da, weil das eine weiterläuft und das andere stehen bleibt."

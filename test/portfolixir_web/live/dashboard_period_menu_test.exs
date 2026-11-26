@@ -302,4 +302,33 @@ defmodule PortfolixirWeb.DashboardPeriodMenuTest do
     assert Periods.quick_choice() == %{keys: ~w(1w 1y max), default: false, dropped: []}
     refute has_element?(view, "[data-role='period-quick-dropped']")
   end
+
+  # User story (S32 closing act; board 04 ②):
+  # As the operator who sees a ★ beside every period,
+  # I want the menu to say what the star means and why a quarter is drawn
+  # dashed or twice,
+  # so that I need not guess.
+  #
+  # Acceptance criteria:
+  # - The open menu ends with the board's footnote: ★ is the bar's quick
+  #   choice and a click takes a period in or out; a quarter not yet begun
+  #   is drawn dashed and cannot be chosen; „lfd. Quartal“ and this
+  #   quarter's chip („Q4 26“) are the same quarter today, one moving on,
+  #   the other staying.
+  test "the menu's footnote says what ★ means", %{conn: conn} do
+    seed()
+    {:ok, view, _html} = conn |> german() |> live("/")
+    refute has_element?(view, "[data-role='period-menu-note']")
+    toggle(view)
+
+    today = Clock.today()
+    quarter = "Q#{div(today.month - 1, 3) + 1} #{rem(today.year, 100)}"
+
+    assert [note] = find(view, "#dashboard-period-menu [data-role='period-menu-note']")
+    note = text(note)
+    assert note =~ "★ = in der Leiste als Schnellwahl"
+    assert note =~ "ein Klick auf den Stern nimmt einen Zeitraum hinein oder heraus"
+    assert note =~ "gestrichelt und ist nicht wählbar"
+    assert note =~ "„lfd. Quartal“ und „#{quarter}“ sind heute dasselbe Quartal"
+  end
 end

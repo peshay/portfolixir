@@ -75,14 +75,52 @@ async function keyboardPath(browser, viewport, at) {
     };
   });
   console.error(at + " menu: " + JSON.stringify(box));
+
+  // The group headings are the board's small muted labels (04 ②), not
+  // the section headings an older, stronger rule (`.workspace-section
+  // h3`) drew at 17 px (the S32 closing act).
+  const heads = await page.evaluate(() =>
+    [...document.querySelectorAll("#dashboard-period-menu .dashboard-period-menu__head")].map((h) => {
+      const style = getComputedStyle(h);
+      return { text: h.textContent.trim(), size: parseFloat(style.fontSize), color: style.color };
+    })
+  );
+  const bodyColor = await page.evaluate(() => getComputedStyle(document.body).color);
+  check(heads.length === 4, at + ": the menu does not show its four groups: " + JSON.stringify(heads));
+  const loud = heads.filter((h) => h.size > 12.5 || h.color === bodyColor);
+  check(loud.length === 0, at + ": a group heading is not a small muted label: " + JSON.stringify(loud));
   check(box.left >= -1 && box.right <= box.vw + 1, at + ": the menu leaves the window: " + JSON.stringify(box));
   check(box.page <= 0, at + ": the page scrolls sideways by " + box.page + " px");
 
   if (viewport === PHONE) {
-    // The compact class: a sheet on the bottom edge, the window's width,
-    // every target in it a thumb's.
-    check(Math.abs(box.bottom - box.vh) <= 1.5, at + ": the menu is no sheet on the bottom edge: " + JSON.stringify(box));
+    // The compact class: a sheet on the bottom edge, standing on the tab
+    // bar where one is shown (the S32 closing act: it ended behind the bar,
+    // whose z-index is higher, so the last row of years could never be
+    // tapped), the window's width, every target in it a thumb's.
+    const floor = await page.evaluate(() => {
+      const bar = document.querySelector(".app-tabbar");
+      if (!bar || getComputedStyle(bar).display === "none") return window.innerHeight;
+      return bar.getBoundingClientRect().top;
+    });
+    check(floor < box.vh, at + ": no tab bar is shown at the phone's width");
+    check(
+      Math.abs(box.bottom - floor) <= 1.5,
+      at + ": the sheet does not stand on the tab bar (its top at " + floor + "): " + JSON.stringify(box)
+    );
     check(box.right - box.left >= box.vw - 1.5, at + ": the sheet is not the window's width: " + JSON.stringify(box));
+    // Every target, scrolled into the sheet's view, is the element a tap at
+    // its centre reaches: nothing lies over it.
+    const covered = await page.evaluate(() =>
+      [...document.querySelectorAll("#dashboard-period-menu button:not([disabled])")].flatMap((b) => {
+        b.scrollIntoView({ block: "nearest" });
+        const r = b.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return hit && (hit === b || b.contains(hit))
+          ? []
+          : [(b.dataset.period || b.textContent.trim()) + " under " + (hit ? hit.className || hit.tagName : "nothing")];
+      })
+    );
+    check(covered.length === 0, at + ": a target in the sheet cannot be tapped: " + JSON.stringify(covered));
     const small = await page.evaluate(() =>
       [...document.querySelectorAll("#dashboard-period-menu button:not([disabled])")]
         .map((b) => b.getBoundingClientRect())
@@ -119,6 +157,41 @@ async function keyboardPath(browser, viewport, at) {
   await leave(ctx);
 }
 
+// At the phone's width the last row of the sheet, the oldest year, is
+// tapped with a thumb and applied (the S32 closing act).
+async function lastYearByTap(browser) {
+  const ctx = await browser.newContext({ viewport: PHONE, hasTouch: true });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(String(error && error.message)));
+  await open(page, board);
+
+  await page.tap("#dashboard-period-menu-toggle");
+  await until(page, "393: the tap did not open the menu", () => document.getElementById("dashboard-period-menu") !== null);
+  const last = await page.evaluate(() => {
+    const years = [...document.querySelectorAll("[aria-labelledby='period-group-year'] [data-role='period-option']")];
+    return years[years.length - 1].dataset.period;
+  });
+  const selector = "#dashboard-period-menu [data-role='period-option'][data-period='" + last + "']";
+  await page.locator(selector).scrollIntoViewIfNeeded();
+  // A tap lands where the finger is, on whatever lies on top there; the
+  // trial run refuses a target something else covers.
+  await page.locator(selector).tap({ trial: true, timeout: 5000 }).catch((error) => {
+    throw new Error("393: the last year " + last + " cannot be tapped: " + String(error && error.message).split("\n")[0]);
+  });
+  await page.locator(selector).tap();
+  await until(
+    page,
+    "393: the tap on " + last + " did not apply it",
+    (key) => new URLSearchParams(location.search).get("period") === key && document.getElementById("dashboard-period-menu") === null,
+    last
+  );
+  check((await active(page)) === last, "393: the bar does not name " + last);
+
+  check(errors.length === 0, "393: the page raised a script error: " + errors.join(" | "));
+  await leave(ctx);
+}
+
 // A star puts Vorquartal into the bar; „Eigenen Zeitraum anlegen …“ opens
 // the native dialog, whose save stores the period and applies it, its
 // dates beside its name.
@@ -141,6 +214,18 @@ async function starAndDialog(browser) {
     const d = document.getElementById("period-dialog");
     return d !== null && d.open;
   });
+  // The footer's buttons keep the dialog's padding (board 04 ②): the
+  // footer sits inside the form, where `.modal > .modal-footer` never
+  // reached it, so the buttons touched the dialog's edges and the focus
+  // ring was cut (the S32 closing act).
+  const footer = await page.evaluate(() => {
+    const dialog = document.getElementById("period-dialog").getBoundingClientRect();
+    const save = document.querySelector("#period-form [data-role='period-save']").getBoundingClientRect();
+    return { right: dialog.right - save.right, bottom: dialog.bottom - save.bottom };
+  });
+  console.error("dialog footer: " + JSON.stringify(footer));
+  check(footer.right >= 16 && footer.bottom >= 16, "the dialog's buttons touch its edges: " + JSON.stringify(footer));
+
   await page.fill("#period-form input[name='period[name]']", "Seit Umschichtung");
   await page.fill("#period-form input[name='period[from]']", "2025-03-01");
   await page.click("#period-form [data-role='period-save']");
@@ -165,6 +250,7 @@ async function starAndDialog(browser) {
   try {
     await keyboardPath(browser, WIDE, "1280");
     await keyboardPath(browser, PHONE, "393");
+    await lastYearByTap(browser);
     await starAndDialog(browser);
     process.stdout.write(JSON.stringify({ ok: true }) + "\n");
   } catch (error) {
