@@ -5829,8 +5829,8 @@ und `updated_at`. Eine Start-Vorlage ist nur
 `overview`, die die Seite unter `/` öffnet; die Lesung schreibt
 nie. Seit Sprint 32 speichert die Instanz jede **Start**-Vorlage einmal,
 beim ersten Start der Version, die sie mitbringt (diese Version:
-`overview`, `allocation_targets`, `snapshots` und `risk`, die
-Vermögens-Tabs Allokation & Ziele, Snapshots und Risiko),
+`overview`, `holdings`, `allocation_targets`, `snapshots` und `risk`, die
+Vermögens-Tabs Bestände, Allokation & Ziele, Snapshots und Risiko),
 im Journal unter dem Systemakteur `dashboard_starters`
 (`resource_type` `dashboard_seed` hält den Schlüssel fest, sodass ein
 gelöschtes Start-Dashboard nie wieder gespeichert wird); jede Kopie
@@ -5852,8 +5852,8 @@ Elements und speichert keines von beiden, damit ein Layout so
 zurückgeschickt werden kann, wie es gelesen wurde. Eine unbekannte id, ein
 Schlüssel ohne Vorlage und eine id, die keines von beiden ist, liefern
 `404`; ein Schlüssel ohne Vorlage nennt die angebotenen Schlüssel (`"not
-found: names no template; offered: overview, allocation_targets, snapshots,
-risk, krypto_lover, pullbacks"`).
+found: names no template; offered: overview, holdings, allocation_targets,
+snapshots, risk, krypto_lover, pullbacks"`).
 
 **`POST /api/v1/dashboards`** legt eines aus `{"dashboard": {"name",
 "layout", "view_id"}}` an (das Layout ist ohne Angabe leer, die Ansicht

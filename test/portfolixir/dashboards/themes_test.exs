@@ -56,7 +56,7 @@ defmodule Portfolixir.Dashboards.ThemesTest do
     # The starters are the screens (Sprint 32 W2 to W4: „Allokation &
     # Ziele“, „Snapshots“, „Risiko“).
     assert Enum.map(Templates.starters(), & &1.key) ==
-             ~w(overview allocation_targets snapshots risk)
+             ~w(overview holdings allocation_targets snapshots risk)
 
     for template <- [krypto, pullbacks] do
       assert Layout.validate(template.layout) == {:ok, template.layout}, template.key
@@ -66,7 +66,7 @@ defmodule Portfolixir.Dashboards.ThemesTest do
     assert Templates.offered(Templates.templates()) == Templates.templates()
 
     assert Enum.map(Templates.templates(), & &1.key) ==
-             ~w(overview allocation_targets snapshots risk krypto_lover pullbacks)
+             ~w(overview holdings allocation_targets snapshots risk krypto_lover pullbacks)
 
     assert german(fn -> Templates.title("krypto_lover") end) == "Krypto Lover"
     assert german(fn -> Templates.title("pullbacks") end) == "Rücksetzer"

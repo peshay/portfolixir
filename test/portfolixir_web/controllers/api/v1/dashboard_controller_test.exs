@@ -199,6 +199,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
     assert [overview | others] = fresh
 
     assert Enum.map(others, &{&1["key"], &1["group"], &1["in_menu"]}) == [
+             {"holdings", "starter", false},
              {"allocation_targets", "starter", false},
              {"snapshots", "starter", false},
              {"risk", "starter", false},
@@ -332,7 +333,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
                %{
                  "errors" => %{
                    "detail" =>
-                     "not found: names no template; offered: overview, allocation_targets, snapshots, risk, krypto_lover, pullbacks"
+                     "not found: names no template; offered: overview, holdings, allocation_targets, snapshots, risk, krypto_lover, pullbacks"
                  }
                },
              path
@@ -517,7 +518,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
              %{
                "errors" => %{
                  "template" => [
-                   "names no template; offered: overview, allocation_targets, snapshots, risk, krypto_lover, pullbacks"
+                   "names no template; offered: overview, holdings, allocation_targets, snapshots, risk, krypto_lover, pullbacks"
                  ]
                }
              }

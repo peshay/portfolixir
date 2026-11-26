@@ -2316,6 +2316,13 @@ loss, a warning as one line rather than a box, and a footer of one line.
   the HHI and its track) and **Asset-class caps** with the correlations. A
   threshold or a band is the lens's arithmetic, never advice. The starter
   dashboard **Risk** holds the six, in the tab's order.
+- **The starter dashboard "Holdings"** (Sprint 32 W1) is Wealth's tab
+  Holdings as a dashboard: its six sections as widgets of the size "Row",
+  in the tab's order — key figures, data notes, performance, contribution
+  by position, positions, cash accounts. It is stored once, on the first
+  start of the release, beside "Overview" (also on an instance that
+  already holds dashboards), and is yours from then on; deleted, it is not
+  stored again.
 - **The sections of Wealth's tab Holdings as widgets** (Sprint 32 W1):
   each draws its section with the code Wealth draws it with, from the same
   read, in the size "Row" (the full width, as tall as its content).
