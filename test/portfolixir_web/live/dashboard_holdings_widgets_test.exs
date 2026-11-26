@@ -417,6 +417,57 @@ defmodule PortfolixirWeb.DashboardHoldingsWidgetsTest do
       assert Floki.find(widget, "[data-role='key-figures-apart']") == []
     end
 
+    # User story (Sprint 32 closing act, PR 2, the design critic; board 06
+    # A; DESIGN.md „Zeile“: "its compact form is the section's own narrow
+    # layout"):
+    # As the operator who reads „Kennzahlen“ on a tablet or a phone,
+    # I want the value bridge in the compact form as rows,
+    # so that Anfang, Nettoflüsse and the multiplier the Wealth tab shows
+    # at both widths are not lost on the dashboard.
+    #
+    # Acceptance criteria:
+    # - The compact form draws, after the returns, the bridge as rows: the
+    #   start with its date, the net flows, the end „heute“ for a period
+    #   that ends today and the multiplier, each the figure of GET
+    #   /api/v1/performance?period=1y.
+    # - A period that has ended ends its compact bridge „am“ its end date
+    #   (prev_year), never „heute“, as the wide bridge does.
+    test "the compact form draws the value bridge as rows, as the API answers", %{conn: conn} do
+      seed()
+      dashboard!([{"wealth_key_figures", "row"}])
+      perf = api("/api/v1/performance?period=1y")
+
+      compact =
+        Floki.find(rendered(conn, "/"), "#dashboard-wealth-key-figures [data-form='compact']")
+
+      at = fn role -> compact |> Floki.find("[data-compact-role='#{role}']") |> text() end
+
+      assert at.("key-figures-bridge-start") =~
+               "Start " <> Format.date(Date.from_iso8601!(perf["start_date"]))
+
+      assert at.("key-figures-bridge-start") =~ money(perf["start_value"])
+      assert at.("key-figures-bridge-flows") =~ signed(perf["net_external_flows"])
+      assert at.("key-figures-bridge-end") =~ "today"
+      assert at.("key-figures-bridge-end") =~ money(perf["end_value"])
+
+      assert at.("key-figures-bridge-multiple") =~
+               "×" <> Format.plain_decimal(Decimal.new(perf["wealth_multiple"]), 2)
+
+      ended = api("/api/v1/performance?period=prev_year")
+      end_date = Date.from_iso8601!(ended["end_date"])
+
+      compact =
+        Floki.find(
+          rendered(conn, "/?period=prev_year"),
+          "#dashboard-wealth-key-figures [data-form='compact']"
+        )
+
+      bridge_end = compact |> Floki.find("[data-compact-role='key-figures-bridge-end']") |> text()
+      assert bridge_end =~ "on " <> Format.date(end_date)
+      assert bridge_end =~ money(ended["end_value"])
+      refute bridge_end =~ "today"
+    end
+
     # User story:
     # As the operator who trusts the bridge to add up,
     # I want a bridge whose rounded figures do not add up to say so,
