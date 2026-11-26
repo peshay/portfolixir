@@ -959,7 +959,6 @@ const STRAY_EXCEPTIONS = [
   { selector: "#research-entry-form", reason: FORM_FIELDS + " (a security's Research tab, „Eintrag anhängen“)" },
   { selector: ".category-form", reason: FORM_FIELDS + " (a classification's new category: name, parent, colour, description)" },
   { selector: "#classification-form", reason: SINGLE + " (a new classification's name, then „Klassifizierung anlegen“)" },
-  { selector: "#new-dashboard-form", reason: SINGLE + " (a new dashboard's name, then its start and „Anlegen“, Sprint 31 D7)" },
   { selector: "#soll-plan-picker-form", reason: SINGLE + " (a classification's target plan version)" },
   { selector: "[id^='liquidity-role-form-']", reason: SINGLE + " (a cash account's liquidity role, one per account row)" }
 ];
