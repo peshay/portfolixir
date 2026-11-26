@@ -137,11 +137,12 @@ defmodule PortfolixirWeb.DashboardEditTest do
 
     # The catalogue draws each kind's sizes as chips, as „Alle Widgets“
     # does (Sprint 31 closing act); since Sprint 32 W1 „Wertentwicklung“
-    # also takes „Zeile“, Wealth's section.
+    # also takes „Zeile“, Wealth's section, named as the widget's own size
+    # switch names it (the S32 closing act's UAT, finding 8: „row“).
     assert view
            |> document()
            |> Floki.find("[data-role='edit-add'][data-kind='performance'] .widget-size")
-           |> Enum.map(&text/1) == ~w(S L XL row)
+           |> Enum.map(&text/1) == ~w(S L XL Zeile)
 
     refute has_element?(view, "[data-role='edit-start']")
     assert has_element?(view, "[data-role='edit-reset']", "Zurücksetzen")
@@ -473,6 +474,23 @@ defmodule PortfolixirWeb.DashboardEditTest do
     render_click(view, "edit_add", %{"kind" => "nonsense"})
     assert view |> document() |> Floki.find("[data-widget-kind]") |> length() == 5
     assert journal_count() == 1
+
+    # The S32 closing act's UAT, finding 8: Ctrl+Z after an add takes the
+    # widget away, and the note that stood at it goes with it, so the
+    # undo is said in the bar.
+    render_click(view, "edit_undo", %{})
+    refute has_element?(view, "[data-widget-kind='allocation_drift']")
+    assert bar(view) == "Letzter Schritt rückgängig gemacht"
+
+    # With the catalogue open, where the add was asked, the undo of an add
+    # is said there, in the drawer's status, which stays in view.
+    render_click(view, "edit_catalogue", %{"open" => "true"})
+    view |> element("[data-role='edit-add'][data-kind='allocation_drift']") |> render_click()
+    render_click(view, "edit_undo", %{})
+    refute has_element?(view, "[data-widget-kind='allocation_drift']")
+
+    assert text(Floki.find(document(view), "#dashboard-catalogue-status")) ==
+             "Letzter Schritt rückgängig gemacht"
   end
 
   # User story:

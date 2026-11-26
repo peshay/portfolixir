@@ -16180,6 +16180,18 @@ a.widget-row:hover .widget-row__label {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* An S tile has no room for its scope, its link and the switch on one
+     line (the S32 closing act's UAT, finding 8: „A..“): in the edit mode
+     its link, which would leave the unsaved edit, gives way, and the
+     scope wraps beside the switch, never cut. */
+  .dashboard-widget.widget--s.is-editing > .widget__foot > a {
+    display: none;
+  }
+
+  .dashboard-widget.widget--s.is-editing > .widget__foot > span {
+    overflow: visible;
+    white-space: normal;
+  }
 }
 
 /* In the wide grid × takes ⋯'s place at ⋯'s size (Sprint 32 L1: 24 px,
@@ -16336,11 +16348,13 @@ a.widget-row:hover .widget-row__label {
   outline-offset: -1px;
 }
 
+/* Over the open catalogue's drawer too (z-index 40), so its „Rückgängig“
+   is never under it (the S32 closing act's UAT, finding 8). */
 .widget__note {
   position: absolute;
   top: calc(100% + var(--space-1));
   left: var(--space-2);
-  z-index: 20;
+  z-index: 45;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

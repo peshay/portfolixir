@@ -109,6 +109,13 @@ function tiles(page) {
         info: rel(w.querySelector(".widget__head [data-role='section-info']"), f),
         foot: rel(foot, f),
         footParts: foot ? [...foot.children].filter((c) => c.textContent.trim() !== "").map((c) => rel(c, f)).filter(Boolean) : [],
+        // A footer's words cut by the switch beside them (the S32 closing
+        // act's UAT, finding 8: „A..“ for „Ansicht Alles“).
+        footCut: foot
+          ? [...foot.querySelectorAll(":scope > span, :scope > a")]
+              .filter((c) => c.getBoundingClientRect().height > 0 && c.scrollWidth > c.clientWidth + 1)
+              .map((c) => c.textContent.trim())
+          : [],
         handle: rel(w.querySelector("[data-role='edit-handle']"), f),
         remove: rel(w.querySelector("[data-role='edit-remove']"), f),
         sizes: rel(w.querySelector(".widget__sizes"), f)
@@ -154,6 +161,7 @@ async function tileWalk(browser) {
     for (const part of a.footParts) {
       if (meets(a.sizes, part)) broken.push(a.kind + ": the size switch lies over the footer's words");
     }
+    for (const cut of a.footCut) broken.push(a.kind + ": the footer cuts „" + cut + "“ beside the size switch");
     for (const control of [a.handle, a.remove]) {
       if (meets(control, a.title) || meets(control, a.info)) broken.push(a.kind + ": an edit control lies over the title");
     }
@@ -175,6 +183,61 @@ async function tileWalk(browser) {
   check(
     figure.height > 0 && figure.top >= figure.wideTop - 0.5 && figure.bottom <= figure.wideBottom + 0.5,
     "after the resize to M the total's figure is cut out of its tile: " + JSON.stringify(figure)
+  );
+
+  // The S32 closing act's UAT, finding 8: „Kennzahlen“ added from the
+  // drawer at S keeps its cash quote in its tile; its note's „Rückgängig“
+  // lies clear of the open drawer; Ctrl+Z takes the add back and says so
+  // where it can be read, in the drawer's status.
+  await page.click("[data-role='edit-catalogue-toggle'], #dashboard-catalogue-toggle");
+  await page.waitForSelector(".dashboard-catalogue.is-open", { timeout: 10000 });
+  await page.click("[data-role='edit-add'][data-kind='wealth_key_figures']");
+  await page.waitForSelector("[data-widget-kind='wealth_key_figures'] [data-role='kf-cash']", { timeout: 10000 });
+  await settle(page);
+  // The review seed's figures, as the UAT read them (88.307,02 EUR, of it
+  // 69.128,26 in securities and 19.178,75 in cash, a quote of 21,7 %): the
+  // tile holds figures of that length, whatever this walk's seed books.
+  await page.evaluate(() => {
+    const w = document.querySelector("[data-widget-kind='wealth_key_figures']");
+    const set = (sel, text) => {
+      const el = w.querySelector(sel);
+      if (el) el.textContent = text;
+    };
+    set("[data-role='kf-securities'] b", "69.128,26");
+    set("[data-role='kf-cash'] b", "19.178,75");
+    set(".key-figures__quote", "Cashquote 21,7 %");
+  });
+  const added = await page.evaluate(() => {
+    const rect = (el) => (el ? el.getBoundingClientRect().toJSON() : null);
+    const w = document.querySelector("[data-widget-kind='wealth_key_figures']");
+    const body = w.querySelector(".widget__wide");
+    const quote = w.querySelector(".key-figures__quote");
+    const undo = w.querySelector("[data-role='edit-undo']");
+    const drawer = document.querySelector(".dashboard-catalogue.is-open");
+    let covered = false;
+    if (undo && drawer) {
+      const u = undo.getBoundingClientRect();
+      const top = document.elementFromPoint(u.left + u.width / 2, u.top + u.height / 2);
+      covered = top !== null && !undo.contains(top);
+    }
+    return { body: rect(body), quote: rect(quote), undo: rect(undo), covered };
+  });
+  console.error("added at S: " + JSON.stringify(added));
+  check(
+    added.quote && added.quote.height > 0 && added.quote.bottom <= added.body.bottom + 0.5 && added.quote.right <= added.body.right + 0.5,
+    "„Kennzahlen“ at S cuts its cash quote out of its tile: " + JSON.stringify(added)
+  );
+  check(added.undo && !added.covered, "the open drawer lies over the note's „Rückgängig“: " + JSON.stringify(added));
+  await page.keyboard.press("Control+z");
+  await page.waitForFunction(() => !document.querySelector("[data-widget-kind='wealth_key_figures']"), null, { timeout: 10000 });
+  const undone = await page.evaluate(() => {
+    const status = document.getElementById("dashboard-catalogue-status");
+    const r = status.getBoundingClientRect();
+    return { text: status.textContent.trim(), top: r.top, bottom: r.bottom, height: window.innerHeight };
+  });
+  check(
+    undone.text === "Letzter Schritt rückgängig gemacht" && undone.top >= 0 && undone.bottom <= undone.height,
+    "Ctrl+Z after the add is said nowhere in view: " + JSON.stringify(undone)
   );
 
   check(errors.length === 0, "the page raised a script error: " + errors.join(" | "));
