@@ -211,8 +211,8 @@ defmodule PortfolixirWeb.Api.V1.PeriodControllerTest do
   #   saved:<id> of a stored period among them, and answers the choice;
   #   journaled as a setting under the token.
   # - A seventh key, a key twice, a key that is none, a saved key of no
-  #   stored period, and a field the write does not take answer 422 naming
-  #   it, writing nothing.
+  #   stored period, a field the write does not take, and a body without
+  #   the `quick` object answer 422 naming it, writing nothing.
   # - A deleted period's key drops from the read and is named under
   #   dropped.
   test "the quick choice is read and written, a deleted period's key dropped", %{conn: conn} do
@@ -260,6 +260,20 @@ defmodule PortfolixirWeb.Api.V1.PeriodControllerTest do
                |> json_response(422),
              inspect(body)
     end
+
+    # Without the `quick` object: the keys sent beside it are named, and a
+    # body with neither is refused naming keys, the list it lacks.
+    assert %{"errors" => %{"keys" => [_ | _]}} =
+             conn
+             |> authed()
+             |> put("/api/v1/periods/quick", %{"keys" => ["1w"]})
+             |> json_response(422)
+
+    assert %{"errors" => %{"keys" => [_ | _]}} =
+             conn |> authed() |> put("/api/v1/periods/quick", %{}) |> json_response(422)
+
+    assert %{"data" => %{"keys" => ^keys}} =
+             conn |> authed() |> get("/api/v1/periods/quick") |> json_response(200)
 
     {:ok, _} = Periods.delete_saved(Actor.owner_ui(), summer.id)
 
