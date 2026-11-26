@@ -1,6 +1,8 @@
 defmodule Portfolixir.DashboardsDocsTest do
   use ExUnit.Case, async: true
 
+  alias Portfolixir.Dashboards.Widgets
+
   # User story (Sprint 31 D2; FR-60, ADR-0062 §8; the coverage rule):
   # As the agent that reads the API reference, or the operator who reads it
   # in German,
@@ -222,4 +224,63 @@ defmodule Portfolixir.DashboardsDocsTest do
       assert {:ok, [_, _, _]} = Portfolixir.Dashboards.validate_layout(layout), path
     end
   end
+
+  # User story (Sprint 32 L4; plan D-13; the owner on 2026-11-25: „das
+  # brauchen wir auch für die Doku“):
+  # As the reader of the docs choosing widgets, in English or German,
+  # I want one catalogue page naming every widget with its sizes, what it
+  # draws and its source route, with its pictures,
+  # so that no widget is missing from the docs when one is added.
+  #
+  # Acceptance criteria:
+  # - docs/guides/widgets.md and docs/de/guides/widgets.md carry the docs
+  #   layout and the language switcher's front matter, and the navigation
+  #   lists the page.
+  # - For every kind the registry holds (`Portfolixir.Dashboards.Widgets`),
+  #   each page names its key, every source route, and, for every grid size
+  #   it takes, its light and its dark picture, each a file under
+  #   docs/assets/widgets/ (written by test/browser/widget_gallery_test.exs).
+  # - The check's own attack: a page with one kind's section left out is
+  #   named.
+  test "the widget catalogue names every registered kind with its sizes, pictures and routes" do
+    navigation = File.read!("docs/_data/navigation.yml")
+    assert navigation =~ "url: /guides/widgets.html"
+
+    for {path, lang} <- [{"docs/guides/widgets.md", "en"}, {"docs/de/guides/widgets.md", "de"}] do
+      page = File.read!(path)
+      assert page =~ ~r/\A---\nlayout: docs\n/
+      assert page =~ "lang: #{lang}"
+      assert page =~ "lang_en: /guides/widgets.html"
+      assert page =~ "lang_de: /de/guides/widgets.html"
+      assert catalogue_gaps(page) == [], "#{path}: #{inspect(catalogue_gaps(page))}"
+
+      for [_, file] <- Regex.scan(~r{/assets/widgets/([\w-]+\.png)}, page) do
+        assert File.exists?(Path.join("docs/assets/widgets", file)), "#{path}: #{file} is missing"
+      end
+    end
+
+    page = File.read!("docs/guides/widgets.md")
+    [first | _] = Widgets.kinds()
+    attack = String.replace(page, "`#{first.key}`", "`gone`")
+    assert {first.key, :key} in catalogue_gaps(attack)
+  end
+
+  # What a page leaves out of the registry: a kind's key, a route, a
+  # picture of a grid size in a theme.
+  defp catalogue_gaps(page) do
+    for kind <- Widgets.kinds(),
+        gap <-
+          [{kind.key, :key} | Enum.map(kind.source.routes, &{kind.key, &1})] ++
+            for(
+              size <- kind.sizes,
+              match?({:ok, _}, Widgets.dimensions(size)),
+              theme <- ~w(light dark),
+              do: {kind.key, "/assets/widgets/#{kind.key}-#{String.downcase(size)}-#{theme}.png"}
+            ),
+        missing?(page, gap),
+        do: gap
+  end
+
+  defp missing?(page, {key, :key}), do: not String.contains?(page, "`#{key}`")
+  defp missing?(page, {_key, text}), do: not String.contains?(page, text)
 end

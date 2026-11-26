@@ -2122,7 +2122,9 @@ a **dashboard** (ADR-0062, Sprint 31): its cards are **widgets**, each one
 existing read drawn in a frame — its title, an ⓘ with the read's
 computation basis, its period mark, a ⋯ menu (the widget's own period),
 the figures, and a footer naming the view it reads and the way to the full
-screen. Since Sprint 32 the dashboard is **one surface**: one rounded
+screen. The [Widget Catalogue](/guides/widgets.html) shows every widget in
+every size it takes, light and dark, with what it draws and its source
+route. Since Sprint 32 the dashboard is **one surface**: one rounded
 frame with the widgets separated by thin lines instead of gaps, and every
 widget built the same way — its head on one line on a wide screen (the
 title, ⓘ, the period mark, the widget's own switch, ⋯), its headline

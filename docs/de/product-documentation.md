@@ -2345,7 +2345,9 @@ ein **Dashboard** (ADR-0062, Sprint 31): Seine Karten sind **Widgets**, jedes ei
 Lesezugriff in einem Rahmen — sein Titel, ein ⓘ mit der Rechengrundlage
 des Lesezugriffs, seine Zeitraum-Marke, ein Menü ⋯ (der eigene Zeitraum
 des Widgets), die Zahlen und eine Fußzeile, die die gelesene Ansicht
-nennt und zum ganzen Screen führt. Seit Sprint 32 ist das Dashboard
+nennt und zum ganzen Screen führt. Der [Widget-Katalog](/de/guides/widgets.html)
+zeigt jedes Widget in jeder Größe, hell und dunkel, mit dem, was es zeigt,
+und seiner Quell-Route. Seit Sprint 32 ist das Dashboard
 **eine Fläche**: ein gerundeter Rahmen, die Widgets durch feine Linien
 statt durch Abstände getrennt, und jedes Widget gleich gebaut — sein
 Kopf auf breitem Bildschirm in einer Zeile (Titel, ⓘ, Zeitraum-Marke, der

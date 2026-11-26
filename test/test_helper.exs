@@ -23,7 +23,12 @@
 # route, template, schema or lib/** file) stay in the normal run; the tag
 # only selects them, `mix test --only sweep`, which a story agent runs beside
 # `mix test test/invariants` (story workflow; test/invariants/sweep_tag_test.exs).
-ExUnit.start(assert_receive_timeout: 2_000, exclude: [:browser])
+#
+# The widget gallery (`@moduletag :gallery`, test/browser/widget_gallery_test.exs,
+# Sprint 32 L4) writes the docs' widget pictures into docs/assets/widgets/,
+# so neither job runs it: `mix test test/browser/widget_gallery_test.exs
+# --only gallery` regenerates them after a change to a widget.
+ExUnit.start(assert_receive_timeout: 2_000, exclude: [:browser, :gallery])
 
 # A warning or an error that reaches the console log without a test capturing
 # it fails the run (#927): see Portfolixir.LogNoise for what counts and why a

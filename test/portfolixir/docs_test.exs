@@ -20,6 +20,7 @@ defmodule Portfolixir.DocsTest do
     "docs/product-documentation.md",
     "docs/guides/buckets-and-views.md",
     "docs/guides/own-rules.md",
+    "docs/guides/widgets.md",
     "docs/home-deployment.md",
     "docs/integration/api-and-mcp.md",
     "docs/development/story-workflow.md",
