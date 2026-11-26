@@ -231,9 +231,15 @@ async function starAndDialog(browser) {
   // whose labels are the longest (the UAT's „Seit Juni“).
   const from = new Date(Date.now() - 170 * 86400000);
   const pad = (n) => String(n).padStart(2, "0");
-  const fromIso = from.getUTCFullYear() + "-" + pad(from.getUTCMonth() + 1) + "-" + pad(from.getUTCDate());
   const fromDe = pad(from.getUTCDate()) + "." + pad(from.getUTCMonth() + 1) + "." + from.getUTCFullYear();
-  await page.fill("#period-form input[name='period[from]']", fromIso);
+  // Typed as a German screen writes it (the S32 closing act's UAT,
+  // finding 9); the field's pattern lets it through and the server stores
+  // the ISO day.
+  check(
+    (await page.getAttribute("#period-form input[name='period[from]']", "placeholder")) === "TT.MM.JJJJ",
+    "the dialog asks for another date format than TT.MM.JJJJ"
+  );
+  await page.fill("#period-form input[name='period[from]']", fromDe);
   await page.click("#period-form [data-role='period-save']");
   await until(page, "the saved period was not applied", () =>
     (new URLSearchParams(location.search).get("period") || "").startsWith("saved:")

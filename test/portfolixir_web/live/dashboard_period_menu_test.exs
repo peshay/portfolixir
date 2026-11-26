@@ -403,6 +403,67 @@ defmodule PortfolixirWeb.DashboardPeriodMenuTest do
     assert Periods.quick_choice().keys == ~w(1w 1y)
   end
 
+  # User story (the S32 closing act's UAT, finding 9; screenshot 07):
+  # As the operator on a German screen, which writes 01.06.2026 everywhere,
+  # I want the own-period dialog to take and show its dates that way,
+  # so that I need not switch to „2026-06-01“ for one dialog.
+  #
+  # Acceptance criteria:
+  # - In German the dialog's date fields ask for „TT.MM.JJJJ“ and take
+  #   „01.06.2026“ and „31.08.2026“; the period is stored with those days
+  #   and GET /api/v1/periods answers them as ISO dates.
+  # - Opened again to edit, the fields show the stored days as
+  #   „01.06.2026“ and „31.08.2026“.
+  # - An ISO date typed („2026-06-15“) is taken too; a day that does not
+  #   exist („31.02.2026“) is refused at its field, nothing stored.
+  test "the dialog takes and shows German dates, the API keeps ISO", %{conn: conn} do
+    seed()
+    {:ok, view, _html} = conn |> german() |> live("/")
+    toggle(view)
+    view |> element("[data-role='period-add']") |> render_click()
+
+    assert has_element?(view, "#period-form input[name='period[from]'][placeholder='TT.MM.JJJJ']")
+
+    view
+    |> form("#period-form",
+      period: %{name: "Sommer", from: "01.06.2026", to_mode: "date", to: "31.08.2026"}
+    )
+    |> render_submit()
+
+    assert [%{name: "Sommer", from: ~D[2026-06-01], to: ~D[2026-08-31]} = own] =
+             Periods.list_saved()
+
+    api =
+      build_conn()
+      |> put_req_header("accept", "application/json")
+      |> put_req_header("authorization", "Bearer test-api-token")
+      |> get("/api/v1/periods")
+      |> json_response(200)
+
+    assert [%{"from" => "2026-06-01", "to" => "2026-08-31"}] = api["data"]
+
+    toggle(view)
+    view |> element("[data-role='period-edit'][data-period='saved:#{own.id}']") |> render_click()
+    assert has_element?(view, "#period-form input[name='period[from]'][value='01.06.2026']")
+    assert has_element?(view, "#period-form input[name='period[to]'][value='31.08.2026']")
+
+    view
+    |> form("#period-form", period: %{name: "Sommer", from: "2026-06-15", to_mode: "today"})
+    |> render_submit()
+
+    assert %{from: ~D[2026-06-15], to: nil} = Periods.get_saved(own.id)
+
+    toggle(view)
+    view |> element("[data-role='period-add']") |> render_click()
+
+    view
+    |> form("#period-form", period: %{name: "Nie", from: "31.02.2026", to_mode: "today"})
+    |> render_submit()
+
+    assert has_element?(view, "#period-form [data-role='period-field-error'][data-field='from']")
+    assert length(Periods.list_saved()) == 1
+  end
+
   # User story (T3's menu half):
   # As the operator whose agent deleted a period of my quick choice,
   # I want the menu to say once that it left the bar,

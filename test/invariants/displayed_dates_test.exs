@@ -49,8 +49,13 @@ defmodule Portfolixir.Invariants.DisplayedDatesTest do
       "„Im Depot ansehen“: Wealth's from= and to= address values (Sprint 29 C6, F4)",
     {"lib/portfolixir_web/live/dashboard/movers_card.ex", :wealth_href} =>
       "„In Vermögen ansehen“: Wealth's from= and to= address values (Sprint 30 T3)",
-    {"lib/portfolixir_web/live/dashboard_live.ex", :period_dialog} =>
-      "the own period dialog's Von and Bis inputs, ISO text inputs (UX-DR19; Sprint 32 T4)"
+    # The S32 closing act's UAT, finding 9: the own period dialog's Von and
+    # Bis show a stored day through `PortfolixirWeb.DateInput`, DD.MM.YYYY
+    # in German; ISO is its English field value and the day it hands on.
+    {"lib/portfolixir_web/date_input.ex", :value} =>
+      "a date text input's value on an English page, read back by to_iso/1",
+    {"lib/portfolixir_web/date_input.ex", :to_iso} =>
+      "the typed date handed to the context and the API as ISO, never shown"
   }
 
   # User story:

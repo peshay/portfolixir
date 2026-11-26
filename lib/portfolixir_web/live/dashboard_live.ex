@@ -107,6 +107,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.Dashboard.Widgets.SnapshotList, as: SnapshotListWidget
   alias PortfolixirWeb.Dashboard.Widgets.Snapshots, as: SnapshotsWidget
   alias PortfolixirWeb.Dashboard.Widgets.SummaryLine, as: SummaryLineWidget
+  alias PortfolixirWeb.DateInput
   alias PortfolixirWeb.ExcludedSales
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
@@ -345,9 +346,11 @@ defmodule PortfolixirWeb.DashboardLive do
       id: own.id,
       lock_version: own.lock_version,
       name: own.name,
-      from: Date.to_iso8601(own.from),
+      # The S32 closing act's UAT, finding 9: the days as the page writes
+      # them (`PortfolixirWeb.DateInput`); the store and the API keep ISO.
+      from: DateInput.value(own.from),
       to_mode: if(own.to, do: "date", else: "today"),
-      to: if(own.to, do: Date.to_iso8601(own.to), else: ""),
+      to: DateInput.value(own.to),
       quick: "saved:#{own.id}" in quick.keys,
       errors: %{},
       alert: nil
@@ -1548,8 +1551,12 @@ defmodule PortfolixirWeb.DashboardLive do
 
     attrs = %{
       "name" => LiveParam.string(params["name"]) || "",
-      "from" => LiveParam.string(params["from"]) || "",
-      "to" => if(to_mode == "date", do: LiveParam.string(params["to"]) || "", else: nil)
+      "from" => DateInput.to_iso(LiveParam.string(params["from"])) || "",
+      "to" =>
+        if(to_mode == "date",
+          do: DateInput.to_iso(LiveParam.string(params["to"])) || "",
+          else: nil
+        )
     }
 
     form = %{
