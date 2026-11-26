@@ -28,8 +28,8 @@ defmodule Portfolixir.Dashboards.StartersTest do
   alias Portfolixir.Journal
 
   # The starters of this release, in the menu's order: „Überblick“ and,
-  # since Sprint 32 W2, „Allokation & Ziele“.
-  @starters ~w(overview allocation_targets)
+  # since Sprint 32 W2 and W3, „Allokation & Ziele“ and „Snapshots“.
+  @starters ~w(overview allocation_targets snapshots)
 
   defp seeds, do: Seed |> Repo.all() |> Enum.map(& &1.template_key) |> Enum.sort()
 
@@ -75,7 +75,8 @@ defmodule Portfolixir.Dashboards.StartersTest do
   #
   # Acceptance criteria:
   # - The starters are the templates marked so; in this release
-  #   „Überblick“ and „Allokation & Ziele“ (Sprint 32 W2).
+  #   „Überblick“, „Allokation & Ziele“ and „Snapshots“ (Sprint 32 W2,
+  #   W3).
   # - On an instance with no dashboard, a run stores each as a copy (its
   #   template_key recorded), journaled under the system actor
   #   „dashboard_starters“, and records each key in the seed table, the
@@ -184,8 +185,8 @@ defmodule Portfolixir.Dashboards.StartersTest do
   # every restart.
   #
   # Acceptance criteria:
-  # - The first boot step logs the starters stored („overview“ and
-  #   „allocation_targets“) and counted (none) at info.
+  # - The first boot step logs the starters stored („overview“,
+  #   „allocation_targets“ and „snapshots“) and counted (none) at info.
   # - The next one stores nothing and logs nothing about the starters.
   test "the boot step logs what it stored, and nothing on a start with nothing to do" do
     original = Application.get_env(:portfolixir, :seed_starters_on_boot)

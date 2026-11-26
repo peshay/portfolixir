@@ -62,6 +62,28 @@ defmodule Portfolixir.Dashboards.Templates do
 
   # --- S32 W2 end ---
 
+  # --- S32 W3 begin ---
+  # „Snapshots“ (I57; board 02 ②; Sprint 32 W3): Wealth's tab as a starter,
+  # the comparison over the list, as the tab draws them.
+  @snapshots %{
+    key: "snapshots",
+    title: "Snapshots",
+    starter: true,
+    asks_scope: false,
+    layout: [
+      %{
+        "kind" => "snapshot_comparison",
+        "size" => "row",
+        "col" => 1,
+        "row" => 1,
+        "settings" => %{}
+      },
+      %{"kind" => "snapshot_list", "size" => "row", "col" => 1, "row" => 2, "settings" => %{}}
+    ]
+  }
+
+  # --- S32 W3 end ---
+
   # --- S32 S5 begin ---
   # The themes (I61; board 03 ①; Sprint 32 S5), offered in the gallery
   # beside the starters, never stored by the boot.
@@ -128,6 +150,9 @@ defmodule Portfolixir.Dashboards.Templates do
     # --- S32 W2 begin ---
     @allocation_targets,
     # --- S32 W2 end ---
+    # --- S32 W3 begin ---
+    @snapshots,
+    # --- S32 W3 end ---
     @krypto_lover,
     @pullbacks
   ]
@@ -188,6 +213,9 @@ defmodule Portfolixir.Dashboards.Templates do
   # --- S32 W2 begin ---
   def title("allocation_targets"), do: pgettext("dashboard template", "Allocation & targets")
   # --- S32 W2 end ---
+  # --- S32 W3 begin ---
+  def title("snapshots"), do: pgettext("dashboard template", "Snapshots")
+  # --- S32 W3 end ---
   def title(_key), do: nil
 
   @doc """
@@ -208,6 +236,11 @@ defmodule Portfolixir.Dashboards.Templates do
     do: pgettext("dashboard template", "as Wealth's tab today")
 
   # --- S32 W2 end ---
+
+  # --- S32 W3 begin ---
+  def subtitle("snapshots"), do: pgettext("dashboard template", "as Wealth's tab today")
+
+  # --- S32 W3 end ---
 
   def subtitle(_key), do: nil
 

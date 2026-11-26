@@ -53,8 +53,9 @@ defmodule Portfolixir.Dashboards.ThemesTest do
 
     assert {krypto.asks_scope, pullbacks.asks_scope} == {true, false}
     assert {krypto.starter, pullbacks.starter} == {false, false}
-    # The starters are the screens (Sprint 32 W2: „Allokation & Ziele“).
-    assert Enum.map(Templates.starters(), & &1.key) == ~w(overview allocation_targets)
+    # The starters are the screens (Sprint 32 W2 and W3: „Allokation &
+    # Ziele“, „Snapshots“).
+    assert Enum.map(Templates.starters(), & &1.key) == ~w(overview allocation_targets snapshots)
 
     for template <- [krypto, pullbacks] do
       assert Layout.validate(template.layout) == {:ok, template.layout}, template.key
@@ -64,7 +65,7 @@ defmodule Portfolixir.Dashboards.ThemesTest do
     assert Templates.offered(Templates.templates()) == Templates.templates()
 
     assert Enum.map(Templates.templates(), & &1.key) ==
-             ~w(overview allocation_targets krypto_lover pullbacks)
+             ~w(overview allocation_targets snapshots krypto_lover pullbacks)
 
     assert german(fn -> Templates.title("krypto_lover") end) == "Krypto Lover"
     assert german(fn -> Templates.title("pullbacks") end) == "Rücksetzer"

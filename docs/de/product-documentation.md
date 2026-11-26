@@ -2358,8 +2358,9 @@ Zeile statt als Kasten und eine Fußzeile aus einer Zeile.
 - **Die Start-Dashboards werden einmal gespeichert** (Sprint 32). Beim
   ersten Start einer Version, die ein Start-Dashboard mitbringt, speichert
   die Instanz es einmal als Ihr Dashboard, im Journal unter dem System
-  („dashboard_starters“) festgehalten: Diese Version bringt **Überblick**
-  und **Allokation & Ziele**, den Tab aus Vermögen (jedes gespeichert unter
+  („dashboard_starters“) festgehalten: Diese Version bringt **Überblick**,
+  **Allokation & Ziele** und **Snapshots**, die Tabs aus Vermögen (jedes
+  gespeichert unter
   seinem englischen Namen, etwa „Overview“, umbenennbar). Danach
   gehört es Ihnen zum Umbenennen, Ändern, Umsortieren oder Löschen, und
   ein gelöschtes wird nie wieder gespeichert. Eine Instanz, die schon ein
@@ -2538,6 +2539,17 @@ Zeile statt als Kasten und eine Fußzeile aus einer Zeile.
   nichts; die Sollwerte werden auf der Seite Klassifikationen bearbeitet,
   verlinkt aus der Plan-Zeile. Das Start-Dashboard **Allokation & Ziele**
   hält die beiden, in der Reihenfolge des Tabs.
+- **Die Abschnitte des Vermögens-Tabs Snapshots als Widgets** (Sprint 32
+  W3), in der Größe „Zeile“: **Vergleich gegen einen Snapshot** ist der
+  Vergleich des Tabs — die echte TTWROR seit dem Stichtag gegen das
+  Halten der eingefrorenen Bestände, die Transaktionskosten, wo Trades
+  etwas kosteten, das Diagramm und seine Tabelle — für den neuesten
+  Snapshot, bis die Liste einen anderen wählt. **Snapshot-Liste** zeigt
+  jeden Snapshot mit Umfang und Stichtag; ein Name wählt den, den das
+  Dashboard vergleicht, solange die Seite offen ist, gespeichert wird
+  nichts. Angelegt und gelöscht wird ein Snapshot auf der Seite
+  Snapshots: **Neuer Snapshot →** führt dorthin. Das Start-Dashboard
+  **Snapshots** hält die beiden, in der Reihenfolge des Tabs.
 - **Crashes im Vergleich** zeigt den laufenden Fall zuerst, dann die
   anderen, neueste zuerst, und sagt seit Sprint 32 für jedes erholte
   Fenster, nach wie vielen Tagen ab seinem Tief die Benchmark wieder auf

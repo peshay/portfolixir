@@ -130,8 +130,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "the performance rule) and allocation (the allocation read, its tree and drift " <>
               "with the display-only hints); the starter template allocation_targets, stored " <>
               "once by the boot. While no dashboard is stored, only the first starter, " <>
-              "overview, is in_menu. No endpoint or tool is added."
+              "overview, is in_menu. No endpoint or tool is added.",
             # --- S32 W2 end ---
+            # --- S32 W3 begin ---
+            "Sprint 32, W3 (I57): the sections of Wealth's tab Snapshots as widget kinds in " <>
+              "the size row, snapshot_comparison (the comparison of the newest snapshot, " <>
+              "or the one the list picks) and snapshot_list (the snapshots, newest first; " <>
+              "a snapshot is made and deleted on the page); the starter template snapshots. " <>
+              "No endpoint or tool is added."
+            # --- S32 W3 end ---
           ],
           " "
         ),
@@ -245,8 +252,16 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/dashboards and GET /api/v1/dashboards/template:<key> " <>
           "(portfolixir.dashboards.list, portfolixir.dashboards.get), added: the template " <>
           "allocation_targets, group starter; while no dashboard is stored only overview " <>
-          "is in_menu; POST /api/v1/dashboards (portfolixir.dashboards.put) copies it"
+          "is in_menu; POST /api/v1/dashboards (portfolixir.dashboards.put) copies it",
         # --- S32 W2 end ---
+        # --- S32 W3 begin ---
+        "GET /api/v1/widgets (portfolixir.dashboards.list), added: the kinds " <>
+          "snapshot_comparison and snapshot_list, size row",
+        "GET /api/v1/dashboards and GET /api/v1/dashboards/template:<key> " <>
+          "(portfolixir.dashboards.list, portfolixir.dashboards.get), added: the template " <>
+          "snapshots, group starter, not in_menu; POST /api/v1/dashboards " <>
+          "(portfolixir.dashboards.put) copies it"
+        # --- S32 W3 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

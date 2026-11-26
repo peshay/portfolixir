@@ -158,6 +158,7 @@ defmodule Portfolixir.Dashboards.DashboardTest do
     assert [
              %{key: "overview"},
              %{key: "allocation_targets"},
+             %{key: "snapshots"},
              %{key: "krypto_lover"},
              %{key: "pullbacks"}
            ] = Dashboards.templates()

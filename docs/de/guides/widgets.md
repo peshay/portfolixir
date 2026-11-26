@@ -492,3 +492,56 @@ Breite; auf dem Handy nimmt er die schmale Form des Abschnitts.
 </figure>
 
 <!-- S32 W2 end -->
+
+<!-- S32 W3 begin -->
+
+## Vergleich gegen einen Snapshot
+
+`snapshot_comparison` · Größen Zeile
+
+Der Vergleich des Tabs „Snapshots“ in Vermögen (ADR-0027): die echte
+TTWROR seit dem Stichtag gegen das Halten der eingefrorenen Bestände, die
+Transaktionskosten seither und ob sie wieder verdient sind (nur wenn Trades
+etwas kosteten), die ausgelassenen Positionen und beide Verläufe als
+Diagramm mit seiner Tabelle. Er vergleicht den neuesten Snapshot, bis ein
+Name in der „Snapshot-Liste“ einen anderen wählt; der Fuß nennt den
+Snapshot, seinen Umfang und sein Datum. **Zeile** zeichnet den Abschnitt
+über die ganze Breite; auf dem Handy nimmt er die schmale Form des
+Abschnitts.
+
+**Quelle:**
+
+- `GET /api/v1/snapshots`
+- `GET /api/v1/portfolios/:portfolio_id/snapshots/:id/comparison`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/snapshot_comparison-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/snapshot_comparison-row-light.png 2x" src="/assets/widgets/snapshot_comparison-row-light.png" alt="Vergleich gegen einen Snapshot in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>
+
+## Snapshot-Liste
+
+`snapshot_list` · Größen Zeile
+
+Jeder Snapshot, der neueste Stichtag zuerst, mit Umfang und Stichtag; der
+verglichene ist „Im Vergleich“ markiert, und ein Name wählt den, den das
+Dashboard vergleicht, solange die Seite offen ist, gespeichert wird nichts.
+Angelegt und gelöscht wird ein Snapshot auf der Seite Snapshots: **Neuer
+Snapshot →** im Fuß führt dorthin.
+
+**Quelle:**
+
+- `GET /api/v1/snapshots`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/snapshot_list-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/snapshot_list-row-light.png 2x" src="/assets/widgets/snapshot_list-row-light.png" alt="Snapshot-Liste in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>
+
+<!-- S32 W3 end -->

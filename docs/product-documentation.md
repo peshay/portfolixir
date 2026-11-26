@@ -2134,8 +2134,9 @@ loss, a warning as one line rather than a box, and a footer of one line.
 - **The starters are stored once** (Sprint 32). On the first start of a
   release that brings a starter dashboard, the instance stores it once as
   a dashboard of yours, recorded in the audit journal under the system
-  ("dashboard_starters"): this release brings **Overview** and
-  **Allocation & targets**, Wealth's tab (each stored under its English
+  ("dashboard_starters"): this release brings **Overview**,
+  **Allocation & targets** and **Snapshots**, Wealth's tabs (each stored
+  under its English
   name, which you can rename). From then on
   it is yours to rename, change, reorder or delete, and one you deleted is
   never stored again. An instance that already stores a dashboard of yours
@@ -2293,6 +2294,16 @@ loss, a warning as one line rather than a box, and a footer of one line.
   page is open, and nothing is stored; the targets are edited on the
   Classifications page, linked from the plan line. The starter dashboard
   **Allocation & targets** holds the two, in the tab's order.
+- **The sections of Wealth's tab Snapshots as widgets** (Sprint 32 W3),
+  in the size "Row": **Comparison against a snapshot** is the tab's
+  comparison — the real TTWROR since the as-of date against the frozen
+  holdings' buy-and-hold, the transaction costs where trades cost
+  something, the chart and its table — for the newest snapshot until the
+  list picks another. **Snapshot list** lists every snapshot with its
+  scope and as-of date; a name picks the one the dashboard compares, while
+  the page is open, nothing stored. A snapshot is made and deleted on the
+  Snapshots page: **New snapshot →** leads there. The starter dashboard
+  **Snapshots** holds the two, in the tab's order.
 - **Crashes compared** lists the running fall first, then the others
   newest first, and since Sprint 32 says for each recovered window after
   how many days from its low the benchmark was back at its high
