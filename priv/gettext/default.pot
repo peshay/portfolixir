@@ -332,6 +332,7 @@ msgstr ""
 #: lib/portfolixir_web/components/app_shell.ex:283
 #: lib/portfolixir_web/components/app_shell.ex:633
 #: lib/portfolixir_web/live/dashboard/widgets/crashes.ex:176
+#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:297
 #: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:879
 #: lib/portfolixir_web/live/dashboard/widgets/rebounders.ex:166
 #: lib/portfolixir_web/live/dashboard_live.ex:4976
@@ -346,7 +347,6 @@ msgstr ""
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:572
 #: lib/portfolixir_web/live/securities_live.ex:536
 #: lib/portfolixir_web/live/securities_live.ex:920
-#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:297
 #, elixir-autogen
 msgid "Securities"
 msgstr ""
@@ -1924,33 +1924,33 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:1700
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:1924
 #: lib/portfolixir_web/live/dashboard/widgets/allocation_drift.ex:379
+#: lib/portfolixir_web/live/dashboard/widgets/cash_accounts.ex:144
+#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:298
 #: lib/portfolixir_web/live/dashboard_live.ex:4520
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:878
 #: lib/portfolixir_web/live/portfolio_live.ex:1737
 #: lib/portfolixir_web/policy_rule_label.ex:30
-#: lib/portfolixir_web/live/dashboard/widgets/cash_accounts.ex:144
-#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:298
 #, elixir-autogen
 msgid "Cash"
 msgstr ""
 
+#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:251
+#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:252
+#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:329
 #: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:460
 #: lib/portfolixir_web/live/dashboard/widgets/summary_line.ex:118
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:550
 #: lib/portfolixir_web/live/portfolio_live.ex:1755
-#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:251
-#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:252
-#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:329
 #, elixir-autogen
 msgid "TTWROR"
 msgstr ""
 
+#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:412
+#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:415
 #: lib/portfolixir_web/live/dashboard_live.ex:4359
 #: lib/portfolixir_web/live/dashboard_live.ex:4365
 #: lib/portfolixir_web/live/portfolio_live.ex:2725
 #: lib/portfolixir_web/live/portfolio_live.ex:3272
-#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:412
-#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:415
 #, elixir-autogen
 msgid "IRR"
 msgstr ""
@@ -4896,10 +4896,10 @@ msgstr ""
 msgid "Invested capital info"
 msgstr ""
 
+#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:412
 #: lib/portfolixir_web/live/dashboard_live.ex:4364
 #: lib/portfolixir_web/live/portfolio_live.ex:2721
 #: lib/portfolixir_web/live/portfolio_live.ex:3272
-#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:412
 #, elixir-autogen, elixir-format
 msgid "MWR"
 msgstr ""
@@ -6621,10 +6621,10 @@ msgstr ""
 msgid "All key figures → Holdings"
 msgstr ""
 
+#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:298
 #: lib/portfolixir_web/live/dashboard/widgets/summary_line.ex:113
 #: lib/portfolixir_web/live/dashboard_live.ex:3848
 #: lib/portfolixir_web/live/portfolio_live.ex:1851
-#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:298
 #, elixir-autogen, elixir-format
 msgid "Cash quote"
 msgstr ""
@@ -18850,17 +18850,17 @@ msgid "Edit targets →"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:1074
+#: lib/portfolixir_web/live/dashboard/widgets/cash_accounts.ex:147
 #: lib/portfolixir_web/live/dashboard/widgets/contribution.ex:101
 #: lib/portfolixir_web/live/dashboard/widgets/crash_windows.ex:41
 #: lib/portfolixir_web/live/dashboard/widgets/cycle.ex:78
 #: lib/portfolixir_web/live/dashboard/widgets/data_notes.ex:593
+#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:193
 #: lib/portfolixir_web/live/dashboard/widgets/performance.ex:137
 #: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:791
 #: lib/portfolixir_web/live/dashboard/widgets/positions.ex:542
 #: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:485
 #: lib/portfolixir_web/live/dashboard/widgets/snapshot_comparison.ex:305
-#: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:193
-#: lib/portfolixir_web/live/dashboard/widgets/cash_accounts.ex:147
 #, elixir-autogen, elixir-format
 msgid "Full view →"
 msgstr ""
