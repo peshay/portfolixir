@@ -100,8 +100,9 @@ defmodule PortfolixirWeb.WidgetCatalogueTest do
   # so that the catalogue says what is coming without promising it now.
   #
   # Acceptance criteria:
-  # - The kinds of board ② not yet built (five since Sprint 32 W2 and W4
-  #   built „Allokation“ and the three of „Risiko“) stand dashed under their groups, „Einkommen
+  # - The kinds of board ② not yet built (four since Sprint 32 W2 and W4
+  #   built „Allokation“ and the three of „Risiko“, and W1 „Beitrag je
+  #   Position“) stand dashed under their groups, „Einkommen
   #   und Steuer“ last, each with „kommt mit dem Umbau seines Screens“ and
   #   no „hinzufügen“.
   # - None of them is a registered kind, and a layout naming one is
@@ -112,7 +113,7 @@ defmodule PortfolixirWeb.WidgetCatalogueTest do
     later = WidgetsLive.later_kinds()
 
     assert Enum.map(later, & &1.key) ==
-             ~w(contribution predictions income fees_and_taxes tax_allowance)
+             ~w(predictions income fees_and_taxes tax_allowance)
 
     assert has_element?(
              view,
@@ -131,7 +132,9 @@ defmodule PortfolixirWeb.WidgetCatalogueTest do
                Layout.validate([item(kind.key, hd(kind.sizes), 1, 1)])
     end
 
-    assert has_element?(view, "[data-later-kind='contribution']", "Beiträge je Position")
+    # Sprint 32 W1 registered „Beitrag je Position“: no longer a later kind.
+    refute has_element?(view, "[data-later-kind='contribution']")
+    assert has_element?(view, "[data-widget-kind='contribution']")
     assert has_element?(view, "[data-later-kind='tax_allowance']", "Freibetrag")
 
     # Sprint 32 W2 registered „Allokation“: no longer a later kind.

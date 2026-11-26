@@ -2563,6 +2563,23 @@ Zeile statt als Kasten und eine Fußzeile aus einer Zeile.
   **Anlageklassen-Obergrenzen** mit den Korrelationen. Eine Schwelle oder
   ein Band ist Rechnung der Linse, nie ein Rat. Das Start-Dashboard
   **Risiko** hält die sechs, in der Reihenfolge des Tabs.
+- **Die Abschnitte des Vermögens-Tabs Bestände als Widgets** (Sprint 32
+  W1): Jedes zeichnet seinen Abschnitt mit dem Code, mit dem Vermögen ihn
+  zeichnet, aus derselben Abfrage, in der Größe „Zeile“ (volle Breite, so
+  hoch wie sein Inhalt). **Kennzahlen** zeigt den Gesamtwert mit seiner
+  Aufteilung in Wertpapiere und Cash, Ergebnis, TTWROR und IZF des
+  Zeitraums in einer Zeile und die Wertbrücke Anfang + Nettoflüsse +
+  Ergebnis = heute mit dem Multiplikator; die Zahlen der Brücke sind die
+  der Wertentwicklung selbst, und wo ihre gerundeten Cents nicht aufgehen,
+  steht die Differenz daneben, nie in eine Zahl verschoben (auch S und M).
+  **Datenhinweise** steht nur, solange ein Hinweis besteht; Wechselkurse
+  abrufen bleibt auf Vermögen, verlinkt. **Beitrag je Position** ist die
+  Tabelle von Vermögen (auch L und XL, die größten Beiträge mit ihrem
+  Balken). **Positionen** behält seine Spaltenauswahl, die einmal
+  gewählten Spalten für Vermögen und jedes Dashboard. **Verrechnungskonten**
+  listet jeden Saldo (auch S, das Cash). Jedes folgt dem Zeitraum des
+  Dashboards, wo es einen hat; ein eigener Zeitraum steht da, wo Vermögen
+  seinen benutzerdefinierten Bereich anbot.
 - **Crashes im Vergleich** zeigt den laufenden Fall zuerst, dann die
   anderen, neueste zuerst, und sagt seit Sprint 32 für jedes erholte
   Fenster, nach wie vielen Tagen ab seinem Tief die Benchmark wieder auf

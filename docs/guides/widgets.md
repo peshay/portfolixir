@@ -690,3 +690,165 @@ of the largest positions behind a disclosure.
 </figure>
 
 <!-- S32 W4 end -->
+
+## Key figures
+
+`wealth_key_figures` · sizes S, M, Row
+
+Wealth's key figures as the owner picked them (board 06, variant A): the
+total incl. cash with its split into securities and cash, the period's
+result, TTWROR and IRR on one line, and under them the value bridge start
++ net flows + result = today with the multiple. The bridge is the
+performance read's own figures at the cent; where the rounded cents do not
+add up, the gap is shown, never moved into a figure. **S** draws the total
+and its split, **M** the total and the three returns, **Row** all of it.
+
+**Source:**
+
+- `GET /api/v1/valuation`
+- `GET /api/v1/views/:view_id/valuation`
+- `GET /api/v1/performance`
+- `GET /api/v1/views/:view_id/performance`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/wealth_key_figures-s-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/wealth_key_figures-s-light.png 2x" src="/assets/widgets/wealth_key_figures-s-light.png" alt="Key figures at S" loading="lazy">
+</picture>
+<figcaption>S</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/wealth_key_figures-m-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/wealth_key_figures-m-light.png 2x" src="/assets/widgets/wealth_key_figures-m-light.png" alt="Key figures at M" loading="lazy">
+</picture>
+<figcaption>M</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/wealth_key_figures-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/wealth_key_figures-row-light.png 2x" src="/assets/widgets/wealth_key_figures-row-light.png" alt="Key figures at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>
+
+## Data notes
+
+`data_notes` · sizes Row
+
+Wealth's data notes: why a total can differ from what is expected —
+positions without a price or a rate, at a trade price or an old quote,
+cash without a rate, negative holdings, bonds on two scales, quotes that
+contradict their bookings, bookings dated before 1970. Drawn only while a
+note exists; syncing exchange rates stays on Wealth, linked. **Row** only.
+
+**Source:**
+
+- `GET /api/v1/valuation`
+- `GET /api/v1/views/:view_id/valuation`
+- `GET /api/v1/performance`
+- `GET /api/v1/holdings/negative`
+- `GET /api/v1/securities`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/data_notes-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/data_notes-row-light.png 2x" src="/assets/widgets/data_notes-row-light.png" alt="Data notes at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>
+
+## Contribution by position
+
+`contribution` · sizes L, XL, Row
+
+Which position made how much of the period's result (end value − start
+value − flows + income − costs). **Row** is Wealth's table: the ten
+largest, "Show all", the remainder not attributed to a position and the
+sum row, which is the period's result. **L** lists the five largest
+contributions with their bar, **XL** the eight largest in two columns,
+with their start and end value.
+
+**Source:**
+
+- `GET /api/v1/performance/contribution`
+- `GET /api/v1/views/:view_id/performance/contribution`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/contribution-l-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/contribution-l-light.png 2x" src="/assets/widgets/contribution-l-light.png" alt="Contribution by position at L" loading="lazy">
+</picture>
+<figcaption>L</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/contribution-xl-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/contribution-xl-light.png 2x" src="/assets/widgets/contribution-xl-light.png" alt="Contribution by position at XL" loading="lazy">
+</picture>
+<figcaption>XL</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/contribution-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/contribution-row-light.png 2x" src="/assets/widgets/contribution-row-light.png" alt="Contribution by position at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>
+
+## Positions
+
+`positions` · sizes Row
+
+Wealth's position table: one row per depot and security, in the columns
+picked with its column picker (the holdings projection's fields), the
+market value in the base currency as the total sums it. The columns picked
+once hold for Wealth and every dashboard. **Row** only.
+
+**Source:**
+
+- `GET /api/v1/portfolios/:portfolio_id/holdings`
+- `GET /api/v1/valuation`
+- `GET /api/v1/views/:view_id/valuation`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/positions-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/positions-row-light.png 2x" src="/assets/widgets/positions-row-light.png" alt="Positions at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>
+
+## Cash accounts
+
+`cash_accounts` · sizes S, Row
+
+Each cash account of the view with its balance in its own currency; a
+reserve or a credit line muted, outside the cash quote. Setting a balance
+stays on Accounts & depots, linked. **S** (headed "Cash") draws the
+deployable cash and how many accounts it sums, **Row** the table.
+
+**Source:**
+
+- `GET /api/v1/valuation`
+- `GET /api/v1/views/:view_id/valuation`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/cash_accounts-s-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/cash_accounts-s-light.png 2x" src="/assets/widgets/cash_accounts-s-light.png" alt="Cash accounts at S" loading="lazy">
+</picture>
+<figcaption>S</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/cash_accounts-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/cash_accounts-row-light.png 2x" src="/assets/widgets/cash_accounts-row-light.png" alt="Cash accounts at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>

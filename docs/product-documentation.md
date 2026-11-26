@@ -2316,6 +2316,21 @@ loss, a warning as one line rather than a box, and a footer of one line.
   the HHI and its track) and **Asset-class caps** with the correlations. A
   threshold or a band is the lens's arithmetic, never advice. The starter
   dashboard **Risk** holds the six, in the tab's order.
+- **The sections of Wealth's tab Holdings as widgets** (Sprint 32 W1):
+  each draws its section with the code Wealth draws it with, from the same
+  read, in the size "Row" (the full width, as tall as its content).
+  **Key figures** is the total with its split into securities and cash,
+  the period's result, TTWROR and IRR on one line, and the value bridge
+  start + net flows + result = today with the multiple; the bridge's
+  figures are the performance read's own, and where their rounded cents do
+  not add up the gap is shown, never moved into a figure (also S and M).
+  **Data notes** stands only while a note exists; syncing exchange rates
+  stays on Wealth, linked. **Contribution by position** is Wealth's table
+  (also L and XL, the largest contributions with their bar). **Positions**
+  keeps its column picker, the columns picked once for Wealth and every
+  dashboard. **Cash accounts** lists each balance (also S, the cash). Each
+  follows the dashboard's period where it has one; an own period stands
+  where Wealth offered its custom range.
 - **Crashes compared** lists the running fall first, then the others
   newest first, and since Sprint 32 says for each recovered window after
   how many days from its low the benchmark was back at its high

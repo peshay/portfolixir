@@ -43,7 +43,13 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     "crash_section" => {~w(row), "risk", "Crashes"},
     "top_holdings" => {~w(row), "risk", "Größte Einzelpositionen"},
     "concentration" => {~w(S row), "risk", "Klumpenrisiko"},
-    "asset_class_limits" => {~w(row), "risk", "Anlageklassen-Obergrenzen"}
+    "asset_class_limits" => {~w(row), "risk", "Anlageklassen-Obergrenzen"},
+    # Sprint 32 W1 (I57): the sections of Wealth's tab „Bestände“.
+    "wealth_key_figures" => {~w(S M row), "overview", "Kennzahlen"},
+    "data_notes" => {~w(row), "overview", "Datenhinweise"},
+    "contribution" => {~w(L XL row), "performance", "Beitrag je Position"},
+    "positions" => {~w(row), "overview", "Positionen"},
+    "cash_accounts" => {~w(S row), "overview", "Verrechnungskonten"}
   }
 
   # User story:
@@ -56,7 +62,7 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   # - The registry holds exactly the kinds: eleven of Sprint 31 and
   #   Sprint 32 S5's „Abstand zum Hoch“, „Crash-Chart“ and „Erholer nach
   #   Crashes“, and Sprint 32 W2's to W4's sections of „Allokation &
-  #   Ziele“, „Snapshots“ and „Risiko“, each with the
+  #   Ziele“, „Snapshots“ and „Risiko“ and W1's of „Bestände“, each with the
   #   sizes and the group the board draws, in the catalogue's order.
   # - Every kind is registered with its compact form (ADR-0062 §1).
   # - Lookup is by string key; an unknown string, an atom or another term
@@ -67,7 +73,8 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
                                 distance_to_high crash_chart rebounders summary_line
                                 allocation snapshot_comparison snapshot_list own_rules
                                 key_figures crash_section top_holdings concentration
-                                asset_class_limits)
+                                asset_class_limits wealth_key_figures data_notes
+                                contribution positions cash_accounts)
 
     for {key, {sizes, group, _german}} <- @slice do
       assert {:ok, kind} = Widgets.fetch(key)
@@ -333,12 +340,19 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     assert Widgets.source_params("crash_chart", "year:2024", today) ==
              {:ok, %{"from" => "2024-01-01", "to" => "2024-12-31"}}
 
-    # Sprint 32 W2: „Kennzahlen-Zeile“ draws the performance read, by its rule.
+    # Sprint 32 W2: „Kennzahlen-Zeile“ draws the performance read, by its rule;
+    # Sprint 32 W1: „Kennzahlen“ and „Beitrag je Position“ too.
     {:ok, performance} = Widgets.fetch("performance")
-    {:ok, summary_line} = Widgets.fetch("summary_line")
-    assert summary_line.period == performance.period
 
-    for key <- Widgets.keys() -- ~w(movers performance total_value crash_chart summary_line) do
+    for key <- ~w(summary_line wealth_key_figures contribution) do
+      {:ok, kind} = Widgets.fetch(key)
+      assert kind.period == performance.period, key
+    end
+
+    for key <-
+          Widgets.keys() --
+            ~w(movers performance total_value crash_chart summary_line wealth_key_figures
+               contribution) do
       {:ok, kind} = Widgets.fetch(key)
       assert kind.period == :none, key
     end

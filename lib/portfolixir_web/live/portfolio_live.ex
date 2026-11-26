@@ -19,20 +19,17 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog.BenchmarkSecurity
-  alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Classifications
   alias Portfolixir.Fx.RateSync
   alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
-  alias Portfolixir.Portfolios.Bonds
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Performance.Bands
   alias Portfolixir.Portfolios.Performance.Benchmark
   alias Portfolixir.Portfolios.Performance.Contribution
   alias Portfolixir.Portfolios.PricingContext
-  alias Portfolixir.Portfolios.QuotePlausibility
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
@@ -41,9 +38,12 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias PortfolixirWeb.BenchmarkChoices
   alias PortfolixirWeb.BenchmarkScope
   alias PortfolixirWeb.CappedAsync
-  alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Dashboard.Widgets.Allocation, as: AllocationWidget
+  alias PortfolixirWeb.Dashboard.Widgets.CashAccounts, as: CashAccountsWidget
+  alias PortfolixirWeb.Dashboard.Widgets.DataNotes, as: DataNotesWidget
+  alias PortfolixirWeb.Dashboard.Widgets.KeyFigures, as: KeyFiguresWidget
+  alias PortfolixirWeb.Dashboard.Widgets.Positions, as: PositionsWidget
   alias PortfolixirWeb.Dashboard.Widgets.SummaryLine, as: SummaryLineWidget
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
@@ -51,10 +51,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias PortfolixirWeb.Portfolio.ContributionTable
   alias PortfolixirWeb.Portfolio.StackedChart
   alias PortfolixirWeb.PrivacyMode
-  alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
-  alias PortfolixirWeb.TransactionManagementLive
-  alias PortfolixirWeb.ValuationNotes
 
   require CappedAsync
   import PortfolixirWeb.ViewSwitcher
@@ -69,35 +66,14 @@ defmodule PortfolixirWeb.PortfolioLive do
   # and the filtered table agree on what "needs attention" means; 1 and 2 pp
   # are for a plan steered more tightly than that. A fixed set, because the
   # value round-trips through the URL and a whitelist beats parsing.
-  # #814: the human half of the holdings projection's `fields=` sparse
-  # fieldset. The columns are the API's own (`Ledger.holdings_for_portfolio/1`
-  # through `JSON.holding_fields/0`), so the picker offers the figures an
-  # agent reads rather than a second calculation — one projection, two
-  # surfaces. The picker left with the Transactions holdings panel in #803;
-  # this is where the review put the holdings.
-  @holdings_column_defaults ["depot", "security", "quantity"]
-
-  # The one place the key is written: the hook restores from the table's
-  # `data-storage-key` and the handler pushes to it, and a picker that only
-  # ever reads the key is a preference that silently never persists.
-  @holdings_storage_key "wealth.holdings.columns"
-
-  defp holdings_storage_key, do: @holdings_storage_key
-
-  @holdings_column_keys @holdings_column_defaults ++
-                          [
-                            "isin",
-                            "wkn",
-                            "currency",
-                            "avg_cost",
-                            "latest_price",
-                            "market_value",
-                            "unrealized_pnl_abs",
-                            "unrealized_pnl_pct"
-                          ]
-
   # Sprint 32 W2: the chips' steps are the allocation section's.
   @drift_steps AllocationWidget.drift_steps()
+
+  # #814: the human half of the holdings projection's `fields=` sparse
+  # fieldset. The picker left with the Transactions holdings panel in #803;
+  # this is where the review put the holdings. Sprint 32 W1: the columns,
+  # their key in the browser and the pick's rule live with the section
+  # widget „Positionen“ (`PositionsWidget`).
 
   @impl true
   def mount(params, session, socket) do
@@ -211,7 +187,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:allocation_mode, param_allocation_mode(params))
           |> assign(:min_drift_pp, param_min_drift_pp(params))
           |> assign(:flat_sort, AllocationWidget.default_sort())
-          |> assign(:holdings_columns, @holdings_column_defaults)
+          |> assign(:holdings_columns, PositionsWidget.default_columns())
           |> assign(:column_picker_open?, false)
           |> assign_holding_rows()
           |> assign(:fx_syncing, false)
@@ -924,8 +900,8 @@ defmodule PortfolixirWeb.PortfolioLive do
         # portfolio tags (#1333) load here too, not in the page process each
         # time this lands (#1366).
         {valuation, classification_id, allocation, Ledger.negative_holdings_report(),
-         two_scales_in(valuation), implausible_quotes_in(valuation),
-         AccountNames.load_portfolio_tags()}
+         DataNotesWidget.two_scales_in(valuation),
+         DataNotesWidget.implausible_quotes_in(valuation), AccountNames.load_portfolio_tags()}
       else
         {:error, :view_not_found} -> :view_not_found
         {:error, :not_found} -> :classification_not_found
@@ -2575,181 +2551,31 @@ defmodule PortfolixirWeb.PortfolioLive do
         <section id="portfolio-positions" class="workspace-section">
           <header class="section-head">
             <h2><%= gettext("Positions") %></h2>
-            <%!-- #850: the shared grouped popover (DESIGN.md → Overlays, pick
-                 E3). It sits in the head now that it opens over the table:
-                 the <details> it replaces had to live in the body flow,
-                 because opening it re-centred the heading. Not offered over
-                 an empty state — picking columns for a table that is not
-                 there is an offer with nothing behind it. --%>
-            <div :if={@holding_rows != []} class="popover-container">
-              <ColumnPicker.toggle
-                id="holdings-column-toggle"
-                open={@column_picker_open?}
-                on_toggle="toggle_column_picker"
-              />
-              <ColumnPicker.picker
-                :if={@column_picker_open?}
-                id="holdings-column-picker"
-                form_id="holdings-column-form"
-                on_change="set_holdings_columns"
-                on_close="close_column_picker"
-                toggle_id="holdings-column-toggle"
-                groups={holdings_column_groups()}
-                selected={@holdings_columns}
-              />
-            </div>
+            <%!-- Sprint 32 W1: the picker and the table are the section
+                 widget's „Positionen“, one code path for Wealth and a
+                 dashboard. --%>
+            <PositionsWidget.picker
+              rows={@holding_rows}
+              columns={@holdings_columns}
+              picker_open?={@column_picker_open?}
+            />
           </header>
-          <%!-- #1090 (board 08 ①): a basis line about the rows, in the
-               screen's nouns. That the table is the API's own projection
-               stays true and is said where it helps: the API guide and the
-               column picker's grouping. --%>
-          <%!-- #1332 (board 02 ①) and D-9: the rule the total uses, named,
-               and the currency the market value is in. #1435 (4), L5
-               (board ux-design-2026-11-12-sprint29/06 ⑤): one sentence on
-               the line, what the total sums behind its ⓘ (I1). A `div`: a
-               <details> is not phrasing content. --%>
-          <div class="summary-basis" data-role="positions-basis">
-            <%= gettext(
-              "One row per depot and security, valued at the latest stored price or, without a quote, at the last own trade price."
-            ) %>
-            <AppShell.section_info>
-              <:line>
-                <%= gettext("Market value in %{currency}, the figure the total sums.",
-                  currency: @portfolio.base_currency_code
-                ) %>
-              </:line>
-            </AppShell.section_info>
-          </div>
-          <%= if @holding_rows == [] do %>
-            <div id="no-positions" class="empty-state" role="status">
-              <%= gettext("No holdings yet") %>
-            </div>
-          <% else %>
-            <div
-              id="holdings-positions-wrapper"
-              class="data-table-wrapper"
-              phx-hook="ColumnPrefs"
-              data-storage-key={holdings_storage_key()}
-              data-restore-event="set_holdings_columns"
-              data-current-columns={Jason.encode!(@holdings_columns)}
-            >
-              <table id="holdings-positions-table" class="data-table">
-                <thead>
-                  <tr>
-                    <th :for={key <- @holdings_columns} {holdings_num_attrs(key)}>
-                      <%= holdings_column_label(key) %>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    :for={row <- @holding_rows}
-                    data-role="holdings-position"
-                    data-security-id={row.security_id}
-                  >
-                    <%!-- #1125 (board 04, N5 A): a text space before the
-                         suffix, as the contribution table's sum row has it,
-                         so a cell reads "2.569,68 EUR". --%>
-                    <td
-                      :for={key <- @holdings_columns}
-                      data-column={key}
-                      {holdings_cell_attrs(row, key)}
-                    >
-                      <%!-- #1366 (board 02 ①, answer A): the depot on one
-                           line, cut past 7rem, whole in its title. --%>
-                      <span
-                        :if={key == "depot"}
-                        class="cell-depot"
-                        title={holdings_cell(row, key)}
-                      ><%= holdings_cell(row, key) %></span><%= if key != "depot",
-                        do: holdings_cell(row, key) %><SecurityNames.twin_id
-                        :if={key == "security"}
-                        tag={row.twin_id}
-                      /><%= if holdings_currency(row, key), do: " " %><small
-                        :if={holdings_currency(row, key)}
-                        class="value-suffix"
-                      ><%= holdings_currency(row, key) %></small>
-                      <%!-- #1366 (board 02 ①, answer A): the note's first
-                           phrase never breaks. --%>
-                      <small
-                        :if={holdings_cell_note(row, key)}
-                        class="cell-note"
-                      ><span class="cell-note__lead"> <%= note_lead(holdings_cell_note(row, key)) %></span><%= note_rest(holdings_cell_note(row, key)) %></small>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <%!-- #1065 (board 06, pick J6 A; UX-DR27): under 560 px the
-                 table gives way to two-line rows, shown by the phone lists'
-                 block: the name over the depot, the quantity on the right —
-                 the projection's default columns, a fixed composition the
-                 picker does not touch. --%>
-            <ul id="holdings-phone-rows" class="phone-rows" aria-label={gettext("Positions")}>
-              <li
-                :for={row <- @holding_rows}
-                class="phone-row"
-                data-role="holdings-position"
-                data-security-id={row.security_id}
-              >
-                <span class="phone-row__body">
-                  <span class="phone-row__name"><%= row.security_name %><SecurityNames.twin_id tag={row.twin_id} /></span>
-                  <span class="phone-row__ids"><%= row.securities_account_name %></span>
-                </span>
-                <span class="phone-row__figures">
-                  <span class="phone-row__figure"><%= PrivacyMode.html(holdings_units(row.quantity)) %></span>
-                </span>
-              </li>
-            </ul>
-          <% end %>
+          <PositionsWidget.table
+            rows={@holding_rows}
+            columns={@holdings_columns}
+            base_currency={@portfolio.base_currency_code}
+          />
         </section>
         <% end %>
 
         <%= if @wealth_tab == :holdings do %>
         <section id="portfolio-cash" class="workspace-section">
           <h2><%= gettext("Cash accounts") %></h2>
+          <%!-- Sprint 32 W1: the table is the section widget's
+               „Verrechnungskonten“, one code path for Wealth and a
+               dashboard. --%>
           <%= if @valuation do %>
-            <div class="data-table-wrapper">
-              <table class="cash-table">
-                <thead>
-                  <tr>
-                    <th><%= gettext("Account") %></th>
-                    <th class="num"><%= gettext("Balance") %></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <%= for cash <- @valuation.cash_balances do %>
-                    <tr class={if cash.deployable, do: nil, else: "is-muted"}>
-                      <td>
-                        <%= cash.name %>
-                        <AccountNames.portfolio_tag tags={@account_portfolio_tags} kind={:cash} id={cash.cash_account_id} />
-                        <%= if not cash.deployable do %>
-                          <span class="hint"><%= liquidity_role_hint(cash.liquidity_role) %></span>
-                        <% end %>
-                      </td>
-                      <td class="num">
-                        <%= Format.money(cash.balance) %> <%= cash.currency %>
-                        <span
-                          :if={not cash.valued}
-                          class="cash-unvalued"
-                          data-role="cash-unvalued"
-                        >
-                          ⚠ <%= gettext("no exchange rate") %>
-                        </span>
-                      </td>
-                    </tr>
-                  <% end %>
-                </tbody>
-              </table>
-            </div>
-
-            <%!-- Issue 670 (UX-DR3/UX-DR11): setting a balance moved into the
-                 account row on Accounts & depots, where the account is
-                 already chosen. This surface keeps the read-only table. --%>
-            <p data-role="cash-edit-pointer">
-              <a href="/portfolios"><%= gettext("Set balances on Accounts & depots") %></a>
-            </p>
-
+            <CashAccountsWidget.table valuation={@valuation} tags={@account_portfolio_tags} />
           <% else %>
             <%!-- #723: the valuation is sub-second — silent skeleton. --%>
             <div class="section-skeleton" data-role="cash-skeleton" aria-busy="true"></div>
@@ -2761,609 +2587,70 @@ defmodule PortfolixirWeb.PortfolioLive do
     """
   end
 
-  # -- #814 holdings column registry ------------------------------------------
+  # -- #814 holdings, Sprint 32 W1 ---------------------------------------------
 
-  # #850: the picker's groups, every key of `@holdings_column_keys` in
-  # exactly one.
-  defp holdings_column_groups do
-    [
-      {gettext("Position"), ~w(depot security quantity)},
-      {gettext("Identifiers"), ~w(isin wkn)},
-      {gettext("Valuation"),
-       ~w(currency avg_cost latest_price market_value unrealized_pnl_abs unrealized_pnl_pct)}
-    ]
-    |> Enum.map(fn {legend, keys} ->
-      {legend, Enum.map(keys, &{&1, holdings_column_label(&1)})}
-    end)
-  end
-
-  # #1124 (Sprint 20 plan D-8): the rows read the scope the page reads
-  # (ADR-0024) — the active view's positions across every portfolio,
-  # Everything when none is picked — narrowed exactly as the view valuation
-  # narrows its positions, so a holding the page's totals and notes count is
-  # a row here. A view gone since the page resolved it degrades the page to
-  # Everything, the way every other section's read does.
+  # The section's rows, cells and picker moved to the section widget
+  # „Positionen“ (`PortfolixirWeb.Dashboard.Widgets.Positions`), which
+  # Wealth and a dashboard draw with. #1124 (Sprint 20 plan D-8): the rows
+  # read the scope the page reads (ADR-0024); a view gone since the page
+  # resolved it degrades the page to Everything, the way every other
+  # section's read does.
   defp assign_holding_rows(socket) do
-    case holding_rows(socket.assigns[:active_view_id]) do
+    case PositionsWidget.rows(socket.assigns[:active_view_id]) do
       {:ok, rows} ->
-        assign(socket, :holding_rows, put_base_values(rows, socket.assigns[:valuation], socket))
+        assign(socket, :holding_rows, base_values(rows, socket.assigns[:valuation], socket))
 
       {:error, :view_not_found} ->
         degrade_to_everything(socket)
     end
   end
 
-  # The rows are the API's projection, each portfolio's own, decorated with
-  # the depot's name so the human column reads as a name where the payload
-  # carries an id.
-  defp holding_rows(view_id) do
-    with scope when not is_tuple(scope) <- Buckets.load_global_scope(view_id) do
-      names = Map.new(Portfolios.list_securities_accounts(), &{&1.id, &1.name})
-
-      rows =
-        Portfolios.list_portfolios()
-        |> Enum.flat_map(&Ledger.holdings_for_portfolio(&1.id))
-        |> Enum.filter(
-          &Buckets.position_in_scope?(scope, &1.securities_account_id, &1.security_id)
-        )
-        |> Enum.map(fn row ->
-          Map.put(
-            row,
-            :securities_account_name,
-            Map.get(names, row.securities_account_id, gettext("Unknown depot"))
-          )
-        end)
-        |> Enum.sort_by(&{&1.securities_account_name, &1.security_name})
-        # #1057 (pick J6.2 A): a name collides over the whole table — depot
-        # names may read alike, the Depot column may be off; one security
-        # never does.
-        |> SecurityNames.put_twin_ids(& &1.security_name)
-
-      {:ok, rows}
-    end
-  end
-
-  # #1332 and the D-9 finding (board 02 ①): the Marktwert column is the
-  # base-currency figure the page's total sums — the view valuation's own
-  # `market_value` for the same (depot, security), the row and the total
-  # priced and converted by one function (`Valuation`), a USD row at the
-  # latest stored rate. Until that read lands, a row already in the base
-  # currency reads its own value (the same price, no conversion); any other
-  # waits for the valuation and reads "—", never a figure in another
-  # currency under a total it does not add to.
+  # #1332 and the D-9 finding (board 02 ①): the market value is the view
+  # valuation's own for the same (depot, security), in the page
+  # portfolio's base currency (`PositionsWidget.put_base_values/3`).
   defp assign_base_values(%{assigns: %{holding_rows: rows}} = socket, valuation),
-    do: assign(socket, :holding_rows, put_base_values(rows, valuation, socket))
+    do: assign(socket, :holding_rows, base_values(rows, valuation, socket))
 
   defp assign_base_values(socket, _valuation), do: socket
 
-  defp put_base_values(rows, valuation, socket) do
-    {positions, base} = valuation_positions(valuation, socket)
-
-    Enum.map(rows, fn row ->
-      {base_value, reason} =
-        case Map.fetch(positions, {row.securities_account_id, row.security_id}) do
-          {:ok, position} -> {position.market_value, Map.get(position, :unvalued_reason)}
-          :error -> {own_base_value(row, base), nil}
-        end
-
-      Map.merge(row, %{
-        base_market_value: base_value,
-        base_market_currency: base,
-        base_unvalued_reason: reason
-      })
-    end)
-  end
-
-  defp valuation_positions(%{positions: positions, base_currency: base}, _socket) do
-    {Map.new(positions, &{{&1.securities_account_id, &1.security_id}, &1}), base}
-  end
-
-  # The valuation is read in the page portfolio's base currency (load_overview/1).
-  defp valuation_positions(_none, socket),
-    do: {%{}, socket.assigns.portfolio.base_currency_code}
-
-  defp own_base_value(%{currency_code: code, market_value: value}, code), do: value
-  defp own_base_value(_row, _base), do: nil
-
-  defp holdings_num_attrs(key)
-       when key in ~w(quantity avg_cost latest_price market_value unrealized_pnl_abs unrealized_pnl_pct),
-       do: %{class: "num"}
-
-  # #1322 (#1366 line 3; board ux-design-2026-11-05-sprint24-p1): the
-  # Security column's head and cells carry `cell-name`, the class its
-  # floor and its break key on, wherever the picker puts the column.
-  defp holdings_num_attrs("security"), do: %{class: "cell-name"}
-
-  defp holdings_num_attrs(_key), do: %{}
-
-  # Board ux-design-2026-10-07/02-money-findings, found while drawing 4: the
-  # "P&L %" cell is a percentage in DESIGN.md's form, so it carries its sign
-  # colour, decided on the percent as shown (issue 1010's rule: every signed
-  # cell of a data table). A position on no cost (#1142) is the muted reason
-  # dash, its reason in the cell's title (#1089's anatomy).
-  defp holdings_cell_attrs(row, "unrealized_pnl_pct" = key) do
-    if holdings_return_absent?(row) do
-      %{class: "num trade-pa--na", title: gettext("No return: no cost basis")}
-    else
-      case Format.displayed_percent_sign(row.unrealized_pnl_pct) do
-        :positive -> %{class: "num is-positive"}
-        :negative -> %{class: "num is-negative"}
-        :zero -> %{class: "num is-flat"}
-        nil -> holdings_num_attrs(key)
-      end
-    end
-  end
-
-  # #1125 (board 04, found while drawing 1): "P&L" is a signed figure, so it
-  # carries its sign colour, decided on the figure as displayed (#1149).
-  defp holdings_cell_attrs(row, "unrealized_pnl_abs") do
-    case Format.displayed_sign(row.unrealized_pnl_abs, 2) do
-      :positive -> %{class: "num is-positive"}
-      :negative -> %{class: "num is-negative"}
-      :zero -> %{class: "num is-flat"}
-      nil -> holdings_num_attrs("unrealized_pnl_abs")
-    end
-  end
-
-  defp holdings_cell_attrs(_row, key), do: holdings_num_attrs(key)
-
-  defp holdings_column_label("depot"), do: gettext("Depot")
-  defp holdings_column_label("security"), do: gettext("Security")
-  defp holdings_column_label("quantity"), do: gettext("Quantity")
-  defp holdings_column_label("isin"), do: gettext("ISIN")
-  defp holdings_column_label("wkn"), do: gettext("WKN")
-  defp holdings_column_label("currency"), do: gettext("Currency")
-  defp holdings_column_label("avg_cost"), do: gettext("Avg cost")
-  defp holdings_column_label("latest_price"), do: gettext("Latest price")
-  defp holdings_column_label("market_value"), do: gettext("Market value")
-  defp holdings_column_label("unrealized_pnl_abs"), do: gettext("P&L")
-  defp holdings_column_label("unrealized_pnl_pct"), do: gettext("P&L %")
-
-  defp holdings_cell(row, "depot"), do: row.securities_account_name
-  defp holdings_cell(row, "security"), do: row.security_name
-  defp holdings_cell(row, "quantity"), do: holdings_decimal(row.quantity)
-  defp holdings_cell(row, "isin"), do: row.isin
-  defp holdings_cell(row, "wkn"), do: row.wkn
-  defp holdings_cell(row, "currency"), do: row.currency_code
-  # #1125 (board 04, pick N5 A; ADR-0016 §4): money at the human boundary
-  # is two places, a price per unit the history's stored figure (R10c) — so
-  # Wealth, the Kurse tab and the history print one stored quote alike — and
-  # a signed P&L carries its "+". The API and MCP serve every digit.
-  defp holdings_cell(row, "avg_cost"), do: holdings_price(row.avg_cost)
-  defp holdings_cell(row, "latest_price"), do: holdings_price(row.latest_price)
-  defp holdings_cell(row, "market_value"), do: Format.money(row.base_market_value)
-
-  defp holdings_cell(row, "unrealized_pnl_abs"),
-    do: Format.signed_decimal(row.unrealized_pnl_abs, 2)
-
-  # Found while drawing 4 (board 02): a percentage, not the raw fraction —
-  # DESIGN.md's percent form, one decimal with the sign and "%" glued on
-  # ("+18,7%"), where it printed every digit of 0.1871… under a "%" header.
-  # #1142 (board 02): a position on no cost has no return, so the cell is
-  # the dash, aria-hidden, with its reason for the screen reader.
-  defp holdings_cell(row, "unrealized_pnl_pct") do
-    if holdings_return_absent?(row) do
-      assigns = %{sentence: gettext("no return, no cost basis")}
-
-      ~H"""
-      <span aria-hidden="true">—</span><span class="visually-hidden"><%= @sentence %></span>
-      """
-    else
-      holdings_percent(row.unrealized_pnl_pct)
-    end
-  end
-
-  # A quantity keeps the projection's own digits (#1125 leaves them); the
-  # separators are the reader's — `1234.5` beside a neighbouring table's
-  # `1.234,50` is the page disagreeing with itself for no gain. An absent
-  # value is an em dash rather than a blank cell.
-  defp holdings_decimal(nil), do: "—"
-
-  defp holdings_decimal(%Decimal{} = value), do: PortfolixirWeb.Format.exact(value)
-
-  defp holdings_decimal(value), do: to_string(value)
-
-  defp holdings_price(%Decimal{} = price), do: TransactionManagementLive.stored_figure(price)
-  defp holdings_price(_none), do: "—"
-
-  defp holdings_percent(%Decimal{} = fraction), do: Format.signed_percent(fraction) <> "%"
-  defp holdings_percent(_none), do: "—"
-
-  # #1142: a P&L with no percentage beside it is one on no cost — the ledger
-  # leaves the percentage nil exactly where the cost basis is zero, and both
-  # nil where there is no price.
-  defp holdings_return_absent?(row),
-    do: not is_nil(row.unrealized_pnl_abs) and is_nil(row.unrealized_pnl_pct)
-
-  # The phone row's quantity (#1065): the table's own digits, with the
-  # history's unit words — one unit is a unit, any other quantity units.
-  defp holdings_units(%Decimal{} = quantity) do
-    ngettext(
-      "%{quantity} unit",
-      "%{quantity} units",
-      TransactionManagementLive.plural_count(quantity),
-      quantity: holdings_decimal(quantity)
-    )
-  end
-
-  defp holdings_units(quantity), do: holdings_decimal(quantity)
-
-  # The money columns carry the row's own currency, because `currency` is an
-  # opt-in column and a bare market value with no currency states less than
-  # the payload it mirrors (EXPERIENCE.md → Voice and Tone: numbers state
-  # their basis where it is cheap).
-  defp holdings_money?(key), do: key in ~w(avg_cost latest_price market_value unrealized_pnl_abs)
-
-  defp holdings_currency(row, key) do
-    if holdings_money?(key) and holdings_cell(row, key) != "—", do: holdings_suffix(row, key)
-  end
-
-  # The market value is the base-currency figure (#1332, D-9); the price
-  # and its P&L stay in the security's own currency.
-  defp holdings_suffix(row, "market_value"), do: row.base_market_currency
-  defp holdings_suffix(row, _key), do: row.currency_code
-
-  # #1332 (board 02 ①): the price cell's second line names a price that is
-  # not a quote, and a row with no price says it is in no total.
-  defp holdings_cell_note(%{price_source: :trade} = row, "latest_price"),
-    do: gettext("Trade price · %{date}", date: Format.date(row.price_date))
-
-  defp holdings_cell_note(%{latest_price: nil}, "latest_price"),
-    do: gettext("no price · not in the total")
-
-  # The closing act (S3): a priced row whose market value is "—" because no
-  # exchange rate reaches the base currency says so, as the no-price row
-  # does; the valuation's own reason, so a row still waiting for the read
-  # carries no note.
-  defp holdings_cell_note(%{base_unvalued_reason: :missing_fx}, "market_value"),
-    do: gettext("no exchange rate · not in the total")
-
-  defp holdings_cell_note(_row, _key), do: nil
-
-  # A note's first phrase, up to its first " · ", and the rest with that
-  # separator: the first never breaks (#1366, board 02 ①).
-  defp note_lead(note), do: note |> String.split(" · ", parts: 2) |> hd()
-
-  defp note_rest(note) do
-    case String.split(note, " · ", parts: 2) do
-      [_lead, rest] -> " · " <> rest
-      [_lead] -> ""
-    end
-  end
+  defp base_values(rows, valuation, socket),
+    do:
+      PositionsWidget.put_base_values(
+        rows,
+        valuation,
+        socket.assigns.portfolio.base_currency_code
+      )
 
   # -- components -------------------------------------------------------------
 
-  # Surfaces why the totals can deviate from the user's expectation: positions
-  # valued at a stale trade price, positions with no price at all, positions
-  # priced in a currency without a stored FX path (#406 — a distinct, honest
-  # state: the price exists and is shown), bookings whose dates are
-  # implausible (import typos like 0219-03-07), and cash accounts excluded
-  # because no FX rate to the base currency exists.
+  # Surfaces why the totals can deviate from the user's expectation (the
+  # section „Data quality“). Sprint 32 W1: its notes and their findings are
+  # the section widget's „Datenhinweise“ (`DataNotesWidget`), one code path
+  # for Wealth and a dashboard; the exchange-rate remedy, a write, stays
+  # here as the notes' `fx_sync` slot.
   defp data_quality(assigns) do
-    assigns =
-      assigns
-      |> assign(:no_price, unvalued_entries(assigns.valuation, :no_price))
-      |> assign(:missing_fx, unvalued_entries(assigns.valuation, :missing_fx))
-      |> assign(:trade_priced, trade_priced_entries(assigns.valuation))
-      |> assign(:stale_priced, stale_priced_entries(assigns.valuation))
-      |> assign(:suspect_dates, suspect_dates(assigns.analysis))
-      |> assign(:unvalued_cash, ValuationNotes.unvalued_cash(assigns.valuation))
-      |> assign(:negative_entries, negative_entries(assigns.negative))
-      |> assign_new(:two_scales, fn -> [] end)
-      |> assign_new(:implausible_quotes, fn -> [] end)
-
-    # #1068 (D-15, board 02): the two directions are two findings, each with
-    # its own consequence and remedy, so each has its own note.
-    assigns =
-      assigns
-      |> assign(:two_scales_forward, Enum.filter(assigns.two_scales, &(&1.direction == :forward)))
-      |> assign(:two_scales_reverse, Enum.filter(assigns.two_scales, &(&1.direction == :reverse)))
+    assigns = assign(assigns, :f, DataNotesWidget.findings(assigns))
 
     ~H"""
     <section
-      :if={
-        @no_price.count > 0 or @missing_fx.count > 0 or @trade_priced.count > 0 or
-          @stale_priced.count > 0 or @suspect_dates != [] or @unvalued_cash != [] or
-          @negative_entries != [] or @two_scales != [] or @implausible_quotes != []
-      }
+      :if={DataNotesWidget.any?(@f)}
       id="portfolio-data-quality"
       class="workspace-section data-quality"
     >
       <h2><%= gettext("Data quality") %></h2>
-      <%!-- UX-DR17 (issue 792): one data note per finding at its own severity,
-           glyph and word included, the remedy inside the note; one status
-           region for the list, never a role per note. --%>
-      <div role="status" data-role="dq-notes">
-        <%!-- I1 (#1351, board ux-design-2026-11-01-sprint22/01-i1 ③ ④ ⑤;
-             pick Q1): the problems lead and never fold; the notes that name
-             rows left out of the totals clamp and never fold, so their
-             count stays visible (UX-DR25); the notes that only qualify the
-             totals fold into one line when two or more are present. Every
-             note clamps to two lines (three on a phone); a problem's remedy
-             links sit in its actions, never under the clamp (pick Q1,
-             correction 2). --%>
-        <AppShell.data_note
-          id="dq-negative-holdings-note"
-          clamp
-          :if={@negative_entries != []}
-          severity={:problem}
-          data-role="dq-negative-holdings"
-        >
-          <%= ngettext(
-            "One security has an impossible negative holding quantity — likely an unmodeled corporate action from an imported history. Repair the transaction history:",
-            "%{count} securities have an impossible negative holding quantity — likely an unmodeled corporate action from an imported history. Repair the transaction history:",
-            length(@negative_entries)
-          ) %>
-          <:actions>
-            <span :for={entry <- @negative_entries} class="dq-negative-entry">
-              <.link navigate={"/securities/#{entry.security_id}?tab=transactions"}>
-                <%= entry.name %>
-              </.link>
-              (<%= PrivacyMode.html(Enum.map_join(
-                entry.depots,
-                ", ",
-                &"#{&1.depot_name}: #{Format.decimal(&1.quantity, 2)}"
-              )) %> · <%= gettext("total across depots") %> <%= Format.decimal(entry.total, 2) %>)
-            </span>
-          </:actions>
-        </AppShell.data_note>
-        <%!-- #330 (pick H3, W2): a bond priced on two scales counts a hundred
-             times too high in the totals read here, and the return cannot
-             show it (bond discovery, point 5). Each name links to where its
-             bookings are checked against the statement; nothing is
-             converted. #1068 (board 02, pin 3): a bond named by its master
-             data alone, with no stored class, carries a neutral badge. --%>
-        <AppShell.data_note
-          id="dq-two-scales-note"
-          clamp
-          :if={@two_scales_forward != []}
-          severity={:problem}
-          data-role="dq-two-scales"
-        >
-          <%= ngettext(
-            "One bond is priced on two scales (quotes around 100, booked price per unit around 1) and counts a hundred times too high in the totals; the return does not show it. Check the quantity of its bookings against the nominal on the statement:",
-            "%{count} bonds are priced on two scales (quotes around 100, booked price per unit around 1) and count a hundred times too high in the totals; the return does not show it. Check the quantity of their bookings against the nominal on the statement:",
-            length(@two_scales_forward)
-          ) %>
-          <:actions>
-            <.two_scales_entries findings={@two_scales_forward} tab="transactions" />
-          </:actions>
-        </AppShell.data_note>
-        <%!-- #1068 (D-15, board 02, pin 4): the reverse case — quotes near 1
-             beside bookings near 100 — counts a hundred times too low, and
-             its remedy is the stored quotes, so each name links to its
-             Quotes tab. It names; nothing is converted (ADR-0052 §4). --%>
-        <AppShell.data_note
-          id="dq-two-scales-reverse-note"
-          clamp
-          :if={@two_scales_reverse != []}
-          severity={:problem}
-          data-role="dq-two-scales-reverse"
-        >
-          <%= ngettext(
-            "One bond is priced on two scales (quotes around 1, booked price per unit around 100) and counts a hundred times too low in the totals. Check its stored quotes — a quote around 1 is not a percent of face:",
-            "%{count} bonds are priced on two scales (quotes around 1, booked price per unit around 100) and count a hundred times too low in the totals. Check their stored quotes — a quote around 1 is not a percent of face:",
-            length(@two_scales_reverse)
-          ) %>
-          <:actions>
-            <.two_scales_entries findings={@two_scales_reverse} tab="quotes" />
-          </:actions>
-        </AppShell.data_note>
-        <%!-- #1101 (D-7, board 02 L2 A): a held position valued at quotes
-             that contradict its own bookings — two stored facts about one
-             day more than a factor of two apart — has a wrong value or a
-             wrong cost, so the note is a problem, after the other problem
-             notes. The sentence states the rule, the consequence and the
-             remedy in order, the quote source first, then the booking;
-             each entry names one booking with the quote of its day, and
-             each name links to its Quotes tab. It names; nothing is
-             converted. --%>
-        <AppShell.data_note
-          id="dq-implausible-quote-note"
-          clamp
-          :if={@implausible_quotes != []}
-          severity={:problem}
-          data-role="dq-implausible-quote"
-        >
-          <a href="/securities?dq=implausible_quote&holding=held">
-            <%= ngettext(
-              "One held position is valued at quotes that do not match its own bookings (on a booking's day, below half or above twice the price per unit), so its value or its cost is wrong. Check its quote source (ticker, exchange), then the booking:",
-              "%{count} held positions are valued at quotes that do not match their own bookings (on a booking's day, below half or above twice the price per unit), so their value or their cost is wrong. Check their quote sources (ticker, exchange), then the bookings:",
-              length(@implausible_quotes)
-            ) %>
-          </a>
-          <:actions>
-            <.implausible_quote_entry
-              :for={{finding, index} <- Enum.with_index(@implausible_quotes)}
-              finding={finding}
-              lead_space={index > 0}
-            />
-          </:actions>
-        </AppShell.data_note>
-
-        <AppShell.data_note
-          id="dq-no-price-note"
-          clamp :if={@no_price.count > 0} severity={:attention} data-role="dq-no-price">
-          <a href="/securities?dq=missing_quote&holding=held">
-            <%= ngettext(
-              "One held position has no price at all and is missing from the totals:",
-              "%{count} held positions have no price at all and are missing from the totals:",
-              @no_price.count
-            ) %>
-          </a>
-          <%= Enum.join(@no_price.names, ", ") %>
-        </AppShell.data_note>
-        <AppShell.data_note
-          id="dq-missing-fx-note"
-          clamp :if={@missing_fx.count > 0} severity={:attention} data-role="dq-missing-fx">
-          <%= PrivacyMode.html(ngettext(
-            "One held position has a price but no exchange rate to %{base} stored, so it is missing from the totals: %{entries}.",
-            "%{count} held positions have a price but no exchange rate to %{base} stored, so they are missing from the totals: %{entries}.",
-            @missing_fx.count,
-            base: @valuation.base_currency,
-            entries: Enum.join(@missing_fx.names, ", ")
-          )) %>
-          <:actions>
-            <.fx_sync_control syncing={@fx_syncing} flash={@fx_sync_flash} result={@fx_sync_result} />
-          </:actions>
-        </AppShell.data_note>
-        <AppShell.data_note
-          id="dq-unvalued-cash-note"
-          clamp :if={@unvalued_cash != []} severity={:attention} data-role="dq-unvalued-cash">
-          <%= PrivacyMode.html(ngettext(
-            "One cash account is not counted in the totals because there is no exchange rate to %{base}: %{names}.",
-            "%{count} cash accounts are not counted in the totals because there is no exchange rate to %{base}: %{names}.",
-            length(@unvalued_cash),
-            base: @valuation.base_currency,
-            names: Enum.map_join(@unvalued_cash, ", ", &ValuationNotes.unvalued_cash_label/1)
-          )) %>
-          <:actions :if={@missing_fx.count == 0}>
-            <.fx_sync_control syncing={@fx_syncing} flash={@fx_sync_flash} result={@fx_sync_result} />
-          </:actions>
-        </AppShell.data_note>
-        <AppShell.data_note_fold
-          id="dq-folded-notes"
-          attention={Enum.count([@stale_priced.count > 0, @suspect_dates != []], & &1)}
-          note={if @trade_priced.count > 0, do: 1, else: 0}
-        >
-          <AppShell.data_note
-            id="dq-trade-priced-note"
-            clamp :if={@trade_priced.count > 0} severity={:note} data-role="dq-trade-priced">
-            <%!-- The finding links to where it is fixed (#561): the securities
-                 list pre-filtered to stale quotes.
-
-                 Overview and Wealth both surface this condition, and that is a
-                 role split rather than a duplication (#703): the Overview is the
-                 "does anything need me?" surface and keeps the bare count as the
-                 ALARM, while this page is where the number is distorted and so
-                 states the CONSEQUENCE for the total and names the positions.
-                 Naming them also makes this row consistent with every one of its
-                 siblings, all of which join their entries. --%>
-            <a href="/securities?dq=stale_quote">
-              <%= ngettext(
-                "One held position is valued at its last trade price, so the total is not current:",
-                "%{count} held positions are valued at their last trade price, so the total is not current:",
-                @trade_priced.count
-              ) %>
-            </a>
-            <%= Enum.join(@trade_priced.names, ", ") %>
-          </AppShell.data_note>
-          <AppShell.data_note
-            id="dq-stale-priced-note"
-            clamp
-            :if={@stale_priced.count > 0}
-            severity={:attention}
-            data-role="dq-stale-priced"
-          >
-            <%!-- #779 / #610 (Sprint 11 Lane X): a quoted position whose feed
-                 has stopped reads as live without this row. It names the
-                 positions with the date each price is from and the remedy —
-                 the retired flag is what the performance walk keys on. --%>
-            <a href="/securities?dq=stale_quote&holding=held">
-              <%= ngettext(
-                "One held position is valued at a quote older than %{days} days, so the totals may be stale — mark it retired if its listing ended, or sync its quotes:",
-                "%{count} held positions are valued at quotes older than %{days} days, so the totals may be stale — mark them retired if their listings ended, or sync their quotes:",
-                @stale_priced.count,
-                days: @stale_priced.days
-              ) %>
-            </a>
-            <%= Enum.join(@stale_priced.names, ", ") %>
-          </AppShell.data_note>
-          <AppShell.data_note
-            id="dq-suspect-dates-note"
-            clamp :if={@suspect_dates != []} severity={:attention} data-role="dq-suspect-dates">
-            <%= gettext(
-              "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import.",
-              dates: Enum.map_join(@suspect_dates, ", ", &Format.date/1)
-            ) %>
-          </AppShell.data_note>
-        </AppShell.data_note_fold>
-      </div>
+      <DataNotesWidget.notes f={@f}>
+        <:fx_sync>
+          <.fx_sync_control syncing={@fx_syncing} flash={@fx_sync_flash} result={@fx_sync_result} />
+        </:fx_sync>
+      </DataNotesWidget.notes>
     </section>
     """
   end
 
-  attr(:findings, :list, required: true)
-  attr(:tab, :string, required: true)
-
-  # The bonds of one two-scales note, one space between entries (closing
-  # act, UAT): an entry is an inline block, whose own edge whitespace does
-  # not render, so without it the entries read "…0,985)Ostsee…". Public
-  # only so its raw render can be pinned; the test DOM drops that space.
+  # The raw render of the two-scales entries is pinned against this name
+  # (bond_master_data_live_test.exs); the entries live with the notes.
   @doc false
-  def two_scales_entries(assigns) do
-    ~H"""
-    <.two_scales_entry
-      :for={{finding, index} <- Enum.with_index(@findings)}
-      finding={finding}
-      tab={@tab}
-      lead_space={index > 0}
-    />
-    """
-  end
-
-  attr(:finding, :map, required: true)
-  attr(:tab, :string, required: true)
-  attr(:lead_space, :boolean, default: false)
-
-  # One bond of a two-scales note: its name linking to the tab where it is
-  # fixed, the neutral "no asset class" badge when it shows none, stored or
-  # inferred (#1068, board 02, pin 3: it is named by its master data, not
-  # its class), and
-  # both scales' figures as stored. The link holds the name alone, so its
-  # underline ends there; `lead_space` puts the separating space outside
-  # the entry (closing act, UAT).
-  defp two_scales_entry(assigns) do
-    ~H"""
-    <%= if @lead_space, do: " " %><span class="dq-negative-entry">
-      <.link navigate={"/securities/#{@finding.security_id}?tab=#{@tab}"}><%= @finding.name %></.link>
-      <span
-        :if={is_nil(@finding.effective_asset_class)}
-        class="badge badge--neutral"
-        data-role="dq-two-scales-unclassed"
-      >
-        <%= gettext("no asset class") %>
-      </span>
-      (<%= PrivacyMode.html(gettext("quote %{close} · price per unit %{price}",
-        close: Format.exact(@finding.latest_quote.close),
-        price: Format.exact(@finding.last_unit_scale_booking.price)
-      )) %>)
-    </span>
-    """
-  end
-
-  attr(:finding, :map, required: true)
-  attr(:lead_space, :boolean, default: false)
-
-  # One position of the implausible-quote note (#1101, board 02 L2 A): its
-  # name linking to its Quotes tab, then the booking and the quote of its
-  # day — kind, date, booked price, the quote's own date (the day before
-  # when none is stored on the booking's), the close and the ratio with two
-  # places. The figures are as `Format.exact` writes them, as the two-scales
-  # entries'; `lead_space` keeps one space between entries outside them.
-  defp implausible_quote_entry(assigns) do
-    ~H"""
-    <%= if @lead_space, do: " " %><span class="dq-negative-entry">
-      <.link navigate={"/securities/#{@finding.security_id}?tab=quotes"}><%= @finding.name %></.link>
-      (<%= PrivacyMode.html(gettext(
-        "%{kind} %{date} at %{price} %{currency} · quote %{quote_date}: %{close} %{currency}, %{ratio} times that",
-        kind: implausible_quote_kind(@finding.kind),
-        date: Format.date(@finding.date),
-        price: Format.exact(@finding.price),
-        currency: @finding.currency_code,
-        quote_date: Format.date(@finding.quote_date),
-        close: Format.exact(@finding.close),
-        ratio: Format.plain_decimal(@finding.ratio, 2)
-      )) %>)
-    </span>
-    """
-  end
-
-  defp implausible_quote_kind("buy"), do: gettext("buy")
-  defp implausible_quote_kind("sell"), do: gettext("sell")
-
-  defp implausible_quote_kind("inbound_delivery"),
-    do: gettext("inbound delivery")
+  def two_scales_entries(assigns), do: DataNotesWidget.two_scales_entries(assigns)
 
   # The display currency for user-facing labels (ADR-0024): taken from the
   # loaded valuation (the number the label describes), with the EUR hub as the
@@ -3938,13 +3225,9 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # The period badge: TTWROR % beside the absolute € gain, defined as the
   # investment result net of contributions — (end − start) − net external flows
-  # — so a deposit never masquerades as performance (it stays consistent with
-  # the TTWROR % beside it).
-  defp period_value_gain(performance) do
-    performance.end_value
-    |> Decimal.sub(performance.start_value)
-    |> Decimal.sub(performance.net_external_flows)
-  end
+  # — so a deposit never masquerades as performance. Sprint 32 W1: the one
+  # function the widget „Kennzahlen“ draws its Ergebnis with.
+  defp period_value_gain(performance), do: KeyFiguresWidget.result(performance)
 
   # #1149 (board 04, found while drawing 2): the sign and its colour are
   # decided on the figure as displayed (`Format.displayed_sign/2`), a percent
@@ -4217,16 +3500,15 @@ defmodule PortfolixirWeb.PortfolioLive do
   # rendering a table with no columns.
   def handle_event("set_holdings_columns", %{"columns" => columns}, socket)
       when is_list(columns) do
-    chosen =
-      case Enum.filter(@holdings_column_keys, &(&1 in columns)) do
-        [] -> @holdings_column_defaults
-        picked -> picked
-      end
+    chosen = PositionsWidget.choose(columns)
 
     {:noreply,
      socket
      |> assign(:holdings_columns, chosen)
-     |> push_event("column-prefs-changed", %{key: @holdings_storage_key, columns: chosen})}
+     |> push_event("column-prefs-changed", %{
+       key: PositionsWidget.storage_key(),
+       columns: chosen
+     })}
   end
 
   def handle_event("set_holdings_columns", _params, socket), do: {:noreply, socket}
@@ -4364,109 +3646,6 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # -- data quality helpers ----------------------------------------------------
 
-  # Unvalued positions of one honest state (#406): `:no_price` lists names
-  # only (there is nothing to show), `:missing_fx` shows each position's
-  # known native price with its currency (owner decision 2026-07-31). The
-  # count is taken before the display list is shortened, so it stays truthful
-  # when names are elided. The labels and the shortening live in
-  # ValuationNotes (#1081).
-  defp unvalued_entries(nil, _reason), do: %{count: 0, names: []}
-
-  defp unvalued_entries(valuation, reason) do
-    names =
-      valuation.positions
-      |> Enum.filter(&(&1.unvalued_reason == reason))
-      |> reject_retired(reason)
-      |> Enum.map(&ValuationNotes.unvalued_entry_label(&1, reason))
-      |> Enum.uniq()
-
-    %{count: length(names), names: ValuationNotes.shorten_list(names)}
-  end
-
-  # The no-price row links to ?dq=missing_quote&holding=held (#1366: the
-  # held ones it counts, as the implausible-quote row's link), which leaves
-  # a retired security out, so the row does too (PR #1102); the FX row
-  # keeps it, as missing_fx does.
-  defp reject_retired(positions, :no_price),
-    do: Enum.reject(positions, &Map.get(&1, :retired, false))
-
-  defp reject_retired(positions, _reason), do: positions
-
-  # #1101 (D-7): the valued positions whose stored quotes contradict their
-  # own bookings, a security two_scales_in/1 names left out by the rule.
-  defp implausible_quotes_in(%{positions: positions}) do
-    positions
-    |> Enum.map(& &1.security_id)
-    |> Enum.reject(&is_nil/1)
-    |> QuotePlausibility.findings()
-  end
-
-  # #330 (ADR-0052 §4): the bonds among the valued positions whose quotes and
-  # booked unit prices sit on two scales.
-  defp two_scales_in(%{positions: positions}) do
-    positions
-    |> Enum.map(& &1.security_id)
-    |> Enum.reject(&is_nil/1)
-    |> Bonds.two_scales_findings()
-  end
-
-  # Negative-holdings debris grouped per security (#570): each entry keeps
-  # its negative depot rows and the security's total across all depots, so
-  # the report shows both, and links to the transaction history (no repair
-  # wizard beyond splits, ADR-0028).
-  defp negative_entries(nil), do: []
-
-  defp negative_entries(report) do
-    report.rows
-    |> Enum.group_by(&{&1.security_id, &1.security_name})
-    |> Enum.map(fn {{security_id, security_name}, rows} ->
-      %{
-        security_id: security_id,
-        name: security_name || gettext("Unsorted"),
-        depots: rows,
-        total: hd(rows).total_quantity
-      }
-    end)
-    |> Enum.sort_by(& &1.name)
-  end
-
-  # Mirrors unvalued_entries/2: the row names what it found, shortened by the
-  # same rule so a long list does not swamp the section (#703).
-  defp trade_priced_entries(nil), do: %{count: 0, names: []}
-
-  defp trade_priced_entries(valuation) do
-    names =
-      valuation.positions
-      # A retired holding is left out, as from the stale-quote row: its link,
-      # ?dq=stale_quote, no longer lists it (PR #1102).
-      |> Enum.filter(&(&1.price_source == :trade and not Map.get(&1, :retired, false)))
-      |> Enum.map(&(&1.security_name || gettext("Unsorted")))
-      |> Enum.uniq()
-
-    %{count: length(names), names: ValuationNotes.shorten_list(names)}
-  end
-
-  # The stale-quoted positions (#779 / #610), each named with the date its
-  # price is from, under the one staleness threshold DataQuality states.
-  defp stale_priced_entries(nil), do: %{count: 0, names: [], days: DataQuality.stale_days()}
-
-  defp stale_priced_entries(valuation) do
-    today = Portfolixir.Clock.today()
-    days = DataQuality.stale_days()
-
-    names =
-      valuation.positions
-      |> Enum.filter(fn position ->
-        # A retired holding is left out: the finding's own remedy (#610).
-        not Map.get(position, :retired, false) and position.price_source == :quote and
-          match?(%Date{}, position.price_date) and Date.diff(today, position.price_date) > days
-      end)
-      |> Enum.map(&"#{&1.security_name || gettext("Unsorted")} (#{Format.date(&1.price_date)})")
-      |> Enum.uniq()
-
-    %{count: length(names), names: ValuationNotes.shorten_list(names), days: days}
-  end
-
   # Whether the active view's buckets share at least one account (ADR-0024
   # overlap badge). Tolerates valuations without overlap data.
   defp overlapping?(%{overlap: %{overlapping?: true}}), do: true
@@ -4476,9 +3655,6 @@ defmodule PortfolixirWeb.PortfolioLive do
   # hint). Tolerates valuations without the flag (and the pre-async nil).
   defp matches_no_accounts?(%{matches_no_accounts: true}), do: true
   defp matches_no_accounts?(_valuation), do: false
-
-  defp suspect_dates(nil), do: []
-  defp suspect_dates(analysis), do: analysis.suspect_dates
 
   # Which views (and Gesamt, marked by `nil`) carry a SOLL plan for the active
   # classification, for the subtle plan marker on the switcher chips (#468). A
@@ -4594,9 +3770,6 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Why a non-deployable cash row is left out of the cash quote (FR6/FR7): a
   # reserve or credit line never contributes, and an overdrawn free_cash account
   # has no spendable balance.
-  defp liquidity_role_hint("credit_line"), do: gettext("credit line")
-  defp liquidity_role_hint("reserve"), do: gettext("reserve")
-  defp liquidity_role_hint(_role), do: gettext("not in cash quote")
 
   # A pick on the page (#1432, D-A1): applied at once, as before, then the
   # address follows it, so every link built from the address keeps it, and
@@ -4645,19 +3818,16 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Windows shorter than one year show the non-annualized period MWR
   # (ADR-0034 §2); the window counts its days inclusively, so a full
   # calendar year still reads as annualized IRR.
-  defp short_window?(%{start_date: %Date{} = start_date, end_date: %Date{} = end_date}),
-    do: Date.diff(end_date, start_date) + 1 < 365
-
-  defp short_window?(_performance), do: false
+  # Sprint 32 W1: the rule lives with the widget „Kennzahlen“, which draws
+  # the same figure.
+  defp short_window?(performance), do: KeyFiguresWidget.short_window?(performance)
 
   defp money_weighted_label(performance) do
     if short_window?(performance), do: gettext("MWR"), else: gettext("IRR")
   end
 
   # Callers guard with `@performance &&`, so nil never reaches this.
-  defp money_weighted_value(performance) do
-    if short_window?(performance), do: performance.mwr, else: performance.irr
-  end
+  defp money_weighted_value(performance), do: KeyFiguresWidget.money_weighted_value(performance)
 
   # The ⓘ affordance follows the visible card label (review finding): a
   # screen reader must not hear "IRR info" on a card labeled MWR.

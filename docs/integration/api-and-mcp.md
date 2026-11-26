@@ -5279,9 +5279,11 @@ without reading the code: `{"data": {"widgets", "groups", "grid",
   `allocation_drift`, `crashes`, `bitcoin_cycle`, `sale_review`, and since
   Sprint 32 `distance_to_high`, `crash_chart`, `rebounders` and the
   sections of Wealth's tabs Allocation & targets, `summary_line` and
-  `allocation`, Snapshots, `snapshot_comparison` and `snapshot_list`, and
+  `allocation`, Snapshots, `snapshot_comparison` and `snapshot_list`,
   Risk, `own_rules`, `key_figures`, `crash_section`, `top_holdings`,
-  `concentration` and `asset_class_limits`), `title`
+  `concentration` and `asset_class_limits`, and Holdings,
+  `wealth_key_figures`, `data_notes`, `contribution`, `positions` and
+  `cash_accounts`), `title`
   (English) and `title_key` (`{context, msgid}`, the message the screen
   translates), `group`, `sizes` (a subset of `S`, `M`, `L`, `XL`, `row`
   and `full`, smallest first), `source` (`routes`, the `GET /api/v1/...` routes it draws;
