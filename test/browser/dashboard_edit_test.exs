@@ -104,6 +104,11 @@ defmodule PortfolixirWeb.Browser.DashboardEditTest do
   #   lies inside the tile, clear of the footer's words; the handle and ×
   #   lie clear of the title and its ⓘ.
   # - „Gesamtwert“ sized to M shows its figure inside its tile.
+  # - The S32 closing act's UAT, finding 8: no footer's words cut beside
+  #   the size switch („A..“); „Kennzahlen“ added from the open drawer at S
+  #   shows its cash quote inside its tile, its note's „Rückgängig“ lies
+  #   clear of the drawer, and Ctrl+Z on the add is said in the drawer's
+  #   status, in view.
   test "the edit controls lie over the tiles, and „Gesamtwert“ at M keeps its figure", %{
     base_url: base_url
   } do

@@ -1782,10 +1782,25 @@ defmodule PortfolixirWeb.DashboardLive do
 
   # „Rückgängig“ at the widget, and Ctrl+Z (the DashboardEdit hook): the
   # last step taken back, that one only (Sprint 32 E2; board 01 ③).
+  # The undo of an add takes away the widget its note stood at (the S32
+  # closing act's UAT, finding 8): with the catalogue open, where the add
+  # was asked, it is said in the catalogue's status, which stays in view;
+  # else in the bar.
   def handle_event("edit_undo", _params, %{assigns: %{edit: %Edit{} = edit}} = socket) do
     case Edit.undo(edit) do
-      {:ok, edit, say, key} -> {:noreply, stepped(socket, {:ok, edit, say, key}, :handle)}
-      :error -> {:noreply, socket}
+      {:ok, edit, say, nil} when socket.assigns.catalogue_open ->
+        {:noreply,
+         socket
+         |> assign(edit: edit, edit_say: nil)
+         |> note(:catalogue, say, false)
+         |> assign_items()
+         |> start_added_reads()}
+
+      {:ok, edit, say, key} ->
+        {:noreply, stepped(socket, {:ok, edit, say, key}, :handle)}
+
+      :error ->
+        {:noreply, socket}
     end
   end
 
@@ -2640,6 +2655,18 @@ defmodule PortfolixirWeb.DashboardLive do
           data-role="edit-catalogue-close"
         ><span aria-hidden="true">×</span></button>
       </div>
+      <%!-- An add refused (the 41st widget, no place up to row 200), or
+           an add taken back, is said here, where it was asked (Sprint 32
+           E2); under the head, so it is in view whatever the list's
+           scroll (the S32 closing act's UAT, finding 8). No whitespace
+           inside, so `:empty` holds. --%>
+      <p
+        id="dashboard-catalogue-status"
+        class="dashboard-catalogue__status"
+        role="status"
+        aria-live="polite"
+        data-role="edit-note"
+      ><%= if match?(%{at: :catalogue}, @note), do: @note.say %></p>
       <section :for={{group, kinds} <- @groups} class="dashboard-catalogue__group">
         <h3><%= Widgets.group_title(group) %></h3>
         <button
@@ -2659,19 +2686,9 @@ defmodule PortfolixirWeb.DashboardLive do
               :for={size <- Edit.grid_sizes(kind.key)}
               class="widget-size"
               data-role="edit-add-size"
-            ><%= size %></span></span>
+            ><%= Widget.size_label(size) %></span></span>
         </button>
       </section>
-      <%!-- An add refused (the 41st widget, no place up to row 200) is
-           said here, where it was asked (Sprint 32 E2). No whitespace
-           inside, so `:empty` holds. --%>
-      <p
-        id="dashboard-catalogue-status"
-        class="dashboard-catalogue__status"
-        role="status"
-        aria-live="polite"
-        data-role="edit-note"
-      ><%= if match?(%{at: :catalogue}, @note), do: @note.say %></p>
       <p class="dashboard-catalogue__note">
         <%= gettext("A tap adds a widget at the first free place. An agent can do the same over the API and MCP.") %>
       </p>
