@@ -2359,11 +2359,12 @@ Zeile statt als Kasten und eine Fußzeile aus einer Zeile.
   ersten Start einer Version, die ein Start-Dashboard mitbringt, speichert
   die Instanz es einmal als Ihr Dashboard, im Journal unter dem System
   („dashboard_starters“) festgehalten: Diese Version bringt **Überblick**
-  (gespeichert unter dem englischen Namen „Overview“, umbenennbar). Danach
+  und **Allokation & Ziele**, den Tab aus Vermögen (jedes gespeichert unter
+  seinem englischen Namen, etwa „Overview“, umbenennbar). Danach
   gehört es Ihnen zum Umbenennen, Ändern, Umsortieren oder Löschen, und
   ein gelöschtes wird nie wieder gespeichert. Eine Instanz, die schon ein
   eigenes Dashboard speichert, bekommt keinen zweiten Überblick: Er gilt
-  als gespeichert.
+  als gespeichert; die übrigen Start-Dashboards kommen neben Ihre.
 - **Lesen schreibt nie.** Ohne eigenes Dashboard (alle gelöscht) zeigt
   `/` die mitgelieferte Vorlage **Überblick** nur lesend, unter dem Hinweis
   „Vorlage · mitgeliefert, nur lesend“ mit **Anpassen**: Das kopiert die
@@ -2524,6 +2525,19 @@ Zeile statt als Kasten und eine Fußzeile aus einer Zeile.
   mehr als einer Liste ist nur nach seinem Namen „mehrfach“ markiert: Über
   die Crashes hinweg wird nichts addiert oder gereiht. Sein ⓘ nennt
   Survivorship: Was scheiterte und entfernt wurde, steht in keiner Liste.
+- **Die Abschnitte des Vermögens-Tabs Allokation & Ziele als Widgets**
+  (Sprint 32 W2), jeder mit dem Code gezeichnet, mit dem Vermögen ihn
+  zeichnet, aus derselben Lesung, in der Größe „Zeile“: **Kennzahlen-Zeile**
+  ist die Zeile über dem Tab — Gesamt inkl. Cash, die Cashquote und die
+  TTWROR des Zeitraums, mit dem Weg zu allen Kennzahlen unter Bestände; sie
+  folgt dem Zeitraum des Dashboards. **Allokation** ist der Abschnitt des
+  Tabs: Baum oder Positionen, das Sunburst, die Drift-Tabelle mit ihren
+  Hinweisen nur zur Anzeige („Verkauf ≈ 3,20 Stück“, Rechnung, nie ein
+  Auftrag), die Drift-Chips und die Wahl des Baums. Seine Bedienelemente
+  ändern nur dieses Widget, solange die Seite offen ist, gespeichert wird
+  nichts; die Sollwerte werden auf der Seite Klassifikationen bearbeitet,
+  verlinkt aus der Plan-Zeile. Das Start-Dashboard **Allokation & Ziele**
+  hält die beiden, in der Reihenfolge des Tabs.
 - **Crashes im Vergleich** zeigt den laufenden Fall zuerst, dann die
   anderen, neueste zuerst, und sagt seit Sprint 32 für jedes erholte
   Fenster, nach wie vielen Tagen ab seinem Tief die Benchmark wieder auf
@@ -5740,7 +5754,7 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   **Überblick** mit dem Widget zu kopieren oder ein **Neues Dashboard**
   anzulegen. Die Widgets, die der Umbau der weiteren Screens bringt, stehen
   **gestrichelt** da, mit „kommt mit dem Umbau seines Screens“ (Beiträge je
-  Position, Allokation, Kennzahlen, Konzentration, Anlageklassen-Grenzen,
+  Position, Kennzahlen, Konzentration, Anlageklassen-Grenzen,
   Prognosen und unter **Einkommen und Steuer** Einkommen, Gebühren und
   Steuern, Freibetrag): Sie stehen dort, damit man weiß, dass sie kommen,
   und lassen sich noch nicht hinzufügen — auch die API lehnt sie in einem

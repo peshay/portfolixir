@@ -27,6 +27,10 @@ defmodule Portfolixir.Dashboards.StartersTest do
   alias Portfolixir.Dashboards.Templates
   alias Portfolixir.Journal
 
+  # The starters of this release, in the menu's order: „Überblick“ and,
+  # since Sprint 32 W2, „Allokation & Ziele“.
+  @starters ~w(overview allocation_targets)
+
   defp seeds, do: Seed |> Repo.all() |> Enum.map(& &1.template_key) |> Enum.sort()
 
   defp journaled(type), do: Journal.list_entries(resource_type: type)
@@ -71,43 +75,56 @@ defmodule Portfolixir.Dashboards.StartersTest do
   #
   # Acceptance criteria:
   # - The starters are the templates marked so; in this release
-  #   „Überblick“ only.
-  # - On an instance with no dashboard, a run stores „Überblick“ as a copy
-  #   (its template_key recorded), journaled under the system actor
-  #   „dashboard_starters“, and records the key in the seed table, the
-  #   record journaled too.
+  #   „Überblick“ and „Allokation & Ziele“ (Sprint 32 W2).
+  # - On an instance with no dashboard, a run stores each as a copy (its
+  #   template_key recorded), journaled under the system actor
+  #   „dashboard_starters“, and records each key in the seed table, the
+  #   records journaled too.
   # - A second run stores nothing and journals nothing.
-  # - After the operator deleted the starter, the run (the task restarted)
+  # - After the operator deleted a starter, the run (the task restarted)
   #   stores nothing again.
   test "a starter is stored once, and a deleted one never again" do
-    assert Enum.map(Templates.starters(), & &1.key) == ["overview"]
+    assert Enum.map(Templates.starters(), & &1.key) == @starters
 
-    assert {:ok, %{stored: ["overview"], counted: []}} = Starters.seed()
+    assert {:ok, %{stored: @starters, counted: []}} = Starters.seed()
 
-    assert [%Dashboard{template_key: "overview", name: "Overview"} = stored] =
-             Dashboards.list_dashboards()
+    stored_all = Dashboards.list_dashboards()
+    assert Enum.map(stored_all, & &1.template_key) == @starters
+    [%Dashboard{name: "Overview"} = stored | _others] = stored_all
 
-    {:ok, template} = Templates.fetch("overview")
-    assert stored.layout == template.layout
-    assert seeds() == ["overview"]
+    for dashboard <- stored_all do
+      {:ok, template} = Templates.fetch(dashboard.template_key)
+      assert dashboard.layout == template.layout
+      assert dashboard.name == template.title
+    end
 
-    [create] = Journal.list_entries(resource_type: "dashboard")
+    assert seeds() == Enum.sort(@starters)
 
-    assert {create.operation, create.actor_type, create.actor_label} ==
-             {:create, :system_job, "dashboard_starters"}
+    creates = Journal.list_entries(resource_type: "dashboard")
+    assert length(creates) == length(@starters)
 
-    [record] = Journal.list_entries(resource_type: "dashboard_seed")
-    assert {record.operation, record.after["template_key"]} == {:create, "overview"}
+    for create <- creates do
+      assert {create.operation, create.actor_type, create.actor_label} ==
+               {:create, :system_job, "dashboard_starters"}
+    end
+
+    records = Journal.list_entries(resource_type: "dashboard_seed")
+
+    assert Enum.sort(Enum.map(records, &{&1.operation, &1.after["template_key"]})) ==
+             Enum.sort(Enum.map(@starters, &{:create, &1}))
 
     assert {:ok, %{stored: [], counted: []}} = Starters.seed()
-    assert length(Dashboards.list_dashboards()) == 1
+    assert length(Dashboards.list_dashboards()) == length(@starters)
 
     {:ok, _} = Dashboards.delete_dashboard(Actor.owner_ui(), stored.id)
 
     assert {:ok, %{stored: [], counted: []}} = Starters.seed()
-    assert Dashboards.list_dashboards() == []
-    assert length(Journal.list_entries(resource_type: "dashboard")) == 2
-    assert length(Journal.list_entries(resource_type: "dashboard_seed")) == 1
+    assert Enum.map(Dashboards.list_dashboards(), & &1.template_key) == tl(@starters)
+
+    assert length(Journal.list_entries(resource_type: "dashboard")) ==
+             length(@starters) + 1
+
+    assert length(Journal.list_entries(resource_type: "dashboard_seed")) == length(@starters)
   end
 
   # User story:
@@ -117,15 +134,19 @@ defmodule Portfolixir.Dashboards.StartersTest do
   # amendment of 2026-11-25, point 5).
   #
   # Acceptance criteria:
-  # - With one dashboard stored, the run stores nothing, records
-  #   „Überblick“ as seeded (counted), and journals that record only.
+  # - With one dashboard stored, the run stores no „Überblick“ and
+  #   records it as seeded (counted); the other starters are stored beside
+  #   the operator's (Sprint 32 W2), each recorded.
   test "an instance that stores a dashboard counts „Überblick“ as seeded" do
     {:ok, mine} = Dashboards.create_dashboard(Actor.owner_ui(), %{"name" => "Meins"})
 
-    assert {:ok, %{stored: [], counted: ["overview"]}} = Starters.seed()
-    assert Dashboards.list_dashboards() == [mine]
-    assert seeds() == ["overview"]
-    assert length(Journal.list_entries(resource_type: "dashboard")) == 1
+    assert {:ok, %{stored: tl(@starters), counted: ["overview"]}} == Starters.seed()
+    assert [^mine | others] = Dashboards.list_dashboards()
+    assert Enum.map(others, & &1.template_key) == tl(@starters)
+    assert seeds() == Enum.sort(@starters)
+
+    assert length(Journal.list_entries(resource_type: "dashboard")) ==
+             1 + length(tl(@starters))
   end
 
   # User story:
@@ -148,7 +169,7 @@ defmodule Portfolixir.Dashboards.StartersTest do
 
     Application.put_env(:portfolixir, :seed_starters_on_boot, true)
     assert Starters.seed_on_boot() == :ok
-    assert [%Dashboard{template_key: "overview"}] = Dashboards.list_dashboards()
+    assert Enum.map(Dashboards.list_dashboards(), & &1.template_key) == @starters
 
     source = File.read!("lib/portfolixir/application.ex")
     assert source =~ "alias Portfolixir.Dashboards.Starters"
@@ -163,8 +184,8 @@ defmodule Portfolixir.Dashboards.StartersTest do
   # every restart.
   #
   # Acceptance criteria:
-  # - The first boot step logs the starters stored („overview“) and
-  #   counted (none) at info.
+  # - The first boot step logs the starters stored („overview“ and
+  #   „allocation_targets“) and counted (none) at info.
   # - The next one stores nothing and logs nothing about the starters.
   test "the boot step logs what it stored, and nothing on a start with nothing to do" do
     original = Application.get_env(:portfolixir, :seed_starters_on_boot)
@@ -175,11 +196,11 @@ defmodule Portfolixir.Dashboards.StartersTest do
     on_exit(fn -> Logger.delete_module_level(Starters) end)
 
     first = capture_log([level: :info], fn -> assert Starters.seed_on_boot() == :ok end)
-    assert first =~ ~s(starter dashboards: stored ["overview"], counted [])
+    assert first =~ "starter dashboards: stored #{inspect(@starters)}, counted []"
 
     again = capture_log([level: :info], fn -> assert Starters.seed_on_boot() == :ok end)
     refute again =~ "starter dashboards"
-    assert length(Dashboards.list_dashboards()) == 1
+    assert length(Dashboards.list_dashboards()) == length(@starters)
   end
 
   # User story:
@@ -195,8 +216,8 @@ defmodule Portfolixir.Dashboards.StartersTest do
   # - The record's insert refused after the dashboard was stored: the
   #   dashboard is taken back with it — nothing stored, nothing recorded,
   #   nothing journaled —, so the next start cannot store it twice.
-  # - Once the database takes the writes again, the next run stores
-  #   „Überblick“ once.
+  # - Once the database takes the writes again, the next run stores each
+  #   starter once.
   test "a refused write stores and records nothing, and the next start tries again" do
     original = Application.get_env(:portfolixir, :seed_starters_on_boot)
     on_exit(fn -> Application.put_env(:portfolixir, :seed_starters_on_boot, original) end)
@@ -226,9 +247,9 @@ defmodule Portfolixir.Dashboards.StartersTest do
 
     allow_inserts_into!("dashboard_seeds")
 
-    assert {:ok, %{stored: ["overview"], counted: []}} = Starters.seed()
-    assert [%Dashboard{template_key: "overview"}] = Dashboards.list_dashboards()
-    assert seeds() == ["overview"]
+    assert {:ok, %{stored: @starters, counted: []}} == Starters.seed()
+    assert Enum.map(Dashboards.list_dashboards(), & &1.template_key) == @starters
+    assert seeds() == Enum.sort(@starters)
   end
 
   # User story:

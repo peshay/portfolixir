@@ -425,8 +425,57 @@ defmodule Portfolixir.Dashboards.Widgets do
       period: :none,
       scope: :view,
       compact: true
-    }
+    },
     # --- S32 S5 end ---
+    # --- S32 W2 begin ---
+    %{
+      key: "summary_line",
+      title: "Key figures line",
+      group: "allocation",
+      # Sprint 32 W2 (I57; board 02 ②): the summary line that heads
+      # Wealth's tab „Allokation & Ziele“, a section widget in the size
+      # „Zeile“; not W1's „Kennzahlen“ (`wealth_key_figures`). Its TTWROR
+      # is the performance read's over the period, by performance's rule.
+      sizes: ~w(row),
+      source: %{
+        routes: [
+          "GET /api/v1/valuation",
+          "GET /api/v1/views/:view_id/valuation",
+          "GET /api/v1/performance",
+          "GET /api/v1/views/:view_id/performance"
+        ],
+        function: {Portfolixir.Portfolios.Valuation, :for_view, 2},
+        note:
+          "The total incl. cash and the cash quote are the valuation read's; the TTWROR " <>
+            "is the performance read's over the item's period, GET /api/v1/performance " <>
+            "with the period's parameters."
+      },
+      period: @performance_period,
+      scope: :view,
+      compact: true
+    },
+    %{
+      key: "allocation",
+      title: "Allocation",
+      group: "allocation",
+      # Sprint 32 W2 (I57; board 02 ②): Wealth's section „Allokation“ —
+      # tree or positions, the sunburst, the drift table with the
+      # display-only hints of ADR-0023, the classification choice — a
+      # section widget in the size „Zeile“.
+      sizes: ~w(row),
+      source: %{
+        routes: ["GET /api/v1/portfolios/:portfolio_id/allocation"],
+        function: {Portfolixir.Portfolios.Allocation, :for_portfolio, 3},
+        note:
+          "The allocation read of the first portfolio, as Wealth reads it: " <>
+            "classification_id the tree picked (the default steering tree until one is), " <>
+            "view= the widget's view; min_drift= is the drift chips'."
+      },
+      period: :none,
+      scope: :view,
+      compact: true
+    }
+    # --- S32 W2 end ---
   ]
 
   @by_key Map.new(@kinds, &{&1.key, &1})
@@ -662,6 +711,10 @@ defmodule Portfolixir.Dashboards.Widgets do
   def title("distance_to_high"), do: pgettext("widget kind", "Distance to high")
   def title("crash_chart"), do: pgettext("widget kind", "Crash chart")
   def title("rebounders"), do: pgettext("widget kind", "Rebounders after crashes")
+  # --- S32 W2 begin ---
+  def title("summary_line"), do: pgettext("widget kind", "Key figures line")
+  def title("allocation"), do: pgettext("widget kind", "Allocation")
+  # --- S32 W2 end ---
   def title(_key), do: nil
 
   @doc "The group's title in the current locale; `nil` for an unknown group."

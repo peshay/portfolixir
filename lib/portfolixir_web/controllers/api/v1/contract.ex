@@ -121,8 +121,17 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "its period rule answers every dashboard period as a from/to range; the kind " <>
               "rebounders, the list=rebounders rankings of the last three ended windows side " <>
               "by side; the themes krypto_lover (asks_scope) and pullbacks, offered beside the " <>
-              "starter and never in the menu (in_menu false). No endpoint or tool is added."
+              "starter and never in the menu (in_menu false). No endpoint or tool is added.",
             # --- S32 S5 end ---
+            # --- S32 W2 begin ---
+            "Sprint 32, W2 (I57; ADR-0062's amendment of 2026-11-25, points 3 and 5): the " <>
+              "sections of Wealth's tab Allocation & targets as widget kinds in the size row, " <>
+              "summary_line (the total incl. cash, the cash quote and the period's TTWROR, by " <>
+              "the performance rule) and allocation (the allocation read, its tree and drift " <>
+              "with the display-only hints); the starter template allocation_targets, stored " <>
+              "once by the boot. While no dashboard is stored, only the first starter, " <>
+              "overview, is in_menu. No endpoint or tool is added."
+            # --- S32 W2 end ---
           ],
           " "
         ),
@@ -228,8 +237,16 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "(portfolixir.dashboards.list, portfolixir.dashboards.get), added: the templates " <>
           "krypto_lover and pullbacks, group theme; POST /api/v1/dashboards " <>
           "(portfolixir.dashboards.put) copies them; an unknown template's refusal lists " <>
-          "every key offered"
+          "every key offered",
         # --- S32 S5 end ---
+        # --- S32 W2 begin ---
+        "GET /api/v1/widgets (portfolixir.dashboards.list), added: the kinds summary_line " <>
+          "and allocation, size row",
+        "GET /api/v1/dashboards and GET /api/v1/dashboards/template:<key> " <>
+          "(portfolixir.dashboards.list, portfolixir.dashboards.get), added: the template " <>
+          "allocation_targets, group starter; while no dashboard is stored only overview " <>
+          "is in_menu; POST /api/v1/dashboards (portfolixir.dashboards.put) copies it"
+        # --- S32 W2 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

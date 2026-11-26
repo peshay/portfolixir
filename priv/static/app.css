@@ -17970,3 +17970,26 @@ a.widget-row:hover .widget-row__label {
   }
 }
 /* --- S32 L2 end --- */
+
+/* --- S32 W2 begin --- */
+/* „Allokation“ as a widget (Sprint 32 W2): the section's two controls,
+   tree or positions and the tree, side by side on the head's line, the
+   select at the switch's small type. */
+.widget-allocation-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.widget-allocation-switch form {
+  margin: 0;
+}
+
+.widget-allocation-switch select {
+  min-height: 28px;
+  padding-block: 2px;
+  font-size: 13px;
+}
+/* --- S32 W2 end --- */

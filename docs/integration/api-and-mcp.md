@@ -5277,7 +5277,9 @@ without reading the code: `{"data": {"widgets", "groups", "grid",
   `key` (the stable string a layout names: `total_value`, `data_quality`,
   `due`, `off_target`, `performance`, `movers`, `snapshots`,
   `allocation_drift`, `crashes`, `bitcoin_cycle`, `sale_review`, and since
-  Sprint 32 `distance_to_high`, `crash_chart` and `rebounders`), `title`
+  Sprint 32 `distance_to_high`, `crash_chart`, `rebounders` and the
+  sections of Wealth's tab Allocation & targets, `summary_line` and
+  `allocation`), `title`
   (English) and `title_key` (`{context, msgid}`, the message the screen
   translates), `group`, `sizes` (a subset of `S`, `M`, `L`, `XL`, `row`
   and `full`, smallest first), `source` (`routes`, the `GET /api/v1/...` routes it draws;
@@ -5331,14 +5333,17 @@ a template), `in_menu` and `item_count`; a template also `group`
 as the gallery asks for one) and `subtitle`, and only a template whose
 kinds are all built is listed; a stored one also `position`,
 `lock_version`, `view_id`, `view_dangling`, `template_key`, `inserted_at`
-and `updated_at`. A template is `in_menu`
-only while no dashboard is stored, and the read never writes. Since
+and `updated_at`. A starter template is `in_menu` only while no
+dashboard is stored, and then only `overview`, the one the page opens at
+`/`; the read never writes. Since
 Sprint 32 the instance stores each **starter** template once, on the first
-start of the release that brings it (this release: `overview`), journaled
+start of the release that brings it (this release: `overview` and
+`allocation_targets`, Wealth's tab Allocation & targets), journaled
 under the system actor `dashboard_starters` (`resource_type`
 `dashboard_seed` records the key, so a starter deleted is never stored
-again); the copy answers `template_key` `overview`. An instance that
-already stores a dashboard counts it as seeded and stores none.
+again); each copy answers its `template_key`. An instance that
+already stores a dashboard counts `overview` as seeded and stores the
+other starters.
 
 **`GET /api/v1/dashboards/:id`** answers one stored dashboard; a template
 is read as **`GET /api/v1/dashboards/template:<key>`**
@@ -5352,7 +5357,8 @@ layout says. Both are read-only: a write ignores an item's `title` and
 `source` and stores neither, so a layout is sent back as it was read. An
 unknown id, a key that names no template and an id that is neither answer
 `404`; a key that names no template says which keys are offered (`"not
-found: names no template; offered: overview, krypto_lover, pullbacks"`).
+found: names no template; offered: overview, allocation_targets, krypto_lover,
+pullbacks"`).
 
 **`POST /api/v1/dashboards`** creates one from `{"dashboard": {"name",
 "layout", "view_id"}}` (the layout defaults to empty, the view to none) or

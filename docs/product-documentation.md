@@ -2134,11 +2134,13 @@ loss, a warning as one line rather than a box, and a footer of one line.
 - **The starters are stored once** (Sprint 32). On the first start of a
   release that brings a starter dashboard, the instance stores it once as
   a dashboard of yours, recorded in the audit journal under the system
-  ("dashboard_starters"): this release brings **Overview** (stored under
-  its English name, which you can rename). From then on
+  ("dashboard_starters"): this release brings **Overview** and
+  **Allocation & targets**, Wealth's tab (each stored under its English
+  name, which you can rename). From then on
   it is yours to rename, change, reorder or delete, and one you deleted is
   never stored again. An instance that already stores a dashboard of yours
-  gets no second Overview: it counts as seeded.
+  gets no second Overview: it counts as seeded; the other starters are
+  stored beside yours.
 - **Reading never writes.** With no dashboard of your own (you deleted
   them all), `/` shows the shipped template **Overview** read-only, under the banner
   "Template · shipped, read-only" with **Customize**: that copies the
@@ -2279,6 +2281,18 @@ loss, a warning as one line rather than a box, and a footer of one line.
   answers it. A name in more than one list is marked "several" by its
   name only: nothing is added up or ranked across the crashes. Its ⓘ
   names survivorship: what failed and was removed is in no list.
+- **The sections of Wealth's tab Allocation & targets as widgets**
+  (Sprint 32 W2), each drawn with the code Wealth draws it with, from the
+  same read, in the size "Row": **Key figures line** is the line that
+  heads the tab — the total incl. cash, the cash quote and the period's
+  TTWROR, with the way to all key figures on Holdings; it follows the
+  dashboard's period. **Allocation** is the tab's section: tree or
+  positions, the sunburst, the drift table with its display-only hints
+  ("Sell ≈ 3.20 units", arithmetic, never an order), the drift chips and
+  the choice of the tree. Its controls change only that widget while the
+  page is open, and nothing is stored; the targets are edited on the
+  Classifications page, linked from the plan line. The starter dashboard
+  **Allocation & targets** holds the two, in the tab's order.
 - **Crashes compared** lists the running fall first, then the others
   newest first, and since Sprint 32 says for each recovered window after
   how many days from its low the benchmark was back at its high
@@ -5188,8 +5202,7 @@ naming the already-booked event) stays inline in the dialog.
   is refused. With no dashboard stored yet, the choice offers to copy the
   template **Overview** with the widget, or to start a **New dashboard**.
   The widgets each later screen's rework brings stand **dashed**, with
-  "comes with its screen's rework" (Contribution by position, Allocation,
-  Key figures, Concentration, Asset class limits, Predictions, and under
+  "comes with its screen's rework" (Contribution by position, Key figures, Concentration, Asset class limits, Predictions, and under
   **Income and tax** Income, Fees and taxes, Tax allowance): they are
   shown so you know they are coming, and cannot be added yet — the API
   refuses them in a layout as unknown kinds too.

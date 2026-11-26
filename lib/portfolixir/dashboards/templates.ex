@@ -45,6 +45,23 @@ defmodule Portfolixir.Dashboards.Templates do
     ]
   }
 
+  # --- S32 W2 begin ---
+  # „Allokation & Ziele“ (I57; board 02 ②; Sprint 32 W2): Wealth's tab as
+  # a starter, its two sections as section widgets in the size „Zeile“, in
+  # the tab's order — the summary line, then the allocation.
+  @allocation_targets %{
+    key: "allocation_targets",
+    title: "Allocation & targets",
+    starter: true,
+    asks_scope: false,
+    layout: [
+      %{"kind" => "summary_line", "size" => "row", "col" => 1, "row" => 1, "settings" => %{}},
+      %{"kind" => "allocation", "size" => "row", "col" => 1, "row" => 2, "settings" => %{}}
+    ]
+  }
+
+  # --- S32 W2 end ---
+
   # --- S32 S5 begin ---
   # The themes (I61; board 03 ①; Sprint 32 S5), offered in the gallery
   # beside the starters, never stored by the boot.
@@ -106,7 +123,14 @@ defmodule Portfolixir.Dashboards.Templates do
 
   # --- S32 S5 end ---
 
-  @templates [@overview, @krypto_lover, @pullbacks]
+  @templates [
+    @overview,
+    # --- S32 W2 begin ---
+    @allocation_targets,
+    # --- S32 W2 end ---
+    @krypto_lover,
+    @pullbacks
+  ]
   @by_key Map.new(@templates, &{&1.key, &1})
 
   @type t :: %{
@@ -161,6 +185,9 @@ defmodule Portfolixir.Dashboards.Templates do
   def title("overview"), do: pgettext("dashboard template", "Overview")
   def title("krypto_lover"), do: pgettext("dashboard template", "Crypto Lover")
   def title("pullbacks"), do: pgettext("dashboard template", "Pullbacks")
+  # --- S32 W2 begin ---
+  def title("allocation_targets"), do: pgettext("dashboard template", "Allocation & targets")
+  # --- S32 W2 end ---
   def title(_key), do: nil
 
   @doc """
@@ -175,6 +202,12 @@ defmodule Portfolixir.Dashboards.Templates do
 
   def subtitle("pullbacks"),
     do: pgettext("dashboard template", "the falls compared, short tops and flops, rebounders")
+
+  # --- S32 W2 begin ---
+  def subtitle("allocation_targets"),
+    do: pgettext("dashboard template", "as Wealth's tab today")
+
+  # --- S32 W2 end ---
 
   def subtitle(_key), do: nil
 

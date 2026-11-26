@@ -85,6 +85,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.Dashboard.MoversCard
   alias PortfolixirWeb.Dashboard.PeriodMenu
   alias PortfolixirWeb.Dashboard.Widget
+  alias PortfolixirWeb.Dashboard.Widgets.Allocation, as: AllocationWidget
   alias PortfolixirWeb.Dashboard.Widgets.AllocationDrift, as: AllocationDriftWidget
   alias PortfolixirWeb.Dashboard.Widgets.CrashChart, as: CrashChartWidget
   alias PortfolixirWeb.Dashboard.Widgets.Crashes, as: CrashesWidget
@@ -94,6 +95,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.Dashboard.Widgets.Performance, as: PerformanceWidget
   alias PortfolixirWeb.Dashboard.Widgets.Rebounders, as: ReboundersWidget
   alias PortfolixirWeb.Dashboard.Widgets.Snapshots, as: SnapshotsWidget
+  alias PortfolixirWeb.Dashboard.Widgets.SummaryLine, as: SummaryLineWidget
   alias PortfolixirWeb.ExcludedSales
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
@@ -409,6 +411,9 @@ defmodule PortfolixirWeb.DashboardLive do
     |> update(:performance, &Map.filter(&1, other_period))
     |> update(:performance_bands, &Map.filter(&1, other_period))
     |> update(:crash_chart, &Map.delete(&1, key))
+    # --- S32 W2 begin ---
+    |> update(:summary_lines, &Map.filter(&1, other_period))
+    # --- S32 W2 end ---
     |> update(:asked, fn asked ->
       Map.reject(asked, fn {_name, asked_key} ->
         asked_key == key or match?({_scope, ^key}, asked_key)
@@ -813,8 +818,16 @@ defmodule PortfolixirWeb.DashboardLive do
         # --- S32 S5 begin ---
         distance_to_high: %{},
         crash_chart: %{},
-        rebounders: %{}
+        rebounders: %{},
         # --- S32 S5 end ---
+        # --- S32 W2 begin ---
+        # The summary lines by `{scope, period}`, the allocations by
+        # `{scope, tree}` (nil: the default tree), and each „Allokation“
+        # widget's controls by its id suffix, for the page's life.
+        summary_lines: %{},
+        allocations: %{},
+        allocation_ui: %{}
+        # --- S32 W2 end ---
       )
 
   defp start_widget_reads(%{assigns: %{transactions_count: 0}} = socket), do: socket
@@ -919,7 +932,45 @@ defmodule PortfolixirWeb.DashboardLive do
     )
 
     # --- S32 S5 end ---
+    # --- S32 W2 begin ---
+    |> start_allocation_sections(items, period)
+
+    # --- S32 W2 end ---
   end
+
+  # --- S32 W2 begin ---
+  # Sprint 32 W2 (I57; board 02 ②): the section widgets of Wealth's tab
+  # „Allokation & Ziele“. „Kennzahlen-Zeile“ reads per scope and period,
+  # as the performance reads do; „Allokation“ per scope and the tree its
+  # widget picked (nil: the default tree). Each lands in its own map, so a
+  # second widget on the same scope draws the same answer.
+  defp start_allocation_sections(socket, items, period) do
+    lines =
+      for item <- items, item.kind == "summary_line", uniq: true do
+        item = Widget.with_period(item, period, false)
+        {{:summary_line, item.scope, read_slot(item)}, {item.scope, item.period}}
+      end
+
+    allocations =
+      for item <- items, item.kind == "allocation", uniq: true do
+        key = {item.scope, allocation_state(socket.assigns, item).classification_id}
+        {{:allocation_section, key}, key}
+      end
+
+    socket
+    |> start_each(lines, :summary_lines, fn {scope, period} ->
+      SummaryLineWidget.read(scope, period)
+    end)
+    |> start_each(allocations, :allocations, fn {scope, tree} ->
+      AllocationWidget.read(scope, tree)
+    end)
+  end
+
+  # An „Allokation“ widget's controls: its own, or the section's first.
+  defp allocation_state(assigns, item),
+    do: Map.get(assigns.allocation_ui, item.uid, AllocationWidget.initial_state())
+
+  # --- S32 W2 end ---
 
   # --- S32 S5 begin ---
   # The periods the items of `kind` read: each its pin, else the
@@ -1135,6 +1186,18 @@ defmodule PortfolixirWeb.DashboardLive do
 
   defp land(:closed_trades, _key, {:exit, _reason}, socket),
     do: assign(socket, :closed_trades, :error)
+
+  # --- S32 W2 begin ---
+  defp land({:summary_line, _scope, _slot}, key, result, socket),
+    do: update(socket, :summary_lines, &Map.put(&1, key, section_answer(result)))
+
+  defp land({:allocation_section, _key}, key, result, socket),
+    do: update(socket, :allocations, &Map.put(&1, key, section_answer(result)))
+
+  defp section_answer({:ok, answer}), do: answer
+  defp section_answer({:exit, _reason}), do: :error
+
+  # --- S32 W2 end ---
 
   defp reading(socket, name), do: update(socket, :reads, &MapSet.put(&1, name))
 
@@ -1551,9 +1614,127 @@ defmodule PortfolixirWeb.DashboardLive do
 
   # --- S31 D6 end ---
 
+  # --- S32 W2 begin ---
+  # „Allokation“'s controls on a dashboard (Sprint 32 W2), each naming its
+  # widget by its id suffix (`item`): the state changes as on Wealth, by
+  # the section's own functions, for the page's life; nothing is stored.
+  # A pick of another tree reads its allocation.
+  def handle_event("set_allocation_mode", %{"item" => uid, "mode" => mode}, socket) do
+    case AllocationWidget.mode(mode) do
+      {:ok, mode} -> {:noreply, put_allocation_state(socket, uid, &%{&1 | mode: mode})}
+      :error -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("select_classification", %{"item" => uid, "classification_id" => raw}, socket) do
+    case LiveParam.fetch_id(raw) do
+      {:ok, id} ->
+        socket =
+          put_allocation_state(socket, uid, fn state ->
+            %{state | classification_id: id, expanded: MapSet.new(), selected_segment: nil}
+          end)
+
+        {:noreply, start_widget_reads(socket)}
+
+      :error ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("toggle_category_positions", %{"item" => uid, "category-id" => id}, socket) do
+    with %{} = item <- allocation_item(socket, uid),
+         {:ok, expanded} <-
+           AllocationWidget.toggle_category(allocation_state(socket.assigns, item).expanded, id) do
+      {:noreply, put_allocation_state(socket, uid, &%{&1 | expanded: expanded})}
+    else
+      _none -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("toggle_all_categories", %{"item" => uid}, socket) do
+    case allocation_item(socket, uid) do
+      %{} = item ->
+        state = allocation_state(socket.assigns, item)
+
+        allocation =
+          case Map.get(socket.assigns.allocations, {item.scope, state.classification_id}) do
+            %{allocation: allocation} -> allocation
+            _none -> nil
+          end
+
+        expanded = AllocationWidget.toggle_all(allocation, state.expanded)
+        {:noreply, put_allocation_state(socket, uid, &%{&1 | expanded: expanded})}
+
+      nil ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("select_segment", %{"item" => uid} = params, socket) do
+    {:noreply,
+     put_allocation_state(socket, uid, fn state ->
+       %{
+         state
+         | selected_segment: AllocationWidget.select_segment(state.selected_segment, params)
+       }
+     end)}
+  end
+
+  # A tap on the centre or outside the chart, or Escape, brings the total
+  # back; another key changes nothing (#1366 line 1, as on Wealth).
+  def handle_event("clear_segment", %{"key" => key}, socket) when key != "Escape",
+    do: {:noreply, socket}
+
+  def handle_event("clear_segment", %{"item" => uid}, socket),
+    do: {:noreply, put_allocation_state(socket, uid, &%{&1 | selected_segment: nil})}
+
+  def handle_event("set_drift_threshold", %{"item" => uid, "pp" => pp}, socket) do
+    if pp in AllocationWidget.drift_steps() do
+      {:noreply,
+       put_allocation_state(socket, uid, fn state ->
+         %{state | min_drift_pp: if(state.min_drift_pp == pp, do: nil, else: pp)}
+       end)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("sort_flat_positions", %{"item" => uid, "key" => key}, socket) do
+    with %{} = item <- allocation_item(socket, uid),
+         {:ok, sort} <-
+           AllocationWidget.sort(allocation_state(socket.assigns, item).flat_sort, key) do
+      {:noreply, put_allocation_state(socket, uid, &%{&1 | flat_sort: sort})}
+    else
+      _none -> {:noreply, socket}
+    end
+  end
+
+  # --- S32 W2 end ---
+
   # The overview handles no other events; one pushed to it changes nothing
   # (E25 S4, F17).
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  # --- S32 W2 begin ---
+  # The „Allokation“ widget a control names by its id suffix, or nil.
+  defp allocation_item(socket, uid) do
+    Enum.find(socket.assigns.items, &(&1.kind == "allocation" and &1.uid == uid))
+  end
+
+  # The widget's controls changed by `fun`; a suffix that names no
+  # „Allokation“ widget changes nothing.
+  defp put_allocation_state(socket, uid, fun) do
+    case allocation_item(socket, uid) do
+      %{} = item ->
+        state = fun.(allocation_state(socket.assigns, item))
+        update(socket, :allocation_ui, &Map.put(&1, uid, state))
+
+      nil ->
+        socket
+    end
+  end
+
+  # --- S32 W2 end ---
 
   # --- S31 D6 begin ---
   # The edit opened (ADR-0062 §7). The focus goes to the first widget's
@@ -2317,7 +2498,12 @@ defmodule PortfolixirWeb.DashboardLive do
       :crash_universe,
       :distance_to_high,
       :crash_chart,
-      :rebounders
+      :rebounders,
+      # --- S32 W2 begin ---
+      :summary_lines,
+      :allocations,
+      :allocation_ui
+      # --- S32 W2 end ---
     ])
   end
 
@@ -2855,6 +3041,43 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   # --- S32 S5 end ---
+
+  # --- S32 W2 begin ---
+  # The section widgets of Wealth's tab „Allokation & Ziele“ (Sprint 32
+  # W2), each drawn by the module Wealth draws its section with.
+  defp widget(%{item: %{kind: "summary_line"} = item} = assigns) do
+    assigns = assign(assigns, :card, Map.get(assigns.summary_lines, {item.scope, assigns.period}))
+
+    ~H"""
+    <SummaryLineWidget.widget
+      item={@item}
+      period={@period}
+      card={@card}
+      scope_label={scope_label(@item, @views)}
+    />
+    """
+  end
+
+  defp widget(%{item: %{kind: "allocation"} = item} = assigns) do
+    state = allocation_state(assigns, item)
+
+    assigns =
+      assign(assigns,
+        state: state,
+        card: Map.get(assigns.allocations, {item.scope, state.classification_id})
+      )
+
+    ~H"""
+    <AllocationWidget.widget
+      item={@item}
+      card={@card}
+      state={@state}
+      scope_label={scope_label(@item, @views)}
+    />
+    """
+  end
+
+  # --- S32 W2 end ---
 
   attr(:row, :map, required: true)
 

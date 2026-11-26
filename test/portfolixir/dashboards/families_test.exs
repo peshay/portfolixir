@@ -107,7 +107,10 @@ defmodule Portfolixir.Dashboards.FamiliesTest do
              "sale_review" => ~w(L row),
              "distance_to_high" => ~w(L XL),
              "crash_chart" => ~w(L XL),
-             "rebounders" => ~w(L XL)
+             "rebounders" => ~w(L XL),
+             # Sprint 32 W2: the sections of „Allokation & Ziele“.
+             "summary_line" => ~w(row),
+             "allocation" => ~w(row)
            } == Map.new(Widgets.kinds(), &{&1.key, &1.sizes})
 
     area = fn size ->

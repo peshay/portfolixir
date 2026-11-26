@@ -193,10 +193,13 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
        %{conn: conn} do
     %{"data" => fresh} = conn |> authed() |> get("/api/v1/dashboards") |> json_response(200)
 
-    # The starter in the menu; the themes (Sprint 32 S5) never are.
-    assert [overview | themes] = fresh
+    # The starter „Überblick“ in the menu; the other starters (Sprint 32 W2)
+    # have no address until the boot stores them, and the themes (Sprint 32
+    # S5) never are.
+    assert [overview | others] = fresh
 
-    assert Enum.map(themes, &{&1["key"], &1["group"], &1["in_menu"]}) == [
+    assert Enum.map(others, &{&1["key"], &1["group"], &1["in_menu"]}) == [
+             {"allocation_targets", "starter", false},
              {"krypto_lover", "theme", false},
              {"pullbacks", "theme", false}
            ]
@@ -327,7 +330,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
                %{
                  "errors" => %{
                    "detail" =>
-                     "not found: names no template; offered: overview, krypto_lover, pullbacks"
+                     "not found: names no template; offered: overview, allocation_targets, krypto_lover, pullbacks"
                  }
                },
              path
@@ -511,7 +514,9 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
            |> json_response(422) ==
              %{
                "errors" => %{
-                 "template" => ["names no template; offered: overview, krypto_lover, pullbacks"]
+                 "template" => [
+                   "names no template; offered: overview, allocation_targets, krypto_lover, pullbacks"
+                 ]
                }
              }
 
