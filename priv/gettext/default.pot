@@ -20294,6 +20294,7 @@ msgid "Cash accounts"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:219
+#: lib/portfolixir_web/live/dashboard/widgets/summary_line.ex:189
 #, elixir-autogen, elixir-format
 msgid "Couldn't load the key figures."
 msgstr ""
