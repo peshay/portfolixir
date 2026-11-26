@@ -24,7 +24,23 @@ const { base_url: base, ids, out } = JSON.parse(process.argv[2]);
 const THEMES = ["light", "dark"];
 const VIEWPORT = { width: 1200, height: 900 };
 
-async function shoot(browser, theme) {
+// Sprint 32 W5: what would make a picture differ from one run to the next
+// with nothing changed in its widget — the grid's rounded corners (they
+// clip a widget only where it stands first or last on its throwaway
+// dashboard, which the registry's growth moves) and an instant a walk was
+// computed at, to the minute (the bands' „computed … UTC“).
+async function unsteady(page) {
+  return page.evaluate(() => {
+    const grid = document.querySelector("#dashboard-grid");
+    const radius = grid ? getComputedStyle(grid).borderTopLeftRadius : "none";
+    const instants = (document.querySelector("#dashboard-grid") || document.body).innerText.match(
+      /\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC/g
+    );
+    return { radius, instants: (instants || []).filter((i) => !i.endsWith("00:00 UTC")) };
+  });
+}
+
+async function shoot(browser, theme, seen) {
   const files = [];
   const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, locale: "en-US" });
   await context.addInitScript((th) => {
@@ -45,6 +61,19 @@ async function shoot(browser, theme) {
     // the snapshot comparison), whose head it covered in the picture. A
     // sticky bar takes the same room in the flow, so nothing else moves.
     await page.addStyleTag({ content: ".topbar { position: static !important; }" });
+    // Sprint 32 W5: a picture changes only with its widget. The throwaway
+    // grid draws no rounded corner (it clipped a widget only where it
+    // stood first or last, which a kind registered later moves), and an
+    // instant a walk was computed at reads as its day at 00:00 UTC (the
+    // minute changes with every run; the day is the seed's).
+    await page.addStyleTag({ content: "#dashboard-grid { border-radius: 0 !important; }" });
+    await page.evaluate(() => {
+      const walker = document.createTreeWalker(document.getElementById("dashboard-grid"), NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        node.nodeValue = node.nodeValue.replace(/(\d{4}-\d{2}-\d{2}) \d{2}:\d{2} UTC/g, "$1 00:00 UTC");
+      }
+    });
+    seen.push(await unsteady(page));
     const widgets = page.locator("#dashboard-grid > .dashboard-widget");
     const count = await widgets.count();
     for (let i = 0; i < count; i++) {
@@ -66,8 +95,9 @@ async function shoot(browser, theme) {
   const browser = await launchChromium();
   try {
     const files = [];
-    for (const theme of THEMES) files.push(...(await shoot(browser, theme)));
-    process.stdout.write(JSON.stringify({ ok: true, files }) + "\n");
+    const seen = [];
+    for (const theme of THEMES) files.push(...(await shoot(browser, theme, seen)));
+    process.stdout.write(JSON.stringify({ ok: true, files, unsteady: seen }) + "\n");
   } catch (error) {
     process.stdout.write(JSON.stringify({ ok: false, error: String(error && error.message) }) + "\n");
   } finally {
