@@ -81,6 +81,12 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
   #   sizes; at 834 and 393 px the footer whole or wrapped, never cut;
   #   the cycle chart of „Bitcoin-Zyklus“ XL draws no text under 12 CSS
   #   px; no table's head cell cut (the coverage pass: „BENCH…“).
+  # - The S32 closing act's UAT, at 834 and 393 px: a warning line's
+  #   sentence at the line's whole width, not wrapped beside its link
+  #   (finding 3); no text under 12 px in a widget, a chart's text drawn
+  #   to its CSS pixels (finding 4); no table running past its widget
+  #   unless a box scrolls it (finding 6); at 393 px no S alone at half
+  #   the width (finding 11).
   # - Sprint 32 L2 and L3: at 1200 px no title cut either (each kind's
   #   title fits its smallest tile), and no tile cuts a row of its body
   #   or its footer: a fixed tile shows what fits.
@@ -130,6 +136,10 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
   #   anatomy's sizes; at 393 px a footer cut with an ellipsis: named; a
   #   widget's chart label drawn at 9 CSS px: named; a table's head cell
   #   cut with an ellipsis: named.
+  # - At 393 px a warning wrapped in a 60 px column, an 11 px line, a
+  #   table wider than its widget, a fit table that scrolls and an S alone
+  #   at half the width: each
+  #   named (the S32 closing act's UAT).
   # - A 12 px gap in the wide grid: named as not the hairline.
   # - The handle drawn above its cell in the edit mode: named.
   test "the walk names a wrapped head, a cut figure, a warning box, a card border, a gap and a handle outside its cell",
@@ -166,6 +176,16 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
     end
 
     assert Enum.any?(narrow, &(&1 =~ "footer is cut: Ansicht Alles")), inspect(narrow)
+
+    for caught <- [
+          "wraps its warning in a narrow column: Nicht in der Summe",
+          "draws text under 12 px: Elf Pixel at 11.0 px",
+          "table runs past the widget: Breite Tabelle",
+          "table runs past the widget: risk-fit-table scrolls by",
+          "stands alone at half the width"
+        ] do
+      assert Enum.any?(narrow, &(&1 =~ caught)), caught <> ": " <> inspect(narrow)
+    end
 
     assert Enum.any?(wide, &(&1 =~ "not the hairline")), inspect(wide)
     assert Enum.any?(wide, &(&1 =~ "title is cut")), inspect(wide)

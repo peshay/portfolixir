@@ -73,7 +73,8 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   marked `dangling` when the item named a view that no longer exists (§2).
   An item of a kind the registry no longer holds is left out. Each keeps
   its `index`, its place in the stored layout, which a write to it (the
-  pin) names.
+  pin) names, and says whether it is a `lone` S, one the compact class
+  cannot pair with another S in reading order (`mark_lone/1`).
   """
   @spec items([map()], integer() | nil, [map()]) :: [map()]
   def items(layout, scope_id, views) when is_list(layout) do
@@ -95,6 +96,29 @@ defmodule PortfolixirWeb.Dashboard.Widget do
       {item, Map.put(seen, item.kind, n)}
     end)
     |> elem(0)
+    |> mark_lone()
+  end
+
+  # The S32 closing act's UAT, finding 11: the compact class sets two S
+  # side by side (board 09), pairing them in reading order; an S left
+  # without a partner — the next widget is no S, or the list ends — is
+  # `lone`, and its frame spans the compact grid's width (`widget--lone`).
+  defp mark_lone(items) do
+    items
+    |> Enum.chunk_by(&(&1.size == "S"))
+    |> Enum.flat_map(fn
+      [%{size: "S"} | _] = run ->
+        last = length(run) - 1
+
+        run
+        |> Enum.with_index()
+        |> Enum.map(fn {item, i} ->
+          Map.put(item, :lone, rem(length(run), 2) == 1 and i == last)
+        end)
+
+      others ->
+        Enum.map(others, &Map.put(&1, :lone, false))
+    end)
   end
 
   defp registered(%{"kind" => kind, "size" => size, "col" => col, "row" => row} = item, index) do
@@ -410,6 +434,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
         "widget--" <> String.downcase(@item.size),
         editing?(@item) && "is-editing",
         Map.get(@item, :moved) && "is-moved",
+        Map.get(@item, :lone) && "widget--lone",
         @class
       ]}
       data-widget-kind={@item.kind}

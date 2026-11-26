@@ -73,6 +73,7 @@ function measure(page) {
       grid: {
         radius: gs.borderTopLeftRadius,
         border: gs.borderTopWidth + " " + gs.borderTopStyle,
+        width: grid.getBoundingClientRect().width,
         editing: grid.dataset.editing === "true"
       },
       widgets: widgets.map((w) => {
@@ -231,6 +232,74 @@ function measure(page) {
           }
         }
 
+        // The S32 closing act's UAT (findings 3, 4, 6), in the compact
+        // and medium classes: a warning line's sentence at the line's
+        // whole width, not wrapped in a narrow column beside its link
+        // (finding 3); no text under 12 px, HTML or a chart's SVG drawn to
+        // its CSS pixels (finding 4); no table running past its widget
+        // unless a box scrolls it (finding 6).
+        const narrowWarning = [];
+        const tinyText = [];
+        const tableOver = [];
+        if (!wideGrid) {
+          for (const line of w.querySelectorAll(".widget-warning")) {
+            const text = line.querySelector(".widget-warning__text");
+            if (!shown(line) || !text || !shown(text)) continue;
+            const lh = parseFloat(getComputedStyle(text).lineHeight) || 16;
+            if (rect(text).height > lh * 1.5 && rect(text).width < rect(line).width * 0.8) {
+              narrowWarning.push(text.textContent.replace(/\s+/g, " ").trim().slice(0, 30));
+            }
+          }
+          const walker = document.createTreeWalker(w, NodeFilter.SHOW_TEXT);
+          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            if (!node.textContent.trim()) continue;
+            const el = node.parentElement;
+            if (!el || !shown(el) || el.closest(".visually-hidden, .widget__head .section-info, [hidden]")) continue;
+            const r = el.getBoundingClientRect();
+            if (r.width < 2 || r.height < 2) continue;
+            let size = parseFloat(getComputedStyle(el).fontSize);
+            const svg = el.closest("svg");
+            if (svg) {
+              const vb = svg.viewBox && svg.viewBox.baseVal;
+              if (vb && vb.width) size = size * (rect(svg).width / vb.width);
+            }
+            if (size < 11.95) {
+              const cls = typeof el.className === "string" ? el.className : el.getAttribute("class") || "";
+              tinyText.push(
+                node.textContent.replace(/\s+/g, " ").trim().slice(0, 24) + " at " + size.toFixed(1) + " px (" +
+                  el.tagName.toLowerCase() + (cls ? "." + cls.trim().split(/\s+/).join(".") : "") +
+                  (el.parentElement ? " in " + el.parentElement.tagName.toLowerCase() + "." + (typeof el.parentElement.className === "string" ? el.parentElement.className.trim().split(/\s+/).join(".") : "") : "") +
+                  ")"
+              );
+            }
+          }
+          const frame = rect(w);
+          for (const cell of w.querySelectorAll("th, td")) {
+            if (!shown(cell)) continue;
+            let scrolled = false;
+            for (let box = cell.parentElement; box && box !== w; box = box.parentElement) {
+              const ox = getComputedStyle(box).overflowX;
+              if (ox === "auto" || ox === "scroll") {
+                scrolled = true;
+                break;
+              }
+            }
+            if (!scrolled && rect(cell).right > frame.right + 1) {
+              tableOver.push(cell.textContent.replace(/\s+/g, " ").trim().slice(0, 24));
+              break;
+            }
+          }
+          // A table meant to fit (`.risk-fit-table`, the Risk tab's: „these
+          // tables are meant to fit, not to scroll“) never scrolls
+          // sideways in a widget either (finding 6).
+          for (const table of w.querySelectorAll(".risk-fit-table")) {
+            const box = table.parentElement;
+            if (shown(table) && box && box.scrollWidth > box.clientWidth + 1) {
+              tableOver.push(table.className + " scrolls by " + (box.scrollWidth - box.clientWidth) + " px");
+            }
+          }
+        }
+
         // The footer whole or wrapped, never cut, in the compact forms
         // (the S32 closing act: „Ans…“ and „Nicht i…“ at 393 px).
         const footCut = [];
@@ -276,6 +345,7 @@ function measure(page) {
         return {
           name,
           kind: w.dataset.widgetKind,
+          size: w.dataset.size,
           frame: frame.toJSON(),
           titleLines: t && lineHeight ? Math.round(t.height / lineHeight) : null,
           // The wide head cuts a title too long for its tile with an
@@ -294,6 +364,9 @@ function measure(page) {
           footCut,
           smallText,
           headCut,
+          narrowWarning,
+          tinyText,
+          tableOver,
           border: ws.borderTopWidth,
           radius: ws.borderTopLeftRadius,
           shadow: ws.boxShadow,
@@ -325,6 +398,9 @@ function check(tag, viewport, m, errors) {
     for (const c of w.cards) errors.push(tag + ": " + w.name + " carries a card: " + c);
     for (const s of w.offSizes) errors.push(tag + ": " + w.name + " sets a figure off the anatomy's sizes: " + s);
     for (const f of w.footCut) errors.push(tag + ": " + w.name + "'s footer is cut: " + f);
+    for (const n of w.narrowWarning) errors.push(tag + ": " + w.name + " wraps its warning in a narrow column: " + n);
+    for (const t of w.tinyText) errors.push(tag + ": " + w.name + " draws text under 12 px: " + t);
+    for (const c of w.tableOver) errors.push(tag + ": " + w.name + "'s table runs past the widget: " + c);
     for (const h of w.headCut) errors.push(tag + ": " + w.name + " cuts a table head: " + h);
     for (const t of w.smallText) errors.push(tag + ": " + w.name + " draws chart text under 12 px: " + t);
     if (w.border !== "0px") errors.push(tag + ": " + w.name + " draws a card border of " + w.border);
@@ -337,6 +413,19 @@ function check(tag, viewport, m, errors) {
       for (const [part, box] of [["handle", w.handle], ["×", w.remove], ["size switch", w.sizes]]) {
         if (box && !inside(box, w.frame)) errors.push(tag + ": " + w.name + "'s " + part + " stands outside its cell");
       }
+    }
+  }
+
+  // A lone S in the compact class (the S32 closing act's UAT, finding
+  // 11): an S with no widget beside it spans the grid's width, never half
+  // of it with the other half empty.
+  if (viewport.width < 600) {
+    for (const a of m.widgets) {
+      if (a.size !== "S" || a.frame.width > m.grid.width * 0.6) continue;
+      const beside = m.widgets.some(
+        (b) => b !== a && Math.min(a.frame.bottom, b.frame.bottom) - Math.max(a.frame.top, b.frame.top) > 2
+      );
+      if (!beside) errors.push(tag + ": " + a.name + " stands alone at half the width");
     }
   }
 
@@ -413,12 +502,43 @@ function breakEach(page, viewport) {
     const foot = document.createElement("footer");
     foot.className = "widget__foot";
     foot.innerHTML =
-      "<span style='display: block; width: 50px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis'>Ansicht Alles · ein langer Fuß</span>";
+      "<span style='display: block; flex: none; width: 50px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis'>Ansicht Alles · ein langer Fuß</span>";
     second.appendChild(foot);
     // A chart in a widget whose label is drawn at 9 CSS px: a 960-unit
     // viewBox drawn 480 px wide, its text 18 units.
     const chart = document.createElement("div");
     chart.dataset.role = "cycle-widget-chart";
+    // The compact classes (the S32 closing act's UAT, findings 3, 4, 6,
+    // 11): a warning wrapped in a 60 px column, an 11 px line, a table
+    // wider than the widget, and an S set at half the width alone.
+    if (!wide) {
+      const warning = document.createElement("p");
+      warning.className = "widget-warning";
+      warning.innerHTML =
+        "<span class='widget-warning__text' style='display: block; flex: none; width: 60px; white-space: normal'>Nicht in der Summe: drei Konten</span>";
+      second.appendChild(warning);
+      const tiny = document.createElement("span");
+      tiny.textContent = "Elf Pixel";
+      tiny.style.fontSize = "11px";
+      second.appendChild(tiny);
+      const over = document.createElement("table");
+      over.style.cssText = "display: table; width: 900px";
+      over.innerHTML = "<tbody><tr><td>Breite Tabelle</td></tr></tbody>";
+      second.appendChild(over);
+      const fit = document.createElement("div");
+      fit.className = "data-table-wrapper";
+      fit.style.cssText = "overflow-x: auto; width: 100px";
+      fit.innerHTML =
+        "<table class='risk-fit-table' style='display: table; width: 600px'><tbody><tr><td>Passt nicht</td></tr></tbody></table>";
+      second.appendChild(fit);
+      const lone = widgets.filter((x) => x.dataset.size === "S").pop();
+      if (lone) {
+        const others = widgets.filter((x) => x !== lone);
+        lone.style.gridColumn = "span 1";
+        lone.style.gridRow = "999";
+        others.forEach((x) => x.style.gridRow === "999" && (x.style.gridRow = ""));
+      }
+    }
     chart.innerHTML =
       "<svg viewBox='0 0 960 320' style='display: block; width: 480px; height: 160px'><text x='10' y='40' style='font-size: 18px'>Top-Band 4.500 USD</text></svg>";
     second.appendChild(chart);

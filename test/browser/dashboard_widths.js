@@ -186,6 +186,7 @@ function measure(page, roots, targets = TAP_TARGETS) {
                 id: el.id,
                 kind: el.dataset.widgetKind,
                 size: el.dataset.size,
+                lone: el.classList.contains("widget--lone"),
                 col: Number(el.dataset.col),
                 row: Number(el.dataset.row),
                 w: Number(style.getPropertyValue("--widget-w")),
@@ -373,7 +374,9 @@ function inReadingOrder(widgets) {
 // class sets the families as a phone's home screen does — two S side by
 // side, every other size the full width — in reading order: a widget
 // stands under the one before it, or, an S after an S that stands alone on
-// the left, beside it on the right.
+// the left, beside it on the right. An S that reading order cannot pair
+// (`widget--lone`, the S32 closing act's UAT, finding 11) takes the full
+// width too.
 function compactRules(m, at) {
   const errors = pageRules(m, at);
   if (!inReadingOrder(m.widgets)) errors.push(at + ": the page draws the widgets out of reading order");
@@ -384,7 +387,7 @@ function compactRules(m, at) {
   let beside = false;
   for (let i = 0; i < m.widgets.length; i++) {
     const w = m.widgets[i];
-    const small = w.size === "S";
+    const small = w.size === "S" && !w.lone;
     const width = small ? half : full;
     if (Math.abs(w.width - width) > SLACK) {
       errors.push(at + ": #" + w.id + " (" + w.size + ") is " + Math.round(w.width) + " px wide, not " + Math.round(width));

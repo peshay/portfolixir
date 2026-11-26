@@ -18466,4 +18466,80 @@ a.widget-row:hover .widget-row__label {
   display: none;
 }
 
+/* The S32 closing act's UAT persona (findings 3, 6, 11), in the compact
+   and medium classes. */
+@media (width < 1000px) {
+  /* A warning line's sentence takes the line's whole width beside its
+     glyph and wraps between its words; its link goes under it
+     (finding 3: „Verrech|nungsko|nten“ in a 100 px column). */
+  .widget-warning .widget-warning__text {
+    flex: 1 1 calc(100% - 2em);
+    overflow-wrap: break-word;
+  }
+
+  .widget-warning > a {
+    flex: 1 0 100%;
+  }
+
+  /* „Größte Einzelpositionen“ fits its widget, as on the tab at a
+     phone's width: the asset class steps aside and the names wrap
+     (finding 6: the last column cut at 834 px). */
+  .dashboard-widget .data-table-wrapper > .risk-fit-table {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .dashboard-widget .risk-top-table .risk-col-optional {
+    display: none;
+  }
+
+  .dashboard-widget .risk-fit-table th,
+  .dashboard-widget .risk-fit-table td {
+    padding-right: 6px;
+    padding-left: 6px;
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+
+  /* A head word wider than its column („BEOBACHTUNGEN“ at 12 px) breaks
+     rather than push the table past the widget. */
+  .dashboard-widget .risk-fit-table th {
+    hyphens: auto;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* No text under 12 px in a widget in the compact and medium classes
+   (finding 4; DESIGN.md: nothing under 12 px at phone type): the moved
+   sections' table heads, badges, toggles and axes, which the tabs set at
+   11 and 9 px, read at 12 here; a chart's text through --chart-upx, the
+   CSS pixels its hook measures. The tabs keep their own type. */
+@media (width < 1000px) {
+  .dashboard-widget table thead th,
+  .dashboard-widget table th,
+  .dashboard-widget .badge,
+  .dashboard-widget .positions-toggle,
+  .dashboard-widget .hint.target-consistency,
+  .dashboard-widget .crash-axis span,
+  .dashboard-widget .sunburst-centre__label,
+  .dashboard-widget .sunburst-centre__sub,
+  .dashboard-widget .data-note-group__count {
+    font-size: 12px;
+  }
+
+  .dashboard-widget svg text,
+  .dashboard-widget .chart-frame .security-chart .chart-axis-labels text,
+  .dashboard-widget .chart-frame[data-axis-inside] .security-chart text {
+    font-size: calc(12px * var(--chart-upx, 1));
+  }
+}
+
+/* A lone S, with no S beside it in reading order, spans both columns of
+   the compact class (finding 11; `Widget.items/3` marks it). */
+@media (width < 600px) {
+  .dashboard-grid > .dashboard-widget.widget--s.widget--lone {
+    grid-column: span 2;
+  }
+}
+
 /* --- S32 closing act, PR 2 (the design critic) end --- */
