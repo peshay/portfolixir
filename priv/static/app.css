@@ -18542,4 +18542,25 @@ a.widget-row:hover .widget-row__label {
   }
 }
 
+/* The S32 closing act's UAT, finding 7: with an own period active the
+   bar wrapped onto two lines at 1200 px. In the wide class the period's
+   status sentence stands under the period button, out of the bar's line
+   (still the polite region where the step was taken); and „Kennzahlen“'
+   result at Zeile keeps its currency on its figure's line, its column as
+   wide as the two need (M, a third of the width, keeps the anatomy's
+   rule: the unit under the digits). */
+@media (width >= 1000px) {
+  .dashboard-period-menu__say {
+    position: absolute;
+    top: calc(100% + 2px);
+    right: 0;
+    z-index: 5;
+    white-space: nowrap;
+  }
+}
+
+.key-figures--row .key-figures__returns .widget-figure__value {
+  white-space: nowrap;
+}
+
 /* --- S32 closing act, PR 2 (the design critic) end --- */
