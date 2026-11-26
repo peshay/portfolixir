@@ -628,8 +628,129 @@ defmodule Portfolixir.Dashboards.Widgets do
       period: :none,
       scope: :view,
       compact: true
-    }
+    },
     # --- S32 W4 end ---
+    # --- S32 W1 begin ---
+    # Sprint 32 W1 (I57; board 02 ①): the sections of Wealth's tab
+    # „Bestände“ as section widgets, each drawn by its module under
+    # `PortfolixirWeb.Dashboard.Widgets` from the read its section reads,
+    # the module Wealth draws the section with.
+    %{
+      key: "wealth_key_figures",
+      title: "Key figures",
+      group: "overview",
+      # Board 06 ① A at „Zeile“; S the total and its split, M the total and
+      # the three returns (plan W1; amendment 3).
+      sizes: ~w(S M row),
+      source: %{
+        routes: [
+          "GET /api/v1/valuation",
+          "GET /api/v1/views/:view_id/valuation",
+          "GET /api/v1/performance",
+          "GET /api/v1/views/:view_id/performance"
+        ],
+        function: {Portfolixir.Portfolios.Performance, :for_view, 2},
+        note:
+          "Wealth's key figures: the total, the securities, the cash and the cash quote of " <>
+            "the valuation read; result (end_value - start_value - net_external_flows), " <>
+            "ttwror, irr (mwr under a year), the bridge start_value + net_external_flows " <>
+            "+ result = end_value and wealth_multiple of the performance read with the " <>
+            "period's parameters."
+      },
+      period: @performance_period,
+      scope: :view,
+      compact: true
+    },
+    %{
+      key: "data_notes",
+      title: "Data notes",
+      group: "overview",
+      # „Zeile“ only, drawn only while a note exists (plan W1).
+      sizes: ~w(row),
+      source: %{
+        routes: [
+          "GET /api/v1/valuation",
+          "GET /api/v1/views/:view_id/valuation",
+          "GET /api/v1/performance",
+          "GET /api/v1/holdings/negative",
+          "GET /api/v1/securities"
+        ],
+        function: {Portfolixir.Portfolios.Valuation, :for_view, 2},
+        note:
+          "Wealth's section „Data quality“: the valuation read's positions without a " <>
+            "price or a rate, at a trade price or an old quote, and its cash without a " <>
+            "rate; the performance read's suspect_dates; the negative holdings; the bonds " <>
+            "on two scales and the implausible quotes " <>
+            "(GET /api/v1/securities?data_quality=<finding>)."
+      },
+      period: :none,
+      scope: :view,
+      compact: true
+    },
+    %{
+      key: "contribution",
+      title: "Contribution by position",
+      group: "performance",
+      # „Zeile“ Wealth's table; L the five largest, XL the eight largest with
+      # their start and end value (plan W1).
+      sizes: ~w(L XL row),
+      source: %{
+        routes: [
+          "GET /api/v1/performance/contribution",
+          "GET /api/v1/views/:view_id/performance/contribution"
+        ],
+        function: {Portfolixir.Portfolios.Performance.Contribution, :for_view, 2},
+        note:
+          "Wealth's table „Contribution by position“: the positions, the remainder and " <>
+            "totals.result of the contribution read with the period's parameters; L and " <>
+            "XL the largest positions by the absolute contribution."
+      },
+      period: @performance_period,
+      scope: :view,
+      compact: true
+    },
+    %{
+      key: "positions",
+      title: "Positions",
+      group: "overview",
+      # „Zeile“ only: the section is its table and its column picker (plan
+      # W1); a fixed tile would show neither.
+      sizes: ~w(row),
+      source: %{
+        routes: [
+          "GET /api/v1/portfolios/:portfolio_id/holdings",
+          "GET /api/v1/valuation",
+          "GET /api/v1/views/:view_id/valuation"
+        ],
+        function: {Portfolixir.Ledger, :holdings_for_portfolio, 1},
+        note:
+          "Wealth's section „Positions“: each portfolio's holdings projection narrowed to " <>
+            "the view's depots and securities, the picker's columns its fields; the market " <>
+            "value the view valuation's positions[].market_value for the same depot and " <>
+            "security."
+      },
+      period: :none,
+      scope: :view,
+      compact: true
+    },
+    %{
+      key: "cash_accounts",
+      title: "Cash accounts",
+      group: "overview",
+      # „Zeile“ the section's table; S the scope's cash (plan W1).
+      sizes: ~w(S row),
+      source: %{
+        routes: ["GET /api/v1/valuation", "GET /api/v1/views/:view_id/valuation"],
+        function: {Portfolixir.Portfolios.Valuation, :for_view, 2},
+        note:
+          "Wealth's section „Cash accounts“: the valuation read's cash_balances, each " <>
+            "account's balance in its own currency; at S its total_cash."
+      },
+      period: :none,
+      scope: :view,
+      compact: true
+    }
+    # --- S32 W1 end ---
   ]
 
   @by_key Map.new(@kinds, &{&1.key, &1})
@@ -881,6 +1002,13 @@ defmodule Portfolixir.Dashboards.Widgets do
   def title("concentration"), do: pgettext("widget kind", "Concentration risk")
   def title("asset_class_limits"), do: pgettext("widget kind", "Asset-class caps")
   # --- S32 W4 end ---
+  # --- S32 W1 begin ---
+  def title("wealth_key_figures"), do: pgettext("widget kind", "Key figures")
+  def title("data_notes"), do: pgettext("widget kind", "Data notes")
+  def title("contribution"), do: pgettext("widget kind", "Contribution by position")
+  def title("positions"), do: pgettext("widget kind", "Positions")
+  def title("cash_accounts"), do: pgettext("widget kind", "Cash accounts")
+  # --- S32 W1 end ---
   def title(_key), do: nil
 
   @doc "The group's title in the current locale; `nil` for an unknown group."

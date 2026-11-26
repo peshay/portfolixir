@@ -41,9 +41,9 @@ defmodule PortfolixirWeb.WidgetsLive do
   # (Sprint 32 E4: W → M, M → L, L → XL). Keys name them on this page only;
   # none is a registered kind (`widget_catalogue_test.exs` holds that).
   # „Allokation“ left the list when Sprint 32 W2 registered it; „Kennzahlen“,
-  # „Konzentration“ and „Anlageklassen-Grenzen“ when W4 registered them.
+  # „Konzentration“ and „Anlageklassen-Grenzen“ when W4 registered them;
+  # „Beitrag je Position“ when W1 did.
   @later [
-    %{key: "contribution", group: "performance", sizes: ~w(L XL)},
     %{key: "predictions", group: "analyses", sizes: ~w(S L)},
     %{key: "income", group: "income_tax", sizes: ~w(M L)},
     %{key: "fees_and_taxes", group: "income_tax", sizes: ~w(L)},
@@ -401,7 +401,6 @@ defmodule PortfolixirWeb.WidgetsLive do
   defp group_title("income_tax"), do: pgettext("widget group", "Income and tax")
   defp group_title(group), do: Widgets.group_title(group)
 
-  defp later_title("contribution"), do: pgettext("widget kind", "Contribution by position")
   defp later_title("predictions"), do: pgettext("widget kind", "Predictions")
   defp later_title("income"), do: pgettext("widget kind", "Income")
   defp later_title("fees_and_taxes"), do: pgettext("widget kind", "Fees and taxes")

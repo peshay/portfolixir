@@ -5763,9 +5763,11 @@ zusammenstellen lässt, ohne den Code zu lesen: `{"data": {"widgets",
   `allocation_drift`, `crashes`, `bitcoin_cycle`, `sale_review`, seit
   Sprint 32 auch `distance_to_high`, `crash_chart`, `rebounders` und die
   Abschnitte der Vermögens-Tabs Allokation & Ziele, `summary_line` und
-  `allocation`, Snapshots, `snapshot_comparison` und `snapshot_list`, und
+  `allocation`, Snapshots, `snapshot_comparison` und `snapshot_list`,
   Risiko, `own_rules`, `key_figures`, `crash_section`, `top_holdings`,
-  `concentration` und `asset_class_limits`), `title`
+  `concentration` und `asset_class_limits`, und Bestände,
+  `wealth_key_figures`, `data_notes`, `contribution`, `positions` und
+  `cash_accounts`), `title`
   (englisch) und `title_key` (`{context, msgid}`, die Meldung, die der
   Bildschirm übersetzt), `group`, `sizes` (eine Teilmenge von `S`, `M`, `L`,
   `XL`, `row` und `full`, die kleinste zuerst), `source` (`routes`, die `GET /api/v1/...`-Routen,

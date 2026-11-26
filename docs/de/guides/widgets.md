@@ -700,3 +700,170 @@ Aufklappung.
 </figure>
 
 <!-- S32 W4 end -->
+
+## Kennzahlen
+
+`wealth_key_figures` · Größen S, M, Zeile
+
+Die Kennzahlen von Vermögen, wie der Owner sie gewählt hat (Board 06,
+Variante A): der Gesamtwert inkl. Cash mit seiner Aufteilung in
+Wertpapiere und Cash, Ergebnis, TTWROR und IZF des Zeitraums in einer
+Zeile und darunter die Wertbrücke Anfang + Nettoflüsse + Ergebnis = heute
+mit dem Multiplikator. Die Brücke zeigt die Zahlen der Wertentwicklung
+selbst auf den Cent; wo die gerundeten Cents nicht aufgehen, steht die
+Differenz daneben, nie in eine Zahl verschoben. **S** zeichnet den
+Gesamtwert und seine Aufteilung, **M** den Gesamtwert und die drei
+Renditen, **Zeile** alles.
+
+**Quelle:**
+
+- `GET /api/v1/valuation`
+- `GET /api/v1/views/:view_id/valuation`
+- `GET /api/v1/performance`
+- `GET /api/v1/views/:view_id/performance`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/wealth_key_figures-s-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/wealth_key_figures-s-light.png 2x" src="/assets/widgets/wealth_key_figures-s-light.png" alt="Kennzahlen in S" loading="lazy">
+</picture>
+<figcaption>S</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/wealth_key_figures-m-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/wealth_key_figures-m-light.png 2x" src="/assets/widgets/wealth_key_figures-m-light.png" alt="Kennzahlen in M" loading="lazy">
+</picture>
+<figcaption>M</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/wealth_key_figures-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/wealth_key_figures-row-light.png 2x" src="/assets/widgets/wealth_key_figures-row-light.png" alt="Kennzahlen in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>
+
+## Datenhinweise
+
+`data_notes` · Größen Zeile
+
+Die Datenhinweise von Vermögen: warum eine Summe von dem abweichen kann,
+was erwartet wird — Positionen ohne Kurs oder Wechselkurs, zum
+Handelspreis oder zu einem alten Kurs, Cash ohne Kurs, negative Bestände,
+Anleihen auf zwei Skalen, Kurse, die ihren Buchungen widersprechen,
+Buchungen vor 1970. Steht nur, solange ein Hinweis besteht; Wechselkurse
+abrufen bleibt auf Vermögen, verlinkt. Nur **Zeile**.
+
+**Quelle:**
+
+- `GET /api/v1/valuation`
+- `GET /api/v1/views/:view_id/valuation`
+- `GET /api/v1/performance`
+- `GET /api/v1/holdings/negative`
+- `GET /api/v1/securities`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/data_notes-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/data_notes-row-light.png 2x" src="/assets/widgets/data_notes-row-light.png" alt="Datenhinweise in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>
+
+## Beitrag je Position
+
+`contribution` · Größen L, XL, Zeile
+
+Welche Position wie viel zum Ergebnis des Zeitraums beigetragen hat
+(Endwert − Anfangswert − Flüsse + Erträge − Kosten). **Zeile** ist die
+Tabelle von Vermögen: die zehn größten, „Alle anzeigen“, der keiner
+Position zugeordnete Rest und die Summenzeile, die das Ergebnis des
+Zeitraums ist. **L** listet die fünf größten Beiträge mit ihrem Balken,
+**XL** die acht größten in zwei Spalten, mit Anfangs- und Endwert.
+
+**Quelle:**
+
+- `GET /api/v1/performance/contribution`
+- `GET /api/v1/views/:view_id/performance/contribution`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/contribution-l-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/contribution-l-light.png 2x" src="/assets/widgets/contribution-l-light.png" alt="Beitrag je Position in L" loading="lazy">
+</picture>
+<figcaption>L</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/contribution-xl-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/contribution-xl-light.png 2x" src="/assets/widgets/contribution-xl-light.png" alt="Beitrag je Position in XL" loading="lazy">
+</picture>
+<figcaption>XL</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/contribution-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/contribution-row-light.png 2x" src="/assets/widgets/contribution-row-light.png" alt="Beitrag je Position in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>
+
+## Positionen
+
+`positions` · Größen Zeile
+
+Die Positionstabelle von Vermögen: eine Zeile je Depot und Wertpapier, in
+den mit der Spaltenauswahl gewählten Spalten (den Feldern der
+Bestandsprojektion), der Marktwert in der Basiswährung, wie die Summe ihn
+zählt. Die einmal gewählten Spalten gelten für Vermögen und jedes
+Dashboard. Nur **Zeile**.
+
+**Quelle:**
+
+- `GET /api/v1/portfolios/:portfolio_id/holdings`
+- `GET /api/v1/valuation`
+- `GET /api/v1/views/:view_id/valuation`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/positions-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/positions-row-light.png 2x" src="/assets/widgets/positions-row-light.png" alt="Positionen in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>
+
+## Verrechnungskonten
+
+`cash_accounts` · Größen S, Zeile
+
+Jedes Verrechnungskonto der Ansicht mit seinem Saldo in seiner eigenen
+Währung; eine Reserve oder ein Kreditrahmen gedämpft, außerhalb der
+Cashquote. Salden setzen bleibt bei Konten & Depots, verlinkt. **S**
+(Überschrift „Cash“) zeichnet das verfügbare Cash und wie viele Konten es
+summiert, **Zeile** die Tabelle.
+
+**Quelle:**
+
+- `GET /api/v1/valuation`
+- `GET /api/v1/views/:view_id/valuation`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/cash_accounts-s-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/cash_accounts-s-light.png 2x" src="/assets/widgets/cash_accounts-s-light.png" alt="Verrechnungskonten in S" loading="lazy">
+</picture>
+<figcaption>S</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/cash_accounts-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/cash_accounts-row-light.png 2x" src="/assets/widgets/cash_accounts-row-light.png" alt="Verrechnungskonten in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>

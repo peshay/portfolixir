@@ -31,7 +31,8 @@ defmodule Portfolixir.Dashboards.RowSizeTest do
   # - `row` is a size with the dimensions 12 × 1, no Apple family, drawn at
   #   its content's height (`Widgets.height/1` "content", every family
   #   "fixed").
-  # - `sale_review` takes L and row; a kind that does not take row is
+  # - `sale_review` takes L and row, as the section widgets of Sprint 32
+  #   W1 take row; a kind that does not take row is
   #   refused with `unsupported_size`, a row item not at column 1 with
   #   `off_grid`, a row item over another with `overlap`.
   # - The arrangement moves what a row item covers below it and closes the
@@ -49,12 +50,13 @@ defmodule Portfolixir.Dashboards.RowSizeTest do
     assert sale_review.sizes == ~w(L row)
 
     # Sprint 32 W2 to W4 add the sections of „Allokation & Ziele“,
-    # „Snapshots“ and „Risiko“.
+    # „Snapshots“ and „Risiko“, W1 those of „Bestände“.
     taking = for kind <- Widgets.kinds(), "row" in kind.sizes, do: kind.key
 
     assert taking ==
              ~w(sale_review summary_line allocation snapshot_comparison snapshot_list own_rules
-                key_figures crash_section top_holdings concentration asset_class_limits)
+                key_figures crash_section top_holdings concentration asset_class_limits
+                wealth_key_figures data_notes contribution positions cash_accounts)
 
     assert {:ok, [stored]} = Layout.validate([item("sale_review", "row", 1, 3)])
     assert stored == item("sale_review", "row", 1, 3)

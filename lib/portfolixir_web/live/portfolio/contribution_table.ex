@@ -99,6 +99,14 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
   attr(:period_label, :string, required: true)
   attr(:view_name, :string, required: true)
 
+  # Sprint 32 W1: the widget „Beitrag je Position“ draws this block on a
+  # dashboard, where a second one needs its own ids and its „Alle anzeigen“
+  # names the widget it opens.
+  attr(:id, :string, default: "performance-contribution")
+  attr(:toggle_value, :string, default: nil, doc: "phx-value-item of „Alle anzeigen“")
+  attr(:titled, :boolean, default: true, doc: "false in a widget, whose head names the table")
+  attr(:labelled_by, :string, default: nil, doc: "the id naming the table where it has no title")
+
   @doc "The block, placed by the page directly under the performance chart."
   def table(assigns) do
     f = figures(assigns.contribution, assigns.show_all?)
@@ -106,16 +114,18 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
     assigns =
       assigns
       |> assign(:f, f)
+      # Wealth's ids as before; a widget's under its own id (Sprint 32 W1).
+      |> assign(:prefix, id_prefix(assigns.id))
       |> assign(:scope, scope_line(assigns.period_label, assigns.view_name, f))
 
     ~H"""
-    <div id="performance-contribution" class="contribution" data-role="contribution">
+    <div id={@id} class="contribution" data-role="contribution">
       <div class="contribution__head">
         <%!-- I1 (#1351, board ux-design-2026-11-01-sprint22/01-i1 ①):
              the method sentences of the basis line sit in the heading's ⓘ;
              the basis clause stays under the table (②). --%>
-        <div class="section-title">
-          <h3 id="contribution-title"><%= gettext("Contribution by position") %></h3>
+        <div :if={@titled} class="section-title">
+          <h3 id={@prefix <> "-title"}><%= gettext("Contribution by position") %></h3>
           <AppShell.section_info>
             <:line><%= gettext("Contribution = end value − start value − flows + income − costs") %></:line>
             <:line><%= gettext("start value: the close of the day before the period") %></:line>
@@ -152,17 +162,25 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
           </p>
           <.unvalued_note
             :if={@f.unvalued_accounts != []}
+            prefix={@prefix}
             unvalued={[]}
             accounts={@f.unvalued_accounts}
           />
         <% true -> %>
-          <.desktop_table f={@f} show_all?={@show_all?} />
-          <.phone_rows f={@f} show_all?={@show_all?} />
+          <.desktop_table
+            f={@f}
+            show_all?={@show_all?}
+            prefix={@prefix}
+            toggle_value={@toggle_value}
+            labelled_by={@labelled_by}
+          />
+          <.phone_rows f={@f} show_all?={@show_all?} prefix={@prefix} toggle_value={@toggle_value} />
           <p class="summary-basis" data-role="contribution-basis">
             <%= gettext("per position in %{currency}, currency move included", currency: @f.currency) %>
           </p>
           <.unvalued_note
             :if={@f.unvalued != [] or @f.unvalued_accounts != []}
+            prefix={@prefix}
             unvalued={@f.unvalued}
             accounts={@f.unvalued_accounts}
           />
@@ -171,16 +189,22 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
     """
   end
 
+  defp id_prefix("performance-contribution"), do: "contribution"
+  defp id_prefix(id), do: id
+
   attr(:f, :map, required: true)
   attr(:show_all?, :boolean, required: true)
+  attr(:prefix, :string, required: true)
+  attr(:toggle_value, :string, required: true)
+  attr(:labelled_by, :string, default: nil)
 
   defp desktop_table(assigns) do
     ~H"""
-    <div id="contribution-table-wrap" class="data-table-wrapper">
+    <div id={@prefix <> "-table-wrap"} class="data-table-wrapper">
       <table
-        id="contribution-table"
+        id={@prefix <> "-table"}
         class="data-table contribution-table"
-        aria-labelledby="contribution-title"
+        aria-labelledby={@labelled_by || @prefix <> "-title"}
       >
         <thead>
           <tr>
@@ -232,7 +256,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
           <tr :if={@f.total > shown_limit()} class="contribution-table__more">
             <td colspan="7" data-role="contribution-more">
               <span :if={@f.hidden > 0}><%= hidden_sentence(@f.hidden) %></span>
-              <.show_all_button show_all?={@show_all?} total={@f.total} />
+              <.show_all_button show_all?={@show_all?} total={@f.total} toggle_value={@toggle_value} />
             </td>
           </tr>
           <tr class="contribution-table__rest-head">
@@ -290,10 +314,13 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
   # lists' block, out of the layout above it. The name over the next most
   # important figures, the contribution on the right. No bar: the drift bar
   # is hidden on the phone, and the row is its text.
+  attr(:prefix, :string, required: true)
+  attr(:toggle_value, :string, required: true)
+
   defp phone_rows(assigns) do
     ~H"""
     <ul
-      id="contribution-phone-rows"
+      id={@prefix <> "-phone-rows"}
       class="phone-rows contribution-phone-rows"
       aria-label={gettext("Contribution by position")}
     >
@@ -316,7 +343,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
       <li :if={@f.total > shown_limit()} class="phone-row contribution-phone-rows__more">
         <span class="phone-row__body">
           <span :if={@f.hidden > 0} class="phone-row__ids"><%= hidden_sentence(@f.hidden) %></span>
-          <span><.show_all_button show_all?={@show_all?} total={@f.total} /></span>
+          <span><.show_all_button show_all?={@show_all?} total={@f.total} toggle_value={@toggle_value} /></span>
         </span>
       </li>
       <li class="phone-row contribution-phone-rows__rest" data-role="contribution-phone-rest">
@@ -355,6 +382,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
 
   attr(:show_all?, :boolean, required: true)
   attr(:total, :integer, required: true)
+  attr(:toggle_value, :string, required: true)
 
   # A standalone link-button, as a rule's name on Risk is: its own class
   # carries the 44 px coarse-pointer floor and the accent focus ring (board
@@ -366,6 +394,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
       class="link-button contribution-show-all"
       data-role="contribution-show-all"
       phx-click="toggle_contribution_all"
+      phx-value-item={@toggle_value}
       aria-expanded={to_string(@show_all?)}
     >
       <%= if @show_all? do %>
@@ -388,6 +417,8 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
   # balance, never a converted one (UX-DR25 clause 2). An account still at
   # zero on the period's last day reads "until the end of the period" (pin
   # a2), after the ones whose rate came or that were emptied.
+  attr(:prefix, :string, required: true)
+
   defp unvalued_note(assigns) do
     {through_end, earlier} = Enum.split_with(assigns.accounts, & &1.unvalued_through_end)
     assigns = assigns |> assign(:earlier, earlier) |> assign(:through_end, through_end)
@@ -395,7 +426,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
     ~H"""
     <AppShell.data_note
       severity={:attention}
-      id="contribution-unvalued-note"
+      id={@prefix <> "-unvalued-note"}
       data-role="contribution-unvalued"
       clamp
     >

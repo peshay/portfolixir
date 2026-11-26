@@ -87,14 +87,19 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.Dashboard.Widget
   alias PortfolixirWeb.Dashboard.Widgets.Allocation, as: AllocationWidget
   alias PortfolixirWeb.Dashboard.Widgets.AllocationDrift, as: AllocationDriftWidget
+  alias PortfolixirWeb.Dashboard.Widgets.CashAccounts, as: CashAccountsWidget
+  alias PortfolixirWeb.Dashboard.Widgets.Contribution, as: ContributionWidget
   alias PortfolixirWeb.Dashboard.Widgets.CrashChart, as: CrashChartWidget
   alias PortfolixirWeb.Dashboard.Widgets.Crashes, as: CrashesWidget
   alias PortfolixirWeb.Dashboard.Widgets.CrashWindows, as: CrashWindowsWidget
   alias PortfolixirWeb.Dashboard.Widgets.Cycle, as: CycleWidget
+  alias PortfolixirWeb.Dashboard.Widgets.DataNotes, as: DataNotesWidget
   alias PortfolixirWeb.Dashboard.Widgets.DistanceToHigh, as: DistanceToHighWidget
+  alias PortfolixirWeb.Dashboard.Widgets.KeyFigures, as: KeyFiguresWidget
   alias PortfolixirWeb.Dashboard.Widgets.Line
   alias PortfolixirWeb.Dashboard.Widgets.OwnRules, as: OwnRulesWidget
   alias PortfolixirWeb.Dashboard.Widgets.Performance, as: PerformanceWidget
+  alias PortfolixirWeb.Dashboard.Widgets.Positions, as: PositionsWidget
   alias PortfolixirWeb.Dashboard.Widgets.Rebounders, as: ReboundersWidget
   alias PortfolixirWeb.Dashboard.Widgets.RiskLens, as: RiskLensWidget
   alias PortfolixirWeb.Dashboard.Widgets.SnapshotComparison, as: SnapshotComparisonWidget
@@ -419,9 +424,12 @@ defmodule PortfolixirWeb.DashboardLive do
     # --- S32 W2 begin ---
     |> update(:summary_lines, &Map.filter(&1, other_period))
     # --- S32 W2 end ---
+    # Sprint 32 W1: the section widgets' reads under the period.
+    |> update(:sections, &Map.reject(&1, fn {{_kind, _scope, period}, _} -> period == key end))
     |> update(:asked, fn asked ->
       Map.reject(asked, fn {_name, asked_key} ->
-        asked_key == key or match?({_scope, ^key}, asked_key)
+        asked_key == key or match?({_scope, ^key}, asked_key) or
+          match?({_kind, _scope, ^key}, asked_key)
       end)
     end)
   end
@@ -845,8 +853,18 @@ defmodule PortfolixirWeb.DashboardLive do
         # crash section reads, once a „Crashes“ widget asks.
         risk_lenses: %{},
         own_rules: %{},
-        risk_portfolio: :unread
+        risk_portfolio: :unread,
         # --- S32 W4 end ---
+        # --- S32 W1 begin ---
+        sections: %{},
+        # The „Beitrag je Position“ widgets whose „Alle anzeigen“ is open,
+        # by their id suffix.
+        contribution_open: MapSet.new(),
+        # „Positionen“'s columns, restored by the browser under Wealth's key,
+        # and its picker.
+        holdings_columns: PositionsWidget.default_columns(),
+        column_picker_open?: false
+        # --- S32 W1 end ---
       )
 
   defp start_widget_reads(%{assigns: %{transactions_count: 0}} = socket), do: socket
@@ -949,7 +967,6 @@ defmodule PortfolixirWeb.DashboardLive do
       :rebounders,
       &ReboundersWidget.read/1
     )
-
     # --- S32 S5 end ---
     # --- S32 W2 begin ---
     |> start_allocation_sections(items, period)
@@ -957,12 +974,15 @@ defmodule PortfolixirWeb.DashboardLive do
     # --- S32 W2 end ---
     # --- S32 W3 begin ---
     |> start_snapshot_sections(items)
-
     # --- S32 W3 end ---
     # --- S32 W4 begin ---
     |> start_risk_sections(items)
 
     # --- S32 W4 end ---
+    # --- S32 W1 begin ---
+    |> start_sections(items, period)
+
+    # --- S32 W1 end ---
   end
 
   # --- S32 W4 begin ---
@@ -1055,6 +1075,38 @@ defmodule PortfolixirWeb.DashboardLive do
     do: Map.get(assigns.allocation_ui, item.uid, AllocationWidget.initial_state())
 
   # --- S32 W2 end ---
+
+  # --- S32 W1 begin ---
+  # Sprint 32 W1 (I57; board 02 ①): the section widgets of Wealth's tab
+  # „Bestände“. Each kind's module reads its section's source for the
+  # item's scope, and its period where it takes one, in the background; the
+  # answers land in `sections` under `{kind, scope, period}` (`nil` for a
+  # kind without a period), so a second widget of a kind on the same scope
+  # and period draws the same answer.
+  @section_kinds %{
+    "wealth_key_figures" => KeyFiguresWidget,
+    "data_notes" => DataNotesWidget,
+    "contribution" => ContributionWidget,
+    "positions" => PositionsWidget,
+    "cash_accounts" => CashAccountsWidget
+  }
+
+  defp start_sections(socket, items, period) do
+    subjects =
+      for item <- items, Map.has_key?(@section_kinds, item.kind), uniq: true do
+        item = Widget.with_period(item, period, false)
+        {{:section, item.kind, item.scope, read_slot(item)}, {item.kind, item.scope, item.period}}
+      end
+
+    start_each(socket, subjects, :sections, &read_section/1)
+  end
+
+  defp read_section({kind, scope, nil}), do: Map.fetch!(@section_kinds, kind).read(scope)
+
+  defp read_section({kind, scope, period}),
+    do: Map.fetch!(@section_kinds, kind).read(scope, period)
+
+  # --- S32 W1 end ---
 
   # --- S32 S5 begin ---
   # The periods the items of `kind` read: each its pin, else the
@@ -1297,6 +1349,19 @@ defmodule PortfolixirWeb.DashboardLive do
     do: update(socket, :own_rules, &Map.put(&1, key, section_answer(result)))
 
   # --- S32 W4 end ---
+
+  # --- S32 W1 begin ---
+  defp land({:section, _kind, _scope, _slot}, key, result, socket) do
+    answer =
+      case result do
+        {:ok, answer} -> answer
+        {:exit, _reason} -> :error
+      end
+
+    update(socket, :sections, &Map.put(&1, key, answer))
+  end
+
+  # --- S32 W1 end ---
 
   # --- S32 W2 begin ---
   # A section widget's answer as it lands: the read's, or :error.
@@ -1835,6 +1900,44 @@ defmodule PortfolixirWeb.DashboardLive do
 
   # The overview handles no other events; one pushed to it changes nothing
   # (E25 S4, F17).
+  # --- S32 W1 begin ---
+  # „Alle anzeigen“ of a „Beitrag je Position“ widget, as on Wealth: the
+  # widget named by its id suffix shows every position, or the ten largest
+  # again. Nothing is stored.
+  def handle_event("toggle_contribution_all", %{"item" => uid}, socket) when is_binary(uid) do
+    if Enum.any?(socket.assigns.items, &(&1.kind == "contribution" and &1.uid == uid)) do
+      {:noreply,
+       update(socket, :contribution_open, fn open ->
+         if MapSet.member?(open, uid), do: MapSet.delete(open, uid), else: MapSet.put(open, uid)
+       end)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # „Positionen“'s column picker, as on Wealth: the pick, or the browser's
+  # restore under Wealth's key (the ColumnPrefs hook), and the popover.
+  def handle_event("set_holdings_columns", %{"columns" => columns}, socket)
+      when is_list(columns) do
+    chosen = PositionsWidget.choose(columns)
+
+    {:noreply,
+     socket
+     |> assign(:holdings_columns, chosen)
+     |> push_event("column-prefs-changed", %{
+       key: PositionsWidget.storage_key(),
+       columns: chosen
+     })}
+  end
+
+  def handle_event("toggle_column_picker", _params, socket),
+    do: {:noreply, update(socket, :column_picker_open?, &(not &1))}
+
+  def handle_event("close_column_picker", _params, socket),
+    do: {:noreply, assign(socket, :column_picker_open?, false)}
+
+  # --- S32 W1 end ---
+
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   # --- S32 W2 begin ---
@@ -2634,8 +2737,13 @@ defmodule PortfolixirWeb.DashboardLive do
       # --- S32 W4 begin ---
       :risk_lenses,
       :own_rules,
-      :risk_portfolio
+      :risk_portfolio,
       # --- S32 W4 end ---
+      # Sprint 32 W1.
+      :sections,
+      :contribution_open,
+      :holdings_columns,
+      :column_picker_open?
     ])
   end
 
@@ -3295,6 +3403,73 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   # --- S32 W4 end ---
+
+  # --- S32 W1 begin ---
+  # The section widgets of Wealth's tab „Bestände“ (Sprint 32 W1), each
+  # drawn by the module Wealth draws its section with.
+  defp widget(%{item: %{kind: "wealth_key_figures"} = item} = assigns) do
+    assigns =
+      assign(assigns, :card, Map.get(assigns.sections, {item.kind, item.scope, assigns.period}))
+
+    ~H"""
+    <KeyFiguresWidget.widget
+      item={@item}
+      period={@period}
+      card={@card}
+      scope_label={scope_label(@item, @views)}
+    />
+    """
+  end
+
+  defp widget(%{item: %{kind: "data_notes"} = item} = assigns) do
+    assigns = assign(assigns, :card, Map.get(assigns.sections, {item.kind, item.scope, nil}))
+
+    ~H"""
+    <DataNotesWidget.widget item={@item} card={@card} scope_label={scope_label(@item, @views)} />
+    """
+  end
+
+  defp widget(%{item: %{kind: "contribution"} = item} = assigns) do
+    assigns =
+      assign(assigns,
+        card: Map.get(assigns.sections, {item.kind, item.scope, assigns.period}),
+        show_all?: MapSet.member?(assigns.contribution_open, item.uid)
+      )
+
+    ~H"""
+    <ContributionWidget.widget
+      item={@item}
+      period={@period}
+      card={@card}
+      show_all?={@show_all?}
+      scope_label={scope_label(@item, @views)}
+    />
+    """
+  end
+
+  defp widget(%{item: %{kind: "positions"} = item} = assigns) do
+    assigns = assign(assigns, :card, Map.get(assigns.sections, {item.kind, item.scope, nil}))
+
+    ~H"""
+    <PositionsWidget.widget
+      item={@item}
+      card={@card}
+      columns={@holdings_columns}
+      picker_open?={@column_picker_open?}
+      scope_label={scope_label(@item, @views)}
+    />
+    """
+  end
+
+  defp widget(%{item: %{kind: "cash_accounts"} = item} = assigns) do
+    assigns = assign(assigns, :card, Map.get(assigns.sections, {item.kind, item.scope, nil}))
+
+    ~H"""
+    <CashAccountsWidget.widget item={@item} card={@card} scope_label={scope_label(@item, @views)} />
+    """
+  end
+
+  # --- S32 W1 end ---
 
   # --- S32 W3 begin ---
   # The snapshot marked „Im Vergleich“: the one picked, else the newest,

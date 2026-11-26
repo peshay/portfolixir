@@ -18090,3 +18090,150 @@ a.widget-row:hover .widget-row__label {
   }
 }
 /* --- S32 W5 end --- */
+/* --- S32 W1 begin --- */
+/* „Kennzahlen“ (Sprint 32 W1; board ux-design-2026-11-25-sprint32/06 ①,
+   variant A): the total with its split at the left, the three returns
+   beside it, each column after a hairline; the value bridge under them
+   on a muted band. The figures are the anatomy's (`Widget.figure/1`);
+   the bar draws the cash quote, decorative, the legend carries the
+   amounts. Under 720 px the returns go under the total. */
+.key-figures {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 2fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.key-figures--s,
+.key-figures--m {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.key-figures__total {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.key-figures__returns {
+  display: grid;
+  /* Each return as wide as its figure, so a result keeps its currency
+     beside it; the figures share the rest of the line. */
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+  column-gap: var(--space-3);
+}
+
+.key-figures__returns > .widget-figure {
+  border-left: 1px solid var(--color-border);
+  padding-left: var(--space-3);
+}
+
+/* At M the three returns take their content's width, so a result with
+   its currency never runs into the TTWROR beside it. */
+.key-figures--m .key-figures__returns {
+  grid-template-columns: repeat(3, auto);
+  justify-content: start;
+  column-gap: var(--space-3);
+}
+
+.key-figures--m .key-figures__returns > .widget-figure:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.key-figures__split {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.key-figures__bar {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-bg-muted);
+}
+
+.key-figures__bar-securities,
+.key-figures__swatch--securities {
+  background: var(--color-accent);
+}
+
+/* The cash share takes Wealth's cash colour (`CategoryColors.cash/0`),
+   set inline, as the stacked chart's cash band does. */
+.key-figures__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.key-figures__legend b {
+  color: var(--color-text);
+}
+
+.key-figures__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--space-1);
+  border-radius: 2px;
+}
+
+.key-figures__bridge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 10px;
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.key-figures__bridge b {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.key-figures__bridge b.is-positive {
+  color: var(--color-positive);
+}
+
+.key-figures__bridge b.is-negative {
+  color: var(--color-danger);
+}
+
+.key-figures__multiple {
+  margin-left: auto;
+}
+
+.key-figures__gap {
+  flex-basis: 100%;
+  color: var(--color-warning);
+}
+
+@media (max-width: 720px) {
+  .key-figures {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* „Beitrag je Position“ at XL (Sprint 32 W1): the eight largest in two
+   columns of four, read down the first column, then the second, so each
+   row keeps its second line, and the count of the rest its line, inside
+   the fixed tile. */
+.contribution-widget-rows--xl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(4, auto);
+  grid-auto-flow: column;
+  column-gap: var(--space-4);
+}
+/* --- S32 W1 end --- */

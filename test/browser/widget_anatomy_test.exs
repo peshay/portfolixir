@@ -25,6 +25,7 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
   alias Ecto.Adapters.SQL.Sandbox
   alias Portfolixir.Actor
   alias Portfolixir.Dashboards
+  alias Portfolixir.Dashboards.Layout
   alias Portfolixir.Dashboards.Widgets
   alias Portfolixir.Repo
 
@@ -57,7 +58,7 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
 
     # "localhost", the endpoint's configured host, so the LiveView socket's
     # origin check passes.
-    %{base_url: "http://localhost:#{port}", dashboard: every_kind!()}
+    %{base_url: "http://localhost:#{port}", dashboards: every_kind!()}
   end
 
   # User story (board 07 ②, 1, 2 and 6; board 10 D):
@@ -83,14 +84,22 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
   #   handle, × and size switch inside its cell.
   test "every widget in every size keeps the anatomy on one surface", %{
     base_url: base_url,
-    dashboard: dashboard
+    dashboards: dashboards
   } do
-    result = run!(base_url, dashboard, "walk")
-    assert result["ok"] == true, result["error"] || inspect(result)
+    # The kinds in their sizes outgrew one layout's 40 items (Sprint 32
+    # W1): each dashboard is walked, and together they hold every one.
+    results =
+      for dashboard <- dashboards do
+        result = run!(base_url, dashboard, "walk")
+        assert result["ok"] == true, result["error"] || inspect(result)
+        result
+      end
 
     count = length(grid_items()) + 1
-    assert result["measured"]["1200"]["widgets"] == count
-    assert result["measured"]["393"]["widgets"] == count
+
+    for width <- ~w(1200 393) do
+      assert results |> Enum.map(& &1["measured"][width]["widgets"]) |> Enum.sum() == count
+    end
   end
 
   # User story (the walk's own check):
@@ -111,7 +120,7 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
   # - A 12 px gap in the wide grid: named as not the hairline.
   # - The handle drawn above its cell in the edit mode: named.
   test "the walk names a wrapped head, a cut figure, a warning box, a card border, a gap and a handle outside its cell",
-       %{base_url: base_url, dashboard: dashboard} do
+       %{base_url: base_url, dashboards: [dashboard | _more]} do
     result = run!(base_url, dashboard, "attack")
     assert result["ok"] == true, result["error"] || inspect(result)
 
@@ -162,29 +171,32 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
   # And „Tops und Flops“ at L pinned to 1W, as „Rücksetzer“ holds it: the
   # longest head — a pinned mark that reads another window, and the
   # switch (Sprint 32 L2).
+  # Split at the layout's item cap (Sprint 32 W1: the section widgets took
+  # the list past 40), the pinned „Tops und Flops“ on the first, each
+  # dashboard's items one under the other.
   defp every_kind! do
-    {layout, row} =
-      Enum.map_reduce(grid_items(), 1, fn {kind, size}, row ->
-        {:ok, {_w, h}} = Widgets.dimensions(size)
-        {%{"kind" => kind, "size" => size, "col" => 1, "row" => row}, row + h}
-      end)
+    pinned = {"movers", "L", %{"period" => "1w"}}
 
-    layout =
-      layout ++
-        [
-          %{
-            "kind" => "movers",
-            "size" => "L",
-            "col" => 1,
-            "row" => row,
-            "settings" => %{"period" => "1w"}
-          }
-        ]
+    [pinned | Enum.map(grid_items(), fn {kind, size} -> {kind, size, %{}} end)]
+    |> Enum.chunk_every(Layout.max_items())
+    |> Enum.with_index(1)
+    |> Enum.map(fn {items, n} ->
+      {layout, _row} =
+        Enum.map_reduce(items, 1, fn {kind, size, settings}, row ->
+          {:ok, {_w, h}} = Widgets.dimensions(size)
 
-    {:ok, dashboard} =
-      Dashboards.create_dashboard(Actor.owner_ui(), %{"name" => "Anatomie", "layout" => layout})
+          {%{"kind" => kind, "size" => size, "col" => 1, "row" => row, "settings" => settings},
+           row + h}
+        end)
 
-    dashboard
+      {:ok, dashboard} =
+        Dashboards.create_dashboard(Actor.owner_ui(), %{
+          "name" => "Anatomie #{n}",
+          "layout" => layout
+        })
+
+      dashboard
+    end)
   end
 
   defp seed! do
