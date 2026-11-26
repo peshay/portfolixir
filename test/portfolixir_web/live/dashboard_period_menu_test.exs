@@ -269,6 +269,140 @@ defmodule PortfolixirWeb.DashboardPeriodMenuTest do
     refute "Seit Umschichtung" in chips(view)
   end
 
+  # User story:
+  # As the operator saving an own period in the dialog while my agent
+  # changes, deletes or adds periods,
+  # I want each refusal said in the dialog, the dialog kept open and
+  # nothing stored over the other's change,
+  # so that no change is lost unseen and I know why nothing happened.
+  #
+  # Acceptance criteria:
+  # - A period the agent changed since the dialog read it: „Dieser
+  #   Zeitraum wurde anderswo geändert …“, the dialog shows it as stored
+  #   (the agent's name), and the store is the agent's.
+  # - A period the agent deleted since: „Der Zeitraum konnte nicht
+  #   gespeichert werden.“, nothing stored again.
+  # - With fifty stored, a new one: „Es sind fünfzig eigene Zeiträume
+  #   gespeichert …“, nothing stored.
+  test "the dialog says a stale, a deleted and a 51st period, storing nothing", %{conn: conn} do
+    seed()
+
+    {:ok, own} =
+      Periods.create_saved(Actor.owner_ui(), %{"name" => "Sommer", "from" => "2025-06-01"})
+
+    key = "saved:#{own.id}"
+    {:ok, view, _html} = conn |> german() |> live("/")
+    toggle(view)
+    view |> element("[data-role='period-edit'][data-period='#{key}']") |> render_click()
+
+    {:ok, _} =
+      Periods.replace_saved(Actor.api_token_rw("mcp"), own.id, %{
+        "name" => "Sommer (Agent)",
+        "from" => "2025-07-01",
+        "to" => nil,
+        "lock_version" => 1
+      })
+
+    submit = fn name ->
+      view
+      |> form("#period-form", period: %{name: name, from: "2025-06-15", to_mode: "today"})
+      |> render_submit()
+    end
+
+    submit.("Sommer (ich)")
+
+    assert has_element?(
+             view,
+             "#period-dialog [role='alert']",
+             "Dieser Zeitraum wurde anderswo geändert"
+           )
+
+    assert has_element?(view, "#period-form input[name='period[name]'][value='Sommer (Agent)']")
+    assert %{name: "Sommer (Agent)", lock_version: 2} = Periods.get_saved(own.id)
+
+    {:ok, _} = Periods.delete_saved(Actor.api_token_rw("mcp"), own.id)
+    submit.("Sommer (ich)")
+
+    assert has_element?(
+             view,
+             "#period-dialog [role='alert']",
+             "Der Zeitraum konnte nicht gespeichert werden."
+           )
+
+    assert Periods.list_saved() == []
+
+    for n <- 1..50 do
+      {:ok, _} =
+        Periods.create_saved(Actor.api_token_rw("mcp"), %{
+          "name" => "Synthetic #{n}",
+          "from" => "2025-01-01"
+        })
+    end
+
+    view
+    |> element("#period-dialog button.button-ghost[phx-click='period_dialog_close']")
+    |> render_click()
+
+    toggle(view)
+    view |> element("[data-role='period-add']") |> render_click()
+    submit.("Einundfünfzig")
+
+    assert has_element?(
+             view,
+             "#period-dialog [role='alert']",
+             "Es sind fünfzig eigene Zeiträume gespeichert"
+           )
+
+    assert length(Periods.list_saved()) == 50
+  end
+
+  # User story:
+  # As the operator whose quick choice is full, or who stars an own period
+  # my agent deleted while the menu was open,
+  # I want the menu to say why the quick choice did not take it,
+  # so that a star never seems to work when nothing was stored.
+  #
+  # Acceptance criteria:
+  # - With six in the quick choice, a period saved with „in der
+  #   Schnellwahl zeigen“ is stored and applied, and the menu says the
+  #   quick choice holds at most 6; the quick choice is unchanged.
+  # - ☆ on an own period deleted since the menu was drawn: „Die
+  #   Schnellwahl konnte nicht gespeichert werden.“, the quick choice
+  #   unchanged.
+  test "a full quick choice and a deleted period's star are said, nothing stored", %{conn: conn} do
+    seed()
+    six = ~w(1d 1w 1m 3m 6m 1y)
+    {:ok, _} = Periods.put_quick_choice(Actor.owner_ui(), six)
+
+    {:ok, view, _html} = conn |> german() |> live("/")
+    toggle(view)
+    view |> element("[data-role='period-add']") |> render_click()
+
+    view
+    |> form("#period-form",
+      period: %{name: "Seit Umschichtung", from: "2025-03-01", to_mode: "today", quick: "true"}
+    )
+    |> render_submit()
+
+    [own] = Periods.list_saved()
+    assert_patch(view, "/?" <> URI.encode_query(%{"period" => "saved:#{own.id}"}))
+    assert has_element?(view, "[data-role='period-say']", "höchstens 6")
+    assert Periods.quick_choice().keys == six
+
+    {:ok, _} = Periods.put_quick_choice(Actor.owner_ui(), ~w(1w 1y))
+    toggle(view)
+    {:ok, _} = Periods.delete_saved(Actor.api_token_rw("mcp"), own.id)
+    star(view, "saved:#{own.id}")
+
+    assert has_element?(
+             view,
+             "[data-role='period-say']",
+             "Die Schnellwahl konnte nicht gespeichert werden."
+           )
+
+    assert Periods.quick_choice().keys == ~w(1w 1y)
+  end
+
   # User story (T3's menu half):
   # As the operator whose agent deleted a period of my quick choice,
   # I want the menu to say once that it left the bar,

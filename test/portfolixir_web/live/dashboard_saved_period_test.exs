@@ -310,4 +310,53 @@ defmodule PortfolixirWeb.DashboardSavedPeriodTest do
     assert meta[:reason] == :unknown_period
     assert meta[:field] == "settings.period"
   end
+
+  # User story (T5):
+  # As the operator whose widget is pinned to a period that has not begun
+  # yet — a year to come, or a quarter pinned last year that the new year
+  # has not reached —,
+  # I want the widget to read the top bar's period and say why,
+  # so that no widget shows an empty span as if it were a figure.
+  #
+  # Acceptance criteria:
+  # - The pinned widget follows the top bar („folgt · 1J“) and its footer
+  #   says „festgepinnter Zeitraum noch nicht begonnen · folgt 1J“; its
+  #   figure is the one GET /api/v1/performance answers for the bar's 1y.
+  # - The stored pin is left as it is (a read never writes); a widget
+  #   without a pin says nothing.
+  test "a pin on a period not yet begun follows the top bar and says why", %{conn: conn} do
+    seed()
+    next_year = "year:#{Clock.today().year + 1}"
+
+    {:ok, dashboard} =
+      Dashboards.create_dashboard(Actor.owner_ui(), %{
+        "name" => "Voraus",
+        "layout" =>
+          Enum.map(@layout, fn
+            %{"kind" => "performance"} = item ->
+              Map.put(item, "settings", %{"period" => next_year})
+
+            item ->
+              item
+          end)
+      })
+
+    {:ok, view, _html} = conn |> german() |> live("/dashboards/#{dashboard.id}")
+    render_async(view)
+
+    assert tag_text(view, "performance") == "folgt · 1J"
+
+    assert foot(view, "performance") ==
+             "festgepinnter Zeitraum noch nicht begonnen · folgt 1J"
+
+    ttwror = api("/api/v1/performance?period=1y")["ttwror"]
+
+    assert view
+           |> document()
+           |> Floki.find("[data-widget-kind='performance']")
+           |> text() =~ Format.signed_percent(Decimal.new(ttwror)) <> "%"
+
+    assert stored_pin(dashboard.id, "performance") == next_year
+    assert foot(view, "movers") == ""
+  end
 end
