@@ -54,9 +54,10 @@ defmodule Portfolixir.Dashboards.RowSizeTest do
     taking = for kind <- Widgets.kinds(), "row" in kind.sizes, do: kind.key
 
     assert taking ==
-             ~w(sale_review summary_line allocation snapshot_comparison snapshot_list own_rules
-                key_figures crash_section top_holdings concentration asset_class_limits
-                wealth_key_figures data_notes contribution positions cash_accounts)
+             ~w(performance sale_review summary_line allocation snapshot_comparison
+                snapshot_list own_rules key_figures crash_section top_holdings concentration
+                asset_class_limits wealth_key_figures data_notes contribution positions
+                cash_accounts)
 
     assert {:ok, [stored]} = Layout.validate([item("sale_review", "row", 1, 3)])
     assert stored == item("sale_review", "row", 1, 3)

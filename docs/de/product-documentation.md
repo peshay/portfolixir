@@ -2572,6 +2572,9 @@ Zeile statt als Kasten und eine Fußzeile aus einer Zeile.
   Ergebnis = heute mit dem Multiplikator; die Zahlen der Brücke sind die
   der Wertentwicklung selbst, und wo ihre gerundeten Cents nicht aufgehen,
   steht die Differenz daneben, nie in eine Zahl verschoben (auch S und M).
+  **Wertentwicklung** als Zeile ist der Abschnitt von Vermögen: Reihe (%
+  oder Wert) und Ebene wechseln am Widget, nur für diese Seite; die
+  Benchmark-Auswahl setzt dieselben Benchmarks, die Vermögen nutzt.
   **Datenhinweise** steht nur, solange ein Hinweis besteht; Wechselkurse
   abrufen bleibt auf Vermögen, verlinkt. **Beitrag je Position** ist die
   Tabelle von Vermögen (auch L und XL, die größten Beiträge mit ihrem

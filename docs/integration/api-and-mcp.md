@@ -5282,7 +5282,7 @@ without reading the code: `{"data": {"widgets", "groups", "grid",
   `allocation`, Snapshots, `snapshot_comparison` and `snapshot_list`,
   Risk, `own_rules`, `key_figures`, `crash_section`, `top_holdings`,
   `concentration` and `asset_class_limits`, and Holdings,
-  `wealth_key_figures`, `data_notes`, `contribution`, `positions` and
+  `performance` at `row`, `wealth_key_figures`, `data_notes`, `contribution`, `positions` and
   `cash_accounts`), `title`
   (English) and `title_key` (`{context, msgid}`, the message the screen
   translates), `group`, `sizes` (a subset of `S`, `M`, `L`, `XL`, `row`

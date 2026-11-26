@@ -136,11 +136,12 @@ defmodule PortfolixirWeb.DashboardEditTest do
     view |> element("[data-role='edit-start']") |> render_click()
 
     # The catalogue draws each kind's sizes as chips, as „Alle Widgets“
-    # does (Sprint 31 closing act).
+    # does (Sprint 31 closing act); since Sprint 32 W1 „Wertentwicklung“
+    # also takes „Zeile“, Wealth's section.
     assert view
            |> document()
            |> Floki.find("[data-role='edit-add'][data-kind='performance'] .widget-size")
-           |> Enum.map(&text/1) == ~w(S L XL)
+           |> Enum.map(&text/1) == ~w(S L XL row)
 
     refute has_element?(view, "[data-role='edit-start']")
     assert has_element?(view, "[data-role='edit-reset']", "Zurücksetzen")
@@ -173,7 +174,14 @@ defmodule PortfolixirWeb.DashboardEditTest do
       |> Enum.map(&{text(&1), Floki.attribute(&1, "aria-pressed")})
     end
 
-    assert sizes.("performance") == [{"S", ["false"]}, {"L", ["true"]}, {"XL", ["false"]}]
+    # „Zeile“ since Sprint 32 W1, Wealth's section „Performance“.
+    assert sizes.("performance") == [
+             {"S", ["false"]},
+             {"L", ["true"]},
+             {"XL", ["false"]},
+             {"Zeile", ["false"]}
+           ]
+
     assert sizes.("movers") == [{"S", ["false"]}, {"L", ["true"]}]
     # One size, no switch (Crashes im Vergleich takes L only, Sprint 32 E4).
     assert sizes.("crashes") == []
