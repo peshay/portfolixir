@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.DashboardAllocationWidgetsTest do
   import Portfolixir.WorldFixtures
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Classifications
   alias Portfolixir.Clock
   alias Portfolixir.Dashboards
@@ -109,7 +110,14 @@ defmodule PortfolixirWeb.DashboardAllocationWidgetsTest do
 
     {:ok, _} = Classifications.assign_security(owner, kestrel.id, other.id, europe.id)
 
-    Map.merge(world, %{tree: tree, other: other, gold: gold, kestrel: kestrel})
+    Map.merge(world, %{
+      tree: tree,
+      other: other,
+      gold: gold,
+      kestrel: kestrel,
+      commodities: commodities,
+      growth: growth
+    })
   end
 
   describe "the registry" do
@@ -301,6 +309,264 @@ defmodule PortfolixirWeb.DashboardAllocationWidgetsTest do
 
       assert Repo.get!(Dashboard, dashboard.id).layout == dashboard.layout
       assert Repo.get!(Dashboard, dashboard.id).lock_version == dashboard.lock_version
+    end
+
+    # User story (Sprint 32 closing act, PR 2, coverage):
+    # As the operator who works through the allocation on a dashboard,
+    # I want a category's toggle, a slice of the sunburst and the
+    # worklist's column heads to act on this widget as they do on Wealth,
+    # so that I can open a category, read a slice and rank the positions
+    # without leaving the dashboard.
+    #
+    # Acceptance criteria:
+    # - The toggle of „Growth“ opens its securities alone, each with the
+    #   drift GET /api/v1/portfolios/:id/allocation answers for it; a
+    #   second toggle closes it again.
+    # - A tap on a slice names it in the sunburst's centre; a tap on the
+    #   centre brings the total back, the allocation's total_value.
+    # - In „Positionen“ a column head sorts by it, a second tap the other
+    #   way: „Wert“ starts with the largest market value, then the
+    #   smallest; „Kategorie“ starts alphabetical.
+    # - Nothing is stored.
+    test "a category's toggle, a slice and the worklist's sort act on the widget",
+         %{conn: conn} do
+      w = world()
+      dashboard = dashboard!([{"allocation", "row"}])
+
+      allocation =
+        api("/api/v1/portfolios/#{w.portfolio.id}/allocation?classification_id=#{w.tree.id}")
+
+      growth = Enum.find(allocation["categories"], &(&1["name"] == "Growth"))
+      view = open(conn, "/")
+      widget = "#dashboard-allocation"
+
+      toggle =
+        "#{widget} button[data-role='toggle-positions'][phx-value-category-id='#{w.growth.id}']"
+
+      view |> element(toggle) |> render_click()
+
+      positions = view |> doc() |> Floki.find("#{widget} [data-role='allocation-position']")
+
+      assert Enum.map(positions, &text(Floki.find(&1, "[data-role='position-name']"))) ==
+               Enum.map(growth["positions"], & &1["security_name"])
+
+      for {row, position} <- Enum.zip(positions, growth["positions"]) do
+        assert text(row) =~
+                 Format.money(Decimal.new(position["drift_value"])) <>
+                   " " <> allocation["base_currency"]
+      end
+
+      view |> element(toggle) |> render_click()
+      assert view |> doc() |> Floki.find("#{widget} [data-role='allocation-position']") == []
+
+      centre = fn -> view |> doc() |> Floki.find("#{widget} [data-role='sunburst-centre']") end
+
+      view
+      |> element("#{widget} path.sunburst-seg[phx-value-name='Growth']")
+      |> render_click()
+
+      assert text(Floki.find(centre.(), ".sunburst-centre__label")) == "Growth"
+
+      view |> element("#{widget} [data-role='sunburst-figure']") |> render_click()
+
+      assert text(Floki.find(centre.(), ".sunburst-centre__value")) ==
+               Format.money(Decimal.new(allocation["total_value"])) <>
+                 " " <> allocation["base_currency"]
+
+      view |> element("#{widget} [data-role='allocation-mode-flat']") |> render_click()
+
+      names = fn ->
+        view
+        |> doc()
+        |> Floki.find("#{widget} [data-role='flat-position'] [data-role='position-name']")
+        |> Enum.map(&text/1)
+      end
+
+      by_value =
+        allocation["categories"]
+        |> Enum.flat_map(& &1["positions"])
+        |> Kernel.++((allocation["unassigned"] || %{"positions" => []})["positions"])
+        |> Enum.sort_by(&Decimal.new(&1["market_value"]), {:desc, Decimal})
+        |> Enum.map(& &1["security_name"])
+
+      view |> element("#{widget} [data-role='flat-sort-value']") |> render_click()
+      assert names.() == by_value
+      assert text(Floki.find(doc(view), "#{widget} [data-role='flat-sort-value']")) =~ "↓"
+
+      view |> element("#{widget} [data-role='flat-sort-value']") |> render_click()
+      assert names.() == Enum.reverse(by_value)
+      assert text(Floki.find(doc(view), "#{widget} [data-role='flat-sort-value']")) =~ "↑"
+
+      view |> element("#{widget} [data-role='flat-sort-category']") |> render_click()
+      assert text(Floki.find(doc(view), "#{widget} [data-role='flat-sort-category']")) =~ "↑"
+
+      assert Repo.get!(Dashboard, dashboard.id).lock_version == dashboard.lock_version
+    end
+
+    # User story (Sprint 32 closing act, PR 2, coverage):
+    # As the operator whose position target outlived its filing,
+    # I want the widget's unassigned row to open onto that position with
+    # its stale target and drift, as the API answers them,
+    # so that the target still counting there is never hidden.
+    #
+    # Acceptance criteria:
+    # - Kestrel carries a position target in Growth and is then unassigned:
+    #   the stale-target note names Growth; the unassigned row opens onto
+    #   Kestrel with the target weight and the drift value of GET
+    #   /api/v1/portfolios/:id/allocation's unassigned position, and its
+    #   display-only hint.
+    test "the unassigned row opens onto a stale position target as the API answers it",
+         %{conn: conn} do
+      w = world()
+      owner = Actor.owner_ui()
+
+      {:ok, _} =
+        Targets.set_targets(owner, w.portfolio.id, w.tree.id, [
+          %{"category_id" => w.growth.id, "security_id" => w.kestrel.id, "target_weight" => "0.2"}
+        ])
+
+      {:ok, _} = Classifications.unassign_security(owner, w.kestrel.id, w.tree.id)
+      dashboard!([{"allocation", "row"}])
+
+      allocation =
+        api("/api/v1/portfolios/#{w.portfolio.id}/allocation?classification_id=#{w.tree.id}")
+
+      position =
+        Enum.find(allocation["unassigned"]["positions"], &(&1["security_id"] == w.kestrel.id))
+
+      assert position["stale"]
+      view = open(conn, "/")
+      widget = "#dashboard-allocation"
+
+      assert text(Floki.find(doc(view), "#{widget} [data-role='stale-target-note']")) =~ "Growth"
+
+      view
+      |> element(
+        "#{widget} button[data-role='toggle-positions'][phx-value-category-id='unassigned']"
+      )
+      |> render_click()
+
+      row =
+        view
+        |> doc()
+        |> Floki.find("#{widget} [data-role='allocation-position']")
+        |> Enum.find(&(text(&1) =~ "Kestrel Industrial Test NV"))
+
+      cells = row |> Floki.find("td") |> Enum.map(&text/1)
+      assert Enum.at(cells, 3) == Format.percent(Decimal.new(position["target_weight"])) <> "%"
+
+      assert Enum.at(cells, 4) =~
+               Format.money(Decimal.new(position["drift_value"])) <>
+                 " " <> allocation["base_currency"]
+
+      assert text(Floki.find(row, "[data-role='rebalance-hint']")) =~ "≈"
+    end
+
+    # User story (Sprint 32 closing act, PR 2, coverage):
+    # As the operator who reads the worklist on the currency tree,
+    # I want the cash counted inside its currency's bucket and not twice,
+    # so that the worklist's rows sum to the allocation the API answers.
+    #
+    # Acceptance criteria:
+    # - On the built-in tree „Currency“ GET
+    #   /api/v1/portfolios/:id/allocation answers the cash distributed; the
+    #   widget's „Positionen“ then lists the securities without a cash row,
+    #   while on „Strategy“ it lists one.
+    test "on the currency tree the worklist draws no separate cash row", %{conn: conn} do
+      w = world()
+      Classifications.ensure_builtins()
+      currency = Enum.find(Classifications.list_classifications(), &(&1.key == "currency"))
+      dashboard!([{"allocation", "row"}])
+
+      allocation =
+        api("/api/v1/portfolios/#{w.portfolio.id}/allocation?classification_id=#{currency.id}")
+
+      assert allocation["cash"]["distributed"]
+      view = open(conn, "/")
+
+      view
+      |> element("#dashboard-allocation [data-role='allocation-mode-flat']")
+      |> render_click()
+
+      flat = "#dashboard-allocation [data-role='flat-positions']"
+      assert [_] = Floki.find(doc(view), flat <> " [data-role='flat-cash']")
+
+      view
+      |> form("#dashboard-allocation-allocation-classification-form", %{
+        "classification_id" => currency.id
+      })
+      |> render_change()
+
+      render_async(view)
+      assert Floki.find(doc(view), flat <> " [data-role='flat-cash']") == []
+      assert Floki.find(doc(view), flat <> " [data-role='flat-position']") != []
+    end
+
+    # User story (Sprint 32 closing act, PR 2, coverage):
+    # As the operator who picked a tree that was deleted since,
+    # I want the widget to read the default tree rather than fail,
+    # so that the allocation stays on the dashboard.
+    #
+    # Acceptance criteria:
+    # - The page still offers „Regions“ after it was deleted; picking it
+    #   reads the default tree „Strategy“, its categories the API's.
+    test "a tree deleted since the page read it reads the default tree", %{conn: conn} do
+      w = world()
+      dashboard!([{"allocation", "row"}])
+      view = open(conn, "/")
+      {:ok, _} = Classifications.delete_classification(Actor.owner_ui(), w.other)
+
+      view
+      |> form("#dashboard-allocation-allocation-classification-form", %{
+        "classification_id" => w.other.id
+      })
+      |> render_change()
+
+      render_async(view)
+      table = view |> doc() |> Floki.find("#dashboard-allocation table.drift-table") |> text()
+
+      allocation =
+        api("/api/v1/portfolios/#{w.portfolio.id}/allocation?classification_id=#{w.tree.id}")
+
+      for category <- allocation["categories"], do: assert(table =~ category["name"])
+      refute table =~ "Europe"
+    end
+
+    # User story (Sprint 32 closing act, PR 2, coverage):
+    # As the operator whose dashboard reads one view,
+    # I want the allocation's and the summary line's way out to keep it,
+    # so that Wealth opens on the view the widget showed.
+    #
+    # Acceptance criteria:
+    # - On a dashboard scoped to a view, „Ganze Ansicht“ of the allocation
+    #   opens /portfolio?tab=allocation&view=<id>, and the summary line's
+    #   link /portfolio?view=<id>; the basis line names the view.
+    test "on a view, the way to Wealth keeps the view", %{conn: conn} do
+      world()
+
+      {:ok, scope} =
+        Buckets.create_view(Actor.owner_ui(), %{name: "Alles drin", include_all: true})
+
+      {:ok, _} =
+        Dashboards.create_dashboard(Actor.owner_ui(), %{
+          "name" => "Ansicht",
+          "view_id" => scope.id,
+          "layout" => [
+            %{"kind" => "summary_line", "size" => "row", "col" => 1, "row" => 1},
+            %{"kind" => "allocation", "size" => "row", "col" => 1, "row" => 5}
+          ]
+        })
+
+      page = conn |> open("/") |> doc()
+      query = URI.encode_query([{"tab", "allocation"}, {"view", scope.id}])
+
+      assert [_] = Floki.find(page, "#dashboard-allocation a[href='/portfolio?#{query}']")
+
+      assert [_] =
+               Floki.find(page, "#dashboard-summary-line a[href='/portfolio?view=#{scope.id}']")
+
+      assert text(Floki.find(page, "#dashboard-allocation [data-role='allocation-basis']")) =~
+               "Alles drin"
     end
 
     # User story:
