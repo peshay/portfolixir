@@ -3292,7 +3292,7 @@ msgstr "Standard-Ansicht"
 #: lib/portfolixir_web/live/dashboard/movers_card.ex:488
 #: lib/portfolixir_web/live/dashboard/movers_card.ex:522
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:1329
-#: lib/portfolixir_web/live/dashboard/widgets/contribution.ex:172
+#: lib/portfolixir_web/live/dashboard/widgets/contribution.ex:177
 #: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:360
 #: lib/portfolixir_web/live/dashboard/widgets/snapshot_comparison.ex:315
 #: lib/portfolixir_web/live/dashboard/widgets/snapshot_list.ex:45
@@ -19882,7 +19882,7 @@ msgctxt "dashboard template"
 msgid "as today's start page"
 msgstr "wie heute „/“"
 
-#: lib/portfolixir_web/live/dashboard/widgets/contribution.ex:135
+#: lib/portfolixir_web/live/dashboard/widgets/contribution.ex:140
 #: lib/portfolixir_web/live/dashboard/widgets/distance_to_high.ex:163
 #, elixir-autogen, elixir-format
 msgid "%{count} more in the list"
@@ -20391,7 +20391,7 @@ msgstr "Die Beiträge konnten nicht geladen werden."
 msgid "Couldn't load the positions."
 msgstr "Die Positionen konnten nicht geladen werden."
 
-#: lib/portfolixir_web/live/dashboard/widgets/contribution.ex:129
+#: lib/portfolixir_web/live/dashboard/widgets/contribution.ex:134
 #, elixir-autogen, elixir-format
 msgid "No position contributed in this period."
 msgstr "In diesem Zeitraum hat keine Position beigetragen."
