@@ -101,8 +101,9 @@ defmodule Portfolixir.Invariants.CssTablesConformanceTest do
   # Acceptance criteria:
   # - ⑤a A context-free `.summary-basis` sets margin 0, 12 px and the muted
   #   colour. It precedes every scoped basis rule, so the later single-class
-  #   rules with their own margin or layout (`.kpi-strip__basis`,
-  #   `.tree-basis`) keep winning by source order.
+  #   rules with their own margin or layout (`.tree-basis`) keep winning
+  #   by source order. (`.kpi-strip__basis` left with the strip, Sprint 32
+  #   L1; the polish list #1358.)
   # - ⑤b `.disclosure-summary` is defined once, at {typography.control-label}
   #   (12 px, weight 500, 0.04em) in the muted colour; its second definition
   #   (0.85rem / 600), which won by source order, is gone, and the merge
@@ -116,7 +117,6 @@ defmodule Portfolixir.Invariants.CssTablesConformanceTest do
     for scoped <- [
           ".transaction-summary .summary-basis",
           "#portfolio-positions .summary-basis",
-          ".kpi-strip__basis",
           ".tree-basis",
           ".detail-tab-panel--overview .summary-basis"
         ] do

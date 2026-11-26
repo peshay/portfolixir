@@ -1,0 +1,331 @@
+// The widget anatomy in a real browser (Sprint 32 L1; board
+// ux-design-2026-11-25-sprint32/07 ② and 10 D; DESIGN.md → "The widget
+// anatomy and the one surface"), driven by
+// test/browser/widget_anatomy_test.exs, which boots the endpoint, seeds the
+// review seed and stores one dashboard holding every kind in every grid
+// size it takes, and passes its base URL and the dashboard's id.
+//
+// At 1200 px (the wide grid), 834 px (the medium class, two columns) and
+// 393 px (a phone held upright, the compact forms), in the page's own
+// Inter and in DejaVu Sans (fonts.js), every widget is measured for the
+// anatomy's three rules (board 07 ②, 1, 2 and 6):
+//
+// - its head: in the wide grid one line — the title, its ⓘ, the period
+//   mark, the widget's switch and ⋯ share the title's line, the title one
+//   line (cut with an ellipsis where its tile is too narrow, as board 07 ②
+//   draws it); in the compact forms (834 and 393 px) the title never cut,
+//   the rest following under it where the line does not hold it, as board
+//   07's phone draws it;
+// - no figure clipped: a headline figure or a list row's figure is never
+//   cut sideways — it is as wide as its text, and inside the widget's
+//   frame and every box between them;
+// - no warning box: a widget carries a warning as one line (the anatomy's
+//   warning line, or a data note drawn as a line: its glyph, word and
+//   colour), never a data note framed or filled as a box.
+//
+// And the one surface (board 10 D, D-14), in every class: the grid one
+// frame (1 px border, radius 16 px), each widget without a card border, a
+// corner radius or a shadow; in the wide grid two neighbours 1 px apart
+// (the hairline), never a gap. The edit mode (at 1200 px): each widget's
+// handle, × and size switch inside its own cell, its dashed outline too.
+//
+// Mode "attack" checks the check: on the walked page it draws a head's
+// title over several lines in the wide grid and cut in the compact forms,
+// another head's period mark on a line of its own (wide), a row's figure 400 px wide inside a 40 px box, a framed and filled
+// data note into a widget, a card border on one widget and a 12 px gap in
+// the grid, and the handle above its cell; each must be named.
+//
+// Prints one JSON object on stdout: {"ok": true, ...} or {"ok": false,
+// "error": "..."}; the exit status is 0 either way unless the browser
+// itself fails.
+"use strict";
+
+const { launchChromium } = require("./launch");
+const { settle, visit, leave } = require("./settle");
+const { eachFont } = require("./fonts");
+
+const { base_url: base, id, mode } = JSON.parse(process.argv[2]);
+// With WIDGET_ANATOMY_SHOTS naming a directory, a walk also saves each
+// width's page, light and dark, and the edit mode at 1200 px.
+const shots = process.env.WIDGET_ANATOMY_SHOTS || null;
+const path = require("path");
+const WIDTHS = [
+  { width: 1200, height: 900 },
+  { width: 834, height: 1112 },
+  { width: 393, height: 852 }
+];
+
+// Every widget's anatomy, measured on the page as it stands.
+function measure(page) {
+  return page.evaluate(() => {
+    const shown = (el) => {
+      if (!el) return false;
+      const s = getComputedStyle(el);
+      return s.display !== "none" && s.visibility !== "hidden" && el.getClientRects().length > 0;
+    };
+    const rect = (el) => el.getBoundingClientRect();
+    const grid = document.querySelector("#dashboard-grid");
+    const gs = getComputedStyle(grid);
+    const widgets = Array.from(grid.querySelectorAll(":scope > .dashboard-widget"));
+
+    return {
+      grid: {
+        radius: gs.borderTopLeftRadius,
+        border: gs.borderTopWidth + " " + gs.borderTopStyle,
+        editing: grid.dataset.editing === "true"
+      },
+      widgets: widgets.map((w) => {
+        const name = w.dataset.widgetKind + " " + w.dataset.size;
+        const ws = getComputedStyle(w);
+        const frame = rect(w);
+        const head = w.querySelector(":scope > .widget__head");
+        const title = head && head.querySelector("h2");
+        // The head's parts that share the title's line: the switch only
+        // where the wide form is drawn (the compact forms set it under the
+        // head, board 07's phone).
+        const wide = shown(w.querySelector(":scope > .widget__wide"));
+        const parts = head
+          ? Array.from(
+              head.querySelectorAll(
+                "[data-role='section-info'] > summary, [data-role='widget-period'], .widget__menu > summary" +
+                  (wide ? ", [data-anatomy='switch']" : "")
+              )
+            ).filter(shown)
+          : [];
+        const t = title && rect(title);
+        const lineHeight = title ? parseFloat(getComputedStyle(title).lineHeight) || 0 : 0;
+        // The wide grid holds the head on one line; the compact forms
+        // keep the title whole and let the rest follow under it.
+        const wideGrid = window.innerWidth >= 1000;
+        const offLine = t && wideGrid
+          ? parts
+              .filter((p) => {
+                const r = rect(p);
+                const mid = (r.top + r.bottom) / 2;
+                return mid < t.top - 1 || mid > t.bottom + 1;
+              })
+              .map((p) => p.dataset.role || p.dataset.anatomy || p.parentElement.className)
+          : [];
+
+        // A figure is cut where it is wider than its box, or where its
+        // right or left edge passes the frame or a box between them that
+        // cuts what overflows.
+        const figures = Array.from(w.querySelectorAll(".widget-figure__value, .widget-row__figure")).filter(shown);
+        const cut = [];
+        for (const f of figures) {
+          const r = rect(f);
+          if (f.scrollWidth > f.clientWidth + 1) {
+            cut.push(f.textContent.trim() + " is " + f.scrollWidth + " px wide in " + f.clientWidth);
+            continue;
+          }
+          for (let box = f.parentElement; box && box !== w.parentElement; box = box.parentElement) {
+            const bs = getComputedStyle(box);
+            if (box !== w && bs.overflowX === "visible") continue;
+            const b = rect(box);
+            if (r.right > b.right + 1 || r.left < b.left - 1) {
+              cut.push(f.textContent.trim() + " passes the edge of " + (box === w ? "its frame" : box.className));
+              break;
+            }
+          }
+        }
+
+        // A warning box: a data note drawn with a frame or a fill. Inside
+        // a widget the note is a line (its glyph, word and colour), never
+        // a box.
+        const boxes = Array.from(w.querySelectorAll(".data-note"))
+          .filter(shown)
+          .filter((n) => {
+            const ns = getComputedStyle(n);
+            const framed = ["Top", "Right", "Bottom", "Left"].some(
+              (side) => parseFloat(ns["border" + side + "Width"]) > 0 && ns["border" + side + "Style"] !== "none"
+            );
+            const filled = ns.backgroundColor !== "rgba(0, 0, 0, 0)" && ns.backgroundColor !== "transparent";
+            return framed || filled;
+          })
+          .map((n) => n.className);
+
+        const edit = (sel) => {
+          const el = w.querySelector(sel);
+          return shown(el) ? rect(el).toJSON() : null;
+        };
+
+        return {
+          name,
+          kind: w.dataset.widgetKind,
+          frame: frame.toJSON(),
+          titleLines: t && lineHeight ? Math.round(t.height / lineHeight) : null,
+          // The wide head cuts a title too long for its tile with an
+          // ellipsis, as board 07 ② draws it; the compact forms never.
+          titleCut: title && !wideGrid ? title.scrollWidth - title.clientWidth : 0,
+          wideGrid,
+          offLine,
+          cut,
+          boxes,
+          border: ws.borderTopWidth,
+          radius: ws.borderTopLeftRadius,
+          shadow: ws.boxShadow,
+          outline: ws.outlineStyle,
+          handle: edit("[data-role='edit-handle']"),
+          remove: edit("[data-role='edit-remove']"),
+          sizes: edit(".widget__sizes")
+        };
+      })
+    };
+  });
+}
+
+const inside = (part, f) =>
+  part.left >= f.left - 0.5 && part.right <= f.right + 0.5 && part.top >= f.top - 0.5 && part.bottom <= f.bottom + 0.5;
+
+function check(tag, viewport, m, errors) {
+  if (m.widgets.length === 0) return errors.push(tag + ": no widget on the grid");
+  if (m.grid.radius !== "16px") errors.push(tag + ": the surface's corner is " + m.grid.radius + ", not 16px");
+  if (m.grid.border !== "1px solid") errors.push(tag + ": the surface's frame is " + m.grid.border + ", not 1px solid");
+
+  for (const w of m.widgets) {
+    if (w.wideGrid && w.titleLines !== 1) errors.push(tag + ": " + w.name + "'s title wraps over " + w.titleLines + " lines");
+    if (w.titleCut > 1) errors.push(tag + ": " + w.name + "'s title is cut by " + w.titleCut + " px");
+    if (w.offLine.length > 0) errors.push(tag + ": " + w.name + "'s head wraps: " + w.offLine.join(", ") + " off the title's line");
+    for (const c of w.cut) errors.push(tag + ": " + w.name + " clips a figure: " + c);
+    if (w.boxes.length > 0) errors.push(tag + ": " + w.name + " carries a warning box (" + w.boxes[0] + ")");
+    if (w.border !== "0px") errors.push(tag + ": " + w.name + " draws a card border of " + w.border);
+    if (w.radius !== "0px") errors.push(tag + ": " + w.name + " rounds its own corner, " + w.radius);
+    if (w.shadow !== "none" && !/^rgb[a]?\([^)]*\) 0px 0px 0px 1px$/.test(w.shadow)) {
+      errors.push(tag + ": " + w.name + " casts a shadow, " + w.shadow);
+    }
+    if (m.grid.editing) {
+      if (w.outline !== "dashed") errors.push(tag + ": " + w.name + " has no dashed outline in the edit mode");
+      for (const [part, box] of [["handle", w.handle], ["×", w.remove], ["size switch", w.sizes]]) {
+        if (box && !inside(box, w.frame)) errors.push(tag + ": " + w.name + "'s " + part + " stands outside its cell");
+      }
+    }
+  }
+
+  // The hairline: in the wide grid two widgets side by side or one under
+  // the other stand 1 px apart, never more.
+  if (viewport.width >= 1000) {
+    for (const a of m.widgets) {
+      for (const b of m.widgets) {
+        if (a === b) continue;
+        const overlapY = Math.min(a.frame.bottom, b.frame.bottom) - Math.max(a.frame.top, b.frame.top);
+        const overlapX = Math.min(a.frame.right, b.frame.right) - Math.max(a.frame.left, b.frame.left);
+        const gapX = b.frame.left - a.frame.right;
+        const gapY = b.frame.top - a.frame.bottom;
+        if (overlapY > 2 && gapX > 1.5 && gapX < 40) {
+          errors.push(tag + ": " + a.name + " and " + b.name + " stand " + gapX.toFixed(1) + " px apart, not the hairline");
+        }
+        if (overlapX > 2 && gapY > 1.5 && gapY < 40) {
+          errors.push(tag + ": " + a.name + " and " + b.name + " stand " + gapY.toFixed(1) + " px apart, not the hairline");
+        }
+      }
+    }
+  }
+}
+
+// The attack: each rule broken once on the walked page.
+function breakEach(page, viewport) {
+  return page.evaluate((wide) => {
+    const widgets = Array.from(document.querySelectorAll("#dashboard-grid > .dashboard-widget"));
+    const first = widgets[0];
+    const second = widgets[1];
+    const title = first.querySelector(".widget__head h2");
+    title.textContent = "Ein Titel aus vielen Worten";
+    title.style.width = "6ch";
+    title.style.minWidth = "6ch";
+    // The wide grid: over several lines; the compact forms: cut.
+    title.style.whiteSpace = wide ? "normal" : "nowrap";
+    title.style.overflow = "hidden";
+    // The third widget's period mark set on a line of its own.
+    const head = widgets[2].querySelector(".widget__head > .section-title");
+    const mark = head.querySelector("[data-role='widget-period']");
+    head.style.flexWrap = "wrap";
+    mark.style.flexBasis = "100%";
+    const figure = document.createElement("span");
+    figure.className = "widget-row__figure num";
+    figure.textContent = "1.234.567.890.123.456.789.012.345.678,90 EUR";
+    figure.style.display = "block";
+    figure.style.width = "40px";
+    figure.style.overflow = "hidden";
+    second.appendChild(figure);
+    const note = document.createElement("div");
+    note.className = "data-note data-note--attention";
+    note.textContent = "ACHTUNG";
+    note.style.border = "1px solid currentColor";
+    note.style.background = "var(--color-warning-soft)";
+    second.appendChild(note);
+    second.style.border = "1px solid red";
+    if (wide) document.querySelector("#dashboard-grid").style.gap = "12px";
+  }, viewport.width >= 1000);
+}
+
+async function walk(browser, viewport, errors, attack) {
+  const tag = viewport.width + " px";
+  const context = await browser.newContext({ viewport, locale: "de-DE" });
+  const page = await context.newPage();
+  await visit(page, base + "/dashboards/" + id + "?locale=de");
+  await settle(page);
+
+  if (attack) await breakEach(page, viewport);
+
+  const measured = await eachFont(page, async (font) => {
+    const m = await measure(page);
+    check(tag + " " + font.name, viewport, m, errors);
+    return m.widgets.length;
+  });
+
+  if (shots && !attack) {
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
+      await page.screenshot({ path: path.join(shots, "anatomy-" + id + "-" + viewport.width + "-" + theme + ".png"), fullPage: true });
+    }
+    await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
+  }
+
+  // The edit mode at the wide grid: the controls inside each cell.
+  if (viewport.width >= 1000) {
+    await page.click("[data-role='edit-start']");
+    await page.waitForSelector("[data-role='dashboard-grid'][data-editing='true'] [data-role='edit-handle']", {
+      state: "attached",
+      timeout: 10000
+    });
+    await settle(page);
+    if (attack) {
+      await page.evaluate(() => {
+        const handle = document.querySelector("[data-role='edit-handle']");
+        handle.style.position = "absolute";
+        handle.style.top = "-20px";
+      });
+    }
+    const m = await measure(page);
+    check(tag + " edit", viewport, m, errors);
+    if (shots && !attack) {
+      await page.screenshot({ path: path.join(shots, "anatomy-" + id + "-" + viewport.width + "-edit.png"), fullPage: true });
+    }
+  }
+
+  await leave(context);
+  return measured[0];
+}
+
+(async () => {
+  const browser = await launchChromium();
+  const errors = [];
+  const measured = {};
+  try {
+    for (const viewport of WIDTHS) {
+      const caught = [];
+      const count = await walk(browser, viewport, mode === "attack" ? caught : errors, mode === "attack");
+      measured[viewport.width] = mode === "attack" ? { caught } : { widgets: count };
+    }
+    process.stdout.write(
+      JSON.stringify(errors.length === 0 ? { ok: true, measured } : { ok: false, error: errors.join("; ") }) + "\n"
+    );
+  } catch (error) {
+    process.stdout.write(JSON.stringify({ ok: false, error: String(error && error.message), before: errors }) + "\n");
+  } finally {
+    await leave(browser);
+  }
+})().catch((error) => {
+  process.stderr.write(String(error && error.stack) + "\n");
+  process.exit(2);
+});

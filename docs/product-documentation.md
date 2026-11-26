@@ -2120,9 +2120,14 @@ Wealth page mutes non-deployable rows and labels them with their role.
 The first entry of the menu's **Dashboards** group (the start page, `/`) is
 a **dashboard** (ADR-0062, Sprint 31): its cards are **widgets**, each one
 existing read drawn in a frame — its title, an ⓘ with the read's
-computation basis, its period tag, a ⋯ menu (the widget's own period),
+computation basis, its period mark, a ⋯ menu (the widget's own period),
 the figures, and a footer naming the view it reads and the way to the full
-screen.
+screen. Since Sprint 32 the dashboard is **one surface**: one rounded
+frame with the widgets separated by thin lines instead of gaps, and every
+widget built the same way — its head on one line on a wide screen (the
+title, ⓘ, the period mark, the widget's own switch, ⋯), its headline
+figure as a small label over the figure, coloured only for a gain or a
+loss, a warning as one line rather than a box, and a footer of one line.
 
 - **The starters are stored once** (Sprint 32). On the first start of a
   release that brings a starter dashboard, the instance stores it once as
@@ -2184,16 +2189,17 @@ screen.
   server, so a phone and a desk can show different ones) and stays when
   you open another dashboard. Under 600 px the quick choice is a strip of
   its own that you swipe sideways.
-- **Each widget says which period it shows**, quietly beside its ⋯:
-  **follows · 3M** while it follows the bar; **no period** for a widget
-  whose read has none (Data quality, Due, Off target, Crashes compared,
-  Bitcoin cycle, Sale review, Snapshots); **Total value** follows it too,
+- **Each widget says which period it shows**, as a small mark on its
+  title's line: **3M** while it follows the bar (a screen reader and the
+  mark's tooltip say **follows · 3M**); no mark for a widget whose read has
+  none (Data quality, Due, Off target, Crashes compared, Bitcoin cycle,
+  Sale review, Snapshots), whose ⋯ menu says so; **Total value** follows it too,
   its small size's change line being the period's; and where the widget
   reads its nearest own window instead, both: **Tops and flops** reads
   1D as Day, 1W as Week, 1M as Month, 3M and 6M as Quarter, YTD as YTD,
   and 1Y, 3Y, 5Y and Max as 1Y; this month and last month as Month, this
   quarter, last quarter and Q1 to Q4 as Quarter, last year and a year as
-  1Y — so at 3M it says **follows · 3M → Quarter**.
+  1Y — so at 3M it says **3M → Quarter**.
 - **A widget may pin its own period.** Its ⋯ menu offers **Pin a period
   …**, which opens the same period menu as the bar, for that widget; the
   period you pick there is the pin. An own period is pinned by reference,
@@ -2203,7 +2209,7 @@ screen.
   the pin go. The pin is stored in the widget's item
   of the layout (`settings.period`, one journaled write, as an agent's
   `PUT /api/v1/dashboards/<id>` would store it) and drawn in the accent,
-  **📌 own: Max**, so a pinned figure is never read as the bar's. **Follows
+  **📌 Max**, so a pinned figure is never read as the bar's. **Follows
   the dashboard (…)** in the same menu removes the pin. The template is
   read-only: its menu offers **Customize** instead. Where the dashboard was
   changed elsewhere since the page read it (another tab, your agent), the

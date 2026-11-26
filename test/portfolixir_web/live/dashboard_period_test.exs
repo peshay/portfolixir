@@ -228,8 +228,7 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
   #   Woche“: its calendar windows to date; 3J and Max read 1J) and reads
   #   that window; YTD and 1J, its own, say no arrow.
   # - A widget without a period draws no tag on the grid (its ⋯ menu says
-  #   it has none); in the edit mode it says „ohne Zeitraum“ (Sprint 31
-  #   closing act, DS3; board ux-design-2026-11-21-sprint31/02 ①).
+  #   it has none).
   # - The widget's own period chips are gone: the dashboard's drives it.
   test "a widget follows, translates, or has no period, and says so", %{conn: conn} do
     seed()
@@ -269,22 +268,27 @@ defmodule PortfolixirWeb.DashboardPeriodTest do
     assert has_element?(view, "#dashboard-movers[data-window='1y']")
   end
 
-  # User story (Sprint 31 closing act, DS3):
+  # User story (Sprint 32 L1; board ux-design-2026-11-25-sprint32/07 ②, 1:
+  # „‚ohne Zeitraum‘ entfällt“, which replaces the Sprint 31 closing act's
+  # DS3, where the edit mode said it):
   # As the operator arranging a dashboard,
-  # I want the edit mode to say which widgets take no period,
-  # so that I place them knowing the top bar does not move them.
+  # I want each head on one line in the edit mode too,
+  # so that an S widget's title is not cut to „D…“ for a tag saying what
+  # the widget does not take.
   #
   # Acceptance criteria:
-  # - In the edit mode a widget without a period says „ohne Zeitraum“.
-  test "the edit mode says „ohne Zeitraum“", %{conn: conn} do
+  # - In the edit mode, as on the grid, a widget without a period draws no
+  #   period mark.
+  test "the edit mode draws no mark for a widget without a period", %{conn: conn} do
     seed()
     dashboard = dashboard!("Alpha")
     {:ok, view, _html} = conn |> german() |> live("/dashboards/#{dashboard.id}")
     render_async(view)
     assert tag_state(view, "crashes") == nil
     view |> element("[data-role='edit-start']") |> render_click()
-    assert tag_text(view, "crashes") == "ohne Zeitraum"
-    assert tag_state(view, "crashes") == "none"
+    assert has_element?(view, "[data-widget-kind='crashes'] [data-role='edit-handle']")
+    assert tag_state(view, "crashes") == nil
+    assert tag_text(view, "crashes") == ""
   end
 
   # User story:

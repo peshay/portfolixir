@@ -2343,9 +2343,15 @@ verfügbare Zeilen und beschriftet sie mit ihrer Rolle.
 Der erste Eintrag der Menügruppe **Dashboards** (die Startseite, `/`) ist
 ein **Dashboard** (ADR-0062, Sprint 31): Seine Karten sind **Widgets**, jedes ein vorhandener
 Lesezugriff in einem Rahmen — sein Titel, ein ⓘ mit der Rechengrundlage
-des Lesezugriffs, sein Zeitraum-Etikett, ein Menü ⋯ (der eigene Zeitraum
+des Lesezugriffs, seine Zeitraum-Marke, ein Menü ⋯ (der eigene Zeitraum
 des Widgets), die Zahlen und eine Fußzeile, die die gelesene Ansicht
-nennt und zum ganzen Screen führt.
+nennt und zum ganzen Screen führt. Seit Sprint 32 ist das Dashboard
+**eine Fläche**: ein gerundeter Rahmen, die Widgets durch feine Linien
+statt durch Abstände getrennt, und jedes Widget gleich gebaut — sein
+Kopf auf breitem Bildschirm in einer Zeile (Titel, ⓘ, Zeitraum-Marke, der
+eigene Schalter des Widgets, ⋯), seine Hauptzahl als kleines Label über
+der Zahl, farbig nur für Gewinn oder Verlust, eine Warnung als eine
+Zeile statt als Kasten und eine Fußzeile aus einer Zeile.
 
 - **Die Start-Dashboards werden einmal gespeichert** (Sprint 32). Beim
   ersten Start einer Version, die ein Start-Dashboard mitbringt, speichert
@@ -2412,17 +2418,19 @@ nennt und zum ganzen Screen führt.
   auf dem Server, so können Telefon und Schreibtisch verschiedene zeigen),
   und sie bleibt, wenn Sie ein anderes Dashboard öffnen. Unter 600 px ist
   die Schnellwahl eine eigene Leiste, die Sie seitwärts wischen.
-- **Jedes Widget sagt, welchen Zeitraum es zeigt**, leise neben seinem ⋯:
-  **folgt · 3M**, solange es der Leiste folgt; **ohne Zeitraum** für ein
-  Widget, dessen Lesezugriff keinen hat (Datenqualität, Fällig, Abseits
-  des Ziels, Crashes im Vergleich, Bitcoin-Zyklus, Verkaufsrückblick,
-  Snapshots); auch **Gesamtwert** folgt ihr, die Zeile unter dem Wert der
+- **Jedes Widget sagt, welchen Zeitraum es zeigt**, als kleine Marke in
+  der Zeile seines Titels: **3M**, solange es der Leiste folgt (ein
+  Screenreader und der Tooltip der Marke sagen **folgt · 3M**); keine
+  Marke für ein Widget, dessen Lesezugriff keinen hat (Datenqualität,
+  Fällig, Abseits des Ziels, Crashes im Vergleich, Bitcoin-Zyklus,
+  Verkaufsrückblick, Snapshots), dessen Menü ⋯ das sagt; auch
+  **Gesamtwert** folgt ihr, die Zeile unter dem Wert der
   kleinen Größe gilt dem Zeitraum; und wo das Widget stattdessen sein
   nächstes eigenes Fenster liest, beides: **Tops und Flops** liest 1T als
   Tag, 1W als Woche, 1M als Monat, 3M und 6M als Quartal, YTD als YTD und
   1J, 3J, 5J und Max als 1J; lfd. Monat und Vormonat als Monat, lfd.
   Quartal, Vorquartal und Q1 bis Q4 als Quartal, Vorjahr und ein Jahr als
-  1J — bei 3M steht also **folgt · 3M → Quartal**.
+  1J — bei 3M steht also **3M → Quartal**.
 - **Ein Widget kann seinen eigenen Zeitraum festlegen.** Sein Menü ⋯ bietet
   **Zeitraum festpinnen …**, das dasselbe Zeitraum-Menü wie die Leiste
   öffnet, für dieses Widget; der Zeitraum, den Sie dort wählen, ist die
@@ -2434,7 +2442,7 @@ nennt und zum ganzen Screen führt.
   Widgets im Layout
   (`settings.period`, ein Schreibvorgang im Journal, wie ihn ein Agent mit
   `PUT /api/v1/dashboards/<id>` speichern würde) und erscheint in der
-  Akzentfarbe, **📌 eigener: Max**, damit eine festgelegte Zahl nie als die
+  Akzentfarbe, **📌 Max**, damit eine festgelegte Zahl nie als die
   der Leiste gelesen wird. **Folgt dem Dashboard (…)** im selben Menü hebt
   sie auf. Die Vorlage ist nur lesend: Ihr Menü bietet stattdessen
   **Anpassen**. Wurde das Dashboard anderswo geändert, seit die Seite es
