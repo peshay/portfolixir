@@ -2441,7 +2441,8 @@ each named with what tells them apart, "Twin Fonds · ISIN DE0000000201"
 of issue #798 (TTWROR with IRR, cash quote, last booking, quote
 freshness): since Sprint 32 each size shows more of the total, not four
 other answers in its frame (board ux-design-2026-11-25-sprint32/01 ④);
-the phone's compact form keeps its rows for now — the **Sale review** widget, today's
+nor, since Sprint 32's closing act, does its compact form on a phone,
+which shows the total and its change as the wide S does — the **Sale review** widget, today's
 **Closed trades** card (UX-DR2 as amended
 2026-10-01, issue #984): the five most recently closed round-trips, newest first, each
 with the date it was sold and how long it was held, its realised result in

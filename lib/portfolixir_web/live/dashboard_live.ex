@@ -114,7 +114,6 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
-  alias PortfolixirWeb.TransactionKindLabel
   alias PortfolixirWeb.Transactions.LedgerChecks
   alias PortfolixirWeb.ValuationNotes
 
@@ -156,7 +155,6 @@ defmodule PortfolixirWeb.DashboardLive do
         reads: MapSet.new(),
         asked: %{},
         data_quality: nil,
-        last_booking: nil,
         stale_ttwror: nil,
         period: Widgets.default_period(),
         period_addressed: false,
@@ -657,7 +655,7 @@ defmodule PortfolixirWeb.DashboardLive do
         context = PricingContext.for_all_portfolios(base_currency)
 
         {wealth_card(scope_id, base_currency, context), attention_report(scope_id, context),
-         data_quality_report(), last_booking()}
+         data_quality_report()}
       end)
       |> start_scoped(scopes(socket.assigns.items, @scoped_kinds, scope_id))
     else
@@ -1312,13 +1310,13 @@ defmodule PortfolixirWeb.DashboardLive do
   defp land(
          {:overview, _name},
          scope_id,
-         {:ok, {wealth_card, attention, data_quality, last_booking}},
+         {:ok, {wealth_card, attention, data_quality}},
          socket
        ) do
     socket
     |> update(:cards, &Map.put(&1, scope_id, wealth_card))
     |> update(:attention, &Map.put(&1, scope_id, attention))
-    |> assign(data_quality: data_quality, last_booking: last_booking)
+    |> assign(data_quality: data_quality)
   end
 
   defp land({:scoped, _name}, scope_id, {:ok, {wealth_card, attention}}, socket) do
@@ -2790,7 +2788,6 @@ defmodule PortfolixirWeb.DashboardLive do
       :attention,
       :movers,
       :data_quality,
-      :last_booking,
       :stale_ttwror,
       :scope_id,
       :error,
@@ -2951,8 +2948,6 @@ defmodule PortfolixirWeb.DashboardLive do
       <:compact>
         <.total_value_compact
           card={@card}
-          data_quality={@data_quality}
-          last_booking={@last_booking}
           wealth_href={@wealth_href}
           change={{@change, @item.period}}
         />
@@ -3028,14 +3023,32 @@ defmodule PortfolixirWeb.DashboardLive do
         <% end %>
       <% end %>
       <:compact>
-        <Widget.row
-          :for={finding <- @findings}
-          href={finding.href}
-          data-compact-role={finding.role}
-        >
-          <:name><%= finding.text %></:name>
-          <:sub :if={finding[:effect]}><%= finding.effect %></:sub>
-        </Widget.row>
+        <%!-- The S32 closing act (PR 2's design critic; board 07 ② 2): at
+             S, where two stand side by side on a phone, the figure and one
+             line — how many findings, and the most severe one's short
+             line, its link the list's; L keeps every finding as a row. --%>
+        <%= if @item.size == "S" do %>
+          <Widget.figure :if={@findings != []} size={:s} data-compact-role="data-quality-count">
+            <%= length(@findings) %>
+            <:unit><%= ngettext("open point", "open points", length(@findings)) %></:unit>
+            <:sub>
+              <a
+                href={hd(@shown).href}
+                class={"widget-findings__item is-" <> Atom.to_string(dq_severity_of(hd(@shown)))}
+                data-compact-role="data-quality-first"
+              ><%= hd(@shown).short %></a>
+            </:sub>
+          </Widget.figure>
+        <% else %>
+          <Widget.row
+            :for={finding <- @findings}
+            href={finding.href}
+            data-compact-role={finding.role}
+          >
+            <:name><%= finding.text %></:name>
+            <:sub :if={finding[:effect]}><%= finding.effect %></:sub>
+          </Widget.row>
+        <% end %>
       </:compact>
     </Widget.frame>
     """
@@ -3123,19 +3136,26 @@ defmodule PortfolixirWeb.DashboardLive do
           </a>
         </li>
       </ul>
+      <%!-- The S32 closing act (PR 2's design critic; board 07 ② 2): „Fällig“
+           is an S, two side by side on a phone, so its compact form is the
+           figure and one line — the next date, its security and kind —,
+           the rest behind „+n more“, as the wide S keeps it. --%>
       <:compact>
-        <Widget.row
-          :for={row <- @upcoming_events}
-          href={"/securities/#{row.event.security_id}?tab=events"}
-          data-compact-role="upcoming-event"
-        >
-          <:name><%= row.security_name %></:name>
-          <:sub>
-            <%= SecurityEventLabel.kind(row.event.kind) %><%= unless row.held,
-              do: " · " <> gettext("no position") %>
-          </:sub>
-          <:figure><%= Format.date(row.event.date) %></:figure>
-        </Widget.row>
+        <%= if next = List.first(@upcoming_events) do %>
+          <Widget.figure size={:secondary} data-compact-role="upcoming-next">
+            <a href={"/securities/#{next.event.security_id}?tab=events"} data-role="upcoming-next-link"><%= Format.date(next.event.date) %></a>
+            <:sub>
+              <%= next.security_name %> · <%= SecurityEventLabel.kind(next.event.kind) %><%= unless next.held,
+                do: " · " <> gettext("no position") %>
+            </:sub>
+          </Widget.figure>
+          <details :if={tl(@upcoming_events) != []} class="widget-due__more" data-compact-role="upcoming-more">
+            <summary><%= pngettext("dashboard widget", "+%{count} more", "+%{count} more", length(tl(@upcoming_events))) %></summary>
+            <ul class="widget-due">
+              <li :for={row <- tl(@upcoming_events)}><.due_line row={row} /></li>
+            </ul>
+          </details>
+        <% end %>
       </:compact>
     </Widget.frame>
     """
@@ -3248,9 +3268,18 @@ defmodule PortfolixirWeb.DashboardLive do
           </a>
         </li>
       </ul>
+      <%!-- The S32 closing act (PR 2's design critic; board 07 ② 2): at S
+           the compact form is the wide S's figure, the count beyond the
+           rule, under the basis line both forms share; L keeps a row per
+           category. --%>
       <:compact>
+        <Widget.figure
+          :if={@item.size == "S" && @report && @report.alerts != []}
+          size={:s}
+          data-compact-role="off-target-count"
+        ><%= @report.count %><:unit><%= ngettext("category", "categories", @report.count) %></:unit></Widget.figure>
         <Widget.row
-          :for={alert <- (@report && @report.alerts) || []}
+          :for={alert <- if(@item.size == "S", do: [], else: (@report && @report.alerts) || [])}
           href="/portfolio?tab=allocation"
           data-compact-role="drift-alert"
         >
@@ -3844,8 +3873,6 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   attr(:card, :any, required: true)
-  attr(:data_quality, :any, required: true)
-  attr(:last_booking, :any, required: true)
   attr(:wealth_href, :string, required: true)
 
   attr(:change, :any,
@@ -3853,9 +3880,13 @@ defmodule PortfolixirWeb.DashboardLive do
     doc: "`{read, period}`, the item's period's performance read"
   )
 
-  # The compact form of „Gesamtwert“ (board 06): the view, the total at
-  # figure size, the item's period's change under it, then the strip's
-  # four figures one per row, the return the same period's (F1).
+  # The compact form of „Gesamtwert“ (board 06; the S32 closing act, PR 2's
+  # design critic, board 07 ② 2): the view, the total at figure size and
+  # one line under it, the item's period's change. Sprint 31's strip of
+  # four answers (TTWROR with IRR, cash quote, last booking, newest quote)
+  # is gone here too, as Sprint 32 E4 took it from the wide form: it was a
+  # second widget in this one's frame, and at 393 px two S stand side by
+  # side, where it made the tile 747 px tall.
   defp total_value_compact(%{change: {read, period}} = assigns) do
     assigns = assign(assigns, read: read, label: Widget.period_label(period))
 
@@ -3872,36 +3903,6 @@ defmodule PortfolixirWeb.DashboardLive do
           <%= gettext("TTWROR · %{period}", period: @label) %>
         </small>
       </a>
-      <Widget.row href={@wealth_href} data-compact-role="kpi-ttwror">
-        <:name><%= gettext("TTWROR · %{period}", period: @label) %></:name>
-        <:sub><%= money_weighted_line(if is_map(@read), do: @read.result) %></:sub>
-        <:figure><.change_figure read={@read} /></:figure>
-      </Widget.row>
-      <Widget.row href="/portfolio" data-compact-role="kpi-cash-quote">
-        <:name><%= gettext("Cash quote") %></:name>
-        <:sub>
-          <%= Format.money(@card.valuation.total_cash) %> <%= @card.valuation.base_currency %> <%= gettext("cash") %>
-        </:sub>
-        <:figure><%= Format.percent(@card.valuation.cash_quote) %>%</:figure>
-      </Widget.row>
-      <Widget.row href="/transactions" data-compact-role="kpi-last-booking">
-        <:name><%= gettext("Last booking") %></:name>
-        <:sub :if={@last_booking}><%= TransactionKindLabel.label(@last_booking.type) %></:sub>
-        <:figure>
-          <%= if @last_booking, do: Format.date(@last_booking.date), else: "—" %>
-        </:figure>
-      </Widget.row>
-      <Widget.row href="/securities?dq=stale_quote&holding=held" data-compact-role="kpi-freshness">
-        <:name><%= gettext("Quotes") %></:name>
-        <:sub :if={@data_quality && @data_quality.without_quote > 0}>
-          <%= ngettext("%{count} held stale", "%{count} held stale", @data_quality.without_quote) %>
-        </:sub>
-        <:figure>
-          <%= if @card.valuation.newest_quote_date,
-            do: Format.date(@card.valuation.newest_quote_date),
-            else: "—" %>
-        </:figure>
-      </Widget.row>
     <% else %>
       <p class="section-skeleton" aria-busy="true"></p>
     <% end %>
@@ -4385,50 +4386,6 @@ defmodule PortfolixirWeb.DashboardLive do
   # when the period cannot be computed yet.
   defp ttwror_of(%{ttwror: %Decimal{} = ttwror}), do: ttwror
   defp ttwror_of(_summary), do: nil
-
-  # The strip's money-weighted sub-line follows the Wealth band's rule
-  # (ADR-0034 §2): the annualized IRR for a full year of history, the period
-  # MWR for a shorter window — labelled as what it is.
-  defp money_weighted_line(nil), do: gettext("IRR") <> " —"
-
-  defp money_weighted_line(summary) do
-    {label, value} =
-      if short_window?(summary),
-        do: {gettext("MWR"), summary.mwr},
-        else: {gettext("IRR"), summary.irr}
-
-    case value do
-      %Decimal{} -> "#{label} #{signed_percent(value)}%"
-      _none -> label <> " —"
-    end
-  end
-
-  defp short_window?(%{start_date: %Date{} = start_date, end_date: %Date{} = end_date}),
-    do: Date.diff(end_date, start_date) + 1 < 365
-
-  defp short_window?(_summary), do: false
-
-  # The ledger's newest booking (#798): newest date, newest id — the order
-  # the history opens on. Raw record; the kind label is localized at render
-  # time, because this runs in the async task, which has no user locale.
-  defp last_booking do
-    case Ledger.list_transactions(limit: 1) do
-      [transaction] ->
-        %{
-          date: transaction.date,
-          type: transaction.type,
-          subject: booking_subject(transaction)
-        }
-
-      [] ->
-        nil
-    end
-  end
-
-  defp booking_subject(%{security: %{name: name}}) when is_binary(name), do: name
-  defp booking_subject(%{cash_account: %{name: name}}) when is_binary(name), do: name
-  defp booking_subject(%{securities_account: %{name: name}}) when is_binary(name), do: name
-  defp booking_subject(_transaction), do: nil
 
   # The drift bar's side and length (#798): over target grows right of the
   # zero line, under target grows left; the worst drift listed fills 45 % of
