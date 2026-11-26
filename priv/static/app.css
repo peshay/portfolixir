@@ -15419,7 +15419,11 @@ a.widget-row:hover .widget-row__name {
   gap: var(--space-2);
 }
 
-.dashboard-period-menu__head {
+/* Scoped under the menu: the dashboard's `.workspace-section h3`
+   (0,1,1) otherwise drew these at the section heading's 17 px in the
+   text colour, not the board's small muted labels (04 ②; S32 closing
+   act). */
+.dashboard-period-menu .dashboard-period-menu__head {
   margin: 0;
   color: var(--color-text-muted);
   font-size: 11px;
@@ -15532,6 +15536,15 @@ a.widget-row:hover .widget-row__name {
   font-size: 12px;
 }
 
+/* The footnote under the groups: what ★ means (board 04 ②; S32
+   closing act). */
+.dashboard-period-menu__foot {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 /* Sprint 32 T5 (board 04 ③): the same menu opened from a widget's ⋯ lies
    over the page, its first line naming the widget it pins for. */
 .dashboard-period-menu__panel.is-pin {
@@ -15546,6 +15559,15 @@ a.widget-row:hover .widget-row__name {
 .dashboard-period-menu__pin {
   margin: 0;
   font-weight: 700;
+}
+
+/* The period dialog's footer lies inside its form, where `.modal >
+   .modal-footer` never reaches: it takes the body's 18 px itself, so its
+   buttons keep off the dialog's edges and their focus ring is not cut
+   (S32 closing act; issue 1138's rule for a footer that is the dialog's
+   own child). */
+.period-dialog form > .modal-footer {
+  padding: 0 18px 18px;
 }
 
 .period-dialog__to {
@@ -15585,16 +15607,20 @@ a.widget-row:hover .widget-row__name {
     scroll-snap-align: start;
   }
   /* The menu as a sheet from the bottom edge, its targets thumb-sized;
-     opened from a widget too. */
+     opened from a widget too. It stands on the tab bar, as „Mehr“ does,
+     never under it: the bar lies higher (z-index 35), and a sheet that
+     ended behind it hid its last row of years from every tap (S32
+     closing act, board 04 ②). Its height leaves the bar and a margin
+     at the top, so its own scroll reaches every row. */
   .dashboard-period-menu__panel,
   .dashboard-period-menu__panel.is-pin {
     position: fixed;
     top: auto;
     right: 0;
-    bottom: 0;
+    bottom: calc(56px + env(safe-area-inset-bottom));
     left: 0;
     width: auto;
-    max-height: 80vh;
+    max-height: min(80vh, calc(100vh - 56px - env(safe-area-inset-bottom) - var(--space-4)));
     transform: none;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
@@ -17296,6 +17322,18 @@ a.widget-row:hover .widget-row__name {
     hyphens: manual;
     white-space: nowrap;
     text-align: center;
+  }
+}
+
+/* A window both narrow and short-wide has the rail, not the bar at the
+   foot: the period sheet then stands on the bottom edge beside the rail,
+   never under it (S32 closing act). */
+@media (width < 600px) and (height <= 540px) and (orientation: landscape) {
+  .dashboard-period-menu__panel,
+  .dashboard-period-menu__panel.is-pin {
+    bottom: env(safe-area-inset-bottom);
+    left: calc(var(--tabbar-rail) + env(safe-area-inset-left));
+    max-height: min(80vh, calc(100vh - env(safe-area-inset-bottom) - var(--space-4)));
   }
 }
 

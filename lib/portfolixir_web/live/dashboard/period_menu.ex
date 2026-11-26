@@ -18,8 +18,10 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
       each with its dates and ⋯ to change or delete it, and „Eigenen
       Zeitraum anlegen …“), year (this year and the five before). Each
       option has ★ beside it, pressed while the quick choice holds it, that
-      adds it or takes it out. Escape, a pick and a click elsewhere close
-      it; in the compact class it is a sheet from the bottom edge.
+      adds it or takes it out; a footnote under the groups says so (the S32
+      closing act). Escape, a pick and a click elsewhere close it; in the
+      compact class it is a sheet from the bottom edge, standing on the tab
+      bar.
     * **A widget's pin** (Sprint 32 T5; board 04 ③): its ⋯ „Zeitraum
       festpinnen …“ opens the same menu for that widget, said in its first
       line; a pick there is the widget's pin, an own period by reference
@@ -152,6 +154,7 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
     assigns =
       assign(assigns,
         years: Enum.map(0..(@years - 1), &"year:#{year - &1}"),
+        this_quarter: "q#{div(assigns.today.month - 1, 3) + 1}",
         dropped: length(assigns.quick.dropped)
       )
 
@@ -248,6 +251,15 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
           saved={@saved}
         />
       </.group>
+      <%!-- The S32 closing act (board 04 ②): what ★ means, why a
+           quarter is dashed, why this quarter stands twice. --%>
+      <p class="dashboard-period-menu__foot" data-role="period-menu-note">
+        <%= gettext(
+          "★ = in the bar as a quick choice; a click on the star puts a period in or takes it out. A quarter not yet begun is drawn dashed and cannot be chosen. “%{current}” and “%{quarter}” are the same quarter today; both stand here because the one moves on and the other stays.",
+          current: Widget.period_label("qtd", @saved),
+          quarter: Widget.period_label(@this_quarter, @saved)
+        ) %>
+      </p>
     </div>
     """
   end

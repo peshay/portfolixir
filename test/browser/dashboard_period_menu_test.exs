@@ -68,8 +68,12 @@ defmodule PortfolixirWeb.Browser.DashboardPeriodMenuTest do
   #   puts the focus back on the button, which names 3M; Escape closes the
   #   menu without a pick, the focus back on the button; the page never
   #   scrolls sideways.
-  # - At 393 px the menu is a sheet on the bottom edge, the window's width,
-  #   every target in it at least 44 px tall.
+  # - At 393 px the menu is a sheet on the bottom edge, standing on the tab
+  #   bar, the window's width, every target in it at least 44 px tall and,
+  #   scrolled into the sheet's view, the element a tap at its centre
+  #   reaches; a thumb taps the last year and it applies (S32 closing act).
+  # - The group headings are small muted labels (12 px at most), and the
+  #   dialog's buttons keep 16 px or more off its edges (S32 closing act).
   # - A star puts Vorquartal into the bar; „Eigenen Zeitraum anlegen …“
   #   opens the native dialog; „Speichern und anwenden“ stores the period
   #   and applies it, the button naming it and its dates beside it.
