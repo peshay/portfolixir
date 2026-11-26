@@ -179,7 +179,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.KeyFigures do
 
     ~H"""
     <Widget.frame
-      id={"dashboard-key-figures" <> @item.uid}
+      id={"dashboard-wealth-key-figures" <> @item.uid}
       item={@item}
       title={Widgets.title("wealth_key_figures")}
       class="widget-key-figures"
