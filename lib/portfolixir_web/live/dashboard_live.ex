@@ -253,8 +253,11 @@ defmodule PortfolixirWeb.DashboardLive do
   # --- S32 T4 begin ---
   # A star: the quick choice takes the period or lets it go, stored under
   # the UI's actor; the status line says which, or why not.
+  # The keys are read fresh (`Periods.quick_choice/0` leaves out an own
+  # period deleted elsewhere since the page read them), so the store never
+  # refuses a key this page could not know was gone (S32 closing act).
   defp quick_toggle(socket, key) do
-    keys = socket.assigns.quick.keys
+    keys = Periods.quick_choice().keys
     on? = key in keys
     next = if on?, do: List.delete(keys, key), else: keys ++ [key]
     label = Widget.period_label(key, socket.assigns.saved_periods)
@@ -343,25 +346,24 @@ defmodule PortfolixirWeb.DashboardLive do
     do: Periods.replace_saved(Actor.owner_ui(), id, Map.put(attrs, "lock_version", version))
 
   # „Speichern und anwenden“: the quick choice takes it or lets it go as
-  # the box says, the dialog closes and the period is applied.
+  # the box says, the dialog closes and the period is applied. The quick
+  # choice is read fresh, without an own period deleted elsewhere since
+  # the page read it, so the store refuses no key of it (S32 closing act).
+  #
+  # A change to a stored period changes the span its key reads, so what
+  # the page read under the key is dropped and read again — for the
+  # dashboard's period and for every widget pinned to it (S32 closing act).
   defp saved_period(socket, own, quick?, pin) do
     key = "saved:#{own.id}"
-    keys = socket.assigns.quick.keys
+    keys = Periods.quick_choice().keys
 
     say =
       cond do
         quick? and key not in keys ->
-          case Periods.put_quick_choice(Actor.owner_ui(), keys ++ [key]) do
-            {:ok, _keys} ->
-              nil
-
-            {:error, _full} ->
-              gettext("The quick choice holds at most %{max} periods.", max: Periods.max_quick())
-          end
+          quick_choice_say(Periods.put_quick_choice(Actor.owner_ui(), keys ++ [key]))
 
         not quick? and key in keys ->
-          {:ok, _keys} = Periods.put_quick_choice(Actor.owner_ui(), List.delete(keys, key))
-          nil
+          quick_choice_say(Periods.put_quick_choice(Actor.owner_ui(), List.delete(keys, key)))
 
         true ->
           nil
@@ -375,13 +377,40 @@ defmodule PortfolixirWeb.DashboardLive do
         period_dialog: nil
       )
       |> assign(:period_say, say || gettext("“%{name}” is stored and applied.", name: own.name))
+      |> drop_period_reads(key)
 
     # Made from a widget's „Zeitraum festpinnen“ (T5): it is that widget's
     # pin; else the dashboard's period.
-    case pin do
-      %{index: index} -> pin(socket, Integer.to_string(index), &Map.put(&1, "period", key))
-      nil -> apply_period(socket, key)
-    end
+    socket =
+      case pin do
+        %{index: index} -> pin(socket, Integer.to_string(index), &Map.put(&1, "period", key))
+        nil -> apply_period(socket, key)
+      end
+
+    socket |> start_movers() |> start_widget_reads()
+  end
+
+  defp quick_choice_say({:ok, _keys}), do: nil
+
+  defp quick_choice_say({:error, {:too_many, _message}}),
+    do: gettext("The quick choice holds at most %{max} periods.", max: Periods.max_quick())
+
+  defp quick_choice_say({:error, _refusal}), do: gettext("Couldn't store the quick choice.")
+
+  # What the page read under the period key `key`, and a read of it still
+  # running, forgotten: the next `start_widget_reads/1` reads it again.
+  defp drop_period_reads(socket, key) do
+    other_period = fn {{_scope, period}, _answer} -> period != key end
+
+    socket
+    |> update(:performance, &Map.filter(&1, other_period))
+    |> update(:performance_bands, &Map.filter(&1, other_period))
+    |> update(:crash_chart, &Map.delete(&1, key))
+    |> update(:asked, fn asked ->
+      Map.reject(asked, fn {_name, asked_key} ->
+        asked_key == key or match?({_scope, ^key}, asked_key)
+      end)
+    end)
   end
 
   # --- S32 T4 end ---
@@ -667,6 +696,8 @@ defmodule PortfolixirWeb.DashboardLive do
   defp start_movers(%{assigns: %{transactions_count: 0}} = socket), do: socket
 
   defp start_movers(socket) do
+    socket = readable_period(socket)
+
     socket.assigns.items
     |> Enum.filter(&(&1.kind == "movers"))
     |> Enum.map(fn item ->
@@ -693,11 +724,27 @@ defmodule PortfolixirWeb.DashboardLive do
 
   # The window of the movers read for an item `Widget.with_period/3` gave
   # its period (the pin, else the dashboard's), by the registry's rule.
+  # A period that no longer resolves reads the default's window.
   defp movers_window(%{period: period}) do
+    today = Portfolixir.Clock.today()
+
     {:ok, %{"window" => window}} =
-      Widgets.source_params("movers", period, Portfolixir.Clock.today())
+      case Widgets.source_params("movers", period, today) do
+        {:ok, _params} = resolved -> resolved
+        {:error, _unresolved} -> Widgets.source_params("movers", Widgets.default_period(), today)
+      end
 
     window
+  end
+
+  # The dashboard's period stops resolving while the page is open where
+  # an own period is deleted elsewhere, or a quarter is not begun once the
+  # year has turned; it is then read as the default period, as a dangling
+  # pin is (`Widget.with_period/4`; S32 closing act).
+  defp readable_period(socket) do
+    if period?(socket.assigns.period),
+      do: socket,
+      else: assign(socket, :period, Widgets.default_period())
   end
 
   # --- S30 T3 end ---
@@ -770,6 +817,7 @@ defmodule PortfolixirWeb.DashboardLive do
   defp start_widget_reads(%{assigns: %{transactions_count: 0}} = socket), do: socket
 
   defp start_widget_reads(socket) do
+    socket = readable_period(socket)
     %{items: items, period: period} = socket.assigns
 
     socket
@@ -1268,9 +1316,14 @@ defmodule PortfolixirWeb.DashboardLive do
         |> assign(:period_say, gettext("“%{name}” was deleted.", name: own.name))
         |> push_event("dashboard-edit-focus", %{ids: ["dashboard-period-menu-toggle"]})
 
-      if socket.assigns.period == key,
-        do: {:noreply, apply_period(socket, Widgets.default_period())},
-        else: {:noreply, socket}
+      socket =
+        if socket.assigns.period == key,
+          do: apply_period(socket, Widgets.default_period()),
+          else: socket
+
+      # A widget pinned to it now follows the dashboard's period, which
+      # it may not have read (S32 closing act).
+      {:noreply, socket |> start_movers() |> start_widget_reads()}
     else
       _gone ->
         {:noreply,
