@@ -39,6 +39,7 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
   alias Portfolixir.Clock
   alias Portfolixir.Periods
   alias PortfolixirWeb.Dashboard.Widget
+  alias PortfolixirWeb.DateInput
   alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.Format
 
@@ -388,8 +389,8 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
                 type="text"
                 name="period[from]"
                 value={@dialog.from}
-                placeholder="YYYY-MM-DD"
-                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                placeholder={DateInput.placeholder()}
+                pattern={DateInput.pattern()}
                 maxlength="10"
                 autocomplete="off"
                 required
@@ -410,8 +411,8 @@ defmodule PortfolixirWeb.Dashboard.PeriodMenu do
                 type="text"
                 name="period[to]"
                 value={@dialog.to}
-                placeholder="YYYY-MM-DD"
-                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                placeholder={DateInput.placeholder()}
+                pattern={DateInput.pattern()}
                 maxlength="10"
                 autocomplete="off"
                 aria-label={gettext("Last day")}
