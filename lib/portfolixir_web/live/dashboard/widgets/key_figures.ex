@@ -25,9 +25,12 @@ defmodule PortfolixirWeb.Dashboard.Widgets.KeyFigures do
   **The bridge adds up, or says it does not** (`bridge/1`): its four
   figures are the read's own, each as it reads at two places; where the
   rounded start, flows and result do not sum to the rounded end, the gap
-  is drawn beside it, and no figure is moved to hide it. Where the
-  performance read's end value is not the valuation's total at the cent,
-  the footer says so in one line.
+  is drawn beside it, and no figure is moved to hide it. A period that
+  has ended ends its bridge „am“ its last day, not „heute“; a window the
+  read walked no day of draws no bridge. Where the performance read's end
+  value of a window that ends today is not the valuation's total at the
+  cent, the footer says so in one line; the total is today's, so a period
+  that has ended is never set against it.
 
     * **Zeile** — board 06's variant A;
     * **S** — the total and its split;
@@ -173,8 +176,10 @@ defmodule PortfolixirWeb.Dashboard.Widgets.KeyFigures do
         valuation: valuation,
         performance: performance,
         label: Widget.period_label(assigns.period),
-        bridge: performance && bridge(performance),
-        apart: performance && valuation && apart(performance, valuation)
+        # A window the read walked no day of (start_date nil: before the
+        # first booking, or nothing booked yet) has no bridge to draw.
+        bridge: walked?(performance) && bridge(performance),
+        apart: performance && valuation && apart(performance, valuation, Clock.today())
       )
 
     ~H"""
@@ -226,6 +231,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.KeyFigures do
         bridge={@bridge}
         currency={@performance.base_currency}
         start_date={@performance.start_date}
+        end_date={@performance.end_date}
         multiple={@performance.wealth_multiple}
       />
       <:compact>
@@ -337,14 +343,25 @@ defmodule PortfolixirWeb.Dashboard.Widgets.KeyFigures do
   attr(:bridge, :map, required: true)
   attr(:currency, :string, required: true)
   attr(:start_date, :any, required: true)
+
+  attr(:end_date, :any,
+    default: nil,
+    doc: "the read's end_date: a day before today names the end by its date"
+  )
+
   attr(:multiple, :any, required: true)
 
   @doc """
   The value bridge under the figures (board 06 ① A): Anfang with its date
   + Nettoflüsse + Ergebnis = heute, the multiplier at the right; where the
-  rounded figures do not add up, the gap beside them (`bridge/1`).
+  rounded figures do not add up, the gap beside them (`bridge/1`). A
+  period that has ended (prev_year, a past quarter, `year:YYYY`, a saved
+  period with its `to`) ends on its last day, so its end reads „am“ that
+  day, never „heute“.
   """
   def bridge_line(assigns) do
+    assigns = assign(assigns, :end_label, end_label(assigns.end_date, Clock.today()))
+
     ~H"""
     <p class="key-figures__bridge" data-role="key-figures-bridge">
       <span data-role="bridge-start"><%= gettext("Start %{date}", date: Format.date(@start_date)) %> <b class="num"><%= Format.money(@bridge.start) %></b></span>
@@ -353,7 +370,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.KeyFigures do
       <span class="key-figures__op" aria-hidden="true">+</span>
       <span data-role="bridge-result"><%= gettext("Result") %> <b class={["num", sign_class(@bridge.result)]}><%= Format.signed_decimal(@bridge.result, 2) %></b></span>
       <span class="key-figures__op" aria-hidden="true">=</span>
-      <span data-role="bridge-end"><%= gettext("today") %> <b class="num"><%= Format.money(@bridge.end) %></b> <%= @currency %></span>
+      <span data-role="bridge-end"><%= @end_label %> <b class="num"><%= Format.money(@bridge.end) %></b> <%= @currency %></span>
       <span :if={@bridge.gap} class="key-figures__gap" data-role="bridge-gap">
         <%= gettext("⚠ rounding gap %{gap}: each figure is rounded to the cent, none is changed",
           gap: Format.signed_decimal(@bridge.gap, 2)
@@ -364,12 +381,30 @@ defmodule PortfolixirWeb.Dashboard.Widgets.KeyFigures do
     """
   end
 
+  defp walked?(%{start_date: %Date{}}), do: true
+  defp walked?(_performance), do: false
+
+  # The bridge's end: „heute“ for a period that ends today, else the day
+  # the period ended.
+  defp end_label(%Date{} = end_date, today) do
+    if Date.before?(end_date, today),
+      do: gettext("on %{date}", date: Format.date(end_date)),
+      else: gettext("today")
+  end
+
+  defp end_label(_none, _today), do: gettext("today")
+
   # The performance read's end value against the valuation's total, at the
-  # cent: the difference, or nil where they agree.
-  defp apart(performance, valuation) do
+  # cent: the difference, or nil where they agree. The valuation is
+  # today's, so only a walked window that ends today is set against it; a
+  # period that has ended ends on another day's value, and a window with
+  # nothing in it (start_date nil) has no value of its own.
+  defp apart(%{start_date: %Date{}, end_date: today} = performance, valuation, today) do
     gap = Decimal.sub(cents(performance.end_value), cents(valuation.total_with_cash))
     if Decimal.eq?(gap, 0), do: nil, else: gap
   end
+
+  defp apart(_performance, _valuation, _today), do: nil
 
   defp money_weighted_label(%{} = performance) do
     if short_window?(performance), do: gettext("MWR"), else: gettext("IRR")

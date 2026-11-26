@@ -176,10 +176,57 @@ defmodule PortfolixirWeb.DashboardHoldingsWidgetsTest do
              )
 
       assert Floki.find(widget, "[data-role='bridge-gap']") == []
+      # A period that ends today ends its bridge „heute“.
+      assert perf["end_date"] == Date.to_iso8601(Clock.today())
+      assert at.("bridge-end") =~ "today"
 
       wealth = rendered(conn, "/portfolio")
       assert text(Floki.find(wealth, "#kpi-ttwror strong")) == at.("kf-ttwror-value")
       assert text(Floki.find(wealth, "[data-role='period-gain'] b")) == at.("kf-result-value")
+    end
+
+    # User story (Sprint 32 closing act, PR 2, the correctness lens):
+    # As the operator who reads „Kennzahlen“ over a period that has ended,
+    # I want the bridge to end on the period's last day and no warning to
+    # set that day's value against today's total,
+    # so that last year's figures read as last year's and no false gap
+    # appears.
+    #
+    # Acceptance criteria:
+    # - On prev_year the bridge's end is the performance read's end_value
+    #   labelled „am“ its end_date, a day before today, never „heute“.
+    # - On year:1999, before the first booking, the read walks no day: it
+    #   answers start_date null and the value 0. The widget draws no bridge
+    #   for a window with nothing in it, so none ends „heute“.
+    # - On both, the footer's warning that the read's end value and the
+    #   valuation's total are apart is not drawn: today's total is set only
+    #   against a walked window that ends today.
+    test "a period that has ended ends its bridge on its last day and sets nothing against today",
+         %{conn: conn} do
+      seed()
+      dashboard!([{"wealth_key_figures", "row"}])
+      today = Clock.today()
+
+      perf = api("/api/v1/performance?period=prev_year")
+      end_date = Date.from_iso8601!(perf["end_date"])
+      assert end_date == Date.new!(today.year - 1, 12, 31)
+
+      widget = Floki.find(rendered(conn, "/?period=prev_year"), "#dashboard-wealth-key-figures")
+      bridge_end = text(Floki.find(widget, "[data-role='bridge-end']"))
+
+      assert bridge_end =~ "on " <> Format.date(end_date)
+      assert bridge_end =~ money(perf["end_value"])
+      refute bridge_end =~ "today"
+      assert Floki.find(widget, "[data-role='key-figures-apart']") == []
+
+      empty = api("/api/v1/performance?period=year:1999")
+      assert empty["start_date"] == nil
+      assert empty["end_value"] == "0"
+
+      widget = Floki.find(rendered(conn, "/?period=year:1999"), "#dashboard-wealth-key-figures")
+      assert Floki.find(widget, "[data-role='kf-result']") != []
+      assert Floki.find(widget, "[data-role='key-figures-bridge']") == []
+      assert Floki.find(widget, "[data-role='key-figures-apart']") == []
     end
 
     # User story:
