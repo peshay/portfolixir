@@ -56,15 +56,10 @@ defmodule PortfolixirWeb.Dashboard.Widgets.PerformanceSection do
 
   @chart_max_points 400
   @levels ~w(total category security)
-  @modes ~w(ttwror value)
 
   @doc "The levels a dashboard's „Performance“ Zeile offers: Gesamt, Kategorien, Wertpapiere."
   @spec levels() :: [String.t()]
   def levels, do: @levels
-
-  @doc "The series: % (TTWROR) or the value."
-  @spec modes() :: [String.t()]
-  def modes, do: @modes
 
   # -- the read -----------------------------------------------------------------
 

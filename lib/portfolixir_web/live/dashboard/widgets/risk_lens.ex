@@ -51,10 +51,6 @@ defmodule PortfolixirWeb.Dashboard.Widgets.RiskLens do
 
   # -- the read -------------------------------------------------------------------
 
-  @doc "The metrics' window the sections draw: one year."
-  @spec window() :: String.t()
-  def window, do: @window
-
   @doc """
   The lens of `portfolio_id` for the view `view_id` (nil: Everything); a
   view gone meanwhile reads Everything. The tab's read, and the widgets'.
