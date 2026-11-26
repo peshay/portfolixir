@@ -78,6 +78,10 @@ defmodule PortfolixirWeb.Browser.WidgetGalleryTest do
   #   registered.
   # - Every file the catalogue pages link exists, and every PNG is linked
   #   from both pages.
+  # - Sprint 32 W5: a picture changes only with its widget: the throwaway
+  #   grids draw no rounded corner, which clipped a widget only where it
+  #   stood first or last, and an instant a walk was computed at reads as
+  #   its day at 00:00 UTC.
   test "every registered kind in every grid size, light and dark, into docs/assets/widgets",
        %{base_url: base_url} do
     expected =
@@ -100,6 +104,15 @@ defmodule PortfolixirWeb.Browser.WidgetGalleryTest do
     assert status == 0, "the browser run failed:\n" <> output
     result = output |> String.split("\n", trim: true) |> List.last() |> Jason.decode!()
     assert result["ok"] == true, result["error"] || inspect(result)
+
+    # Sprint 32 W5: each picture depends on its widget alone — no rounded
+    # corner of the throwaway grid, no instant to the minute.
+    assert result["unsteady"] != []
+
+    for page <- result["unsteady"] do
+      assert page["radius"] == "0px", "a gallery grid rounds its corners: #{page["radius"]}"
+      assert page["instants"] == [], "an instant in a picture: #{inspect(page["instants"])}"
+    end
 
     written = @out |> Path.join("*.png") |> Path.wildcard() |> Enum.map(&Path.basename/1)
     assert Enum.sort(written) == Enum.sort(expected)
