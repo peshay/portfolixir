@@ -16602,6 +16602,7 @@ a.widget-row:hover .widget-row__name {
 
 .crash-chart {
   display: grid;
+  align-content: start;
   gap: var(--space-1);
   margin: 0;
 }
@@ -16627,10 +16628,29 @@ a.widget-row:hover .widget-row__name {
   fill-opacity: 0.32;
 }
 
+/* The labels above the plot (the S32 closing act; board 11 ①, ②): in
+   the page's type, so the chart's scale never shrinks them, each cut at
+   the next label's start. */
+.crash-chart__labels {
+  position: relative;
+  height: 18px;
+}
+
 .crash-chart__label {
-  fill: var(--color-danger);
-  font-size: 11px;
+  position: absolute;
+  top: 0;
+  overflow: hidden;
+  padding-left: 3px;
+  color: var(--color-danger);
+  font-size: 12px;
   font-weight: 600;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crash-chart__label.is-running {
+  font-weight: 700;
 }
 
 /* „Erholer nach Crashes“ (board 11 ⑤): the last windows' lists side by

@@ -17133,9 +17133,9 @@ msgstr ""
 msgid "show"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:201
-#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:310
-#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:313
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:228
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:361
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:364
 #: lib/portfolixir_web/live/dashboard/widgets/crashes.ex:210
 #: lib/portfolixir_web/live/dashboard/widgets/crashes.ex:233
 #: lib/portfolixir_web/live/dashboard/widgets/rebounders.ex:190
@@ -18766,7 +18766,7 @@ msgstr ""
 msgid "Actual: the category's value ÷ the value of the portfolio's holdings and cash in the view, each priced by its latest quote, as Wealth's allocation reads it."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:148
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:155
 #: lib/portfolixir_web/live/dashboard/widgets/crashes.ex:164
 #: lib/portfolixir_web/live/dashboard/widgets/rebounders.ex:154
 #, elixir-autogen, elixir-format
@@ -18808,7 +18808,7 @@ msgstr ""
 msgid "Couldn't load the allocation."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:157
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:164
 #: lib/portfolixir_web/live/dashboard/widgets/crashes.ex:189
 #: lib/portfolixir_web/live/dashboard/widgets/rebounders.ex:179
 #, elixir-autogen, elixir-format
@@ -18851,7 +18851,7 @@ msgstr ""
 msgid "No classification to steer by yet."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:160
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:167
 #: lib/portfolixir_web/live/dashboard/widgets/crashes.ex:192
 #: lib/portfolixir_web/live/dashboard/widgets/rebounders.ex:182
 #, elixir-autogen, elixir-format
@@ -19928,37 +19928,37 @@ msgctxt "widget kind"
 msgid "Distance to high"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:171
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:193
 #, elixir-autogen, elixir-format
 msgid "%{benchmark} from %{from} to %{to}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:317
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:382
 #, elixir-autogen, elixir-format
 msgid "%{start} → %{end}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:190
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:217
 #, elixir-autogen, elixir-format
 msgid "High %{value}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:189
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:216
 #, elixir-autogen, elixir-format
 msgid "Low %{value}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:146
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:153
 #, elixir-autogen, elixir-format
 msgid "Prices, no verdict"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:152
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:159
 #, elixir-autogen, elixir-format
 msgid "The crash benchmark's stored closes over the period, split-adjusted, in its own currency. Red: a crash window as the rule detects it on every read — it opens when the close falls 10% or more below its last high and closes when it is back at that high; the running one stronger. A manual window is shaded from its start to its low."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:163
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:170
 #, elixir-autogen, elixir-format
 msgid "Too few closes of the crash benchmark in this period to draw a line."
 msgstr ""
@@ -19970,7 +19970,7 @@ msgid_plural "after %{count} days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:308
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:359
 #, elixir-autogen, elixir-format
 msgid "running %{decline}"
 msgstr ""
@@ -20066,4 +20066,14 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard/edit.ex:305
 #, elixir-autogen, elixir-format
 msgid "column %{col}, row %{row}"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:371
+#, elixir-autogen, elixir-format
+msgid "%{decline} from the high on %{date} · running"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard/widgets/crash_chart.ex:378
+#, elixir-autogen, elixir-format
+msgid "%{window} · since %{date}"
 msgstr ""

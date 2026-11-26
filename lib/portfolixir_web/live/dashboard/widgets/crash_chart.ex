@@ -17,6 +17,13 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CrashChart do
   Under it the period's first and last close, its lowest and its highest,
   so a screen reader and a test read what the line draws.
 
+  The labels (the S32 closing act; board 11 ①, ②) stand above the plot
+  in the page's type, so they keep 12 px however the chart scales; each
+  runs from its window's start to the next label's and is cut there, so
+  none overprints another. A window that began before the period has no
+  label pinned to the left edge: the line under the chart names it, the
+  running one „−11,2 % vom Hoch am 28.10. · läuft“.
+
   No verdict (ADR-0058 §8): the chart shows prices and names no action.
   """
   use Phoenix.Component
@@ -34,7 +41,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CrashChart do
   @height 220
   @left 8
   @right 8
-  @top 22
+  @top 6
   @bottom 22
 
   # -- the read -----------------------------------------------------------------
@@ -164,6 +171,21 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CrashChart do
         </p>
       </:shared>
       <figure :if={@ready} class="crash-chart" data-role="crash-chart">
+        <%!-- The S32 closing act (board 11 ①, ②): the labels stand above
+             the plot in the page's type, never scaled with it, each from
+             its window's start to the next label's, cut there; a window
+             that began before the period has none here, the line under
+             the chart names it. --%>
+        <div :if={@chart.labels != []} class="crash-chart__labels">
+          <span
+            :for={label <- @chart.labels}
+            class={["crash-chart__label", label.running && "is-running"]}
+            style={"left: #{label.left}%; max-width: #{label.room}%;"}
+            title={label.text}
+            data-role="crash-chart-label"
+            data-key={label.key}
+          ><%= label.text %></span>
+        </div>
         <svg
           class="crash-chart__plot"
           viewBox={"0 0 #{@chart.width} #{@chart.height}"}
@@ -180,11 +202,16 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CrashChart do
               width={window.width}
               height={@chart.plot_height}
             />
-            <text class="crash-chart__label" x={window.x + 3} y={@chart.top - 6} data-role="crash-chart-label"><%= window.label %></text>
           </g>
           <path class="crash-chart__line" d={@chart.path} fill="none" />
         </svg>
         <figcaption class="crash-chart__summary" data-role="crash-chart-summary">
+          <span
+            :for={window <- @chart.before}
+            class="crash-chart__before"
+            data-role="crash-chart-before"
+            data-key={window.key}
+          ><%= before(window) %></span>
           <span data-role="crash-chart-first"><%= Format.date(@summary.first.date) %>: <%= Format.money(@summary.first.close) %></span>
           <span data-role="crash-chart-low"><%= gettext("Low %{value}", value: Format.money(@summary.low.close)) %></span>
           <span data-role="crash-chart-high"><%= gettext("High %{value}", value: Format.money(@summary.high.close)) %></span>
@@ -263,10 +290,11 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CrashChart do
 
         Map.merge(window, %{
           x: round2(x1),
-          width: round2(max(x2 - x1, 1.0)),
-          label: label(window)
+          width: round2(max(x2 - x1, 1.0))
         })
       end)
+
+    {before, inside} = Enum.split_with(windows, &(Date.compare(&1.start, card.from) == :lt))
 
     %{
       width: @width,
@@ -275,8 +303,31 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CrashChart do
       plot_height: plot_height,
       path: path,
       points: points,
-      windows: windows
+      windows: windows,
+      labels: labels(inside),
+      before: before
     }
+  end
+
+  # The labels of the windows that begin inside the period, oldest first,
+  # in per cent of the chart's width: each at its window's start, its room
+  # up to the next label's start or the chart's right edge, so two labels
+  # never overprint, however narrow the tile (the S32 closing act).
+  defp labels(windows) do
+    starts = Enum.map(windows, &(&1.x / @width * 100))
+    ends = Enum.drop(starts, 1) ++ [100.0]
+
+    [windows, starts, ends]
+    |> Enum.zip()
+    |> Enum.map(fn {window, left, right} ->
+      %{
+        key: window.key,
+        running: window.running,
+        text: label(window),
+        left: round2(left),
+        room: round2(max(right - left, 0.0))
+      }
+    end)
   end
 
   defp clamp(date, from, to) do
@@ -311,6 +362,20 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CrashChart do
 
   defp label(window),
     do: (window.name || gettext("unnamed")) <> " " <> percent(window.decline)
+
+  # A window that began before the period, said under the chart (board 11
+  # ②): the running one as the board words it, „−11,2 % vom Hoch am 28.10.
+  # · läuft“; any other by its label and its first day.
+  defp before(%{running: true} = window),
+    do:
+      gettext("%{decline} from the high on %{date} · running",
+        decline: percent(window.decline),
+        date: Format.date(window.start)
+      )
+
+  defp before(window),
+    do:
+      gettext("%{window} · since %{date}", window: label(window), date: Format.date(window.start))
 
   defp dates(window),
     do:
