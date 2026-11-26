@@ -18008,3 +18008,85 @@ a.widget-row:hover .widget-row__label {
   font-weight: 600;
 }
 /* --- S32 W4 end --- */
+
+/* --- S32 W5 begin --- */
+/* Wealth's polish list (issue 1366), the lines of the Crashes section (Sprint 32
+   W5; test/browser/crash_section_layout_test.exs). */
+
+/* Line 3: the rebounders' days head wraps, as the „ggü.“ head does; the
+   figures' nowrap has the same specificity and comes later, so it kept
+   the head on one line. */
+.crash-table th.num.crash-days {
+  white-space: normal;
+}
+
+@container crash-section (max-width: 560px) {
+  /* Line 4: every row and the axis share one figure column, so each
+     row's track and the axis under the list span the same width and a
+     mark reads where the bars do (the axis spanned 294 px against a 249
+     px track). */
+  .crash-table tbody tr,
+  .crash-table tfoot tr {
+    grid-template-columns: 1.4rem minmax(0, 1fr) 5.25rem;
+  }
+
+  /* Line 5: a table of names without a window as rows, the name over the
+     benchmark it was given for, the high at the right, the actions under
+     them (it needed 694 px in a 356 px wrapper). */
+  .crash-unmatched .crash-windows-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .crash-unmatched .crash-windows-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--space-2);
+    row-gap: 2px;
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .crash-unmatched .data-table.crash-windows-table tbody tr td {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    white-space: normal;
+  }
+
+  .crash-unmatched .crash-windows-table td:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .crash-unmatched .crash-windows-table td:nth-child(2) {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 12.5px;
+    color: var(--color-text-muted);
+  }
+
+  .crash-unmatched .crash-windows-table td:nth-child(3) {
+    grid-column: 2;
+    grid-row: 1;
+    white-space: nowrap;
+  }
+
+  .crash-unmatched .crash-windows-table td.crash-actions {
+    grid-column: 1 / 3;
+    grid-row: 3;
+    text-align: left;
+  }
+
+  /* Line 6: a tinted window row (an ongoing window's) keeps its text off
+     the tint's edges. */
+  #crash-windows-phone-rows .phone-row.is-ongoing {
+    padding-inline: var(--space-2);
+  }
+}
+/* --- S32 W5 end --- */
