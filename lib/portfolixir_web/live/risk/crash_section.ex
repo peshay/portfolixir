@@ -332,7 +332,9 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   defp open_form(socket, form), do: assign(socket, form: form, errors: [], posted: %{})
 
   # --- S32 W4 begin ---
-  # Embedded: the choice changed in the component, read at once.
+  # Embedded: the window chosen in the component, read at once (the S32
+  # closing act: the list and the universe arrive from the widget's head
+  # through `update/2`, so only the embedded window's event calls this).
   defp pick(%{assigns: %{embedded: true}} = socket, changes) do
     socket = update(socket, :params, &Map.merge(&1, changes))
 
@@ -340,8 +342,6 @@ defmodule PortfolixirWeb.Risk.CrashSection do
     |> assign(:loaded_for, {socket.assigns.params, socket.assigns.view_id})
     |> load()
   end
-
-  defp pick(socket, _changes), do: socket
 
   # An id of the section: its own on the tab, under the component's id
   # embedded, so two widgets never share one.
