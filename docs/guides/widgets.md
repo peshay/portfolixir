@@ -711,8 +711,10 @@ of the largest positions behind a disclosure.
 Wealth's key figures as the owner picked them (board 06, variant A): the
 total incl. cash with its split into securities and cash, the period's
 result, TTWROR and IRR on one line, and under them the value bridge start
-+ net flows + result = today with the multiple. The bridge is the
-performance read's own figures at the cent; where the rounded cents do not
++ net flows + result = today with the multiple (for a period that has
+ended, the bridge ends on its last day, "on <date>", and is not set
+against today's total). The bridge is the performance read's own figures
+at the cent; where the rounded cents do not
 add up, the gap is shown, never moved into a figure. **S** draws the total
 and its split, **M** the total and the three returns, **Row** all of it.
 
@@ -843,7 +845,9 @@ once hold for Wealth and every dashboard. **Row** only.
 Each cash account of the view with its balance in its own currency; a
 reserve or a credit line muted, outside the cash quote. Setting a balance
 stays on Accounts & depots, linked. **S** (headed "Cash") draws the
-deployable cash and how many accounts it sums, **Row** the table.
+valuation's cash, every valued account with reserves and credit lines
+included (the cash quote counts only the deployable share), and how many
+valued accounts it sums; **Row** the table.
 
 **Source:**
 
