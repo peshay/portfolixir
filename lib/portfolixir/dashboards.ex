@@ -428,6 +428,7 @@ defmodule Portfolixir.Dashboards do
 
     with :ok <- arranged_index(index, count),
          {:ok, items} <- checked_items(layout, prior),
+         :ok <- not_retired(layout, index, prior),
          # A retired kind's item is dropped by the check (see Layout):
          # the arranged item's index in what is left.
          at = index - retired_before(layout, index, prior),
@@ -455,14 +456,26 @@ defmodule Portfolixir.Dashboards do
   end
 
   defp retired_before(layout, index, prior) do
-    retired = MapSet.new(prior.layout, & &1["kind"])
+    retired = retired_kinds(prior)
 
     layout
     |> Enum.take(index)
-    |> Enum.count(fn item ->
-      kind = is_map(item) && (Map.get(item, "kind") || Map.get(item, :kind))
-      Widgets.fetch(kind) == :error and MapSet.member?(retired, kind)
-    end)
+    |> Enum.count(&retired?(&1, retired))
+  end
+
+  # The item `arranged_index` names is itself of a retired kind: the check
+  # drops it, so there is nothing to arrange around (not its neighbour).
+  defp not_retired(layout, index, prior) do
+    if retired?(Enum.at(layout, index), retired_kinds(prior)),
+      do: invalid("arranged_index", "names an item of a retired kind, which is dropped"),
+      else: :ok
+  end
+
+  defp retired_kinds(prior), do: MapSet.new(prior.layout, & &1["kind"])
+
+  defp retired?(item, retired) do
+    kind = is_map(item) && (Map.get(item, "kind") || Map.get(item, :kind))
+    Widgets.fetch(kind) == :error and MapSet.member?(retired, kind)
   end
 
   defp fetch_item(items, at) do
