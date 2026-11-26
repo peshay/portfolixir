@@ -332,4 +332,57 @@ defmodule PortfolixirWeb.DashboardAnatomyTest do
 
     assert Floki.find(bar.(Decimal.new("0"), Decimal.new("0")), ".widget-bar__fill") == []
   end
+
+  # User story (the S32 closing act's UAT, finding 11; board 09: two S side
+  # by side on a phone):
+  # As the operator reading a dashboard on a phone,
+  # I want an S with no S beside it to take the whole width,
+  # so that no tile leaves half the screen empty.
+  #
+  # Acceptance criteria:
+  # - In reading order, S widgets pair two by two; an S without a partner
+  #   (the third of three, or one between larger widgets) is marked lone,
+  #   and its frame carries `widget--lone`, which the compact class spans
+  #   over both columns. A paired S carries no mark.
+  test "an S without an S beside it in reading order is marked lone" do
+    layout = [
+      %{"kind" => "total_value", "size" => "S", "col" => 1, "row" => 1},
+      %{"kind" => "data_quality", "size" => "S", "col" => 4, "row" => 1},
+      %{"kind" => "due", "size" => "S", "col" => 7, "row" => 1},
+      %{"kind" => "movers", "size" => "L", "col" => 1, "row" => 3},
+      %{"kind" => "snapshots", "size" => "S", "col" => 1, "row" => 7},
+      %{"kind" => "off_target", "size" => "S", "col" => 4, "row" => 7}
+    ]
+
+    lone = for item <- Widget.items(layout, nil, []), into: %{}, do: {item.kind, item.lone}
+
+    assert lone == %{
+             "total_value" => false,
+             "data_quality" => false,
+             "due" => true,
+             "movers" => false,
+             "snapshots" => false,
+             "off_target" => false
+           }
+
+    html =
+      render_component(&Widget.frame/1,
+        id: "w",
+        item: item(%{lone: true}),
+        title: "Tops und Flops",
+        inner_block: [%{inner_block: fn _, _ -> "x" end}]
+      )
+
+    assert "widget--lone" in classes(parse(html) |> Floki.attribute("section", "class"))
+
+    html =
+      render_component(&Widget.frame/1,
+        id: "w",
+        item: item(%{lone: false}),
+        title: "Tops und Flops",
+        inner_block: [%{inner_block: fn _, _ -> "x" end}]
+      )
+
+    refute "widget--lone" in classes(parse(html) |> Floki.attribute("section", "class"))
+  end
 end
