@@ -334,7 +334,7 @@ msgstr "Aktuelle Bestände prüfen"
 #: lib/portfolixir_web/live/dashboard/widgets/crash_windows.ex:104
 #: lib/portfolixir_web/live/dashboard/widgets/crashes.ex:176
 #: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:333
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:884
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:879
 #: lib/portfolixir_web/live/dashboard/widgets/rebounders.ex:166
 #: lib/portfolixir_web/live/dashboard_live.ex:4966
 #: lib/portfolixir_web/live/imports_live.ex:366
@@ -356,7 +356,7 @@ msgstr "Wertpapiere"
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:921
 #: lib/portfolixir_web/live/dashboard/widgets/distance_to_high.ex:147
 #: lib/portfolixir_web/live/dashboard/widgets/positions.ex:234
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:205
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:201
 #: lib/portfolixir_web/live/income_live.ex:620
 #: lib/portfolixir_web/live/income_live.ex:1400
 #: lib/portfolixir_web/live/income_live.ex:1476
@@ -458,7 +458,7 @@ msgstr "Typ"
 #: lib/portfolixir/catalog/security_fields.ex:74
 #: lib/portfolixir_web/classification_name.ex:17
 #: lib/portfolixir_web/field_label.ex:60
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:206
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:202
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1070
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:456
 #: lib/portfolixir_web/live/securities_live.ex:5103
@@ -760,7 +760,7 @@ msgstr "%{name} aktualisiert"
 #: lib/portfolixir_web/live/classifications_live.ex:532
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:619
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:943
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:207
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:203
 #: lib/portfolixir_web/live/dashboard_live.ex:3810
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:356
 #: lib/portfolixir_web/live/securities/filter_popover.ex:89
@@ -1264,7 +1264,7 @@ msgstr "Logo aktualisieren"
 msgid "Add a personal note for this security…"
 msgstr "Persönliche Notiz für dieses Wertpapier hinzufügen…"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:279
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:274
 #: lib/portfolixir_web/live/portfolio_live.ex:2188
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:382
 #: lib/portfolixir_web/live/securities_live.ex:1373
@@ -1496,7 +1496,7 @@ msgstr "Diese Ansicht ist noch nicht verfügbar."
 msgid "To"
 msgstr "Bis"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:882
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:877
 #: lib/portfolixir_web/live/income_live.ex:833
 #: lib/portfolixir_web/live/income_live.ex:911
 #: lib/portfolixir_web/live/income_live.ex:1001
@@ -1937,7 +1937,7 @@ msgstr "Cash"
 #: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:255
 #: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:256
 #: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:365
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:460
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:455
 #: lib/portfolixir_web/live/dashboard/widgets/summary_line.ex:118
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:556
 #: lib/portfolixir_web/live/portfolio_live.ex:1755
@@ -1959,8 +1959,8 @@ msgstr "IRR"
 msgid "Period"
 msgstr "Zeitraum"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:632
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:635
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:627
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:630
 #, elixir-autogen
 msgid "Cumulative TTWROR over time"
 msgstr "Kumulierte TTWROR über die Zeit"
@@ -2435,7 +2435,7 @@ msgstr "Jahresübersicht"
 msgid "No dividends or interest booked yet."
 msgstr "Noch keine Dividenden oder Zinsen gebucht."
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:452
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:447
 #: lib/portfolixir_web/live/income_live.ex:829
 #: lib/portfolixir_web/live/income_live.ex:906
 #: lib/portfolixir_web/live/income_live.ex:996
@@ -2587,7 +2587,7 @@ msgid "TTWROR info"
 msgstr "Info TTWROR"
 
 #: lib/portfolixir_web/live/dashboard/widgets/performance.ex:141
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:795
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:790
 #: lib/portfolixir_web/live/dashboard_live.ex:2891
 #: lib/portfolixir_web/live/portfolio_live.ex:1759
 #, elixir-autogen
@@ -3031,12 +3031,12 @@ msgstr "Noch keine Wertpapiere."
 msgid "Couldn't load the dashboard figures."
 msgstr "Die Dashboard-Kennzahlen konnten nicht geladen werden."
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:144
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:139
 #, elixir-autogen, elixir-format
 msgid "Chart series"
 msgstr "Diagrammreihe"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:355
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:350
 #, elixir-autogen, elixir-format
 msgid "Value (%{currency})"
 msgstr "Wert (%{currency})"
@@ -3150,7 +3150,7 @@ msgstr "Vermögen"
 msgid "All targets within ±5 pp — nothing needs rebalancing."
 msgstr "Alle Ziele innerhalb von ±5 pp — kein Rebalancing nötig."
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:154
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:149
 #, elixir-autogen, elixir-format
 msgid "% (TTWROR)"
 msgstr "% (TTWROR)"
@@ -3402,7 +3402,7 @@ msgstr "Einrichtungszähler"
 msgid "UI"
 msgstr "UI"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:380
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:375
 #, elixir-autogen, elixir-format
 msgid "Value over time"
 msgstr "Wert im Zeitverlauf"
@@ -3769,7 +3769,7 @@ msgid "Could not rename the plan"
 msgstr "Plan konnte nicht umbenannt werden"
 
 #: lib/portfolixir_web/live/dashboard/widgets/allocation.ex:544
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:441
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:436
 #: lib/portfolixir_web/live/dashboard/widgets/snapshot_comparison.ex:245
 #: lib/portfolixir_web/live/income_live.ex:1249
 #: lib/portfolixir_web/live/income_live.ex:1386
@@ -5004,8 +5004,8 @@ msgstr "Keine Treffer für die aktiven Filter."
 
 #: lib/portfolixir_web/live/dashboard/widgets/performance.ex:156
 #: lib/portfolixir_web/live/dashboard/widgets/performance.ex:250
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:829
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:845
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:824
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:840
 #: lib/portfolixir_web/live/portfolio/contribution_table.ex:144
 #: lib/portfolixir_web/live/portfolio_live.ex:2273
 #: lib/portfolixir_web/live/portfolio_live.ex:2311
@@ -5142,32 +5142,32 @@ msgstr "Nicht gelistet? Manuell eingeben"
 msgid "Recommended"
 msgstr "Empfohlen"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:458
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:453
 #, elixir-autogen, elixir-format
 msgid "End value (%{currency})"
 msgstr "Endwert (%{currency})"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:452
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:447
 #, elixir-autogen, elixir-format
 msgid "Month"
 msgstr "Monat"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:462
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:457
 #, elixir-autogen, elixir-format
 msgid "Net flows (%{currency})"
 msgstr "Nettoflüsse (%{currency})"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:448
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:443
 #, elixir-autogen, elixir-format
 msgid "Performance by period"
 msgstr "Wertentwicklung nach Zeitraum"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:455
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:450
 #, elixir-autogen, elixir-format
 msgid "Start value (%{currency})"
 msgstr "Startwert (%{currency})"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:444
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:439
 #, elixir-autogen, elixir-format
 msgid "Start/end value, return and flows per period — the chart, summarised."
 msgstr "Start-/Endwert, Rendite und Flüsse je Zeitraum — der Chart, zusammengefasst."
@@ -5994,7 +5994,7 @@ msgstr "Benchmark-Markierung entfernen"
 msgid "%{portfolio} vs %{benchmark}"
 msgstr "%{portfolio} vs. %{benchmark}"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:596
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:591
 #, elixir-autogen, elixir-format
 msgid "%{rate} % p.a."
 msgstr "%{rate} % p. a."
@@ -6004,29 +6004,29 @@ msgstr "%{rate} % p. a."
 msgid "Benchmark comparison info"
 msgstr "Info Benchmark-Vergleich"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:199
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:194
 #, elixir-autogen, elixir-format
 msgid "Benchmark…"
 msgstr "Benchmark…"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:268
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:263
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:361
 #, elixir-autogen, elixir-format
 msgid "Fixed rate % p.a."
 msgstr "Fester Zins % p. a."
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:265
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:260
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:413
 #, elixir-autogen, elixir-format
 msgid "No benchmark securities yet — mark one on the Securities page."
 msgstr "Noch keine Benchmark-Wertpapiere — eines auf der Seite Wertpapiere markieren."
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:427
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:422
 #, elixir-autogen, elixir-format
 msgid "Portfolio (TTWROR)"
 msgstr "Portfolio (TTWROR)"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:431
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:426
 #: lib/portfolixir_web/live/portfolio_live.ex:1981
 #, elixir-autogen, elixir-format
 msgid "bought once"
@@ -6049,12 +6049,12 @@ msgstr[1] "%{count} gehaltene Positionen werden mit Kursen bewertet, die älter 
 msgid "Savings plan: the period's opening value and every deposit or withdrawal invested into the benchmark on the same days at that day's price, without fees or taxes; the figure is the actual end value minus that. Bought once: the period's TTWROR against the benchmark held throughout. Pairs read portfolio vs benchmark; flows before the benchmark's first priced day enter through the opening value."
 msgstr "Sparplan: Anfangswert des Zeitraums und jede Einzahlung oder Entnahme werden am selben Tag zum jeweiligen Tageskurs in die Benchmark investiert, ohne Gebühren und Steuern; die Kennzahl ist der tatsächliche Endwert abzüglich dieses Werts. Einmalanlage: die TTWROR des Zeitraums gegen die durchgehend gehaltene Benchmark. Paare lesen sich Portfolio vs. Benchmark; Flüsse vor dem ersten bepreisten Tag der Benchmark gehen über den Anfangswert ein."
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:281
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:276
 #, elixir-autogen, elixir-format
 msgid "Up to two benchmarks — the first two ticked apply."
 msgstr "Bis zu zwei Benchmarks — die ersten beiden angekreuzten gelten."
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:636
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:631
 #, elixir-autogen, elixir-format
 msgid "benchmarks: %{names}"
 msgstr "Benchmarks: %{names}"
@@ -7090,10 +7090,10 @@ msgstr "ohne Bestand"
 msgid "no window measured"
 msgstr "kein Fenster gemessen"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:316
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:520
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:556
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:597
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:312
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:516
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:552
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:593
 #: lib/portfolixir_web/live/securities/bond_strip.ex:266
 #: lib/portfolixir_web/live/securities_live.ex:4450
 #: lib/portfolixir_web/live/securities_live.ex:4481
@@ -7173,14 +7173,14 @@ msgstr "90 Tage"
 msgid "No classification trees yet."
 msgstr "Noch keine Klassifizierungen."
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:614
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:610
 #, elixir-autogen, elixir-format
 msgid "%{count} of %{required} observations"
 msgid_plural "%{count} of %{required} observations"
 msgstr[0] "%{count} von %{required} Beobachtungen"
 msgstr[1] "%{count} von %{required} Beobachtungen"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:247
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:243
 #, elixir-autogen, elixir-format
 msgid "0 · low below %{low} · %{high} and above concentrated · 10,000"
 msgstr "0 · niedrig unter %{low} · ab %{high} konzentriert · 10.000"
@@ -7201,12 +7201,12 @@ msgstr "Klumpenrisiko (HHI)"
 msgid "Concentration and movement · view: %{view}"
 msgstr "Konzentration und Schwankung · Ansicht: %{view}"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:304
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:300
 #, elixir-autogen, elixir-format
 msgid "Correlation"
 msgstr "Korrelation"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:586
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:582
 #, elixir-autogen, elixir-format
 msgid "Correlations"
 msgstr "Korrelationen"
@@ -7216,47 +7216,47 @@ msgstr "Korrelationen"
 msgid "Largest single names"
 msgstr "Größte Einzelpositionen"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:324
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:320
 #, elixir-autogen, elixir-format
 msgid "Left out, no stored exchange-rate path: %{names}"
 msgstr "Ausgelassen, kein gespeicherter Wechselkurspfad: %{names}"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:143
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:366
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:139
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:362
 #, elixir-autogen, elixir-format
 msgid "Max. drawdown"
 msgstr "Max. Rückgang"
 
 #: lib/portfolixir_web/live/dashboard/widgets/own_rules.ex:349
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:495
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:491
 #: lib/portfolixir_web/live/risk_live.ex:153
 #, elixir-autogen, elixir-format
 msgid "No portfolio yet — risk is measured over holdings, and there are none."
 msgstr "Noch kein Portfolio — Risiko wird über Bestände gemessen, und es gibt keine."
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:199
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:195
 #, elixir-autogen, elixir-format
 msgid "No valued position in this view."
 msgstr "Keine bewertete Position in dieser Ansicht."
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:305
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:301
 #, elixir-autogen, elixir-format
 msgid "Observations"
 msgstr "Beobachtungen"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:303
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:299
 #, elixir-autogen, elixir-format
 msgid "Pair"
 msgstr "Paar"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:287
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:283
 #, elixir-autogen, elixir-format
 msgid "Pearson correlation of daily returns over one year between the %{count} largest position, only on days both closed; at least %{required} shared observations per pair."
 msgid_plural "Pearson correlation of daily returns over one year between the %{count} largest positions, only on days both closed; at least %{required} shared observations per pair."
 msgstr[0] "Pearson-Korrelation der Tagesrenditen über ein Jahr zwischen der %{count} größten Einzelposition, nur an Tagen mit Kurs für beide; mindestens %{required} gemeinsame Beobachtungen je Paar."
 msgstr[1] "Pearson-Korrelation der Tagesrenditen über ein Jahr zwischen den %{count} größten Einzelpositionen, nur an Tagen mit Kurs für beide; mindestens %{required} gemeinsame Beobachtungen je Paar."
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:294
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:290
 #, elixir-autogen, elixir-format
 msgid "Pearson correlation of daily returns over one year, only on days both closed; at least %{required} shared observations per pair."
 msgstr "Pearson-Korrelation der Tagesrenditen über ein Jahr, nur an Tagen mit Kurs für beide; mindestens %{required} gemeinsame Beobachtungen je Paar."
@@ -7266,91 +7266,91 @@ msgstr "Pearson-Korrelation der Tagesrenditen über ein Jahr, nur an Tagen mit K
 msgid "Portfolio metrics"
 msgstr "Kennzahlen des Portfolios"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:165
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:373
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:161
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:369
 #, elixir-autogen, elixir-format
 msgid "Risk-adjusted return"
 msgstr "Risikoadjustierte Rendite"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:280
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:276
 #, elixir-autogen, elixir-format
 msgid "Show the correlations of the largest positions"
 msgstr "Korrelationen der größten Positionen anzeigen"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:127
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:360
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:123
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:356
 #, elixir-autogen, elixir-format
 msgid "Volatility, annualized"
 msgstr "Volatilität, annualisiert"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:208
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:204
 #: lib/portfolixir_web/policy_rule_label.ex:18
 #, elixir-autogen, elixir-format
 msgid "Weight"
 msgstr "Gewicht"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:647
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:653
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:656
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:643
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:649
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:652
 #, elixir-autogen, elixir-format
 msgid "above %{pct} %"
 msgstr "über %{pct} %"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:650
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:659
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:646
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:655
 #, elixir-autogen, elixir-format
 msgid "below %{pct} %"
 msgstr "unter %{pct} %"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:663
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:659
 #, elixir-autogen, elixir-format
 msgid "concentrated"
 msgstr "konzentriert"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:601
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:597
 #, elixir-autogen, elixir-format
 msgid "fewer than two names"
 msgstr "weniger als zwei Titel"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:661
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:657
 #, elixir-autogen, elixir-format
 msgid "low"
 msgstr "niedrig"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:662
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:658
 #, elixir-autogen, elixir-format
 msgid "moderate"
 msgstr "mäßig"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:156
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:152
 #, elixir-autogen, elixir-format
 msgid "not recovered"
 msgstr "nicht erholt"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:155
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:151
 #, elixir-autogen, elixir-format
 msgid "recovered %{date}"
 msgstr "erholt %{date}"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:171
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:167
 #, elixir-autogen, elixir-format
 msgid "risk-free rate %{rate} % · return per unit of risk"
 msgstr "risikofreier Satz %{rate} % · Rendite je Risikoeinheit"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:167
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:377
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:163
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:373
 #, elixir-autogen, elixir-format
 msgid "undefined — volatility is 0"
 msgstr "undefiniert — Volatilität ist 0"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:132
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:128
 #, elixir-autogen, elixir-format
 msgid "1 year · %{count} observation · min. %{required}"
 msgid_plural "1 year · %{count} observations · min. %{required}"
 msgstr[0] "1 Jahr · %{count} Beobachtung · min. %{required}"
 msgstr[1] "1 Jahr · %{count} Beobachtungen · min. %{required}"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:590
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:586
 #, elixir-autogen, elixir-format
 msgid "highest of %{count} pair · 1 year"
 msgid_plural "highest of %{count} pairs · 1 year"
@@ -7532,7 +7532,7 @@ msgstr "Diese Regel löschen? Keine ihrer Versionen hat gegolten, an ihr wurde a
 msgid "Evaluated in the view “%{view}”, on its steerable basis."
 msgstr "Ausgewertet in der Ansicht „%{view}“, auf ihrer steuerbaren Basis."
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:209
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:205
 #, elixir-autogen, elixir-format
 msgid "Generic threshold"
 msgstr "Allgemeine Schwelle"
@@ -13851,7 +13851,7 @@ msgid_plural "Already imported into portfolio “%{portfolio}”: %{count} entri
 msgstr[0] "Bereits im Portfolio „%{portfolio}“ importiert: %{count} Eintrag — wird übernommen"
 msgstr[1] "Bereits im Portfolio „%{portfolio}“ importiert: %{count} Einträge — werden übernommen"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:158
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:154
 #, elixir-autogen, elixir-format
 msgid "no decline in the period"
 msgstr "kein Rückgang im Zeitraum"
@@ -14733,7 +14733,7 @@ msgstr "Gebühren und Steuern im G/V, nicht in Ø Kauf und Ø Verkauf"
 msgid "income received while a trade was open not included"
 msgstr "Erträge während der Haltedauer nicht enthalten"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:94
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:90
 #, elixir-autogen, elixir-format
 msgid "A day without a return base yields no observation, never a zero."
 msgstr "Ein Tag ohne Renditebasis liefert keine Beobachtung, nie eine Null."
@@ -14743,24 +14743,24 @@ msgstr "Ein Tag ohne Renditebasis liefert keine Beobachtung, nie eine Null."
 msgid "A finding does not say what to do."
 msgstr "Ein Befund sagt nicht, was zu tun ist."
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:183
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:179
 #, elixir-autogen, elixir-format
 msgid "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return."
 msgstr "Grundlage: die um Zahlungen bereinigten täglichen Renditefaktoren der TTWROR-Kette, in %{currency}, annualisiert mit √365 — eine Einzahlung ist keine Rendite."
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:110
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:106
 #, elixir-autogen, elixir-format
 msgid "Caps are set per request over the API."
 msgstr "Obergrenzen werden pro Abfrage über die API gesetzt."
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:96
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:92
 #, elixir-autogen, elixir-format
 msgid "Correlations convert to %{currency} first and run over the %{count} largest position."
 msgid_plural "Correlations convert to %{currency} first and run over the %{count} largest positions."
 msgstr[0] "Korrelationen rechnen zuerst in %{currency} um und laufen über die %{count} größte Einzelposition."
 msgstr[1] "Korrelationen rechnen zuerst in %{currency} um und laufen über die %{count} größten Einzelpositionen."
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:103
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:99
 #, elixir-autogen, elixir-format
 msgid "Correlations convert to %{currency} first."
 msgstr "Korrelationen rechnen zuerst in %{currency} um."
@@ -14775,7 +14775,7 @@ msgstr "Jede Regel nennt die Kennzahl, aus der sie liest; eine Zahl, die sich ni
 msgid "Evaluated on read, as of %{date}, on the steerable basis of the view “%{view}”."
 msgstr "Ausgewertet beim Lesen, Stand %{date}, auf der steuerbaren Basis der Ansicht „%{view}“."
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:274
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:270
 #, elixir-autogen, elixir-format
 msgid "No cap configured — there is nothing to exceed."
 msgstr "Keine Obergrenze konfiguriert — es gibt nichts zu überschreiten."
@@ -15694,17 +15694,17 @@ msgstr "verborgen"
 msgid "Always on in privacy mode"
 msgstr "Im Privatsphäre-Modus immer an"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:331
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:326
 #, elixir-autogen, elixir-format
 msgid "In privacy mode the axis shows the value in percent of the value at the window’s start, deposits and withdrawals included; the return is TTWROR."
 msgstr "Im Privatsphäre-Modus zeigt die Achse den Wert in Prozent des Werts am Fensterbeginn, Ein- und Auszahlungen eingeschlossen; die Rendite zeigt TTWROR."
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:530
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:525
 #, elixir-autogen, elixir-format
 msgid "Value %{percent}"
 msgstr "Wert %{percent}"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:354
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:349
 #, elixir-autogen, elixir-format
 msgid "Value (%)"
 msgstr "Wert (%)"
@@ -15741,7 +15741,7 @@ msgstr "Für News beobachtet"
 msgid "All categories"
 msgstr "Alle Kategorien"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:883
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:878
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:206
 #, elixir-autogen, elixir-format
 msgid "Categories"
@@ -15757,7 +15757,7 @@ msgstr "Veränderung ohne Ein- und Auszahlungen."
 msgid "Create one on the Classifications page"
 msgstr "Im Bereich Klassifizierungen anlegen"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:806
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:801
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:129
 #, elixir-autogen, elixir-format
 msgid "Level"
@@ -16091,12 +16091,12 @@ msgstr "Die Legende nennt die fette Linie zuerst, dann die Linien nach TTWROR, d
 msgid "The legend lists the bold line first, then the lines by value at the window's end."
 msgstr "Die Legende nennt die fette Linie zuerst, dann die Linien nach Wert am Ende des Zeitraums."
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:344
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:339
 #, elixir-autogen, elixir-format
 msgid "In privacy mode the axis has no labels: the value is above zero on no day of the window; the return is TTWROR."
 msgstr "Im Privatsphäre-Modus trägt die Achse keine Beschriftung: Der Wert liegt an keinem Tag des Zeitraums über null; die Rendite zeigt TTWROR."
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:337
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:332
 #, elixir-autogen, elixir-format
 msgid "In privacy mode the axis shows the value in percent of the value on %{date}, the first day it is above zero, deposits and withdrawals included; the return is TTWROR."
 msgstr "Im Privatsphäre-Modus zeigt die Achse den Wert in Prozent des Werts am %{date}, dem ersten Tag, an dem er über null liegt, Ein- und Auszahlungen eingeschlossen; die Rendite zeigt TTWROR."
@@ -18853,9 +18853,9 @@ msgstr "Ziele bearbeiten →"
 #: lib/portfolixir_web/live/dashboard/widgets/data_notes.ex:593
 #: lib/portfolixir_web/live/dashboard/widgets/key_figures.ex:197
 #: lib/portfolixir_web/live/dashboard/widgets/performance.ex:137
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:791
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:786
 #: lib/portfolixir_web/live/dashboard/widgets/positions.ex:542
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:485
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:481
 #: lib/portfolixir_web/live/dashboard/widgets/snapshot_comparison.ex:305
 #, elixir-autogen, elixir-format
 msgid "Full view →"
@@ -20222,7 +20222,7 @@ msgctxt "widget kind"
 msgid "Snapshot list"
 msgstr "Snapshot-Liste"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:492
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:488
 #, elixir-autogen, elixir-format
 msgid "Couldn't load the risk figures."
 msgstr "Die Risiko-Kennzahlen konnten nicht geladen werden."
@@ -20237,12 +20237,12 @@ msgstr "Die Regeln konnten nicht geladen werden."
 msgid "Edit rules →"
 msgstr "Regeln bearbeiten →"
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:398
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:394
 #, elixir-autogen, elixir-format
 msgid "Generic thresholds, not policy rules: the lens's shipped lines over each single name's weight on the steerable basis."
 msgstr "Allgemeine Schwellen, keine eigenen Regeln: die mitgelieferten Linien der Linse über dem Gewicht jedes Einzelwerts auf der steuerbaren Basis."
 
-#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:427
+#: lib/portfolixir_web/live/dashboard/widgets/risk_lens.ex:423
 #, elixir-autogen, elixir-format
 msgid "The Herfindahl index of the single names' weights on the steerable basis, from 0 to 10,000, with the lens's bands."
 msgstr "Der Herfindahl-Index der Gewichte der Einzelwerte auf der steuerbaren Basis, von 0 bis 10.000, mit den Bändern der Linse."
@@ -20441,7 +20441,7 @@ msgctxt "widget kind"
 msgid "Key figures"
 msgstr "Kennzahlen"
 
-#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:798
+#: lib/portfolixir_web/live/dashboard/widgets/performance_section.ex:793
 #, elixir-autogen, elixir-format
 msgid "The view's daily walk over the widget's period, as Wealth's chart reads it: GET /api/v1/performance, at a level GET /api/v1/performance/bands, the benchmarks GET /api/v1/performance/benchmark (bought once, from the period's start)."
 msgstr "Die tägliche Bewertung der Ansicht über den Zeitraum des Widgets, wie das Chart von Vermögen sie liest: GET /api/v1/performance, auf einer Ebene GET /api/v1/performance/bands, die Benchmarks GET /api/v1/performance/benchmark (einmal gekauft, ab dem Beginn des Zeitraums)."
