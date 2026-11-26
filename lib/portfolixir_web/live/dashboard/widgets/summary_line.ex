@@ -182,7 +182,14 @@ defmodule PortfolixirWeb.Dashboard.Widgets.SummaryLine do
         ) %>
       </:info>
       <:shared>
+        <%!-- The S32 closing act's coverage pass: a read that failed says
+             so in one line, as the other section widgets do, and leaves no
+             skeleton busy. --%>
+        <p :if={@card == :error} class="hint" data-role="summary-line-failed">
+          <%= gettext("Couldn't load the key figures.") %>
+        </p>
         <.line
+          :if={@card != :error}
           class="kpi-summary"
           valuation={@valuation}
           performance={@performance}

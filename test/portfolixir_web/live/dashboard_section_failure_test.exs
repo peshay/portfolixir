@@ -24,6 +24,7 @@ defmodule PortfolixirWeb.DashboardSectionFailureTest do
   # Each kind with the size it is drawn at and the line its failure reads.
   @failures [
     {"wealth_key_figures", "row", "key-figures-failed", "Couldn't load the key figures."},
+    {"summary_line", "row", "summary-line-failed", "Couldn't load the key figures."},
     {"contribution", "L", "contribution-widget-failed", "Couldn't load the contributions."},
     {"positions", "row", "positions-failed", "Couldn't load the positions."},
     {"cash_accounts", "row", "cash-failed", "Couldn't load the cash accounts."},
@@ -46,7 +47,9 @@ defmodule PortfolixirWeb.DashboardSectionFailureTest do
   # Acceptance criteria:
   # - With the valuation's, the snapshots', the rules' and the categories'
   #   reads failing, each section widget lands its failure and draws its
-  #   own failure line: „Couldn't load the key figures.“, „… the
+  #   own failure line: „Couldn't load the key figures.“ (in „Kennzahlen“
+  #   and, since the S32 closing act's coverage pass, „Kennzahlen-Zeile“),
+  #   „… the
   #   contributions.“, „… the positions.“, „… the cash accounts.“, „… the
   #   allocation.“, „Could not load the comparison“, „Couldn't load the
   #   snapshots.“, „… the rules.“, and „Couldn't load the risk figures.“
