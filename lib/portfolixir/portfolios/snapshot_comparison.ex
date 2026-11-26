@@ -135,8 +135,14 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
           convertible?(position.currency, base, fx_at_as_of)
       end)
 
+    # By security id, the order Wealth's valuation lists its positions in:
+    # the positions come from a map, whose order past 32 keys is the hash's,
+    # so the note named them differently from one read to the next (Sprint
+    # 32 W5).
     gaps =
-      Enum.map(excluded, fn position ->
+      excluded
+      |> Enum.sort_by(& &1.security_id)
+      |> Enum.map(fn position ->
         %{
           security_id: position.security_id,
           security_name: position.security_name,
