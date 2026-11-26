@@ -111,19 +111,24 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Contribution do
           <%= gettext("Couldn't load the contributions.") %>
         </p>
       </:shared>
-      <%= if @item.size == "row" do %>
+      <%!-- The S32 closing act's coverage pass: a failed read is said
+           once, in the widget's line above; Wealth's table, which says its
+           own failure on the tab, is not drawn under it. --%>
+      <%= cond do %>
+        <% @card == :error -> %>
+        <% @item.size == "row" -> %>
         <ContributionTable.table
           id={@id <> "-block"}
           toggle_value={@item.uid}
           titled={false}
           labelled_by={@id <> "-title"}
           contribution={@contribution}
-          failed?={@card == :error}
+          failed?={false}
           show_all?={@show_all?}
           period_label={Widget.period_label(@period)}
           view_name={view_name(@card)}
         />
-      <% else %>
+        <% true -> %>
         <p :if={is_nil(@card)} class="section-skeleton" aria-busy="true" data-role="contribution-skeleton"></p>
         <p :if={@contribution && @rows == []} class="hint" data-role="contribution-widget-empty">
           <%= gettext("No position contributed in this period.") %>

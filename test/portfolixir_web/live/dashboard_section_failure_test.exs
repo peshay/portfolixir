@@ -25,7 +25,9 @@ defmodule PortfolixirWeb.DashboardSectionFailureTest do
   @failures [
     {"wealth_key_figures", "row", "key-figures-failed", "Couldn't load the key figures."},
     {"summary_line", "row", "summary-line-failed", "Couldn't load the key figures."},
-    {"contribution", "L", "contribution-widget-failed", "Couldn't load the contributions."},
+    # At „Zeile“, where Wealth's table is drawn and said its own failure
+    # too (the S32 closing act's coverage pass); L draws the same line.
+    {"contribution", "row", "contribution-widget-failed", "Couldn't load the contributions."},
     {"positions", "row", "positions-failed", "Couldn't load the positions."},
     {"cash_accounts", "row", "cash-failed", "Couldn't load the cash accounts."},
     {"allocation", "row", "allocation-failed", "Couldn't load the allocation."},
@@ -54,7 +56,8 @@ defmodule PortfolixirWeb.DashboardSectionFailureTest do
   #   allocation.“, „Could not load the comparison“, „Couldn't load the
   #   snapshots.“, „… the rules.“, and „Couldn't load the risk figures.“
   #   in each of the four lens widgets.
-  # - No widget is left waiting on its skeleton, and the page stays up.
+  # - No widget is left waiting on its skeleton, none says its failure
+  #   twice (one `…-failed` line each), and the page stays up.
   test "a section whose read fails says so in its widget", %{conn: conn} do
     today = Clock.today()
     world = base_world(name: "Fehler", cash_name: "Giro", depot_name: "Depot")
@@ -99,6 +102,9 @@ defmodule PortfolixirWeb.DashboardSectionFailureTest do
                kind
 
         assert Floki.find(widget, "[aria-busy='true']") == [], kind
+
+        assert length(Floki.find(widget, "[data-role$='-failed']")) == 1,
+               "#{kind} says its failure more than once"
       end
 
       assert Process.alive?(view.pid)
