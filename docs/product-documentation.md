@@ -2322,7 +2322,15 @@ loss, a warning as one line rather than a box, and a footer of one line.
   by position, positions, cash accounts. It is stored once, on the first
   start of the release, beside "Overview" (also on an instance that
   already holds dashboards), and is yours from then on; deleted, it is not
-  stored again.
+  stored again. **In the menu the starters follow "Overview"**: Overview,
+  Holdings, Allocation & targets, Snapshots, Risk, then the dashboards you
+  made (Sprint 32 W5). **Wealth's tab bar** leads Holdings, Allocation &
+  targets, Snapshots and Risk to their dashboards once they are stored;
+  Cash flow, Tax and Predictions keep their pages, and Wealth stays under
+  Discover as the full view, which each section widget's "Full view →"
+  opens.
+
+  [![The starter Holdings beside the menu: Overview, Holdings, Allocation & targets, Snapshots and Risk under Dashboards; the key figures with the value bridge and the data notes](screenshots/starters.png)](screenshots/starters.png)
 - **The sections of Wealth's tab Holdings as widgets** (Sprint 32 W1):
   each draws its section with the code Wealth draws it with, from the same
   read, in the size "Row" (the full width, as tall as its content).

@@ -11743,3 +11743,51 @@ fits its smallest tile on the head's line (14 px on an S tile, its mark
 drawn whole or not at all, never sliced by the tile's edge. Each has its
 attack case. A body's parts stand at its top at their own height (a table
 never stretches its rows to the tile).
+
+## Amendment 2026-11-26 — The size „Zeile“ and the section widget *(Sprint 32 S2 and W1 to W4, FR-60, idea I57; ADR-0062's amendment of 2026-11-25, point 3; planning board `mockups/ux-design-2026-11-25-sprint32/02` ① ③; plan D-7)*
+
+The families above are tiles of a fixed height. One size is not: **„Zeile“
+(`row`)**, the size of a **section widget** — a widget that draws one
+section of today's screens as the screen draws it, from the read that
+section reads, by the code the screen draws it with.
+
+### The size „Zeile“ *(`Portfolixir.Dashboards.Widgets`, `PortfolixirWeb.Dashboard.Widget.grid_rows/1`)*
+
+- **The full width, as tall as its content.** In the stored grid it is
+  12 columns by 1 row, so validation, the arrangement and the API treat it
+  as any item; on the screen the grid's row template names its row
+  `auto` and every other row 7rem, so the widget is as tall as what it
+  holds and every row after it starts below it. Nothing inside it is cut
+  and it leaves no blank band (test/browser/dashboard_row_test.exs).
+- **Its compact form is the section's own narrow layout** — the rows a
+  phone list draws under 560 px, a table's two-line rows —, never the wide
+  form squeezed.
+- **Which kinds take it**: the section widgets of the starters
+  („Bestände“, „Allokation & Ziele“, „Snapshots“, „Risiko“), each also in a
+  family where it has something readable to show there (the size rule
+  above: S one figure, M with its companions, L and XL its list), and
+  „Verkaufsrückblick“. The catalogue shows „Zeile“ beside the families.
+
+### The section widget *(lib/portfolixir_web/live/dashboard/widgets/)*
+
+- **One module draws the section on the screen and on a dashboard.** The
+  section's rendering and its read live in the widget's module; the
+  screen renders the same component, so a change reaches both and a
+  figure cannot drift between them. The screen keeps its own state (the
+  address, its handlers); a dashboard keeps a widget's passing choices —
+  a series, a level, a column set opened, a snapshot picked — for the
+  page's life only, never in the layout.
+- **The anatomy holds** (the amendment above): the head on one line with
+  the section's own switches in its switch slot, the figures in the
+  anatomy's sizes, a warning as a footer line, the footer's „Ganze
+  Ansicht →“ to the screen. A board's own drawing may replace the
+  screen's where the owner picked one — „Kennzahlen“ is board 06's
+  variant A, the bridge Anfang + Nettoflüsse + Ergebnis = heute adding up
+  to the cent or showing its gap.
+- **Write forms stay on their pages**, linked from the widget (ADR-0022's
+  amendment of 2026-11-21, point 3): a snapshot is made on Snapshots, a
+  rule on Risiko, an exchange rate synced on Wealth.
+- **Measured**: every kind in every size it takes, „Zeile“ included, by the
+  anatomy walk (test/browser/widget_anatomy_test.exs, split across
+  dashboards at the layout's 40 items); each starter against its tab by
+  its own walk (`holdings_starter_test.exs` and the others).

@@ -2570,7 +2570,15 @@ Zeile statt als Kasten und eine Fußzeile aus einer Zeile.
   Verrechnungskonten. Es wird einmal gespeichert, beim ersten Start des
   Releases, neben „Überblick“ (auch auf einer Instanz, die schon
   Dashboards hat), und gehört danach dir; gelöscht, wird es nicht wieder
-  gespeichert.
+  gespeichert. **Im Menü folgen die Start-Dashboards auf „Überblick“**:
+  Überblick, Bestände, Allokation & Ziele, Snapshots, Risiko, dann die
+  Dashboards, die du angelegt hast (Sprint 32 W5). **Die Tab-Leiste von
+  Vermögen** führt Bestände, Allokation & Ziele, Snapshots und Risiko zu
+  ihren Dashboards, sobald sie gespeichert sind; Cashflow, Steuer und
+  Prognosen behalten ihre Seiten, und Vermögen bleibt unter „Entdecken“ die
+  ganze Ansicht, die „Ganze Ansicht →“ jedes Abschnitts-Widgets öffnet.
+
+  [![Das Start-Dashboard Bestände neben dem Menü: Überblick, Bestände, Allokation & Ziele, Snapshots und Risiko unter Dashboards; die Kennzahlen mit der Wertbrücke und die Datenhinweise](../screenshots/starters-de.png)](../screenshots/starters-de.png)
 - **Die Abschnitte des Vermögens-Tabs Bestände als Widgets** (Sprint 32
   W1): Jedes zeichnet seinen Abschnitt mit dem Code, mit dem Vermögen ihn
   zeichnet, aus derselben Abfrage, in der Größe „Zeile“ (volle Breite, so
