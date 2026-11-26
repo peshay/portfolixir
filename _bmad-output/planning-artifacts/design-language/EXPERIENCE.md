@@ -1369,3 +1369,43 @@ said „Overview“ while the gallery said „Überblick“.
   language.
 - **The stored name and the API stay as stored** („Overview“): the API is
   locale-free, and an agent reads what is stored.
+
+## Amendment 2026-11-26 — The others make room, and the starters in the menu *(Sprint 32 E1, E2 and W5, ideas I57 and I58; ADR-0062's amendment of 2026-11-25, points 1, 5 and 7; planning boards `mockups/ux-design-2026-11-25-sprint32/01` ①–③ and `02` ①)*
+
+This replaces, in the edit mode of 2026-11-21, every refusal of a move or a
+size that a neighbour stood in the way of.
+
+### The edit mode arranges *(`Portfolixir.Dashboards.Arrange`)*
+
+- **A move, a resize or an add always succeeds** while the layout holds
+  fewer than 40 widgets and a place exists up to row 200. The widget acted
+  on keeps the place it was given; a widget it covers moves to the first
+  free place after its own, in reading order (on along its row, then the
+  rows below), and so on; then the gaps close, every widget floating up as
+  far as nothing stops it. The screen, a test and an agent's `PUT` with
+  `arrange: "push"` get the same answer.
+- **The feedback stands at the widget acted on**, not at the top of the
+  page: one line under it, announced to a screen reader („Gesamtwert ist
+  jetzt M · 7 Widgets sind nachgerückt“), the widgets that moved marked
+  until the next step. **„Rückgängig“** beside it, and Ctrl+Z, take that
+  one step back; „Zurücksetzen“ still discards the whole edit.
+- **The two refusals left** — the 41st widget, no row left — stand at the
+  widget too, and nothing changes.
+
+### The starters in the menu *(`Portfolixir.Dashboards.Starters`, `PortfolixirWeb.AppShell`)*
+
+- **Once stored, the starters follow „Überblick“**: Überblick, Bestände,
+  Allokation & Ziele, Snapshots, Risiko, then the dashboards the operator
+  made, then „Neues Dashboard“. On an instance that already held
+  dashboards, the boot stores the new starters at the position of its
+  „Überblick“, so they still stand right after it; without one, last.
+- **While nothing is stored** the menu offers „Überblick“ alone, marked
+  „Vorlage“; the other starters are in the gallery.
+- **Wealth's tab bar leads each passed tab to its dashboard** — Bestände,
+  Allokation & Ziele, Snapshots, Risiko —, where one is stored, and the
+  tabs not passed (Cashflow, Steuer, Prognosen) to their pages. „Vermögen“
+  stays under „Entdecken“, the full view, until its last tabs pass; each
+  section widget's „Ganze Ansicht →“ leads there.
+- **A starter is the operator's** from its first store: renamed, changed,
+  deleted, it is never stored again; an unrenamed one speaks the page's
+  language (the amendment of 2026-11-26 above).
