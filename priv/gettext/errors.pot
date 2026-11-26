@@ -350,7 +350,7 @@ msgstr ""
 msgid "this widget kind takes no period"
 msgstr ""
 
-#: lib/portfolixir/dashboards.ex:698
+#: lib/portfolixir/dashboards.ex:707
 #, elixir-autogen, elixir-format
 msgid "must be the whole number the dashboard was read with"
 msgstr ""

@@ -263,7 +263,7 @@ defmodule Portfolixir.Dashboards do
     end
   end
 
-  defp create(actor, attrs, template_key) do
+  defp create(actor, attrs, template_key, position \\ :last) do
     changeset =
       %Dashboard{}
       |> Dashboard.changeset(Map.take(attrs, ~w(name layout)))
@@ -271,7 +271,7 @@ defmodule Portfolixir.Dashboards do
       |> Dashboard.origin_changeset(template_key)
 
     if changeset.valid?,
-      do: insert(actor, changeset),
+      do: insert(actor, changeset, position),
       else: {:error, Map.put(changeset, :action, :insert)}
   end
 
@@ -280,12 +280,14 @@ defmodule Portfolixir.Dashboards do
   („Anpassen“, „Anlegen“ in the gallery; ADR-0062 §3): its layout, under
   `attrs`' `name`, or the template's title in the current locale when none
   is given, and `attrs`' `view_id`, the dashboard's own scope, when given.
-  `attrs` take only `name` and `view_id`. The copy records the template's
+  `attrs` take only `name` and `view_id`; `opts`' `position`, which only
+  the boot gives (Sprint 32 W5), places the copy there instead of last. The copy records the template's
   key (`template_key`). Journaled as a create, under the same limit; an
   unknown key is `{:error, :not_found}`. The template stays as shipped.
   """
-  @spec copy_template(Actor.t(), term(), map()) :: {:ok, Dashboard.t()} | {:error, refusal()}
-  def copy_template(%Actor{} = actor, key, attrs) when is_map(attrs) do
+  @spec copy_template(Actor.t(), term(), map(), keyword()) ::
+          {:ok, Dashboard.t()} | {:error, refusal()}
+  def copy_template(%Actor{} = actor, key, attrs, opts \\ []) when is_map(attrs) do
     with {:ok, template} <- template_or_not_found(key),
          :ok <- closed(attrs, ~w(name view_id), "a template's copy") do
       attrs = string_attrs(attrs)
@@ -293,7 +295,7 @@ defmodule Portfolixir.Dashboards do
       attrs
       |> Map.put_new("name", Templates.title(template.key))
       |> Map.put("layout", template.layout)
-      |> then(&create(actor, &1, template.key))
+      |> then(&create(actor, &1, template.key, Keyword.get(opts, :position, :last)))
     end
   end
 
@@ -579,7 +581,11 @@ defmodule Portfolixir.Dashboards do
     end
   end
 
-  defp insert(actor, changeset) do
+  # `position`: `:last`, one past the highest, or a whole number the boot
+  # gives a starter (`Portfolixir.Dashboards.Starters`, Sprint 32 W5), which
+  # the menu then reads after the dashboards of a lower position and of the
+  # same position with a lower id.
+  defp insert(actor, changeset, position) do
     Repo.transaction(fn ->
       Repo.query!("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [@count_lock])
 
@@ -589,10 +595,13 @@ defmodule Portfolixir.Dashboards do
       # One past the highest, capped where a reposition stops: two may then
       # share the last position, and the menu reads them by id.
       position =
-        min(
-          (Repo.one(from(d in Dashboard, select: max(d.position))) || 0) + 1,
-          Dashboard.max_position()
-        )
+        if is_integer(position),
+          do: position,
+          else:
+            min(
+              (Repo.one(from(d in Dashboard, select: max(d.position))) || 0) + 1,
+              Dashboard.max_position()
+            )
 
       Multi.new()
       |> Multi.insert(:dashboard, Ecto.Changeset.put_change(changeset, :position, position))

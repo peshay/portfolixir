@@ -19,6 +19,12 @@ defmodule Portfolixir.Dashboards.Starters do
   dashboards the operator made. The check reads the dashboards once, before
   the run stores anything.
 
+  **The starters follow „Überblick“** (Sprint 32 W5; board 02 ①): a
+  starter other than „Überblick“ is stored at the position of the stored
+  copy of „Überblick“, so the menu, which reads by position and then id,
+  lists the starters right after it and before the dashboards the
+  operator made; without such a copy, last.
+
   **A read never writes**: only this step stores a starter; the page and
   the API still offer the templates while no dashboard is stored.
 
@@ -98,7 +104,7 @@ defmodule Portfolixir.Dashboards.Starters do
       Logger.warning("starter dashboard #{key} not stored: the instance holds the most it keeps")
       report
     else
-      case Dashboards.copy_template(actor, key, %{}) do
+      case Dashboards.copy_template(actor, key, %{}, position: position(key)) do
         {:ok, _dashboard} ->
           record!(actor, key)
           Map.update!(report, :stored, &[key | &1])
@@ -106,6 +112,27 @@ defmodule Portfolixir.Dashboards.Starters do
         {:error, reason} ->
           Repo.rollback(reason)
       end
+    end
+  end
+
+  # Sprint 32 W5 (plan W5; board ux-design-2026-11-25-sprint32/02 ①): the
+  # starters of a screen follow „Überblick“ in the menu, before the
+  # dashboards the operator made: each takes the position of the stored
+  # copy of „Überblick“ and, with a higher id, reads right after it and
+  # after the starters stored before it. Without one, last, as any copy.
+  defp position(@counted_when_stored), do: :last
+
+  defp position(_key) do
+    case Repo.one(
+           from(d in Dashboard,
+             where: d.template_key == @counted_when_stored,
+             order_by: [asc: d.position, asc: d.id],
+             limit: 1,
+             select: d.position
+           )
+         ) do
+      nil -> :last
+      position -> position
     end
   end
 
