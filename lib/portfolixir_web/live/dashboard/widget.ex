@@ -308,10 +308,14 @@ defmodule PortfolixirWeb.Dashboard.Widget do
     assigns =
       assign(assigns,
         words: period_words_before(assigns.item),
-        mark: item_label(assigns.item) <> translated(assigns.item)
+        mark: item_label(assigns.item),
+        via: translated(assigns.item)
       )
 
-    ~H|<span class="visually-hidden"><%= @words %> </span><%= @mark %>|
+    # The window a kind reads instead („ → Woche“) yields on the wide
+    # grid's head, where its title needs the room (Sprint 32 L2); it stays
+    # for a screen reader and in the tooltip, and the ⓘ names the window.
+    ~H|<span class="visually-hidden"><%= @words %> </span><%= @mark %><span :if={@via != ""} class="widget__period-via"><%= @via %></span>|
   end
 
   defp period_words_before(%{period_state: :follows}), do: pgettext("period mark", "follows ·")
@@ -371,6 +375,15 @@ defmodule PortfolixirWeb.Dashboard.Widget do
     attr(:link, :string)
     attr(:role, :string)
   end
+
+  slot(:foot,
+    doc:
+      "a line the kind draws itself at the footer's top: a data note drawn as a line, a status region (Sprint 32 L2)"
+  )
+
+  slot(:scope,
+    doc: "the footer's scope, drawn by the kind (in place of `scope_label`), e.g. a plan line"
+  )
 
   slot(:controls, doc: "a control the kind keeps of its own, shared by both forms")
   slot(:shared, doc: "a note or status region both forms show")
@@ -452,12 +465,13 @@ defmodule PortfolixirWeb.Dashboard.Widget do
            left, one link named for its target at the right; a warning
            as one line above them (②, 6), never a box. --%>
       <footer
-        :if={@scope_label || @full_href || Map.get(@item, :pin_note) || @warning != []}
+        :if={@scope_label || @full_href || Map.get(@item, :pin_note) || @warning != [] || @foot != [] || @scope != []}
         class="widget__foot"
         data-role="widget-foot"
       >
+        <div :if={@foot != []} class="widget__foot-line"><%= render_slot(@foot) %></div>
         <.warning :for={line <- @warning} href={line[:href]} link={line[:link]} role={line[:role]}><%= render_slot(line) %></.warning>
-        <span data-role="widget-scope"><%= @scope_label %></span>
+        <span data-role="widget-scope"><%= if @scope != [], do: render_slot(@scope), else: @scope_label %></span>
         <%!-- Sprint 32 T5: a pin that dangles says why the widget follows. --%>
         <span :if={Map.get(@item, :pin_note)} data-role="widget-pin-dangling"><%= @item.pin_note %></span>
         <a :if={@full_href} href={@full_href} data-role={@full_role}><%= @full_label %></a>
@@ -811,6 +825,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   attr(:size, :atom, values: [:s, :m, :secondary], default: :s)
   attr(:sign, :any, default: nil, doc: "a Decimal, :positive or :negative: the figure's sign")
   attr(:role, :string, default: nil)
+  attr(:value_class, :string, default: nil, doc: "a class of the kind's own on the figure")
   attr(:rest, :global)
   slot(:inner_block, required: true, doc: "the figure")
   slot(:unit, doc: "its currency or unit, smaller after it")
@@ -831,7 +846,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
     ~H"""
     <div class={["widget-figure", "widget-figure--#{@size}"]} data-anatomy="figure" data-role={@role} {@rest}>
       <span :if={@label} class="widget-figure__label"><%= @label %></span>
-      <span class={["widget-figure__value", "num", @sign_class]}><%= render_slot(@inner_block) %><small
+      <span class={["widget-figure__value", "num", @sign_class, @value_class]}><%= render_slot(@inner_block) %><small
           :if={@unit != []}
           class="widget-figure__unit"
         ><%= render_slot(@unit) %></small></span>

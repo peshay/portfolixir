@@ -31,7 +31,8 @@
 //
 // Mode "attack" checks the check: on the walked page it draws a head's
 // title over several lines in the wide grid and cut in the compact forms,
-// another head's period mark on a line of its own (wide), a row's figure 400 px wide inside a 40 px box, a framed and filled
+// another head's period mark on a line of its own (wide), a fourth
+// title too long for its tile and a list's body cut through a row (wide), a row's figure 400 px wide inside a 40 px box, a framed and filled
 // data note into a widget, a card border on one widget and a 12 px gap in
 // the grid, and the handle above its cell; each must be named.
 //
@@ -149,6 +150,32 @@ function measure(page) {
           return shown(el) ? rect(el).toJSON() : null;
         };
 
+        // A fixed tile shows what fits (Sprint 32 E4, L3): a row the tile
+        // cuts — part of it drawn, part of it under the edge of the box
+        // that clips it — is named; a row wholly past the edge is not
+        // drawn and not named.
+        const rowsCut = [];
+        if (wideGrid && !w.classList.contains("widget--row")) {
+          const rows = w.querySelectorAll(
+            ".widget__wide tr, .widget__wide li, .widget__wide .widget-row, .widget__wide .attention-item, .widget__foot > *"
+          );
+          for (const row of rows) {
+            if (!shown(row)) continue;
+            const r = rect(row);
+            if (r.height < 2) continue;
+            let edge = null;
+            for (let box = row.parentElement; box && box !== w.parentElement; box = box.parentElement) {
+              if (getComputedStyle(box).overflowY !== "visible") {
+                const b = rect(box);
+                edge = edge === null ? b.bottom : Math.min(edge, b.bottom);
+              }
+            }
+            if (edge !== null && r.top < edge - 1 && r.bottom > edge + 1) {
+              rowsCut.push((row.textContent || "").replace(/\s+/g, " ").trim().slice(0, 40) || row.tagName);
+            }
+          }
+        }
+
         return {
           name,
           kind: w.dataset.widgetKind,
@@ -156,7 +183,11 @@ function measure(page) {
           titleLines: t && lineHeight ? Math.round(t.height / lineHeight) : null,
           // The wide head cuts a title too long for its tile with an
           // ellipsis, as board 07 ② draws it; the compact forms never.
-          titleCut: title && !wideGrid ? title.scrollWidth - title.clientWidth : 0,
+          // Board 07 ② draws a too-long title cut with an ellipsis, but no
+          // kind's title is cut on its own tile: a title too long for its
+          // S is the kind's to shorten (L2), so every class is checked.
+          titleCut: title ? title.scrollWidth - title.clientWidth : 0,
+          rowsCut,
           wideGrid,
           offLine,
           cut,
@@ -185,6 +216,7 @@ function check(tag, viewport, m, errors) {
   for (const w of m.widgets) {
     if (w.wideGrid && w.titleLines !== 1) errors.push(tag + ": " + w.name + "'s title wraps over " + w.titleLines + " lines");
     if (w.titleCut > 1) errors.push(tag + ": " + w.name + "'s title is cut by " + w.titleCut + " px");
+    for (const row of w.rowsCut) errors.push(tag + ": " + w.name + "'s tile cuts a row: " + row);
     if (w.offLine.length > 0) errors.push(tag + ": " + w.name + "'s head wraps: " + w.offLine.join(", ") + " off the title's line");
     for (const c of w.cut) errors.push(tag + ": " + w.name + " clips a figure: " + c);
     if (w.boxes.length > 0) errors.push(tag + ": " + w.name + " carries a warning box (" + w.boxes[0] + ")");
@@ -254,7 +286,17 @@ function breakEach(page, viewport) {
     note.style.background = "var(--color-warning-soft)";
     second.appendChild(note);
     second.style.border = "1px solid red";
-    if (wide) document.querySelector("#dashboard-grid").style.gap = "12px";
+    if (wide) {
+      document.querySelector("#dashboard-grid").style.gap = "12px";
+      // A fourth widget's title cut, a list's wide form cut mid-row.
+      const cutTitle = widgets[3].querySelector(".widget__head h2");
+      cutTitle.textContent = "Ein Titel, der in keine Kachel passt, auch nicht in die breiteste";
+      const listed = widgets.find((w) => w.querySelector(".widget__wide li"));
+      const body = listed.querySelector(".widget__wide");
+      const row = body.querySelector("li").getBoundingClientRect();
+      body.style.flex = "none";
+      body.style.height = row.top - body.getBoundingClientRect().top + row.height / 2 + "px";
+    }
   }, viewport.width >= 1000);
 }
 

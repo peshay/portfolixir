@@ -452,6 +452,9 @@ const RAIL_INSET = 3;
 const SEARCH_GAP = 12;
 // The wide form's title (DS3).
 const TITLE = 15;
+// Sprint 32 L2 (board ux-design-2026-11-25-sprint32/07 ② 1): an S tile's
+// title is 14 px, so it stays whole beside its ⓘ, mark and ⋯.
+const TITLE_S = 14;
 // Sprint 32 E4 (ADR-0062's amendment of 2026-11-25, point 3; D-13): every
 // row of the wide grid is a fixed 7rem (112 px), so every widget is exactly
 // its tile — its rows' tracks and the gaps between them — whatever it
@@ -503,7 +506,8 @@ function wideRules(m, at) {
     // Sprint 32 L1 (board ux-design-2026-11-25-sprint32/07 ②, 1) the
     // period mark on the title's line too, after it; no „ohne Zeitraum“.
     const h = w.head;
-    if (h.size !== null && Math.abs(h.size - TITLE) > 0.1) errors.push(at + ": " + name(w) + "'s title is " + h.size + " px, not " + TITLE);
+    const title = w.size === "S" ? TITLE_S : TITLE;
+    if (h.size !== null && Math.abs(h.size - title) > 0.1) errors.push(at + ": " + name(w) + "'s title is " + h.size + " px, not " + title);
     // Where the two do not fit on one line, the ⓘ follows the title onto
     // the next, at its left (Sprint 31 UAT, finding 9): never under it.
     if (h.title && h.info) {
@@ -769,7 +773,7 @@ async function attack(browser) {
 
   // One target drawn 30 px tall.
   const shrunk = await page.evaluate(() => {
-    const el = [...document.querySelectorAll(".widget__foot a")].find((e) => e.getClientRects().length > 0);
+    const el = [...document.querySelectorAll(".widget__foot > a")].find((e) => e.getClientRects().length > 0);
     el.setAttribute("data-walk-attack", "");
     const style = document.createElement("style");
     style.id = "walk-attack";

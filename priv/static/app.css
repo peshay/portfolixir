@@ -14411,20 +14411,6 @@ dialog.merge-dialog {
   vertical-align: 1px;
 }
 
-.movers__figure .drift-bar {
-  display: block;
-  flex: none;
-  width: 110px;
-  min-width: 110px;
-  margin: 5px 0 0 auto;
-}
-
-@media (max-width: 560px) {
-  .movers__figure .drift-bar {
-    display: none;
-  }
-}
-
 /* The card's two-way switches at their floor (the window's six chips
    left the card for the dashboard's period, Sprint 31 D5): below 380 px of
    the card (a phone, its labels above) „Kursrendite · Beitrag“ and
@@ -14527,10 +14513,6 @@ dialog.merge-dialog {
     color: var(--color-accent);
     font-size: 13px;
     font-weight: 600;
-  }
-
-  .dashboard-widget .movers__figure .drift-bar {
-    display: none;
   }
 
   /* One line a name, cut with an ellipsis; the link names the whole. */
@@ -14840,7 +14822,7 @@ dialog.merge-dialog {
 }
 
 .widget__foot > span {
-  flex: 0 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -15090,13 +15072,8 @@ a.widget-row:hover .widget-row__label {
   text-transform: uppercase;
 }
 
-/* „Fällig“ at S (Sprint 31 closing act; board 02 ⑨). */
-.widget-due__basis {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: 13px;
-}
-
+/* „Fällig“ at S (Sprint 31 closing act; board 02 ⑨); its basis is the
+   footer's scope since Sprint 32 L2. */
 .widget-due {
   display: grid;
   margin: 0;
@@ -15300,8 +15277,12 @@ a.widget-row:hover .widget-row__label {
     overflow: hidden;
   }
 
+  /* The body's parts at its top, at their own height: a table never
+     stretches its rows to fill the tile (Sprint 32 L2; PR 1's design
+     critic: the crash table's rows were tall). */
   .dashboard-grid > .dashboard-widget > .widget__wide {
     flex: 1 1 auto;
+    align-content: start;
     min-height: 0;
     overflow: hidden;
   }
@@ -15330,12 +15311,8 @@ a.widget-row:hover .widget-row__label {
   /* „Gesamtwert“ at S draws its figure itself (Sprint 31 closing act,
      DS2; board 02 ①): the total and its currency, the change, the
      sparkline, then the short note on what the total leaves out. */
-  .widget--s .widget-total__figure {
-    font-size: 24px;
-  }
-
-  /* Its figure and its sparkline close together, its footer one line, the
-     scope cut with an ellipsis where it must (board 02 ⑨). */
+  /* Its figure and its sparkline close together (board 02 ⑨); the
+     figure is the anatomy's S size since Sprint 32 L2. */
   .widget--s[data-widget-kind="total_value"] .widget__wide {
     gap: var(--space-1);
   }
@@ -15344,30 +15321,9 @@ a.widget-row:hover .widget-row__label {
     height: 24px;
   }
 
-  .widget--s[data-widget-kind="total_value"] > .widget__foot {
-    flex-wrap: nowrap;
-    white-space: nowrap;
-  }
-
-  .widget--s[data-widget-kind="total_value"] > .widget__foot > span {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .widget--s[data-widget-kind="total_value"] > .widget__foot > a {
-    flex: none;
-  }
-
   .widget--s .widget-total small[data-role="card-period-change"] {
     color: var(--color-text-muted);
     font-size: 13px;
-  }
-
-  /* The total's status region (named by its id: the invariant
-     css_status_region_test.exs keeps its class to its one :empty rule). */
-  .dashboard-widget.widget--s > [id^="dashboard-wealth-card-status"] {
-    order: 1;
   }
 
   .dashboard-widget.widget--s > .widget__foot,
@@ -15378,8 +15334,7 @@ a.widget-row:hover .widget-row__label {
   /* „Abseits des Ziels“ at S: the count and its basis; the list is M's
      (Sprint 31 closing act, DS1; board 02 ①). The count's line says the
      rule, so the explainer keeps only its basis. */
-  .widget--s .widget-offtarget__list,
-  .widget--s[data-widget-kind="off_target"] .attention-rule {
+  .widget--s .widget-offtarget__list {
     display: none;
   }
 
@@ -15413,9 +15368,11 @@ a.widget-row:hover .widget-row__label {
     gap: var(--space-2);
   }
 
-  .dashboard-widget.widget--s > [data-role="attention-explainer"] {
+  /* The basis line under the count (Sprint 32 L2: the rule's sentence
+     is the ⓘ's), at the body's gap, never pulled into the count. */
+  .dashboard-widget.widget--s > [data-role="attention-basis-line"] {
     order: 1;
-    margin-top: calc(-1 * var(--space-1));
+    margin: 0;
     font-size: 13px;
   }
 
@@ -16209,12 +16166,15 @@ a.widget-row:hover .widget-row__label {
     padding-right: calc(var(--edit-sizes, 0) * 24px + var(--space-3));
   }
 
-  /* A footer kept to one line wraps here rather than run under the
-     switch. */
-  .dashboard-widget.is-editing > .widget__foot,
+  /* Beside the switch the footer stays one line (Sprint 32 L2): the
+     scope gives way first, then the link, each cut with an ellipsis,
+     never wrapped over three lines under its neighbour. */
   .dashboard-widget.is-editing > .widget__foot > a {
-    flex-shrink: 1;
-    white-space: normal;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -16679,10 +16639,19 @@ a.widget-row:hover .widget-row__label {
   font-weight: 600;
 }
 
+/* The figure's digits never break; its unit goes under them where the
+   tile has no room beside them, so nothing of it is cut. */
 .widget-figure[data-anatomy] .widget-figure__value {
   max-width: 100%;
   line-height: 1.1;
+}
+
+.widget-figure[data-anatomy] .widget-figure__value > :not(.widget-figure__unit) {
   white-space: nowrap;
+}
+
+.widget-figure__unit {
+  display: inline-block;
 }
 
 .widget-figure--s .widget-figure__value {
@@ -16838,8 +16807,17 @@ a.widget-row:hover .widget-row__label {
 
 .widget-rebounders__rows > li {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--space-2);
+  gap: var(--space-1) var(--space-2);
+}
+
+.widget-rebounders__rows > li > .widget-rebounders__bar {
+  flex: 1 0 100%;
+}
+
+.widget-rebounders__rows > li > .widget-rebounders__name {
+  flex: 1 1 0;
 }
 
 .widget-rebounders__name {
@@ -17674,3 +17652,321 @@ a.widget-row:hover .widget-row__label {
   overflow-wrap: anywhere;
 }
 /* --- S31 D8 end --- */
+
+/* --- S32 L2 begin --- */
+/* ===== Every kind on the anatomy (Sprint 32 L2 and L3; board
+   ux-design-2026-11-25-sprint32/07 ① ③, 09; DESIGN.md → "The widget
+   anatomy and the one surface") ===== */
+
+/* The footer's first line (`:foot`): what a kind leaves out, a data note
+   drawn as one line — its glyph and colour, its word for a screen reader,
+   the text cut with an ellipsis, „mehr“ unfolding it, the link at its
+   end (board 07 ① 3: the warning boxes become footer lines). A line with
+   nothing in it takes no room. */
+.widget__foot-line {
+  flex: 1 0 100%;
+  min-width: 0;
+}
+
+.widget__foot-line:not(:has(*)) {
+  display: none;
+}
+
+.widget__foot .data-note {
+  align-items: baseline;
+  gap: var(--space-1);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.widget__foot .data-note__word {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.widget__foot .data-note__body {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.widget__foot .data-note--clamped:not([data-expanded]) .data-note__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  -webkit-line-clamp: 1;
+}
+
+.widget__foot .data-note__actions {
+  flex: none;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.widget__foot .data-note__actions a {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* „Datenqualität“ at L (board 07 ③): the findings as rows, each with its
+   severity dot, its counted sentence and, under it, what it does to the
+   total. */
+.widget-findings--full {
+  gap: 0;
+}
+
+.widget-findings__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--space-2);
+  align-items: baseline;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.widget-findings__row:last-child {
+  border-bottom: 0;
+}
+
+.widget-findings__effect {
+  grid-column: 2;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+/* „Datenqualität“'s severities in words at the head's end (board 07
+   ③): a quiet outlined chip, as the period mark. */
+.widget-severity {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+/* A line under the title (the crash chart's benchmark). */
+.widget-subline {
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* „Tops und Flops“ (board 07 ③): the bar under every row, in both
+   rankings and halves; at S one list of four. */
+.movers__row {
+  flex-wrap: wrap;
+  row-gap: var(--space-1);
+}
+
+.movers__row > .movers__bar {
+  flex: 1 0 100%;
+}
+
+/* The name gives way first, so name and figure share their line. */
+.movers__row > .attention-name {
+  flex: 1 1 0;
+}
+
+.movers__row > .num {
+  flex: none;
+}
+
+/* At S four rows fit the tile: 13 px, the bar 4 px under each. */
+.movers__short {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  font-size: 13px;
+}
+
+.movers__short > li {
+  min-width: 0;
+}
+
+.widget-findings__more {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.movers__short .movers__row {
+  row-gap: 2px;
+  padding-block: 0;
+  line-height: 1.3;
+}
+
+.movers__short .widget-bar {
+  height: 4px;
+}
+
+/* The widget's own switch in the head: small, as the board draws it. */
+.widget__switch .segmented-control {
+  display: inline-flex;
+  padding: 2px;
+}
+
+.widget__switch .segmented-control__option {
+  min-height: 24px;
+  padding: 0 var(--space-2);
+  font-size: 12px;
+}
+
+/* In the compact forms the side switch has no work: both rankings stand
+   one under the other there. */
+.widget__switch:has(> .movers-switch) {
+  display: none;
+}
+
+@media (width >= 1000px) {
+  .widget__switch:has(> .movers-switch) {
+    display: block;
+  }
+}
+
+/* „Allokation und Drift“: „≈ zum Soll“ as the table's fifth column. */
+.widget-drift-table__to-target {
+  white-space: nowrap;
+}
+
+.widget-drift-table__to-target small {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+/* „Crashes im Vergleich“: a row a window, its lowest security on one
+   line, cut where it must (PR 1's design critic: the rows were tall). */
+.widget-crash-table td[data-role="crash-lowest"] {
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.widget-crash-table th,
+.widget-crash-table td {
+  vertical-align: top;
+}
+
+/* Fixed columns, so the lowest security gives way and „Erholt“ stays
+   inside the tile. */
+.dashboard-widget .widget-crash-table {
+  table-layout: fixed;
+}
+
+.dashboard-widget .widget-crash-table th:nth-child(1) {
+  width: 42%;
+}
+
+.dashboard-widget .widget-crash-table th:nth-child(2) {
+  width: 18%;
+}
+
+.dashboard-widget .widget-crash-table th:nth-child(4) {
+  width: 16%;
+}
+
+.dashboard-widget .widget-crash-table thead th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* „Bitcoin-Zyklus“ at XL (board 09 ③): in the wide grid the chart the
+   security's page draws on the range „Zyklus“, the whole tile's width,
+   its bands labelled with their windows, prices and states — the card's
+   figures; the compact forms keep the card, where a phone's width would
+   shrink the chart's labels past reading. */
+.widget-cycle__cards {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.widget-cycle__chart {
+  display: none;
+  min-width: 0;
+}
+
+@media (width >= 1000px) {
+  .widget-cycle--chart > .widget-cycle__chart {
+    display: block;
+  }
+
+  .widget-cycle--chart > .widget-cycle__cards {
+    display: none;
+  }
+}
+
+@media (width >= 1000px) {
+  /* „Wertentwicklung“ at XL: the stack's legend beside the chart, as
+     board 09 ② draws its rows, within the tile. */
+  .dashboard-widget.widget--xl .stack-figure__body {
+    grid-template-columns: minmax(0, 1fr) minmax(15rem, 20rem);
+  }
+
+  /* „Crash-Chart“ and the cycle chart fill their tile: the plot takes
+     the height the tile leaves (L3; PR 1's design critic: a large empty
+     area under the chart). */
+  .dashboard-widget[data-widget-kind="crash_chart"] > .widget__wide {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dashboard-widget[data-widget-kind="crash_chart"] .crash-chart {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .dashboard-widget[data-widget-kind="crash_chart"] .crash-chart__plot {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+  }
+
+  /* „Erholer nach Crashes“ at XL: the lists side by side, each taller
+     (L3). */
+  .dashboard-widget.widget--xl .widget-rebounders {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-5);
+  }
+}
+@media (width >= 1000px) {
+  .widget__period-via {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* An S tile's head (L2): the title 14 px and the mark tighter, so
+     „Tops und Flops“ stays whole beside its ⓘ, mark and ⋯ in DejaVu Sans
+     too. */
+  .dashboard-widget.widget--s > .widget__head h2 {
+    font-size: 14px;
+  }
+
+  .dashboard-widget.widget--s .widget__period {
+    padding: 0 var(--space-1);
+  }
+
+  .dashboard-widget.widget--s > .widget__head > .section-title {
+    gap: 3px;
+  }
+}
+/* --- S32 L2 end --- */

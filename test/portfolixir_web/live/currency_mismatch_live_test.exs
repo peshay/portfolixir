@@ -173,7 +173,7 @@ defmodule PortfolixirWeb.CurrencyMismatchLiveTest do
                "ihr Wert in der Summe oben ist daher falsch"
 
     refute has_element?(view, ~s(#dashboard-dq-line a [data-effect-of]))
-    assert has_element?(view, "#dashboard-data-quality .data-note--problem")
+    assert has_element?(view, "#dashboard-data-quality .widget-findings__row.is-problem")
 
     assert view |> roles("#dashboard-dq-line") |> Enum.take(-2) ==
              ["dq-implausible-quote", "dq-currency-mismatch"]
@@ -209,7 +209,7 @@ defmodule PortfolixirWeb.CurrencyMismatchLiveTest do
              "— seine Kurse sind womöglich in der falschen Währung gespeichert; " <>
                "sein Wert in der Summe oben ist daher falsch"
 
-    assert has_element?(view, "#dashboard-data-quality .data-note--problem")
+    assert has_element?(view, "#dashboard-data-quality .widget-findings__row.is-problem")
     assert api_count(conn, "&holding_status=held") == 1
     assert api_count(conn) == 1
 

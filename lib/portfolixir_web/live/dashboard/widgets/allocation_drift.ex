@@ -184,13 +184,20 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
         if assigns.ready do
           rows = rows(assigns.card.allocation)
 
+          beyond = off_target(assigns.card.allocation)
+
           assign(assigns,
             rows: rows,
-            beyond: off_target(assigns.card.allocation),
+            beyond: beyond,
+            # Sprint 32 L2 (board 07 ① 8): a top-level row's amount stands
+            # in its own column; the rows of deeper levels, which the table
+            # does not list, on the line under it.
+            arithmetic: Map.new(Enum.filter(beyond, &top_level?/1), &{row_name(&1), &1}),
+            deeper: Enum.reject(beyond, &top_level?/1),
             plan?: assigns.card.allocation.has_plan
           )
         else
-          assign(assigns, rows: [], beyond: [], plan?: false)
+          assign(assigns, rows: [], beyond: [], arithmetic: %{}, deeper: [], plan?: false)
         end
       end)
 
@@ -204,6 +211,9 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
       full_label={gettext("Edit targets →")}
       full_role="allocation-edit-targets"
     >
+      <%!-- Sprint 32 L2 (board 07 ③): the plan the drift is measured
+           against is the footer's scope, before the count and the view. --%>
+      <:scope :if={@ready}><span data-role="allocation-drift-basis"><%= basis_line(@card, @plan?) %></span><%= if label = foot_label(@ready, @plan?, @beyond, @scope_label), do: " · " <> label %></:scope>
       <:info>
         <%= gettext("Drift is the actual weight minus the target weight of the active plan, per category of the steering tree; a category without a target is not listed.") %>
       </:info>
@@ -227,9 +237,6 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
         <p :if={match?(%{state: :no_portfolio}, @card)} class="hint" data-role="allocation-drift-empty">
           <%= gettext("No portfolio yet.") %>
         </p>
-        <p :if={@ready} class="hint" data-role="allocation-drift-basis">
-          <%= basis_line(@card, @plan?) %>
-        </p>
       </:shared>
       <table :if={@ready and @rows != []} class="data-table widget-drift-table" data-role="allocation-drift-table">
         <thead>
@@ -238,6 +245,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
             <th scope="col" class="num"><%= gettext("Actual") %></th>
             <th scope="col" class="num"><%= gettext("Target") %></th>
             <th scope="col" class="num"><%= gettext("Drift") %></th>
+            <th scope="col" class="num"><%= gettext("≈ to target") %></th>
           </tr>
         </thead>
         <tbody>
@@ -255,13 +263,20 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
               </span>
               <span class={sign_class(row.drift_weight)} data-role="drift-points"><%= if targeted?(row), do: points(row.drift_weight), else: "—" %></span>
             </td>
+            <td class="num widget-drift-table__to-target" data-role="allocation-drift-arithmetic">
+              <.arithmetic :if={off = @arithmetic[row_name(row)]} row={off} currency={@card.allocation.base_currency} />
+            </td>
           </tr>
         </tbody>
       </table>
-      <p :if={@beyond != []} class="hint widget-drift-hint" data-role="allocation-drift-arithmetic">
-        <strong><%= gettext("Arithmetically to target") %></strong>
-        (<%= gettext("display only, no order") %>):
-        <%= for {row, index} <- Enum.with_index(@beyond) do %><%= if index > 0, do: ", " %><span data-role="drift-arithmetic" data-name={row_name(row)}><%= row_name(row) %> ≈ <span class="num"><%= corrective(row) %></span> <%= @card.allocation.base_currency %></span><% end %>
+      <%!-- ADR-0023: arithmetic, display only, said once under the table;
+           the deeper levels' amounts after it, which the table's rows do
+           not hold. --%>
+      <p :if={@beyond != []} class="hint widget-drift-hint" data-role="allocation-drift-note">
+        <%= gettext("≈ to target: display only, no order") %><span
+          :if={@deeper != []}
+          data-role="allocation-drift-arithmetic"
+        > · <%= for {row, index} <- Enum.with_index(@deeper) do %><%= if index > 0, do: ", " %><span data-role="drift-arithmetic" data-name={row_name(row)}><%= row_name(row) %> ≈ <span class="num"><%= corrective(row) %></span> <%= @card.allocation.base_currency %></span><% end %></span>
       </p>
       <:compact>
         <p :if={@ready} class="widget-compact-note" data-compact-role="allocation-drift-threshold">
@@ -285,6 +300,21 @@ defmodule PortfolixirWeb.Dashboard.Widgets.AllocationDrift do
     </Widget.frame>
     """
   end
+
+  attr(:row, :map, required: true)
+  attr(:currency, :string, required: true)
+
+  # A row's amount in the „≈ zum Soll“ column; its name for a screen
+  # reader, so the cell reads as the line under the table does.
+  defp arithmetic(assigns) do
+    ~H"""
+    <span data-role="drift-arithmetic" data-name={row_name(@row)}><span class="visually-hidden"><%= row_name(@row) %> ≈ </span><span class="num"><%= corrective(@row) %></span><small> <%= @currency %></small></span>
+    """
+  end
+
+  # A top-level category or cash: a row the table lists.
+  defp top_level?(%{name: :cash}), do: true
+  defp top_level?(row), do: Map.get(row, :depth, 0) == 0
 
   defp foot_label(true, true, beyond, scope_label) do
     count =

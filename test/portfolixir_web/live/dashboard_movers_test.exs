@@ -439,7 +439,8 @@ defmodule PortfolixirWeb.DashboardMoversTest do
       refute text(figure) =~ ~r/\d/
 
       contribution = Decimal.new(entry["contribution"])
-      fills = Floki.find(row, ".drift-bar__fill")
+      # Sprint 32 L2: the anatomy's bar under the row (`Widget.bar/1`).
+      fills = Floki.find(row, ".widget-bar__fill")
 
       case Format.displayed_sign(contribution, 2) do
         :zero ->
@@ -531,7 +532,8 @@ defmodule PortfolixirWeb.DashboardMoversTest do
       conn |> put_preference_cookie("portfolixir_locale", "de") |> live("/?period=1w")
 
     doc = loaded(view, "week")
-    switch = Floki.find(doc, "#dashboard-movers [data-form='wide'] [data-role='movers-switch']")
+    # Sprint 32 L2 (board 07 ① 9): the switch stands in the head.
+    switch = Floki.find(doc, "#dashboard-movers .widget__head [data-role='movers-switch']")
     assert text(switch) == "Kursrendite Beitrag"
 
     assert switch |> Floki.find("input[type='radio']") |> Enum.map(&attribute(&1, "value")) ==
@@ -553,7 +555,8 @@ defmodule PortfolixirWeb.DashboardMoversTest do
   # Acceptance criteria:
   # - „Tops und Flops“, „folgt · 1W“ (at 3M „folgt · 3M → Quartal“, the
   #   window it reads), „Kursrendite“ and „Beitrag“, each with „Höchste“
-  #   and „Niedrigste“, „verkauft“, and „In Vermögen ansehen →“.
+  #   and „Niedrigste“, „verkauft“, and „In Vermögen →“ (one wording for
+  #   every link to Wealth since Sprint 32 L2).
   test "the card reads in German", %{conn: conn} do
     seed!()
 
@@ -576,7 +579,7 @@ defmodule PortfolixirWeb.DashboardMoversTest do
     assert doc |> Floki.find("[data-role='movers-sold']") |> text() == "verkauft"
 
     assert doc |> Floki.find("[data-role='movers-wealth-link']") |> text() ==
-             "In Vermögen ansehen →"
+             "In Vermögen →"
 
     pick_period(view, "3m")
 

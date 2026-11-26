@@ -107,7 +107,8 @@ defmodule PortfolixirWeb.OverviewExplanationsLiveTest do
   # - The value card's note names the money the total leaves out: it clamps
   #   and never folds, the count first ("Not in the total: …"), "Details in
   #   Wealth →" in its actions, visible under the clamp.
-  # - The data-quality line clamps (it stays visible, at its severity).
+  # - The data-quality findings are a list (Sprint 32 L2), each link the
+  #   start of its row.
   test "the Overview's method clauses sit behind the cards' ⓘ and its notes clamp",
        %{conn: conn} do
     seed!()
@@ -117,8 +118,10 @@ defmodule PortfolixirWeb.OverviewExplanationsLiveTest do
 
     assert text(view, "#dashboard-trades .section-head .section-title > h2") == "Sale review"
 
+    # Sprint 32 L2 (board 07 ① 2): the basis line behind the ⓘ too.
     assert tip_lines(view, "#dashboard-trades") == [
-             "p. a. only from 365 days of holding and only where a rate solves the flows"
+             "p. a. only from 365 days of holding and only where a rate solves the flows",
+             "The 2 most recently closed · result in EUR · FIFO across every depot, whatever the view"
            ]
 
     assert text(view, "#dashboard-trades [data-role='trades-card-basis']") ==
@@ -142,12 +145,12 @@ defmodule PortfolixirWeb.OverviewExplanationsLiveTest do
              "Details in Wealth →"
            )
 
-    assert has_element?(view, "#dashboard-data-quality #dashboard-dq-line.data-note--clamped")
-
-    # Pick Q1, correction 2 (closing act): each finding's link, the line's
-    # remedy, sits in the note's actions, never under the clamp.
-    assert has_element?(view, "#dashboard-dq-line .data-note__actions a[data-role]")
-    refute has_element?(view, "#dashboard-dq-line .data-note__text a")
+    # Sprint 32 L2 (board ux-design-2026-11-25-sprint32/07 ① 3): the
+    # findings are a list, each finding's link the start of its own row,
+    # never cut by a clamp (pick Q1, correction 2, kept).
+    assert has_element?(view, "#dashboard-data-quality ul#dashboard-dq-line")
+    assert has_element?(view, "#dashboard-dq-line li .widget-findings__text > a[data-role]")
+    refute has_element?(view, "#dashboard-dq-line.data-note--clamped")
 
     {:ok, de_view, _html} = live(conn, "/?locale=de")
     render_async(de_view)

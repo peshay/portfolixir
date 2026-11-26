@@ -2305,20 +2305,23 @@ loss, a warning as one line rather than a box, and a footer of one line.
   the total with the period's TTWROR and its result (the end value less
   the start value and the net external flows, the performance read's own
   figures) side by side; at L the total, its change and the value's course
-  over the period. **Data quality** at S shows each finding as one short
-  counted line ("1 quote older than 7 days") with "Check →"; at L the full
-  sentences.
+  over the period; what the total leaves out stands as one line in the
+  widget's footer at every size. **Data quality** at S shows each finding
+  as one short counted line ("1 quote older than 7 days"); at L each
+  finding is a row with its full sentence and, under it, what it does to
+  the total; "Check securities →" at both sizes.
 - **The four widgets from Wealth's sections.** **Performance** at S shows
   the period's TTWROR and a line of the period's daily value, at L the
   value line with its lowest and highest value and its dates, at XL (the
   template's) Wealth's stacked chart by category; "Full view →" opens
   Wealth's chart on the same period. **Allocation and drift** shows each
   top-level category of the steering tree and cash with its actual and
-  target weight and its drift, and under it, for the categories beyond
-  ±5 pp, the amount that would close each gap, "Arithmetically to target
-  (display only, no order)": the drift in money with its sign turned
-  (ADR-0023), never an order; "Edit targets →" opens Wealth's allocation
-  tab. **Snapshots** shows the latest snapshot's date, how many there are
+  target weight, its drift with a bar, and, for the categories beyond
+  ±5 pp, the amount that would close each gap in the column "≈ to
+  target" (deeper levels on the line under the table, "display only, no
+  order"): the drift in money with its sign turned (ADR-0023), never an
+  order; the plan it measures against is the footer's line; "Edit
+  targets →" opens Wealth's allocation tab. **Snapshots** shows the latest snapshot's date, how many there are
   and the real TTWROR since that date, with its daily line; "Compare →"
   opens its comparison. **Crashes compared** shows the crash windows,
   newest first (eight, at L, its one size), each with the crash benchmark's
@@ -2483,12 +2486,15 @@ price every day, stands in neither half, so such funds do not fill
 **Lowest**; nothing is ranked as a zero it does not have. A position that
 had no price on some days of the window counts zero on those days, as in
 Wealth, and stays ranked with the mark "3 days at zero" — a gain made of
-such days can stand in **Highest**, marked. One basis line names the view, the window and its
-dates, and the method is behind the ⓘ. Each name opens its security;
-**View in Wealth →** opens Wealth with the contribution's window as a custom
+such days can stand in **Highest**, marked. The ⓘ names the view, the window and its
+dates, and the method. The switch **Price return · Contribution** stands in
+the widget's head, and every row of both rankings carries a bar, centred on
+zero and scaled so the largest listed fills 45 %; at S the widget shows the
+two highest and the two lowest price returns with their bars. Each name
+opens its security; **In Wealth →** opens Wealth with the contribution's window as a custom
 range (`/portfolio?from=…&to=…`), in the view Wealth last showed: the link
 does not change it. Where that view is not the card's, a sentence under the
-basis line names both ("Wealth is currently scoped to the view “…”; this
+ⓘ names both ("Wealth is currently scoped to the view “…”; this
 card shows “Everything”."), as the note under the value card does. In the
 compact form a switch shows **Highest** or **Lowest**, the price returns over
 the contributions. In the privacy mode every

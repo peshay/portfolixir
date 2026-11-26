@@ -170,7 +170,9 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
       <:info>
         <%= gettext("Benchmark: its return from the window's high to its low. Lowest: the lowest return over the same days among the securities held today in any depot, or in the whole catalogue; each in its own currency, in the closes' current display basis.") %>
       </:info>
-      <:controls>
+      <%!-- Sprint 32 L2 (board ux-design-2026-11-25-sprint32/07 ① 9): the
+           widget's own switch stands in its head. --%>
+      <:switch>
         <div class="segmented-control widget-switch" role="group" aria-label={gettext("Securities")} data-role="crashes-universe">
           <button
             :for={universe <- universes()}
@@ -182,7 +184,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Crashes do
             data-universe={universe}
           ><%= universe_label(universe) %></button>
         </div>
-      </:controls>
+      </:switch>
       <:shared>
         <p :if={is_nil(@card)} class="section-skeleton" aria-busy="true" data-role="crashes-skeleton"></p>
         <p :if={@card == :error} class="hint" data-role="crashes-failed">

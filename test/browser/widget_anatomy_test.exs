@@ -69,11 +69,13 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
   #
   # Acceptance criteria:
   # - At 1200, 834 and 393 px, in Inter and in DejaVu Sans, every kind in
-  #   every grid size it takes: at 1200 px the title one line (cut with an
-  #   ellipsis where its tile is too narrow, as board 07 ② draws it) and
-  #   its ⓘ, the period mark, the widget's switch and ⋯ on the title's
-  #   line; at 834 and 393 px (the compact forms) the title never cut; no
+  #   every grid size it takes: at 1200 px the title one line and its ⓘ,
+  #   the period mark, the widget's switch and ⋯ on the title's line; at
+  #   834 and 393 px (the compact forms) the title never cut; no
   #   headline or row figure cut sideways; no boxed data note in a widget.
+  # - Sprint 32 L2 and L3: at 1200 px no title cut either (each kind's
+  #   title fits its smallest tile), and no tile cuts a row of its body
+  #   or its footer: a fixed tile shows what fits.
   # - The grid one frame of 1 px with a 16 px corner; no widget with a card
   #   border, a corner of its own or a shadow; at 1200 px neighbours 1 px
   #   apart.
@@ -86,7 +88,7 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
     result = run!(base_url, dashboard, "walk")
     assert result["ok"] == true, result["error"] || inspect(result)
 
-    count = length(grid_items())
+    count = length(grid_items()) + 1
     assert result["measured"]["1200"]["widgets"] == count
     assert result["measured"]["393"]["widgets"] == count
   end
@@ -99,7 +101,10 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
   # Acceptance criteria:
   # - At 1200 px a title drawn over several lines: named as wrapping; a
   #   period mark set on a line of its own: the head named as wrapping.
-  # - At 393 px a title cut: named as cut.
+  # - At 393 px a title cut: named as cut; at 1200 px a title too long
+  #   for its tile: named as cut (Sprint 32 L2).
+  # - At 1200 px a list's body cut through a row: the tile named as
+  #   cutting a row (Sprint 32 L3).
   # - A row's figure drawn wider than its box: named as clipped.
   # - A boxed data note in a widget: named as a warning box.
   # - A card border on a widget: named.
@@ -124,6 +129,8 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
     end
 
     assert Enum.any?(wide, &(&1 =~ "not the hairline")), inspect(wide)
+    assert Enum.any?(wide, &(&1 =~ "title is cut")), inspect(wide)
+    assert Enum.any?(wide, &(&1 =~ "tile cuts a row")), inspect(wide)
     assert Enum.any?(wide, &(&1 =~ "handle stands outside its cell")), inspect(wide)
   end
 
@@ -152,12 +159,27 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
     end)
   end
 
+  # And „Tops und Flops“ at L pinned to 1W, as „Rücksetzer“ holds it: the
+  # longest head — a pinned mark that reads another window, and the
+  # switch (Sprint 32 L2).
   defp every_kind! do
-    {layout, _row} =
+    {layout, row} =
       Enum.map_reduce(grid_items(), 1, fn {kind, size}, row ->
         {:ok, {_w, h}} = Widgets.dimensions(size)
         {%{"kind" => kind, "size" => size, "col" => 1, "row" => row}, row + h}
       end)
+
+    layout =
+      layout ++
+        [
+          %{
+            "kind" => "movers",
+            "size" => "L",
+            "col" => 1,
+            "row" => row,
+            "settings" => %{"period" => "1w"}
+          }
+        ]
 
     {:ok, dashboard} =
       Dashboards.create_dashboard(Actor.owner_ui(), %{"name" => "Anatomie", "layout" => layout})

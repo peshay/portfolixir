@@ -88,6 +88,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.Dashboard.Widgets.AllocationDrift, as: AllocationDriftWidget
   alias PortfolixirWeb.Dashboard.Widgets.CrashChart, as: CrashChartWidget
   alias PortfolixirWeb.Dashboard.Widgets.Crashes, as: CrashesWidget
+  alias PortfolixirWeb.Dashboard.Widgets.Cycle, as: CycleWidget
   alias PortfolixirWeb.Dashboard.Widgets.DistanceToHigh, as: DistanceToHighWidget
   alias PortfolixirWeb.Dashboard.Widgets.Line
   alias PortfolixirWeb.Dashboard.Widgets.Performance, as: PerformanceWidget
@@ -172,6 +173,8 @@ defmodule PortfolixirWeb.DashboardLive do
       # cycle view, read synchronously like the calendar — a bound security
       # is rare, and its read is the one the chart and the API answer from.
       |> assign(:cycle_views, SecurityCycles.views())
+      # Sprint 32 L3: the first one's closes for the XL chart.
+      |> then(&assign(&1, :cycle_closes, CycleWidget.closes(&1.assigns.cycle_views)))
       # #984 (pick G1-A): the closed-trades card appears only where a sell
       # is booked — a cheap fact read now, so a ledger without one never
       # paints a placeholder for a card that cannot appear.
@@ -2304,6 +2307,7 @@ defmodule PortfolixirWeb.DashboardLive do
       :has_sells,
       :upcoming_events,
       :cycle_views,
+      :cycle_closes,
       :board,
       :performance,
       :performance_bands,
@@ -2368,7 +2372,7 @@ defmodule PortfolixirWeb.DashboardLive do
       title={Widgets.title("total_value")}
       scope_label={scope_label(@item, @views)}
       full_href={@wealth_href}
-      full_label={if @item.size == "S", do: gettext("In Wealth →"), else: gettext("View in Wealth →")}
+      full_label={gettext("In Wealth →")}
     >
       <:info>
         <%= gettext("TTWROR — time-weighted return for the selected period (not annualized). Deposits and withdrawals are neutralised so only investment performance counts.") %>
@@ -2379,12 +2383,14 @@ defmodule PortfolixirWeb.DashboardLive do
       <:info>
         <%= gettext("Cash quote: deployable cash ÷ (securities value + deployable cash). Reserve and credit-line accounts are excluded.") %>
       </:info>
-      <:shared>
+      <:foot>
         <%!-- UX-DR25 beside the figure (#1081): one status region that exists
              before the read lands (UX-DR17), so the note arriving with the
              card is announced once; empty — and taking no room — when the
              total leaves nothing out (UX-DR2: no all-clear). No whitespace
-             inside it, so `:empty` holds. --%>
+             inside it, so `:empty` holds. Since Sprint 32 L2 (board 07 ①
+             3; ③) it is the footer's first line, the note drawn as a line,
+             never a box above the figure. --%>
         <div id={"dashboard-wealth-card-status" <> @uid} role="status" class="wealth-card-status"><.wealth_card_excluded
             :if={@card && @item.size == "L"}
             uid={@uid}
@@ -2397,7 +2403,7 @@ defmodule PortfolixirWeb.DashboardLive do
             valuation={@card.valuation}
             wealth_href={@wealth_href}
           /></div>
-      </:shared>
+      </:foot>
       <.wealth_value
         :if={@item.size != "M"}
         card={@card}
@@ -2473,13 +2479,18 @@ defmodule PortfolixirWeb.DashboardLive do
       id={"dashboard-data-quality" <> @item.uid}
       item={@item}
       title={Widgets.title("data_quality")}
-      scope_label={@more}
       full_href="/securities?holding=held"
-      full_label={if @item.size == "S", do: gettext("Check →"), else: gettext("To the securities →")}
+      full_label={gettext("Check securities →")}
     >
       <:info>
         <%= gettext("Each set is counted over the held securities, by the rule the list its link opens applies; the catalogue's count follows where it differs. The ledger's checks count bookings.") %>
       </:info>
+      <%!-- Sprint 32 L2 (board 07 ③): at L the findings' severities in
+           words at the head's end, the most severe first — the word the
+           rows' coloured dots stand for (UX-DR7: never colour alone). --%>
+      <:switch :if={@item.size != "S" && Enum.any?(@findings, &(dq_severity_of(&1) != :note))}>
+        <span class="widget-severity" data-role="data-quality-severity"><%= dq_severity_words(@findings) %></span>
+      </:switch>
       <:shared>
         <p :if={is_nil(@data_quality)} class="section-skeleton" aria-busy="true" data-role="data-quality-skeleton"></p>
         <p :if={@data_quality && @findings == []} class="hint" data-role="data-quality-empty">
@@ -2493,6 +2504,9 @@ defmodule PortfolixirWeb.DashboardLive do
               <a href={finding.href} data-role={finding.role}><%= finding.short %></a>
             </li>
           </ul>
+          <%!-- Sprint 32 L2: how many more is the list's last line, not the
+               footer's scope, where the link's name would cut it. --%>
+          <p :if={@more} class="widget-findings__more" data-role="data-quality-more"><%= @more %></p>
         <% else %>
           <.data_quality_line data_quality={@data_quality} uid={@item.uid} />
         <% end %>
@@ -2526,6 +2540,9 @@ defmodule PortfolixirWeb.DashboardLive do
       item={@item}
       title={Widgets.title("due")}
     >
+      <%!-- Sprint 32 L2 (board 07 ② 7; L3): at S the short basis is the
+           footer's scope, so the two dated rows fit the tile. --%>
+      <:scope :if={@item.size == "S"}><span data-role="upcoming-basis-short"><%= gettext("Whole catalogue · next %{days} days", days: upcoming_days()) %></span></:scope>
       <%!-- I1 (#1351, board ux-design-2026-11-01-sprint22/01-i1 ① ②):
            the set and the window stay as the basis line; the rule for a
            range or a month moves into the heading's ⓘ. --%>
@@ -2551,9 +2568,6 @@ defmodule PortfolixirWeb.DashboardLive do
            short basis, the next two dates on a line each (the date, the
            name cut), the rest behind „+n more“, which unfolds in the
            widget: no screen lists the upcoming dates as a page. --%>
-      <p :if={@item.size == "S"} class="widget-due__basis" data-role="upcoming-basis-short">
-        <%= gettext("Whole catalogue · next %{days} days", days: upcoming_days()) %>
-      </p>
       <ul :if={@item.size == "S" && @shown != []} class="widget-due widget-due--next">
         <li :for={row <- @shown}><.due_line row={row} /></li>
       </ul>
@@ -2630,43 +2644,43 @@ defmodule PortfolixirWeb.DashboardLive do
       title={Widgets.title("off_target")}
       scope_label={scope_label(@item, @views)}
       full_href="/portfolio?tab=allocation"
-      full_label={gettext("View in Wealth →")}
+      full_label={gettext("In Wealth →")}
     >
       <:info>
         <%= gettext("Drift is the actual weight minus the target weight of the active plan, per category of the steering tree; a category without a target is not listed.") %>
       </:info>
+      <%!-- Say WHY these items surface (UAT fix round): the threshold rule,
+           derived from the same threshold the filter uses. Since Sprint 32
+           L2 (board 07 ① 2; I1's rule) the rule's sentence stands behind
+           ⓘ; the body keeps the one short line of WHAT the drift is
+           computed against (#673, {components.needs-attention-card}.basis-
+           line): the view, the plan and the tree. --%>
+      <:info>
+        <span class="attention-rule" data-role="attention-explainer"><%= if @report && @report.basis && @report.basis.several_portfolios,
+            do:
+              gettext(
+                "Categories ±%{pp} pp or more off their target weight, at every tree level, in every portfolio.",
+                pp: threshold_pp()
+              ),
+            else:
+              gettext(
+                "Categories ±%{pp} pp or more off their target weight, at every tree level.",
+                pp: threshold_pp()
+              ) %></span>
+      </:info>
       <:shared>
-        <%!-- Say WHY these items surface (UAT fix round): the threshold rule,
-             derived from the same threshold the filter uses — and
-             WHAT they are computed against (#673, {components.needs-
-             attention-card}.basis-line): the view, the plan and the tree.
-             Names come raw from the async read; gettext runs here, at
-             render time, where the user's locale is set. --%>
-        <%!-- At S in the wide form the count's line says the rule, so the
-             explainer keeps its basis and leaves the rule's sentence out of
-             the drawing (Sprint 31 closing act, DS1). --%>
-        <p class="hint" data-role="attention-explainer">
+        <%!-- Names come raw from the async read; gettext runs here, at
+             render time, where the user's locale is set. At S in the wide
+             form the line leads with the threshold the count is over. --%>
+        <p :if={@report && (@report.basis || @report.alerts != [])} class="hint" data-role="attention-basis-line">
           <span
             :if={@item.size == "S" && @report && @report.alerts != []}
             class="attention-beyond"
             data-role="off-target-beyond"
-          ><%= gettext("beyond ±%{pp} pp", pp: threshold_pp()) %> · </span><span
+          ><%= gettext("beyond ±%{pp} pp", pp: threshold_pp()) %><%= if @report.basis, do: " · " %></span><span
             :if={@report && @report.basis}
             data-role="attention-basis"
-          ><%= basis_phrase(
-              @report.basis
-            ) %></span><span class="attention-rule"><%= if @report && @report.basis,
-              do: " · " %><%= if @report && @report.basis && @report.basis.several_portfolios,
-              do:
-                gettext(
-                  "Categories ±%{pp} pp or more off their target weight, at every tree level, in every portfolio.",
-                  pp: threshold_pp()
-                ),
-              else:
-                gettext(
-                  "Categories ±%{pp} pp or more off their target weight, at every tree level.",
-                  pp: threshold_pp()
-                ) %></span>
+          ><%= basis_phrase(@report.basis) %></span>
         </p>
         <%!-- #723: the drift report is a sub-second figure — the block
              skeleton (UX-DR20) carries the wait without the cue, which at
@@ -2687,17 +2701,11 @@ defmodule PortfolixirWeb.DashboardLive do
            the list is the M size's (drawn from M; at S it stays in the
            markup only, out of the drawing, and the footer leads to
            Wealth's allocation). --%>
-      <div
+      <Widget.figure
         :if={@item.size == "S" && @report && @report.alerts != []}
-        class="widget-figure"
-        data-role="off-target-count"
-      >
-        <strong class="widget-figure__value"><%= @report.count %><small class="value-suffix"><%= ngettext(
-              "category",
-              "categories",
-              @report.count
-            ) %></small></strong>
-      </div>
+        size={:s}
+        role="off-target-count"
+      ><%= @report.count %><:unit><%= ngettext("category", "categories", @report.count) %></:unit></Widget.figure>
       <ul
         :if={@report && @report.alerts != []}
         class={["attention-list", @item.size == "S" && "widget-offtarget__list"]}
@@ -2765,38 +2773,7 @@ defmodule PortfolixirWeb.DashboardLive do
 
   defp widget(%{item: %{kind: "bitcoin_cycle"}} = assigns) do
     ~H"""
-    <%!-- S29 H8 (ADR-0060 §11): the card „‹Name›-Zyklus“ per security
-         with the cycle view, each its own read; its compact form is the
-         card's list itself, which is already one event per line. --%>
-    <%!-- Sprint 31 closing act, DS5 (board 02 ⑤): the frame's title is
-         the widget's heading, each security's name a sub-line, and the
-         first one's chart the footer's „Ganze Ansicht →“. --%>
-    <Widget.frame
-      id={"dashboard-cycles" <> @item.uid}
-      item={@item}
-      title={Widgets.title("bitcoin_cycle")}
-      class="widget--single-form"
-      full_href={cycle_href(List.first(@cycle_views))}
-      full_label={gettext("Full view →")}
-    >
-      <:info>
-        <%= gettext(
-          "The range the stored cycles give from the current anchors, with its n and both ends: not a forecast."
-        ) %>
-      </:info>
-      <:shared>
-        <CycleChart.card
-          :for={payload <- @cycle_views}
-          payload={payload}
-          href={cycle_href(payload)}
-          in_widget
-          linked={length(@cycle_views) > 1}
-        />
-        <p :if={@cycle_views == []} class="hint" data-role="cycles-empty">
-          <%= gettext("No security shows the cycle view yet.") %>
-        </p>
-      </:shared>
-    </Widget.frame>
+    <CycleWidget.widget item={@item} views={@cycle_views} closes={@cycle_closes} href={&cycle_href/1} />
     """
   end
 
@@ -2933,23 +2910,26 @@ defmodule PortfolixirWeb.DashboardLive do
   defp wealth_value(assigns) do
     ~H"""
     <%= cond do %>
-      <% @card && @size == "S" -> %>
+      <% @card && @size in ["S", "L"] -> %>
       <%!-- Sprint 31 closing act, DS2 (board 02 ①, as planning board 01 ①
-           draws it): at S the widget draws the figure itself, no card in
-           the card — the total with its currency, then the change over the
-           item's period; the scope is the footer's, and the link's name. --%>
+           draws it): the widget draws the figure itself, no card in the
+           card — the total with its currency, then the change over the
+           item's period; the scope is the footer's, and the link's name.
+           Since Sprint 32 L2 (board 07 ① 4, 5) L too, in the anatomy's
+           form: 28 px at S, the 34 px hero at L. --%>
       <a id={"dashboard-wealth-card" <> @uid} href={@wealth_href} class="widget-total">
         <span class="visually-hidden"><%= @card.name || gettext("Everything") %></span>
-        <strong class="widget-total__figure">
+        <Widget.figure size={if @size == "L", do: :m, else: :s} value_class="widget-total__figure">
           <span
             id={"count-wealth-card" <> @uid}
             class="count-up"
             phx-hook="CountUp"
             data-count-to={Format.amount_attribute(@card.valuation.total_with_cash)}
             data-decimals="2"
-          ><span data-count-digits><%= Format.money(@card.valuation.total_with_cash) %></span></span><small class="value-suffix"><%= @card.valuation.base_currency %></small>
-        </strong>
-        <.period_change :if={@change} change={@change} />
+          ><span data-count-digits><%= Format.money(@card.valuation.total_with_cash) %></span></span>
+          <:unit><span class="value-suffix"><%= @card.valuation.base_currency %></span></:unit>
+          <:sub :if={@change}><.period_change change={@change} /></:sub>
+        </Widget.figure>
       </a>
       <% is_nil(@card) -> %>
       <%!-- Pending with a prior value (UX-DR20, owner pick P2): the last
@@ -3175,45 +3155,36 @@ defmodule PortfolixirWeb.DashboardLive do
   attr(:data_quality, :map, required: true)
   attr(:uid, :string, required: true)
 
-  # Data quality is ONE line (UX-DR2, decided 2026-07-12, adopted
-  # 2026-08-05): drawn only when a count is non-zero, no green all-clear
-  # badge, each count linking to the securities list PRE-FILTERED to the
-  # offending set (#561, unblocked by #651). While the overview computes,
-  # the widget is simply absent — a finding surface makes no claim before a
-  # finding exists. One data-note at the highest severity present
-  # (UX-DR17); the remedy links live inside the note, in its actions, so
-  # the clamp never cuts them (#1351, pick Q1, correction 2). role="status"
-  # sits on the region so the async arrival announces once.
+  # Data quality (UX-DR2, decided 2026-07-12, adopted 2026-08-05): drawn
+  # only when a count is non-zero, no green all-clear badge, each count
+  # linking to the securities list PRE-FILTERED to the offending set (#561,
+  # unblocked by #651). role="status" sits on the region so the async
+  # arrival announces once.
   defp data_quality_line(assigns) do
     ~H"""
+    <%!-- Sprint 32 L2 (board ux-design-2026-11-25-sprint32/07 ① 3; ③):
+         at L the findings are a list, as S draws them, each its own row
+         with its severity dot — the counted sentence, the link to the list
+         it opens; what it does to the total on a muted line under it —
+         instead of one red paragraph of links. --%>
     <div role="status">
-      <AppShell.data_note
-        severity={dq_severity(@data_quality)}
-        id={"dashboard-dq-line" <> @uid}
-        data-role="data-quality-line"
-        clamp
-      >
-        <:actions>
-          <%= for {finding, index} <- Enum.with_index(dq_findings(@data_quality)) do %>
-            <%= if index > 0 do %>
-              <span aria-hidden="true"> · </span>
-            <% end %>
-            <a href={finding.href} data-role={finding.role}><%= finding.text %></a>
-            <%!-- Issue 1417 (board ux-design-2026-11-12-sprint29/04 ② A):
-                 the count is the held securities'; the catalogue's
-                 stands after it in parentheses, as its own link, only
-                 where the two differ. --%>
-            <span :if={finding[:catalog]} class="dq-catalog" data-catalog-of={finding.role}>(<a href={finding.catalog.href}><%= ngettext("%{count} in the catalog", "%{count} in the catalog", finding.catalog.count) %></a>)</span>
-            <%!-- #1121 (board 01 ③, pick N3 A): a finding in the total
-                 says what it does to the total above, after its link and
-                 outside it, so the link still names the list it opens.
-                 The card stays silent (#703's split, D-7). Keyed by
-                 `data-effect-of`, so the line's `data-role`s stay one per
-                 finding. --%>
-            <span :if={finding[:effect]} data-effect-of={finding.role}><%= finding.effect %></span>
-          <% end %>
-        </:actions>
-      </AppShell.data_note>
+      <ul id={"dashboard-dq-line" <> @uid} class="widget-findings widget-findings--full" data-role="data-quality-line">
+        <li
+          :for={finding <- dq_findings(@data_quality)}
+          class={"widget-findings__row widget-findings__item is-" <> Atom.to_string(dq_severity_of(finding))}
+        >
+          <span class="widget-findings__text"><span class="visually-hidden"><%= dq_severity_word(dq_severity_of(finding)) %>: </span><a href={finding.href} data-role={finding.role}><%= finding.text %></a><%!-- Issue 1417 (board ux-design-2026-11-12-sprint29/04 ② A):
+               the count is the held securities'; the catalogue's stands
+               after it in parentheses, as its own link, only where the two
+               differ. --%><span :if={finding[:catalog]} class="dq-catalog" data-catalog-of={finding.role}> (<a href={finding.catalog.href}><%= ngettext("%{count} in the catalog", "%{count} in the catalog", finding.catalog.count) %></a>)</span></span>
+          <%!-- #1121 (board 01 ③, pick N3 A): a finding in the total says
+               what it does to the total above, outside its link, so the
+               link still names the list it opens. Keyed by
+               `data-effect-of`, so the `data-role`s stay one per
+               finding. --%>
+          <span :if={finding[:effect]} class="widget-findings__effect" data-effect-of={finding.role}><%= finding.effect %></span>
+        </li>
+      </ul>
     </div>
     """
   end
@@ -3257,6 +3228,25 @@ defmodule PortfolixirWeb.DashboardLive do
       <:info>
         <%= gettext("p. a. only from 365 days of holding and only where a rate solves the flows") %>
       </:info>
+      <%!-- Sprint 32 L2 (board 07 ① 2; I1's rule): the list's basis
+           behind ⓘ, the list where the widget starts. --%>
+      <:info :if={@ready && @card.trades != []}>
+        <%!-- Counts what the card shows: five at most (closing act γ n3).
+             #1171 (board 01 ⑤): both limits of p. a., the facet's clause
+             word for word (DESIGN.md → The list's basis line). --%>
+        <span data-role="trades-card-basis"><%= ngettext(
+          "The most recently closed · result in %{currency} · FIFO across every depot, whatever the view",
+          "The %{count} most recently closed · result in %{currency} · FIFO across every depot, whatever the view",
+          length(@card.trades),
+          currency: @card.base_currency
+        ) %></span>
+      </:info>
+      <%!-- Sprint 32 L2 (board 07 ① 3; ③): what the list leaves out is
+           the footer's first line, drawn as a line, never a box above the
+           list. --%>
+      <:foot :if={@ready}>
+        <.trades_excluded card={@card} uid={@item.uid} />
+      </:foot>
       <:shared>
         <p
           :if={is_nil(@card)}
@@ -3279,20 +3269,8 @@ defmodule PortfolixirWeb.DashboardLive do
         >
           <%= gettext("Couldn't load the closed trades.") %>
         </AppShell.data_note>
-        <.trades_excluded :if={@ready} card={@card} uid={@item.uid} />
       </:shared>
       <%= if @ready do %>
-      <p :if={@card.trades != []} class="summary-basis" data-role="trades-card-basis">
-        <%!-- Counts what the card shows: five at most (closing act γ n3).
-             #1171 (board 01 ⑤): both limits of p. a., the facet's clause
-             word for word (DESIGN.md → The list's basis line). --%>
-        <%= ngettext(
-          "The most recently closed · result in %{currency} · FIFO across every depot, whatever the view",
-          "The %{count} most recently closed · result in %{currency} · FIFO across every depot, whatever the view",
-          length(@card.trades),
-          currency: @card.base_currency
-        ) %>
-      </p>
       <ul :if={@card.trades != []} class="attention-list">
         <li :for={trade <- @card.trades}>
           <a
@@ -3998,6 +3976,32 @@ defmodule PortfolixirWeb.DashboardLive do
   defp dq_rank(:attention), do: 1
   defp dq_rank(_note), do: 2
 
+  # The findings' severities in words, the most severe first, each with
+  # its count of findings: „3 Probleme · 1 Achtung“ (board 07 ③); a note,
+  # the mildest, is said by its row alone.
+  defp dq_severity_words(findings) do
+    counts = Enum.frequencies_by(findings, &dq_severity_of/1)
+
+    [:problem, :attention]
+    |> Enum.flat_map(fn severity ->
+      case Map.get(counts, severity, 0) do
+        0 -> []
+        n -> [dq_severity_count(severity, n)]
+      end
+    end)
+    |> Enum.join(" · ")
+  end
+
+  defp dq_severity_count(:problem, n),
+    do: pngettext("data quality", "%{count} problem", "%{count} problems", n)
+
+  defp dq_severity_count(:attention, n),
+    do: pngettext("data quality", "%{count} attention", "%{count} attention", n)
+
+  defp dq_severity_word(:problem), do: pgettext("data quality", "Problem")
+  defp dq_severity_word(:attention), do: pgettext("data quality", "Attention")
+  defp dq_severity_word(:note), do: pgettext("data quality", "Note")
+
   defp dq_severity_of(%{finding: :quotes}), do: :attention
   defp dq_severity_of(%{finding: finding}) when finding in [:class, :logo], do: :note
   defp dq_severity_of(_finding), do: :problem
@@ -4172,27 +4176,6 @@ defmodule PortfolixirWeb.DashboardLive do
       effect: gettext("— there the lots are split and the holding is not")
     }
   end
-
-  # Highest severity present (UX-DR17): a bond priced on two scales counts a
-  # hundredfold too high or too low in the total, so it is a problem (#1068,
-  # D-15), and so is a held security whose quotes contradict its own
-  # bookings — two stored facts about one day, one of them wrong, and a
-  # figure in the totals with it (#1101, D-7, pick L2 A); a stale quote
-  # skews valuations, so it is attention-level; a missing class or logo is
-  # a note-level catalog gap.
-  #
-  # A ledger check (Sprint 23 V1, pick Q2 problem) can make a figure wrong:
-  # a cash balance and a cost that read two amounts.
-  defp dq_severity(%{cash_mismatch: n}) when n > 0, do: :problem
-  defp dq_severity(%{rate_only: n}) when n > 0, do: :problem
-  defp dq_severity(%{incomplete_split: n}) when n > 0, do: :problem
-  defp dq_severity(%{two_scales: n}) when n > 0, do: :problem
-  defp dq_severity(%{implausible_quote: n}) when n > 0, do: :problem
-  # #1415: a series stored in another currency is a value in the total that
-  # is wrong, as an implausible one is.
-  defp dq_severity(%{currency_mismatch: n}) when n > 0, do: :problem
-  defp dq_severity(%{without_quote: n}) when n > 0, do: :attention
-  defp dq_severity(_dq), do: :note
 
   # Securities needing attention (#337 data-quality card): no recent quote
   # (none at all, or older than 7 days), no persisted asset class, no logo,

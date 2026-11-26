@@ -283,7 +283,8 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
   # - The basis line reads, word for word, "Die 5 zuletzt abgeschlossenen ·
   #   Ergebnis in EUR · FIFO über alle Depots, unabhängig von der Ansicht".
   # - The heading's ⓘ reads "p. a. erst ab 365 Tagen Haltedauer und nur, wo
-  #   ein Zinssatz die Zahlungen löst" — the facet's clause, word for word;
+  #   ein Zinssatz die Zahlungen löst" — the facet's clause, word for word
+  #   (since Sprint 32 L2 the basis line follows it there);
   #   in English "p. a. only from 365 days of holding and only where a rate
   #   solves the flows".
   test "the card names both limits of p. a., as the facet does", %{conn: conn} do
@@ -298,7 +299,9 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
              "The 5 most recently closed · result in EUR · FIFO across every depot, " <>
                "whatever the view"
 
-    assert text(Floki.find(document(view), tip)) ==
+    # Since Sprint 32 L2 (board 07 ① 2) the basis line stands in the ⓘ
+    # too, after the p. a. clause.
+    assert text(Floki.find(document(view), tip)) =~
              "p. a. only from 365 days of holding and only where a rate solves the flows"
 
     {:ok, de_view, _html} = live(conn, "/?locale=de")
@@ -310,7 +313,7 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
              "Die 5 zuletzt abgeschlossenen · Ergebnis in EUR · FIFO über alle Depots, " <>
                "unabhängig von der Ansicht"
 
-    assert text(Floki.find(document(de_view), tip)) ==
+    assert text(Floki.find(document(de_view), tip)) =~
              "p. a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst"
   end
 end

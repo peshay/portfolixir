@@ -94,16 +94,20 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Snapshots do
           <%= gettext("No snapshot yet.") %>
         </p>
       </:shared>
-      <div :if={@latest} class="widget-figure" data-role="snapshots-figure">
-        <strong class="widget-figure__value num" data-role="snapshots-latest"><%= Format.date(@latest.as_of) %></strong>
-        <small class="widget-figure__sub">
-          <span data-role="snapshots-count"><%= ngettext("the only one", "latest of %{count}", @card.count) %></span>
-          <span :if={@comparison && @comparison.real_ttwror}>
-            · <%= gettext("since then") %>
-            <span class={sign_class(@comparison.real_ttwror)} data-role="snapshots-since"><%= percent(@comparison.real_ttwror) %></span>
-          </span>
-          <span :if={@item.size == "M"} data-role="snapshots-name">· <bdi><%= @latest.name %></bdi></span>
-        </small>
+      <%!-- Sprint 32 L2 (board 07 ① 5): the anatomy's figure, 28 px at
+           S, the 34 px hero at M. --%>
+      <div :if={@latest} class="widget-snapshots" data-role="snapshots-figure">
+        <Widget.figure size={if @item.size == "M", do: :m, else: :s}>
+          <span data-role="snapshots-latest"><%= Format.date(@latest.as_of) %></span>
+          <:sub>
+            <span data-role="snapshots-count"><%= ngettext("the only one", "latest of %{count}", @card.count) %></span>
+            <span :if={@comparison && @comparison.real_ttwror}>
+              · <%= gettext("since then") %>
+              <span class={sign_class(@comparison.real_ttwror)} data-role="snapshots-since"><%= percent(@comparison.real_ttwror) %></span>
+            </span>
+            <span :if={@item.size == "M"} data-role="snapshots-name">· <bdi><%= @latest.name %></bdi></span>
+          </:sub>
+        </Widget.figure>
         <Line.sparkline
           :if={@comparison}
           values={real_chain(@comparison)}

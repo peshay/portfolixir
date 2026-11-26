@@ -55,10 +55,6 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.StoredText
 
-  # The contribution table's bar scale (DESIGN.md → Drift bars): the largest
-  # listed fills 45 % of the track.
-  @bar_reach 45
-
   # The rows a half draws in the wide form (the CSS's `nth-child(n + 5)`).
   @drawn_rows 4
 
@@ -102,10 +98,21 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
       class="movers"
       scope_label={@scope_label}
       full_href={@f && @f.wealth_href}
-      full_label={gettext("View in Wealth →")}
+      full_label={gettext("In Wealth →")}
       full_role="movers-wealth-link"
       data-window={@window}
     >
+      <%!-- Sprint 32 L2 (board ux-design-2026-11-25-sprint32/07 ① 2; I1's
+           rule): the basis line — the view, the window and its dates, the
+           currency — and, where Wealth remembers another view, the
+           sentence naming both stand behind ⓘ; the body holds the
+           rankings. --%>
+      <:info :if={@f && not @f.empty?}>
+        <span data-role="movers-basis"><%= @f.basis %></span>
+      </:info>
+      <:info :if={@f && @f.wealth_view}>
+        <span data-role="movers-wealth-view"><%= @f.wealth_view %></span>
+      </:info>
       <:info>
         <%= gettext(
           "Price return: the last stored close in the period ÷ the close before the period − 1, both in EUR at the stored exchange rate of their day; income and costs do not count."
@@ -149,28 +156,41 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
               <%= gettext("No holdings in this view.") %>
             </p>
           <% true -> %>
-            <p class="summary-basis" data-role="movers-basis"><%= @f.basis %></p>
-            <p :if={@f.wealth_view} class="hint" data-role="movers-wealth-view"><%= @f.wealth_view %></p>
         <% end %>
       </:shared>
       <%!-- Sprint 31 closing act, DS1 (board
            ux-design-2026-11-21-sprint31/02 ②): one ranking at a time, a
            two-way switch the browser holds, as the compact form holds its
            halves; both rankings stay whole in the markup, and the drawing
-           shows four rows a half, the rest behind „In Vermögen →“. --%>
-      <div
-        :if={@f && not @f.empty?}
-        class="movers-switch segmented-control"
-        role="radiogroup"
-        aria-label={gettext("Ranking")}
-        data-role="movers-switch"
-      >
-        <label :for={side <- ~w(return contribution)} class="segmented-control__option">
-          <input type="radio" name={"movers-side" <> @uid} value={side} checked={side == "return"} />
-          <%= side_label(side) %>
-        </label>
-      </div>
-      <div :if={@f && not @f.empty?} class="movers__grid">
+           shows four rows a half, the rest behind „In Vermögen →“. Since
+           Sprint 32 L2 (board 07 ① 9; ③) the switch is the head's, as
+           every widget's own switch is. S draws one list and no switch. --%>
+      <:switch :if={@f && not @f.empty? && @item.size != "S"}>
+        <div
+          class="movers-switch segmented-control"
+          role="radiogroup"
+          aria-label={gettext("Ranking")}
+          data-role="movers-switch"
+        >
+          <label :for={side <- ~w(return contribution)} class="segmented-control__option">
+            <input type="radio" name={"movers-side" <> @uid} value={side} checked={side == "return"} />
+            <%= side_label(side) %>
+          </label>
+        </div>
+      </:switch>
+      <%!-- Sprint 32 L3 (board 07 ① 6; ③ „Tops und Flops S: eine Liste mit
+           Balken, ohne Erklärtext“): at S the two highest and the two
+           lowest price returns, each with its bar. --%>
+      <ul :if={@f && not @f.empty? && @item.size == "S"} class="attention-list movers__short" data-role="movers-return">
+        <li :for={entry <- short_list(@f.price_halves)}>
+          <a href={"/securities/#{entry.security.id}"} class="attention-item movers__row" data-role="movers-row">
+            <.name entry={entry} side={:price} f={@f} />
+            <.figure entry={entry} side={:price} largest={@f.price_largest} privacy_mode={@privacy_mode} />
+            <Widget.bar value={entry.return} largest={@f.price_largest} places={3} class="movers__bar" />
+          </a>
+        </li>
+      </ul>
+      <div :if={@f && not @f.empty? && @item.size != "S"} class="movers__grid">
         <div class="movers__col" data-role="movers-return">
           <h3><%= pgettext("movers", "Price return") %></h3>
           <.half
@@ -271,6 +291,11 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
     """
   end
 
+  # The S list (Sprint 32 L3): the two highest and the two lowest price
+  # returns, as the ranking orders them.
+  defp short_list(halves),
+    do: Enum.take(half_rows(halves, :highest), 2) ++ Enum.take(half_rows(halves, :lowest), 2)
+
   defp half_rows(halves, half) do
     case List.keyfind(halves, half, 0) do
       {^half, rows} -> rows
@@ -294,7 +319,7 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
         <li :for={entry <- @rows}>
           <a
             href={"/securities/#{entry.security.id}"}
-            class="attention-item"
+            class="attention-item movers__row"
             data-role="movers-row"
           >
             <.name entry={entry} side={@side} f={@f} />
@@ -303,6 +328,16 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
               side={@side}
               largest={@f.largest}
               privacy_mode={@privacy_mode}
+            />
+            <%!-- Sprint 32 L2 (board 07 ① 10; the owner on 2026-11-25:
+                 „das war hilfreich“): the bar under every row, in both
+                 rankings and both halves, scaled to the largest figure of
+                 its ranking listed. --%>
+            <Widget.bar
+              value={if @side == :price, do: entry.return, else: entry.contribution}
+              largest={if @side == :price, do: @f.price_largest, else: @f.largest}
+              places={if @side == :price, do: 3, else: 2}
+              class="movers__bar"
             />
           </a>
         </li>
@@ -371,14 +406,6 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
         class={money_sign_class(@entry.contribution)}
         data-role="movers-figure"
       ><%= Format.signed_decimal(@entry.contribution, 2) %><%= unless @privacy_mode, do: " EUR" %></span>
-      <span class="drift-bar" aria-hidden="true">
-        <span
-          :if={Format.displayed_sign(@entry.contribution, 2) != :zero}
-          class={["drift-bar__fill", bar_side(@entry.contribution)]}
-          style={"width: #{bar_width(@entry.contribution, @largest)}%"}
-        >
-        </span>
-      </span>
     </span>
     """
   end
@@ -408,6 +435,8 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
       price_count: price_count(price.unanswered),
       contribution_counts: contribution_counts(contribution.unanswered, result.window),
       largest: listed |> Enum.map(&Decimal.abs(&1.contribution)) |> max_decimal(),
+      price_largest:
+        (price.highest ++ price.lowest) |> Enum.map(&Decimal.abs(&1.return)) |> max_decimal(),
       wealth_href: wealth_href,
       wealth_view: wealth_view(wealth_href, active_view, result.view_id, view_name)
     }
@@ -640,18 +669,5 @@ defmodule PortfolixirWeb.Dashboard.MoversCard do
       :negative -> "is-negative"
       _zero -> nil
     end
-  end
-
-  defp bar_side(value) do
-    if Format.displayed_sign(value, 2) == :negative, do: "is-under", else: "is-over"
-  end
-
-  defp bar_width(value, largest) do
-    value
-    |> Decimal.abs()
-    |> Decimal.div(largest)
-    |> Decimal.mult(@bar_reach)
-    |> Decimal.round(1)
-    |> Decimal.to_string(:normal)
   end
 end

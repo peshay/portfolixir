@@ -2554,21 +2554,24 @@ Zeile statt als Kasten und eine Fußzeile aus einer Zeile.
   Zeitraums und seinem Ergebnis (Endwert weniger Anfangswert und
   Nettozuflüsse von außen, die Zahlen der Performance-Lesung selbst)
   nebeneinander; in L die Summe, ihre Veränderung und den Verlauf des
-  Werts im Zeitraum. **Datenqualität** in S zeigt jeden Befund als eine
-  kurze gezählte Zeile („1 Kurs älter als 7 Tage“) mit „Prüfen →“; in L
-  die ganzen Sätze.
+  Werts im Zeitraum; was die Summe auslässt, steht in jeder Größe als eine
+  Zeile im Fuß des Widgets. **Datenqualität** in S zeigt jeden Befund als
+  eine kurze gezählte Zeile („1 Kurs älter als 7 Tage“); in L ist jeder
+  Befund eine Zeile mit seinem ganzen Satz und darunter, was er an der
+  Summe ändert; „Wertpapiere prüfen →“ in beiden Größen.
 - **Die vier Widgets aus den Abschnitten von Vermögen.**
   **Wertentwicklung** zeigt in S die TTWROR des Zeitraums und eine Linie
   seines Tageswerts, in L die Wertlinie mit ihrem niedrigsten und höchsten
   Wert und ihren Daten, in XL (so in der Vorlage) das gestapelte Chart von
   Vermögen nach Kategorien; „Ganze Ansicht →“ öffnet das Chart in Vermögen
   im selben Zeitraum. **Allokation und Drift** zeigt jede Kategorie der
-  obersten Ebene des Steuerungsbaums und Cash mit Ist- und Sollgewicht und
-  Drift, und darunter, für die Kategorien jenseits von ±5 pp, den Betrag,
-  der jede Lücke schlösse, „Rechnerisch zum Soll (nur Anzeige, kein
-  Auftrag)“: die Drift in Geld mit umgekehrtem Vorzeichen (ADR-0023), nie
-  ein Auftrag; „Ziele bearbeiten →“ öffnet den Allokations-Tab in
-  Vermögen. **Snapshots** zeigt das Datum des letzten Snapshots, wie viele
+  obersten Ebene des Steuerungsbaums und Cash mit Ist- und Sollgewicht,
+  Drift mit Balken und, für die Kategorien jenseits von ±5 pp, in der
+  Spalte „≈ zum Soll“ den Betrag, der jede Lücke schlösse (tiefere Ebenen
+  in der Zeile unter der Tabelle, „nur Anzeige, kein Auftrag“): die Drift
+  in Geld mit umgekehrtem Vorzeichen (ADR-0023), nie ein Auftrag; der
+  Plan, gegen den sie misst, steht im Fuß; „Ziele bearbeiten →“ öffnet
+  den Allokations-Tab in Vermögen. **Snapshots** zeigt das Datum des letzten Snapshots, wie viele
   es gibt und die echte TTWROR seit diesem Datum, mit ihrer Tageslinie;
   „Vergleichen →“ öffnet seinen Vergleich. **Crashes im Vergleich** zeigt
   die Crash-Fenster, das neueste zuerst (acht, in L, seiner einen Größe), jedes mit
@@ -2752,12 +2755,16 @@ nichts wird mit einer Null gerankt, die es nicht hat. Eine Position, die an
 manchen Tagen des Fensters keinen Preis hatte, zählt an diesen Tagen null,
 wie in Vermögen, und bleibt gerankt, mit der Marke „3 Tage mit 0 bewertet“ —
 ein Gewinn aus solchen Tagen kann unter **Höchste** stehen, markiert.
-Eine Basiszeile nennt Ansicht, Fenster und Daten, die Methode steht hinter
-dem ⓘ. Jeder Name öffnet sein Wertpapier; **In Vermögen ansehen →** öffnet
+Das ⓘ nennt Ansicht, Fenster und Daten und die Methode. Der Schalter
+**Kursrendite · Beitrag** steht im Kopf des Widgets, und jede Zeile beider
+Ranglisten trägt einen Balken, um null zentriert, so skaliert, dass die
+größte gelistete Zahl 45 % füllt; in S zeigt das Widget die zwei höchsten
+und die zwei niedrigsten Kursrenditen mit ihren Balken. Jeder Name öffnet
+sein Wertpapier; **In Vermögen →** öffnet
 Vermögen mit dem Fenster des Beitrags als benutzerdefiniertem Zeitraum
 (`/portfolio?from=…&to=…`), in der Ansicht, die Vermögen zuletzt zeigte:
 der Link ändert sie nicht. Ist diese Ansicht nicht die der Karte, nennt ein
-Satz unter der Basiszeile beide („Vermögen ist gerade auf die Ansicht „…“
+Satz im ⓘ beide („Vermögen ist gerade auf die Ansicht „…“
 eingegrenzt; diese Karte zeigt „Alles“.“), wie der Hinweis unter der
 Vermögenskarte. In der kompakten Form zeigt ein Schalter **Höchste** oder
 **Niedrigste**, die Kursrenditen über den Beiträgen. Im Privatsphäre-Modus ist jeder Beitrag verborgen,

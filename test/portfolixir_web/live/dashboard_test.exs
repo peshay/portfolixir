@@ -462,10 +462,13 @@ defmodule PortfolixirWeb.DashboardTest do
 
     # The note is a data-note with a severity word (UX-DR17/UX-DR7): a stale
     # quote is an attention-level finding.
+    # Sprint 32 L2: a row a finding, its severity a word in the head.
+    assert has_element?(view, "#dashboard-data-quality .widget-findings__row.is-attention")
+
     assert has_element?(
              view,
-             "#dashboard-data-quality .data-note--attention .data-note__word",
-             "Attention"
+             "#dashboard-data-quality [data-role='data-quality-severity']",
+             "attention"
            )
   end
 
@@ -689,8 +692,13 @@ defmodule PortfolixirWeb.DashboardTest do
              "2 gehaltene Anleihen auf zwei Skalen bepreist"
            )
 
-    assert has_element?(view, "#dashboard-data-quality .data-note--problem .data-note__word")
-    refute has_element?(view, "#dashboard-data-quality .data-note--attention")
+    # Sprint 32 L2: the finding's own row at problem severity, the word
+    # leading the head's severities.
+    assert has_element?(view, "#dashboard-data-quality .widget-findings__row.is-problem")
+
+    assert view
+           |> element("#dashboard-data-quality [data-role='data-quality-severity']")
+           |> render() =~ ~r/>\s*1 Problem/
 
     {:ok, list, _html} = live(conn, "/securities?dq=two_scales")
     assert has_element?(list, "#filter-chips .chip", "Auf zwei Skalen bepreist")
@@ -764,8 +772,13 @@ defmodule PortfolixirWeb.DashboardTest do
            )
 
     assert has_element?(view, ~s(#dashboard-dq-line a[data-role="dq-quotes"]))
-    assert has_element?(view, "#dashboard-data-quality .data-note--problem", "Problem")
-    refute has_element?(view, "#dashboard-data-quality .data-note--attention")
+    # Sprint 32 L2: the bond's row at problem severity, the problem leading
+    # the head's severities, before the stale quote's attention.
+    assert has_element?(view, "#dashboard-data-quality .widget-findings__row.is-problem")
+
+    assert view
+           |> element("#dashboard-data-quality [data-role='data-quality-severity']")
+           |> render() =~ ~r/>\s*1 problem · 1 attention/
 
     {:ok, list, _html} = live(conn, "/securities?dq=two_scales")
     assert has_element?(list, "#filter-chips .chip", "Priced on two scales")

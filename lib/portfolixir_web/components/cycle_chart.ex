@@ -1864,7 +1864,9 @@ defmodule PortfolixirWeb.Components.CycleChart do
           <% end %>
         </div>
       </dl>
-      <p class="hint cycle-card__basis">
+      <%!-- Inside the widget the frame's ⓘ says it (Sprint 32 L2; board
+           ux-design-2026-11-25-sprint32/07 ① 2). --%>
+      <p :if={not @in_widget} class="hint cycle-card__basis">
         <%= gettext(
           "The range the stored cycles give from the current anchors, with its n and both ends: not a forecast."
         ) %>

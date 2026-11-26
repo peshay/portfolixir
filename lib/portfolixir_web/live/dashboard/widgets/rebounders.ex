@@ -160,7 +160,9 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Rebounders do
       <:info>
         <%= gettext("“several” marks a name that stands in more than one list, by its name only: nothing is added up or ranked across the crashes. Survivorship: a security that failed and was removed is in no list, so the lists read better than the market did.") %>
       </:info>
-      <:controls>
+      <%!-- Sprint 32 L2 (board ux-design-2026-11-25-sprint32/07 ① 9): the
+           widget's own switch stands in its head. --%>
+      <:switch>
         <div class="segmented-control widget-switch" role="group" aria-label={gettext("Securities")} data-role="rebounders-universe">
           <button
             :for={universe <- ~w(held catalogue)}
@@ -172,7 +174,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Rebounders do
             data-universe={universe}
           ><%= universe_label(universe) %></button>
         </div>
-      </:controls>
+      </:switch>
       <:shared>
         <p :if={is_nil(@card)} class="section-skeleton" aria-busy="true" data-role="rebounders-skeleton"></p>
         <p :if={@card == :error} class="hint" data-role="rebounders-failed">
@@ -196,6 +198,9 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Rebounders do
               <bdi class="widget-rebounders__name"><%= entry.name %></bdi>
               <span :if={MapSet.member?(@repeated, entry.name)} class="widget-rebounders__repeated" data-role="rebounder-repeated"><%= gettext("several") %></span>
               <span class={["num", sign_class(entry.return)]} data-role="rebounder-return"><%= percent(entry.return) %></span>
+              <%!-- Sprint 32 L2 (board 07 ② 4): a list of one kind of
+                   figure carries the bar, scaled to its list's largest. --%>
+              <Widget.bar value={entry.return} largest={largest(list.entries)} places={3} class="widget-rebounders__bar" />
             </li>
           </ol>
           <p :if={list.entries == []} class="hint"><%= gettext("No security answered.") %></p>
@@ -215,6 +220,15 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Rebounders do
       </:compact>
     </Widget.frame>
     """
+  end
+
+  defp largest(entries) do
+    entries
+    |> Enum.flat_map(fn
+      %{return: %Decimal{} = value} -> [Decimal.abs(value)]
+      _none -> []
+    end)
+    |> Enum.max(Decimal, fn -> Decimal.new(0) end)
   end
 
   defp universe_label("held"), do: pgettext("crash universe", "In depot")

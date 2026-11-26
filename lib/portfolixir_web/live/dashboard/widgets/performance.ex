@@ -131,7 +131,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Performance do
     <Widget.frame
       id={"dashboard-performance" <> @uid}
       item={@item}
-      title={if @item.size == "XL", do: gettext("Performance by category"), else: Widgets.title("performance")}
+      title={title(@item.size)}
       scope_label={@scope_label}
       full_href={wealth_href(@period, @item.size)}
       full_label={gettext("Full view →")}
@@ -165,7 +165,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Performance do
         <.one_day :if={one_day?(@bands)} />
         <.stack :if={not one_day?(@bands)} bands={@bands} uid={@uid} />
       <% else %>
-        <.headline :if={@result} result={@result} label={@label} end_value={@item.size == "L"} />
+        <.headline :if={@result} result={@result} label={@label} end_value={@item.size == "L"} size={if @item.size == "L", do: :m, else: :s} />
         <Line.sparkline
           :if={@result && @item.size == "S"}
           values={Enum.map(@result.series, & &1.value)}
@@ -190,22 +190,32 @@ defmodule PortfolixirWeb.Dashboard.Widgets.Performance do
     """
   end
 
+  # The title by family: XL names its breakdown; S names the one figure it
+  # draws, so the title stays whole on an S tile's head (Sprint 32 L2,
+  # board 07 ② 1).
+  defp title("XL"), do: gettext("Performance by category")
+  defp title("S"), do: pgettext("widget kind at S", "Return")
+  defp title(_size), do: Widgets.title("performance")
+
   attr(:result, :map, required: true)
   attr(:label, :string, required: true)
   attr(:end_value, :boolean, default: false)
+  attr(:size, :atom, default: :s)
 
+  # The headline in the anatomy's form (Sprint 32 L2; board 07 ① 5): 28 px
+  # at S, the 34 px hero at L.
   defp headline(assigns) do
     ~H"""
-    <div class="widget-figure" data-role="performance-figure">
-      <strong class={["widget-figure__value num", sign_class(@result.ttwror)]} data-role="performance-ttwror"><%= percent(@result.ttwror) %></strong>
-      <small class="widget-figure__sub">
+    <Widget.figure size={@size} role="performance-figure">
+      <span class={sign_class(@result.ttwror)} data-role="performance-ttwror"><%= percent(@result.ttwror) %></span>
+      <:sub>
         <%= gettext("TTWROR · %{period}", period: @label) %>
         <span :if={@end_value} data-role="performance-end-value">
           · <%= gettext("value on %{date}", date: Format.date(@result.end_date)) %>
           <span class="num"><%= Format.money(@result.end_value) %></span> <%= @result.base_currency %>
         </span>
-      </small>
-    </div>
+      </:sub>
+    </Widget.figure>
     """
   end
 
