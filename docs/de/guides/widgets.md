@@ -723,7 +723,9 @@ Die Kennzahlen von Vermögen, wie der Owner sie gewählt hat (Board 06,
 Variante A): der Gesamtwert inkl. Cash mit seiner Aufteilung in
 Wertpapiere und Cash, Ergebnis, TTWROR und IZF des Zeitraums in einer
 Zeile und darunter die Wertbrücke Anfang + Nettoflüsse + Ergebnis = heute
-mit dem Multiplikator. Die Brücke zeigt die Zahlen der Wertentwicklung
+mit dem Multiplikator (bei einem abgelaufenen Zeitraum endet die Brücke an
+dessen letztem Tag, „am <Datum>“, und wird nicht mit dem heutigen
+Gesamtwert verglichen). Die Brücke zeigt die Zahlen der Wertentwicklung
 selbst auf den Cent; wo die gerundeten Cents nicht aufgehen, steht die
 Differenz daneben, nie in eine Zahl verschoben. **S** zeichnet den
 Gesamtwert und seine Aufteilung, **M** den Gesamtwert und die drei
@@ -858,8 +860,10 @@ Dashboard. Nur **Zeile**.
 Jedes Verrechnungskonto der Ansicht mit seinem Saldo in seiner eigenen
 Währung; eine Reserve oder ein Kreditrahmen gedämpft, außerhalb der
 Cashquote. Salden setzen bleibt bei Konten & Depots, verlinkt. **S**
-(Überschrift „Cash“) zeichnet das verfügbare Cash und wie viele Konten es
-summiert, **Zeile** die Tabelle.
+(Überschrift „Cash“) zeichnet das Cash der Bewertung, jedes bewertete
+Konto samt Reserven und Kreditrahmen (die Cashquote zählt nur den
+verfügbaren Teil), und wie viele bewertete Konten es summiert; **Zeile**
+die Tabelle.
 
 **Quelle:**
 
