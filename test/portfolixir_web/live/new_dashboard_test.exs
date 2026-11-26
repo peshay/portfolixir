@@ -310,4 +310,51 @@ defmodule PortfolixirWeb.NewDashboardTest do
     assert {created.view_id, created.template_key} == {krypto.id, "krypto_lover"}
     assert_redirect(view, "/dashboards/#{created.id}")
   end
+
+  # User story (the S32 closing act; board 03 ②, where „Krypto Lover“'s
+  # dialog shows „Krypto ▾“):
+  # As the operator who keeps a view named „Krypto“,
+  # I want „Krypto Lover“'s dialog to offer it already chosen,
+  # so that the theme reads my crypto without a second click.
+  #
+  # Acceptance criteria:
+  # - With views „Aktien“ and „krypto“ stored, „Krypto Lover“'s dialog
+  #   preselects „krypto“, on a German page and on an English one: the
+  #   first view whose name is the template's suggested scope in any
+  #   language the release speaks („Krypto“, „Crypto“), any case.
+  # - Without such a view it preselects „Keine“, as before.
+  # - „Rücksetzer“ suggests no scope and asks for none.
+  test "„Krypto Lover“ preselects the view named like its suggested scope", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/dashboards/new?locale=de")
+    view |> element("[data-template='krypto_lover']") |> render_click()
+
+    assert has_element?(
+             view,
+             "#new-dashboard-form select[name='dashboard[view_id]'] option[value=''][selected]"
+           )
+
+    {:ok, _stocks} =
+      Portfolixir.Buckets.create_view(Actor.owner_ui(), %{name: "Aktien", include_all: true})
+
+    {:ok, krypto} =
+      Portfolixir.Buckets.create_view(Actor.owner_ui(), %{name: "krypto", include_all: true})
+
+    for locale <- ~w(de en) do
+      {:ok, view, _html} = live(conn, "/dashboards/new?locale=#{locale}")
+      view |> element("[data-template='krypto_lover']") |> render_click()
+
+      assert has_element?(
+               view,
+               "#new-dashboard-form select[name='dashboard[view_id]'] option[value='#{krypto.id}'][selected]"
+             ),
+             locale
+
+      refute has_element?(
+               view,
+               "#new-dashboard-form select[name='dashboard[view_id]'] option[value=''][selected]"
+             )
+    end
+
+    assert Templates.suggested_scope("pullbacks") == nil
+  end
 end

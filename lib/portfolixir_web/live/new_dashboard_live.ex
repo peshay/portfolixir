@@ -15,7 +15,9 @@ defmodule PortfolixirWeb.NewDashboardLive do
   never one a dashboard already holds („… (2)“,
   `Portfolixir.Dashboards.suggested_name/1`), and, for a template that asks
   for one, the scope — the dashboard's own view, or none to follow the
-  bar's (`view_id`, the amendment's point 4). **„Anlegen“** stores it under
+  bar's (`view_id`, the amendment's point 4), preselected where a view is
+  named as the template suggests (`Templates.suggested_scope/1`: „Krypto“
+  for „Krypto Lover“, board 03 ②; the S32 closing act). **„Anlegen“** stores it under
   the UI's actor as one journaled create (`Dashboards.create_dashboard/2`,
   `Dashboards.copy_template/3`) and opens it: „Leer beginnen“ in the edit
   mode with the catalogue open (Sprint 31 closing act), a copy as it
@@ -100,11 +102,32 @@ defmodule PortfolixirWeb.NewDashboardLive do
     assign(socket,
       picked: picked,
       name: if(title == "", do: "", else: Dashboards.suggested_name(title)),
-      view_id: nil,
+      view_id: preselected(picked, socket.assigns.views),
       name_error: nil,
       refused: nil
     )
   end
+
+  # The view the dialog preselects for a template that asks for a scope
+  # (board 03 ②, „Krypto ▾“; the S32 closing act): the first view whose
+  # name is the template's suggested scope, in the page's language or its
+  # English source, any case; else none, so the dashboard follows the
+  # bar's view.
+  defp preselected(%{asks_scope: true, key: key}, views) do
+    case Templates.suggested_scope(key) do
+      nil ->
+        nil
+
+      names ->
+        wanted = Enum.map(names, &String.downcase/1)
+
+        Enum.find_value(views, fn view ->
+          if String.downcase(String.trim(view.name)) in wanted, do: view.id
+        end)
+    end
+  end
+
+  defp preselected(_picked, _views), do: nil
 
   # The scope a template that asks for one takes: a view the page lists,
   # else none (the dashboard follows the bar's).
