@@ -2563,6 +2563,14 @@ Zeile statt als Kasten und eine Fußzeile aus einer Zeile.
   **Anlageklassen-Obergrenzen** mit den Korrelationen. Eine Schwelle oder
   ein Band ist Rechnung der Linse, nie ein Rat. Das Start-Dashboard
   **Risiko** hält die sechs, in der Reihenfolge des Tabs.
+- **Das Start-Dashboard „Bestände“** (Sprint 32 W1) ist der Tab
+  Bestände von Vermögen als Dashboard: seine sechs Abschnitte als Widgets
+  der Größe „Zeile“, in der Reihenfolge des Tabs — Kennzahlen,
+  Datenhinweise, Performance, Beitrag je Position, Positionen,
+  Verrechnungskonten. Es wird einmal gespeichert, beim ersten Start des
+  Releases, neben „Überblick“ (auch auf einer Instanz, die schon
+  Dashboards hat), und gehört danach dir; gelöscht, wird es nicht wieder
+  gespeichert.
 - **Die Abschnitte des Vermögens-Tabs Bestände als Widgets** (Sprint 32
   W1): Jedes zeichnet seinen Abschnitt mit dem Code, mit dem Vermögen ihn
   zeichnet, aus derselben Abfrage, in der Größe „Zeile“ (volle Breite, so

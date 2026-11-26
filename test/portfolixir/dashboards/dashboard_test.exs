@@ -157,6 +157,7 @@ defmodule Portfolixir.Dashboards.DashboardTest do
 
     assert [
              %{key: "overview"},
+             %{key: "holdings"},
              %{key: "allocation_targets"},
              %{key: "snapshots"},
              %{key: "risk"},

@@ -18577,7 +18577,7 @@ msgctxt "widget kind"
 msgid "Total value"
 msgstr "Gesamtwert"
 
-#: lib/portfolixir/dashboards/templates.ex:239
+#: lib/portfolixir/dashboards/templates.ex:268
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "Overview"
@@ -19886,7 +19886,7 @@ msgstr "Die Ansicht gilt für alle Widgets dieses Dashboards, die eine nehmen; e
 msgid "Themes"
 msgstr "Themen"
 
-#: lib/portfolixir/dashboards/templates.ex:258
+#: lib/portfolixir/dashboards/templates.ex:290
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "as today's start page"
@@ -20052,25 +20052,25 @@ msgctxt "widget kind"
 msgid "Rebounders after crashes"
 msgstr "Erholer nach Crashes"
 
-#: lib/portfolixir/dashboards/templates.ex:240
+#: lib/portfolixir/dashboards/templates.ex:269
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "Crypto Lover"
 msgstr "Krypto Lover"
 
-#: lib/portfolixir/dashboards/templates.ex:241
+#: lib/portfolixir/dashboards/templates.ex:270
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "Pullbacks"
 msgstr "Rücksetzer"
 
-#: lib/portfolixir/dashboards/templates.ex:261
+#: lib/portfolixir/dashboards/templates.ex:296
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "cycle, halving, a crypto view"
 msgstr "Zyklus, Halving, Krypto-Ansicht"
 
-#: lib/portfolixir/dashboards/templates.ex:264
+#: lib/portfolixir/dashboards/templates.ex:299
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "the falls compared, short tops and flops, rebounders"
@@ -20101,7 +20101,7 @@ msgstr "%{decline} vom Hoch am %{date} · läuft"
 msgid "%{window} · since %{date}"
 msgstr "%{window} · seit %{date}"
 
-#: lib/portfolixir/dashboards/templates.ex:295
+#: lib/portfolixir/dashboards/templates.ex:330
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template scope"
 msgid "Crypto"
@@ -20184,15 +20184,15 @@ msgstr "Die Allokation des ersten Portfolios im gewählten Baum, GET /api/v1/por
 msgid "The total incl. cash and the cash quote of the view valuation, GET /api/v1/valuation; the TTWROR of the performance read over the widget's period, GET /api/v1/performance; both in the first portfolio's base currency."
 msgstr "Gesamt inkl. Cash und Cashquote aus der Bewertung der Ansicht, GET /api/v1/valuation; die TTWROR aus der Wertentwicklung über den Zeitraum des Widgets, GET /api/v1/performance; beides in der Basiswährung des ersten Portfolios."
 
-#: lib/portfolixir/dashboards/templates.ex:243
+#: lib/portfolixir/dashboards/templates.ex:275
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "Allocation & targets"
 msgstr "Allokation & Ziele"
 
-#: lib/portfolixir/dashboards/templates.ex:268
-#: lib/portfolixir/dashboards/templates.ex:273
-#: lib/portfolixir/dashboards/templates.ex:278
+#: lib/portfolixir/dashboards/templates.ex:303
+#: lib/portfolixir/dashboards/templates.ex:308
+#: lib/portfolixir/dashboards/templates.ex:313
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "as Wealth's tab today"
@@ -20214,7 +20214,7 @@ msgstr "Neuer Snapshot →"
 msgid "The snapshots of GET /api/v1/snapshots, newest as-of date first: each one's name, scope and as-of date. A name picks the snapshot this dashboard compares; a snapshot is made and deleted on the Snapshots page."
 msgstr "Die Snapshots aus GET /api/v1/snapshots, das neueste Stichtagsdatum zuerst: je Name, Umfang und Stichtag. Ein Name wählt den Snapshot, den dieses Dashboard vergleicht; angelegt und gelöscht wird ein Snapshot auf der Seite Snapshots."
 
-#: lib/portfolixir/dashboards/templates.ex:246
+#: lib/portfolixir/dashboards/templates.ex:278
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "Snapshots"
@@ -20257,7 +20257,7 @@ msgstr "Allgemeine Schwellen, keine eigenen Regeln: die mitgelieferten Linien de
 msgid "The Herfindahl index of the single names' weights on the steerable basis, from 0 to 10,000, with the lens's bands."
 msgstr "Der Herfindahl-Index der Gewichte der Einzelwerte auf der steuerbaren Basis, von 0 bis 10.000, mit den Bändern der Linse."
 
-#: lib/portfolixir/dashboards/templates.ex:249
+#: lib/portfolixir/dashboards/templates.ex:281
 #, elixir-autogen, elixir-format
 msgctxt "dashboard template"
 msgid "Risk"
@@ -20458,3 +20458,15 @@ msgstr "Kennzahlen"
 #, elixir-autogen, elixir-format
 msgid "The view's daily walk over the widget's period, as Wealth's chart reads it: GET /api/v1/performance, at a level GET /api/v1/performance/bands, the benchmarks GET /api/v1/performance/benchmark (bought once, from the period's start)."
 msgstr "Die tägliche Bewertung der Ansicht über den Zeitraum des Widgets, wie das Chart von Vermögen sie liest: GET /api/v1/performance, auf einer Ebene GET /api/v1/performance/bands, die Benchmarks GET /api/v1/performance/benchmark (einmal gekauft, ab dem Beginn des Zeitraums)."
+
+#: lib/portfolixir/dashboards/templates.ex:272
+#, elixir-autogen, elixir-format
+msgctxt "dashboard template"
+msgid "Holdings"
+msgstr "Bestände"
+
+#: lib/portfolixir/dashboards/templates.ex:292
+#, elixir-autogen, elixir-format
+msgctxt "dashboard template"
+msgid "as Wealth › Holdings"
+msgstr "wie Vermögen › Bestände"

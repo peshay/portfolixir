@@ -45,6 +45,32 @@ defmodule Portfolixir.Dashboards.Templates do
     ]
   }
 
+  # --- S32 W1 begin ---
+  # „Bestände“ (I57; board ux-design-2026-11-25-sprint32/02 ①; Sprint 32
+  # W1): Wealth's tab „Bestände“ as a starter, its sections as section
+  # widgets in the tab's order, each a „Zeile“, one under the other.
+  @holdings %{
+    key: "holdings",
+    title: "Holdings",
+    starter: true,
+    asks_scope: false,
+    layout: [
+      %{
+        "kind" => "wealth_key_figures",
+        "size" => "row",
+        "col" => 1,
+        "row" => 1,
+        "settings" => %{}
+      },
+      %{"kind" => "data_notes", "size" => "row", "col" => 1, "row" => 2, "settings" => %{}},
+      %{"kind" => "performance", "size" => "row", "col" => 1, "row" => 3, "settings" => %{}},
+      %{"kind" => "contribution", "size" => "row", "col" => 1, "row" => 4, "settings" => %{}},
+      %{"kind" => "positions", "size" => "row", "col" => 1, "row" => 5, "settings" => %{}},
+      %{"kind" => "cash_accounts", "size" => "row", "col" => 1, "row" => 6, "settings" => %{}}
+    ]
+  }
+  # --- S32 W1 end ---
+
   # --- S32 W2 begin ---
   # „Allokation & Ziele“ (I57; board 02 ②; Sprint 32 W2): Wealth's tab as
   # a starter, its two sections as section widgets in the size „Zeile“, in
@@ -173,6 +199,9 @@ defmodule Portfolixir.Dashboards.Templates do
 
   @templates [
     @overview,
+    # --- S32 W1 begin ---
+    @holdings,
+    # --- S32 W1 end ---
     # --- S32 W2 begin ---
     @allocation_targets,
     # --- S32 W2 end ---
@@ -239,6 +268,9 @@ defmodule Portfolixir.Dashboards.Templates do
   def title("overview"), do: pgettext("dashboard template", "Overview")
   def title("krypto_lover"), do: pgettext("dashboard template", "Crypto Lover")
   def title("pullbacks"), do: pgettext("dashboard template", "Pullbacks")
+  # --- S32 W1 begin ---
+  def title("holdings"), do: pgettext("dashboard template", "Holdings")
+  # --- S32 W1 end ---
   # --- S32 W2 begin ---
   def title("allocation_targets"), do: pgettext("dashboard template", "Allocation & targets")
   # --- S32 W2 end ---
@@ -256,6 +288,9 @@ defmodule Portfolixir.Dashboards.Templates do
   """
   @spec subtitle(term()) :: String.t() | nil
   def subtitle("overview"), do: pgettext("dashboard template", "as today's start page")
+  # --- S32 W1 begin ---
+  def subtitle("holdings"), do: pgettext("dashboard template", "as Wealth › Holdings")
+  # --- S32 W1 end ---
 
   def subtitle("krypto_lover"),
     do: pgettext("dashboard template", "cycle, halving, a crypto view")

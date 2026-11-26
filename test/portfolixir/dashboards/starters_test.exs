@@ -28,9 +28,9 @@ defmodule Portfolixir.Dashboards.StartersTest do
   alias Portfolixir.Journal
 
   # The starters of this release, in the menu's order: „Überblick“ and,
-  # since Sprint 32 W2 to W4, „Allokation & Ziele“, „Snapshots“ and
-  # „Risiko“.
-  @starters ~w(overview allocation_targets snapshots risk)
+  # since Sprint 32 W2 to W4, „Bestände“, „Allokation & Ziele“,
+  # „Snapshots“ and „Risiko“.
+  @starters ~w(overview holdings allocation_targets snapshots risk)
 
   defp seeds, do: Seed |> Repo.all() |> Enum.map(& &1.template_key) |> Enum.sort()
 
