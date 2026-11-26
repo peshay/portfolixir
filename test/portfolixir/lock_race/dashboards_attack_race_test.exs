@@ -109,7 +109,10 @@ defmodule Portfolixir.LockRace.DashboardsAttackRaceTest do
             fn ->
               Dashboards.replace_dashboard(Actor.api_token_rw("writer #{n}"), dashboard.id, %{
                 "name" => "Raced",
-                "layout" => [due(rem(round + n, 4) * 3 + 1), %{due(1) | "row" => 1 + n}],
+                # The second item starts below the first one's two rows (an
+                # S is 3 × 2 since Sprint 32 E4), so every writer's layout
+                # is valid and a refusal can only be the stale one.
+                "layout" => [due(rem(round + n, 4) * 3 + 1), %{due(1) | "row" => 2 + n}],
                 "lock_version" => round
               })
             end
