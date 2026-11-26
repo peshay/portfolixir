@@ -44,9 +44,13 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   **Embedded in a dashboard** (`embedded: true`; Sprint 32 W4, the widget
   „Crashes“ `crash_section`, `PortfolixirWeb.Dashboard.Widgets.CrashWindows`):
   the same section without its heading (the widget's frame carries the
-  title and this ⓘ, `info_lines/0`), its ids under the component's id, the
-  choice of window, list and universe kept in the component instead of the
-  address, and the writes left to the Risk tab (ADR-0022's amendment of
+  title and this ⓘ, `info_lines/0`) and without the tab's
+  `section.workspace-section` around it (the S32 closing act: its padding,
+  fill and hairline stood inside the widget's surface), its ids under the
+  component's id, the choice of window kept in the component instead of
+  the address, the list and the universe the frame's head's switch,
+  which the dashboard keeps and hands in as `choice`, and the writes left
+  to the Risk tab (ADR-0022's amendment of
   2026-11-21, point 3): the windows' disclosure with its forms is not
   drawn, the benchmark's choice and „Fenster anlegen“ are links to the tab,
   and a write pushed by hand changes nothing.
@@ -104,6 +108,14 @@ defmodule PortfolixirWeb.Risk.CrashSection do
         if embedded and Map.has_key?(socket.assigns, :params),
           do: socket,
           else: assign(socket, :params, assigns.params)
+      end)
+      # The S32 closing act: embedded, the list and the universe are the
+      # frame's head's, handed in by the dashboard; the window stays the
+      # component's own.
+      |> then(fn socket ->
+        if embedded,
+          do: update(socket, :params, &Map.merge(&1, Map.get(assigns, :choice, %{}))),
+          else: socket
       end)
 
     # --- S32 W4 end ---
@@ -230,10 +242,6 @@ defmodule PortfolixirWeb.Risk.CrashSection do
   def handle_event("crash_window", %{"crash" => key}, %{assigns: %{embedded: true}} = socket)
       when is_binary(key),
       do: {:noreply, pick(socket, %{"crash" => key})}
-
-  def handle_event("crash_pick", %{"key" => key, "choice" => choice}, socket)
-      when key in ["crash_list", "crash_universe"] and is_binary(choice),
-      do: {:noreply, pick(socket, %{key => choice})}
 
   # --- S32 W4 end ---
 
@@ -466,8 +474,10 @@ defmodule PortfolixirWeb.Risk.CrashSection do
       )
 
     ~H"""
+    <%!-- The S32 closing act: embedded, the section's inner part alone on
+         the widget's surface; the tab keeps its section. --%>
     <section
-      class="workspace-section crash-section"
+      class={["crash-section", if(@embedded, do: "crash-section--embedded", else: "workspace-section")]}
       id={dom(assigns, "risk-crashes")}
       aria-labelledby={if not @embedded, do: "risk-crashes-title"}
     >
@@ -584,14 +594,18 @@ defmodule PortfolixirWeb.Risk.CrashSection do
         "The crash benchmark is no longer available: the rule detects no windows, manual ones still apply."
       )
 
-  defp lists,
+  @doc "The lists the section answers, with their names: Verlierer, Gewinner, Erholer."
+  @spec lists() :: [{String.t(), String.t()}]
+  def lists,
     do: [
       {"losers", pgettext("crash list", "Losers")},
       {"winners", pgettext("crash list", "Winners")},
       {"rebounders", pgettext("crash list", "Rebounders")}
     ]
 
-  defp universes,
+  @doc "The universes the section reads, with their names: Im Depot, Ganzer Katalog."
+  @spec universes() :: [{String.t(), String.t()}]
+  def universes,
     do: [
       {"depot", pgettext("crash universe", "In depot")},
       {"catalogue", pgettext("crash universe", "Whole catalogue")}
@@ -623,26 +637,13 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           </option>
         </select>
       </:group>
-      <:group label={pgettext("crash", "List")} label_id={@prefix <> "crash-list-label"}>
+      <%!-- The S32 closing act: embedded, the list and the universe stand
+           in the widget's head (`PortfolixirWeb.Dashboard.Widgets.CrashWindows`),
+           the window's select alone here. --%>
+      <:group :if={not @embedded} label={pgettext("crash", "List")} label_id={@prefix <> "crash-list-label"}>
         <div class="segmented-control" data-role="crash-list" role="group" aria-labelledby={@prefix <> "crash-list-label"}>
-          <%!-- Sprint 32 W4: embedded, a button the component answers. --%>
-          <button
-            :for={{list, label} <- lists()}
-            :if={@embedded}
-            type="button"
-            class={["segmented-control__option", @list == list && "is-active"]}
-            data-list={list}
-            aria-pressed={to_string(@list == list)}
-            phx-click="crash_pick"
-            phx-value-key="crash_list"
-            phx-value-choice={list}
-            phx-target={@myself}
-          >
-            <%= label %>
-          </button>
           <.link
             :for={{list, label} <- lists()}
-            :if={not @embedded}
             patch={@paths.lists[list]}
             class={["segmented-control__option", @list == list && "is-active"]}
             data-list={list}
@@ -652,32 +653,21 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           </.link>
         </div>
       </:group>
-      <:group :if={not @catalogue_only} label={gettext("Securities")} label_id={@prefix <> "crash-universe-label"}>
+      <:group
+        :if={not @catalogue_only and not @embedded}
+        label={gettext("Securities")}
+        label_id={@prefix <> "crash-universe-label"}
+      >
         <div class="segmented-control" data-role="crash-universe" role="group" aria-labelledby={@prefix <> "crash-universe-label"}>
-          <%= for {universe, label} <- universes() do %>
-            <button
-              :if={@embedded}
-              type="button"
-              class={["segmented-control__option", @universe == universe && "is-active"]}
-              data-universe={universe}
-              aria-pressed={to_string(@universe == universe)}
-              phx-click="crash_pick"
-              phx-value-key="crash_universe"
-              phx-value-choice={universe}
-              phx-target={@myself}
-            >
-              <%= label %>
-            </button>
-            <.link
-              :if={not @embedded}
-              patch={@paths.universes[universe]}
-              class={["segmented-control__option", @universe == universe && "is-active"]}
-              data-universe={universe}
-              aria-current={if @universe == universe, do: "true"}
-            >
-              <%= label %>
-            </.link>
-          <% end %>
+          <.link
+            :for={{universe, label} <- universes()}
+            patch={@paths.universes[universe]}
+            class={["segmented-control__option", @universe == universe && "is-active"]}
+            data-universe={universe}
+            aria-current={if @universe == universe, do: "true"}
+          >
+            <%= label %>
+          </.link>
         </div>
       </:group>
     </ControlBar.bar>

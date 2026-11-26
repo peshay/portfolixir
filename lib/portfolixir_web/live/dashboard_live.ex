@@ -864,6 +864,9 @@ defmodule PortfolixirWeb.DashboardLive do
         risk_lenses: %{},
         own_rules: %{},
         risk_portfolio: :unread,
+        # The S32 closing act: each „Crashes“ widget's list and universe,
+        # by its frame's id, for the page's life (its head's switch).
+        crash_sections: %{},
         # --- S32 W4 end ---
         # --- S32 W1 begin ---
         sections: %{},
@@ -1659,6 +1662,30 @@ defmodule PortfolixirWeb.DashboardLive do
   def handle_event("crash_universe", %{"universe" => universe}, socket) do
     socket = assign(socket, :crash_universe, CrashesWidget.universe(universe))
     {:noreply, start_widget_reads(socket)}
+  end
+
+  # The S32 closing act (PR 2's design critic): „Liste“ and „Wertpapiere“
+  # of a „Crashes“ widget stand in its frame's head, which the page draws,
+  # so the page keeps the choice per widget and hands it to the embedded
+  # section; nothing is stored and the address does not change. A choice
+  # the section does not know is dropped.
+  def handle_event(
+        "crash_section_pick",
+        %{"widget" => id, "key" => key, "choice" => choice},
+        socket
+      )
+      when is_binary(id) and is_binary(choice) do
+    socket =
+      if CrashWindowsWidget.choice?(key, choice),
+        do:
+          update(
+            socket,
+            :crash_sections,
+            &Map.update(&1, id, %{key => choice}, fn picked -> Map.put(picked, key, choice) end)
+          ),
+        else: socket
+
+    {:noreply, socket}
   end
 
   # --- S31 D6 begin ---
@@ -2799,6 +2826,7 @@ defmodule PortfolixirWeb.DashboardLive do
       :risk_lenses,
       :own_rules,
       :risk_portfolio,
+      :crash_sections,
       # --- S32 W4 end ---
       # Sprint 32 W1.
       :sections,
@@ -3459,7 +3487,12 @@ defmodule PortfolixirWeb.DashboardLive do
       )
 
     ~H"""
-    <CrashWindowsWidget.widget item={@item} portfolio={@portfolio} scope_label={scope_label(@item, @views)} />
+    <CrashWindowsWidget.widget
+      item={@item}
+      portfolio={@portfolio}
+      scope_label={scope_label(@item, @views)}
+      choice={Map.get(@crash_sections, CrashWindowsWidget.dom_id(@item), %{})}
+    />
     """
   end
 

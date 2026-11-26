@@ -165,13 +165,19 @@ defmodule PortfolixirWeb.Dashboard.Widgets.OwnRules do
 
   attr(:findings, :map, required: true)
 
+  attr(:lead, :boolean,
+    default: true,
+    doc:
+      "the leading „·“ that follows the title on the tab's head; a widget, whose title stands in its frame's head, draws the line without it"
+  )
+
   @doc "The findings counted: breached, undetermined, met."
   def summary(assigns) do
     ~H"""
     <span class="section-head__meta" data-role="policy-rules-summary">
-      · <%= ngettext("%{count} breached", "%{count} breached", @findings.summary.breached) %>
+      <%= if @lead do %>· <% end %><span data-role="policy-rules-counts"><%= ngettext("%{count} breached", "%{count} breached", @findings.summary.breached) %>
       · <%= ngettext("%{count} undetermined", "%{count} undetermined", @findings.summary.undetermined) %>
-      · <%= ngettext("%{count} met", "%{count} met", @findings.summary.ok) %>
+      · <%= ngettext("%{count} met", "%{count} met", @findings.summary.ok) %></span>
     </span>
     """
   end
@@ -343,7 +349,9 @@ defmodule PortfolixirWeb.Dashboard.Widgets.OwnRules do
           <%= gettext("No portfolio yet — risk is measured over holdings, and there are none.") %>
         </p>
         <%= if match?(%{state: :ok}, @card) do %>
-          <p class="widget-own-rules__summary"><.summary findings={@card.findings} /></p>
+          <%!-- The S32 closing act: the title stands in the frame's head, so
+               the line starts with its first count, not with „·“. --%>
+          <p class="widget-own-rules__summary"><.summary findings={@card.findings} lead={false} /></p>
           <.body
             prefix={@id <> "-"}
             findings={@card.findings}
