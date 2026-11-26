@@ -93,6 +93,20 @@
   --sidebar-width: 220px;
   --sidebar-rail: 72px;
   --topbar-height: 52px;
+  /* The dashboard as one surface (Sprint 32 L1; D-14, the owner's pick D
+     „Eine Fläche“; board ux-design-2026-11-25-sprint32/10): one frame
+     with a 16 px corner, its widgets on 1 px hairlines in the border
+     colour instead of gaps, no card border, no shadow, 16 × 18 px inside
+     each widget. */
+  --surface-radius: 16px;
+  --surface-hairline: 1px;
+  --widget-pad-y: 16px;
+  --widget-pad-x: 18px;
+  /* The anatomy's three headline figure sizes (board 07 ②, 2): S, the
+     hero of M and up, a secondary figure. */
+  --widget-figure-s: 28px;
+  --widget-figure-m: 34px;
+  --widget-figure-secondary: 24px;
 }
 
 /* The app's own Inter (Sprint 30 F1, issue 1221; plan D-4, board
@@ -7210,8 +7224,8 @@ thead .col-subject {
    ux-design-2026-10-02/04-tables-conformance ⑤a): outside the scoped rules
    below, nineteen basis lines rendered as body text. It sets only margin,
    size and colour, and precedes every scoped rule, so the later
-   single-class rules with their own margin or layout (`.kpi-strip__basis`,
-   `.tree-basis`) keep winning by source order. */
+   single-class rules with their own margin or layout (`.tree-basis`) keep
+   winning by source order. */
 .summary-basis {
   margin: 0;
   font-size: 12px;
@@ -10274,77 +10288,6 @@ a.sidebar-version__text:hover {
   text-decoration: underline;
 }
 
-/* ===== Overview KPI strip (issue 798, UX-DR2 as amended 2026-09-14) ===== */
-/* Four fixed cells of the stat anatomy with a sub-line each, in one framed
-   row; two by two under 680 px. Each cell is a link to the surface that
-   owns its figure, the basis line under the strip names the view, the
-   period and the currency. */
-.kpi-strip__cells {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-bg-elevated) 94%, transparent);
-  box-shadow: var(--shadow-panel);
-}
-
-.kpi-strip__cell {
-  display: grid;
-  align-content: start;
-  gap: 4px;
-  min-width: 0;
-  min-height: 84px;
-  padding: 14px 16px;
-  border-left: 1px solid var(--color-border);
-  color: inherit;
-  text-decoration: none;
-}
-
-.kpi-strip__cell:first-child {
-  border-left: 0;
-}
-
-.kpi-strip__cell:hover {
-  background: var(--color-hover);
-}
-
-.kpi-strip__cell:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: -2px;
-}
-
-.kpi-strip__label {
-  color: var(--color-text-muted);
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.kpi-strip__cell strong {
-  color: var(--color-text);
-  font-size: 20px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-  line-height: 1.1;
-  white-space: nowrap;
-}
-
-.kpi-strip__cell strong.is-positive {
-  color: var(--color-positive);
-}
-
-.kpi-strip__cell strong.is-negative {
-  color: var(--color-danger);
-}
-
-.kpi-strip__cell strong.kpi-strip__na {
-  color: var(--color-text-muted);
-  font-weight: 500;
-}
-
 /* Issue 1066, pick J8 = A (board 08): the split preview's "after" cells under a
    conflicting ratio — the not-computable dash in this same muted voice. */
 #split-wizard-preview td.split-na {
@@ -10355,60 +10298,13 @@ a.sidebar-version__text:hover {
    slot): the quiet muted dash, never at value weight, so "cannot be computed"
    is told apart from "still computing" at a glance. The selectors carry the
    element because `.stat strong` and `.kpi-summary strong` would otherwise
-   win on specificity — the same shape `.kpi-strip__na` above uses. */
+   win on specificity. */
 .stat strong.stat-empty,
 .kpi-summary strong.stat-empty {
   color: var(--color-text-muted);
   font-size: 16px;
   font-weight: 500;
   line-height: 1;
-}
-
-.kpi-strip__sub {
-  color: var(--color-text-muted);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* The stale sub-line says its scope since issue 1081 ("25 veraltet im
-   Katalog", pick J1.2 A), so at 390 px it wraps inside its cell: the glyph
-   stays on the first line instead of floating between the two (board 01,
-   rule ②). */
-.kpi-strip__sub--attention {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 4px;
-  color: var(--color-warning);
-  font-weight: 600;
-}
-
-.kpi-strip__sub--attention svg {
-  flex: none;
-  margin-top: 2px;
-}
-
-.kpi-strip__basis {
-  margin: 0;
-}
-
-/* Two by two under 680 px, not 560 (issue 1114, Sprint 21 pick N2 A): the
-   widest value, a date, needs 680 px for four columns to hold it inside the
-   content box with a wide fallback font (DejaVu Sans measured clear from
-   665 px), since the app named Inter but shipped no font file (it ships
-   one since Sprint 30 F1; a file that fails to load still draws the
-   fallback). */
-@media (max-width: 680px) {
-  .kpi-strip__cells {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .kpi-strip__cell:nth-child(3) {
-    border-left: 0;
-  }
-
-  .kpi-strip__cell:nth-child(n + 3) {
-    border-top: 1px solid var(--color-border);
-  }
 }
 
 /* The decorative drift bar in an off-target row (issue 798): a track with
@@ -14529,12 +14425,12 @@ dialog.merge-dialog {
   }
 }
 
-/* Six chips at the bar's floor: below 380 px of the card (a phone, its
-   labels above) the window's control takes the card's width, each chip
-   sharing it with a narrower inset, as „Nach dem Verkauf“'s comparison
-   does under 560 px; at its 9 px inset the German row reached 2 px, the
-   English one in DejaVu Sans 6.5 px past a 320 px screen (the control bar
-   walk). */
+/* The card's two-way switches at their floor (the window's six chips
+   left the card for the dashboard's period, Sprint 31 D5): below 380 px of
+   the card (a phone, its labels above) „Kursrendite · Beitrag“ and
+   „Höchste · Niedrigste“ take the card's width, each option sharing it
+   with a narrower inset, as „Nach dem Verkauf“'s comparison does under
+   560 px. */
 @container movers (max-width: 380px) {
   .movers .segmented-control {
     display: flex;
@@ -14779,24 +14675,43 @@ dialog.merge-dialog {
   padding: var(--space-4) clamp(16px, 2.4vw, 28px) var(--space-6);
 }
 
+/* One surface (Sprint 32 L1; D-14; board ux-design-2026-11-25-sprint32/10
+   D), in every class: the grid is the one frame, its corner the
+   surface's, its background the widgets'; the widgets stand a hairline
+   apart, each drawing the hairline round itself (a spread of 1 px in the
+   border colour), so two neighbours share one line and a cell no widget
+   holds stays the surface. The frame clips the square corners of the
+   widgets in its own; while a disclosure is open (⋯, ⓘ, „+n weitere“)
+   or in the edit mode, where a step's note stands under its widget, it
+   lets them out. */
 .dashboard-grid {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--surface-hairline);
+  overflow: hidden;
+  border: var(--surface-hairline) solid var(--color-border);
+  border-radius: var(--surface-radius);
+  background: var(--color-bg-elevated);
+}
+
+.dashboard-grid:has(details[open]),
+.dashboard-grid[data-editing="true"] {
+  overflow: visible;
 }
 
 /* A flex column (Sprint 31 closing act, DS1; board 02 ①): the parts one
    under the other, the footer's auto margin setting it at the frame's
-   foot when the row is taller than the widget. */
+   foot when the row is taller than the widget. No card of its own (L1):
+   no border, no corner, no shadow, the surface's background. */
 .dashboard-widget {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   min-width: 0;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-elevated);
-  box-shadow: var(--shadow-sm);
+  padding: var(--widget-pad-y) var(--widget-pad-x);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: 0 0 0 var(--surface-hairline) var(--color-border);
   break-inside: avoid;
 }
 
@@ -14804,18 +14719,113 @@ dialog.merge-dialog {
   min-width: 0;
 }
 
+/* The head (Sprint 32 L1; board 07 ②, 1): the title with its ⓘ and the
+   period mark, the widget's switch, ⋯. In the compact forms (the compact
+   and medium classes, phone type with 44 px targets) the title is never
+   cut: where the line does not hold it beside the ⓘ, the mark and ⋯, they
+   follow under it, and the switch takes the line under the head, as board
+   07's phone draws it. In the wide grid the head is one line (below). */
 .dashboard-widget > .widget__head {
-  flex-wrap: nowrap;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
   margin-bottom: 0;
 }
 
 .dashboard-widget > .widget__head h2 {
+  min-width: 0;
   margin: 0;
   font-size: 17px;
   font-weight: var(--text-h3-weight);
   line-height: 1.2;
+  overflow-wrap: break-word;
 }
 
+.dashboard-widget > .widget__head > .section-title {
+  display: flex;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.dashboard-widget > .widget__head > .section-title > * {
+  flex: none;
+}
+
+.dashboard-widget > .widget__head > .section-title > h2 {
+  flex: 0 1 auto;
+}
+
+.widget__switch {
+  order: 2;
+  flex: 1 0 100%;
+  min-width: 0;
+}
+
+.dashboard-widget > .widget__head > .widget__menu {
+  order: 1;
+}
+
+/* An S in the compact class is half a phone's width: the title takes the
+   head's first line whole, the ⓘ, the mark and ⋯ the line under it. */
+@media (width < 600px) {
+  .dashboard-grid > .widget--s > .widget__head > .section-title {
+    display: contents;
+  }
+
+  .dashboard-grid > .widget--s > .widget__head h2 {
+    flex: 1 0 100%;
+  }
+
+  .dashboard-grid > .widget--s > .widget__head > .widget__menu {
+    margin-left: auto;
+  }
+}
+
+/* The wide grid: the head on one line, as board 07 ② draws it. The title
+   gives way first, cut with an ellipsis (its tooltip holds it whole, and
+   so does the board's head); the ⓘ, the mark, the switch and ⋯ keep their
+   width. */
+@media (width >= 1000px) {
+  .dashboard-widget > .widget__head {
+    flex-wrap: nowrap;
+    column-gap: var(--space-1);
+  }
+
+  .dashboard-widget > .widget__head > .section-title {
+    flex-wrap: nowrap;
+  }
+
+  .dashboard-widget > .widget__head h2 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .widget__switch {
+    order: 0;
+    flex: none;
+  }
+
+  .dashboard-widget > .widget__head > .widget__menu {
+    order: 0;
+    margin-right: -3px;
+  }
+
+  /* ⋯ as small as a fine pointer needs, in the head's corner, so an S
+     tile's title keeps its room (Sprint 31 UAT, finding 9). */
+  .dashboard-widget > .widget__head > .widget__menu > summary {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* The footer on one line (Sprint 32 L1; board 07 ②, 7): the scope at the
+   left, cut with an ellipsis where it must; one link at the right, whole;
+   a warning line (②, 6) on its own line above them. */
 .widget__foot {
   display: flex;
   flex-wrap: wrap;
@@ -14827,6 +14837,35 @@ dialog.merge-dialog {
   border-top: 1px solid var(--color-border);
   color: var(--color-text-muted);
   font-size: 13px;
+}
+
+.widget__foot > span {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.widget__foot > span:empty {
+  display: none;
+}
+
+.widget__foot > a {
+  flex: 0 1 auto;
+}
+
+/* In the wide grid the link stays whole on the footer's line; half a
+   phone's width may wrap it. */
+@media (width >= 1000px) {
+  .widget__foot > a {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
+.widget__foot > .widget-warning {
+  flex: 1 0 100%;
 }
 
 .widget__foot a {
@@ -14857,11 +14896,17 @@ dialog.merge-dialog {
   font-size: 16px;
 }
 
+/* The list row of the anatomy (Sprint 32 L1; board 07 ②, 3 and 4): the
+   name at the left on one line, cut with an ellipsis (its tooltip holds
+   it whole); the figure at the right, never cut or broken; a muted second
+   line under each; the bar under the whole row where the list's figures
+   are of one kind. */
 .widget-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  column-gap: var(--space-3);
+  row-gap: var(--space-1);
   min-height: 44px;
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--color-border);
@@ -14875,14 +14920,25 @@ dialog.merge-dialog {
   border-bottom: 0;
 }
 
-a.widget-row:hover .widget-row__name {
+a.widget-row:hover .widget-row__label {
   text-decoration: underline;
 }
 
 .widget-row__name {
   display: grid;
   min-width: 0;
+}
+
+.widget-row__label {
+  min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.widget-row__label.is-one-line {
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .widget-row__figure {
@@ -14893,6 +14949,90 @@ a.widget-row:hover .widget-row__name {
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
+}
+
+.widget-row__bar {
+  grid-column: 1 / -1;
+}
+
+/* The bar under comparable figures (L1; board 07 ②, 4): the contribution
+   table's track, centre 0, a plus to the right in the gain colour, a
+   minus to the left in the loss colour, the largest listed at 45 %. Kept
+   in the compact forms, where `.drift-bar` gives way under 560 px. */
+.widget-bar {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-bg-muted);
+}
+
+.widget-bar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--color-border);
+}
+
+.widget-bar__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+}
+
+.widget-bar__fill.is-over {
+  left: 50%;
+  background: var(--color-positive);
+}
+
+.widget-bar__fill.is-under {
+  right: 50%;
+  background: var(--color-danger);
+}
+
+/* The warning line (L1; board 07 ②, 6): one line, the glyph and the
+   words in the warning colour, the link after them; never a box. */
+.widget-warning {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  min-width: 0;
+  margin: 0;
+  color: var(--color-warning);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.widget-warning__glyph {
+  flex: none;
+}
+
+.widget-warning__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.widget-warning > a {
+  flex: none;
+}
+
+/* A data note inside a widget is drawn as a line, not as a box (L1;
+   board 07 ②, 6, finding 3): its glyph, its severity word and its colour
+   stay, its frame and fill go. The kinds move theirs into the footer's
+   warning line (L2). */
+.dashboard-widget .data-note {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
 }
 
 .widget-row__sub {
@@ -15082,11 +15222,11 @@ a.widget-row:hover .widget-row__name {
   .dashboard-grid {
     display: block;
     columns: 2;
-    column-gap: var(--space-3);
+    column-gap: var(--surface-hairline);
   }
 
   .dashboard-grid > .dashboard-widget {
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--surface-hairline);
   }
 
   /* „Zeile“ (Sprint 32 S2): across both columns, the widgets after it
@@ -15116,7 +15256,7 @@ a.widget-row:hover .widget-row__name {
   /* Half the width: a row's name and figure stand one under the other,
      so a figure is never cut (Sprint 32 E4). */
   .dashboard-grid > .widget--s .widget-row {
-    flex-wrap: wrap;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .dashboard-grid > .widget--s .widget-row__figure {
@@ -15284,23 +15424,6 @@ a.widget-row:hover .widget-row__name {
     color: var(--color-text-muted);
     font-size: 15px;
     font-weight: 600;
-  }
-
-  /* „Gesamtwert“ at S: the strip's four figures one under the other. */
-  .widget--s .kpi-strip__cells {
-    grid-template-columns: minmax(0, 1fr);
-    box-shadow: none;
-  }
-
-  .widget--s .kpi-strip__cell {
-    min-height: 0;
-    padding: var(--space-2) var(--space-3);
-    border-top: 1px solid var(--color-border);
-    border-left: 0;
-  }
-
-  .widget--s .kpi-strip__cell:first-child {
-    border-top: 0;
   }
 
   /* An S widget is three columns wide: a list row's figure goes under its
@@ -15640,21 +15763,14 @@ a.widget-row:hover .widget-row__name {
   }
 }
 
-/* The widget's period tag, quiet beside the ⋯ (board 05 A): „folgt · 3M“
-   outlined, „📌 eigener: Max“ in the accent so a pinned figure is never
-   read as the top bar's, „ohne Zeitraum“ dashed. The title's block wraps,
-   so in a narrow widget the tag goes under the title, never past the
-   frame. */
-.dashboard-widget > .widget__head > .section-title {
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  row-gap: 2px;
-}
-
+/* The widget's period mark on the head's line (board 05 A; Sprint 32 L1,
+   board 07 ②, 1): „1J“ outlined, „📌 Max“ in the accent so a pinned
+   figure is never read as the top bar's. The words „folgt ·“ and
+   „eigener:“ are a screen reader's and the tooltip's; a kind without a
+   period draws no mark. */
 .widget__period {
   flex: none;
-  margin-left: auto;
-  padding: 1px var(--space-2);
+  padding: 0 6px;
   border: 1px solid var(--color-border);
   border-radius: 999px;
   color: var(--color-text-muted);
@@ -15671,50 +15787,13 @@ a.widget-row:hover .widget-row__name {
   font-weight: 700;
 }
 
-.widget__period--none {
-  border-style: dashed;
-  border-color: var(--color-border-strong);
-}
 
-/* The wide form's head (Sprint 31 closing act, DS3; board
-   ux-design-2026-11-21-sprint31/02 ①): the title at 15 px with its ⓘ on
-   its line, the period tag under them at the left. The compact form keeps
-   its type and its tag at the title's end. */
+/* The wide form's head (Sprint 31 closing act, DS3): the title at 15 px.
+   Since Sprint 32 L1 (board ux-design-2026-11-25-sprint32/07 ②, 1) the
+   period mark stands on the title's line, not under it. */
 @media (width >= 1000px) {
-  .dashboard-widget > .widget__head {
-    gap: var(--space-2);
-  }
-
   .dashboard-widget > .widget__head h2 {
     font-size: 15px;
-  }
-
-  /* The title is never narrower than its longest word: a grid column of
-     `minmax(0, max-content)` let it shrink under its ⓘ, cutting
-     „Gesamtwert“ and „Datenqualität“ (Sprint 31 UAT, finding 9; board 02
-     ⑩). A flex line instead: the ⓘ follows the title, onto the next line
-     where both do not fit; an empty line break puts the tag under them. */
-  .dashboard-widget > .widget__head > .section-title {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: start;
-    align-items: center;
-    column-gap: var(--space-1);
-  }
-
-  .dashboard-widget > .widget__head > .section-title > h2 {
-    min-width: min-content;
-  }
-
-  .dashboard-widget > .widget__head > .section-title:has(> .widget__period)::after {
-    order: 1;
-    flex-basis: 100%;
-    content: "";
-  }
-
-  .dashboard-widget > .widget__head > .section-title > .widget__period {
-    order: 2;
-    margin-left: 0;
   }
 }
 
@@ -15937,14 +16016,18 @@ a.widget-row:hover .widget-row__name {
   gap: var(--space-2);
 }
 
+/* The edit mode's dashed outline inside the cell (Sprint 32 L1; D-14):
+   on the one surface it stands within the hairlines, never over a
+   neighbour. */
 .dashboard-widget.is-editing {
   position: relative;
   outline: 1.5px dashed var(--color-accent);
-  outline-offset: -1px;
+  outline-offset: -3px;
 }
 
 .dashboard-widget.is-dragging {
   z-index: 30;
+  background: var(--color-bg-elevated);
   box-shadow: var(--shadow-panel);
   opacity: 0.9;
 }
@@ -16067,8 +16150,9 @@ a.widget-row:hover .widget-row__name {
 
 /* The edit controls lie over the tile, never in its flow (board 01 ③;
    the S32 closing act; EXPERIENCE.md's edit mode: "the widgets keep their
-   content"): the handle on the tile's top edge, half in the grid's gap; ×
-   where the ⋯ stood, the head keeping that room; the size switch at the
+   content"): the handle at the tile's top inside its cell, above the
+   title (Sprint 32 L1: on the one surface there is no gap to stand in);
+   × where the ⋯ stood, the head keeping that room; the size switch at the
    foot's right end, the footer keeping room for it by the count of sizes
    the frame names (`--edit-sizes`). A tile of fixed height lost its
    figure to a handle row and a switch row, and an S tile's switch hung
@@ -16086,15 +16170,17 @@ a.widget-row:hover .widget-row__name {
 
   .dashboard-widget.is-editing .widget__handle {
     position: absolute;
-    top: -12px;
+    top: 0;
     left: 50%;
+    height: var(--widget-pad-y);
+    min-height: var(--widget-pad-y);
     transform: translateX(-50%);
   }
 
   .dashboard-widget.is-editing .widget__remove {
     position: absolute;
-    top: var(--space-3);
-    right: var(--space-4);
+    top: var(--widget-pad-y);
+    right: var(--widget-pad-x);
   }
 
   /* The head keeps the ⋯'s room and height, so the title stands where
@@ -16132,9 +16218,27 @@ a.widget-row:hover .widget-row__name {
   }
 }
 
+/* In the wide grid × takes ⋯'s place at ⋯'s size (Sprint 32 L1: 24 px,
+   in the head's corner), so the head keeps the title's room as it is out
+   of the edit mode. */
+@media (width >= 1000px) and (pointer: fine) {
+  .dashboard-widget.is-editing .widget__remove {
+    right: calc(var(--widget-pad-x) - 3px);
+    width: 24px;
+    height: 24px;
+    min-height: 24px;
+  }
+
+  .dashboard-widget.is-editing > .widget__head {
+    min-height: 24px;
+    padding-right: 25px;
+  }
+}
+
 @media (width >= 600px) and (pointer: coarse) {
   .dashboard-widget.is-editing .widget__handle {
-    top: -22px;
+    height: 24px;
+    min-height: 24px;
   }
 
   .dashboard-widget.is-editing > .widget__head {
@@ -16517,8 +16621,7 @@ a.widget-row:hover .widget-row__name {
       color-mix(in oklab, var(--color-accent) 10%, transparent) 1px,
       transparent 1px
     );
-    background-size: calc((100% + var(--space-3)) / 12) 100%;
-    border-radius: var(--radius-md);
+    background-size: calc((100% + var(--surface-hairline)) / 12) 100%;
   }
 }
 /* --- S31 D6 end --- */
@@ -16554,6 +16657,60 @@ a.widget-row:hover .widget-row__name {
 
 .widget__compact .widget-figure__sub {
   font-size: 15px;
+}
+
+/* The anatomy's headline figure (Sprint 32 L1; board
+   ux-design-2026-11-25-sprint32/07 ②, 2; `Widget.figure/1`), the form
+   above made one: a small label over the figure, the figure 28 px at S,
+   34 px as the hero of M and up, 24 px secondary, a short muted line
+   under it; colour only for a plus or a minus (`.is-positive`,
+   `.is-negative`). One line, never cut: the figure keeps its width and the
+   tile shows less. The compact forms keep phone type (§6: figures 22 to
+   30 px). The kinds still on the form above take a size here as they
+   move onto the component (L2). */
+.widget-figure[data-anatomy] {
+  justify-items: start;
+  gap: 2px;
+}
+
+.widget-figure__label {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.widget-figure[data-anatomy] .widget-figure__value {
+  max-width: 100%;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.widget-figure--s .widget-figure__value {
+  font-size: var(--widget-figure-s);
+}
+
+.widget-figure--m .widget-figure__value {
+  font-size: var(--widget-figure-m);
+}
+
+.widget-figure--secondary .widget-figure__value {
+  font-size: var(--widget-figure-secondary);
+}
+
+.widget__compact .widget-figure--m .widget-figure__value {
+  font-size: 30px;
+}
+
+.widget__compact .widget-figure--secondary .widget-figure__value {
+  font-size: 22px;
+}
+
+.widget-figure__unit {
+  margin-left: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .widget-spark {

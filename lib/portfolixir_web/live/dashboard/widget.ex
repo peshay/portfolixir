@@ -32,10 +32,20 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   **The period** (ADR-0062 §5; idea board 05, A; Sprint 31 D5): one
   period above every dashboard, which a widget follows until its ⋯ menu
   pins its own (`settings.period`). The page hands each item its period
-  (`with_period/3`), and the frame's head says it quietly: „folgt · 3M“,
-  „📌 eigener: Max“ in the accent, „folgt · 3M → Quartal“ where the kind
-  reads its nearest window instead (the registry's rule, `translated`),
-  „ohne Zeitraum“ for a kind that takes none. The menu offers „Zeitraum
+  (`with_period/3`), and the frame's head says it quietly, as a small
+  mark on the title's line (Sprint 32 L1): „3M“, „📌 Max“ in the accent,
+  „3M → Quartal“ where the kind reads its nearest window instead (the
+  registry's rule, `translated`), the words „folgt ·“ and „eigener:“ for
+  a screen reader and in its tooltip; no mark for a kind that takes none.
+
+  **The anatomy** (Sprint 32 L1; board ux-design-2026-11-25-sprint32/07
+  ②; DESIGN.md → "The widget anatomy and the one surface"): the frame's
+  head on one line in the wide grid (`:switch` holds the widget's own
+  switch), its footer one line with a warning as one line above it
+  (`:warning`, `warning/1`); in the body the headline figure
+  (`figure/1`), the list row (`row/1`) and the bar under comparable
+  figures (`bar/1`). The dashboard is one surface, its widgets on
+  hairlines (`app.css`). The menu offers „Zeitraum
   festpinnen …“ on a stored dashboard, which opens the top bar's period
   menu for the widget (Sprint 32 T5; an own period pinned by reference,
   `saved:<id>`, a deleted one said in the footer), and „Anpassen“ on a
@@ -52,6 +62,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   alias Portfolixir.Periods
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Dashboard.MoversCard
+  alias PortfolixirWeb.Format
 
   @doc """
   The items of a layout in reading order (row, then col; ADR-0062 §4), each
@@ -288,6 +299,27 @@ defmodule PortfolixirWeb.Dashboard.Widget do
 
   def period_tag(_item), do: nil
 
+  # The period mark (Sprint 32 L1; board 07 ②, 1): the period alone where
+  # the eye reads it, the tag's words before it for a screen reader, so
+  # the mark's text is the tag's („follows · 1Y“, „📌 own: Max“).
+  attr(:item, :map, required: true)
+
+  defp period_mark(assigns) do
+    assigns =
+      assign(assigns,
+        words: period_words_before(assigns.item),
+        mark: item_label(assigns.item) <> translated(assigns.item)
+      )
+
+    ~H|<span class="visually-hidden"><%= @words %> </span><%= @mark %>|
+  end
+
+  defp period_words_before(%{period_state: :follows}), do: pgettext("period mark", "follows ·")
+  defp period_words_before(%{period_state: :pinned}), do: pgettext("period mark", "own:")
+
+  # The mark's tooltip: the tag in its words.
+  defp period_words(item), do: period_tag(item)
+
   defp item_label(%{period_label: label}) when is_binary(label), do: label
   defp item_label(%{period: period}), do: period_label(period)
 
@@ -329,6 +361,17 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   attr(:rest, :global)
 
   slot(:info, doc: "the ⓘ's lines: the source's computation basis")
+
+  slot(:switch,
+    doc: "the widget's own switch, on the head's line before ⋯ (board 07 ②, 1)"
+  )
+
+  slot(:warning, doc: "the warning line in the footer (board 07 ②, 6)") do
+    attr(:href, :string)
+    attr(:link, :string)
+    attr(:role, :string)
+  end
+
   slot(:controls, doc: "a control the kind keeps of its own, shared by both forms")
   slot(:shared, doc: "a note or status region both forms show")
   slot(:inner_block, required: true, doc: "the wide form")
@@ -366,22 +409,32 @@ defmodule PortfolixirWeb.Dashboard.Widget do
       {@rest}
     >
       <.edit_bar :if={editing?(@item)} item={@item} title={@title} />
+      <%!-- The head on one line (Sprint 32 L1; board
+           ux-design-2026-11-25-sprint32/07 ②, 1): the title, cut with an
+           ellipsis where its tile is too narrow and whole in its tooltip;
+           its ⓘ; the period as a small mark; the widget's own switch; ⋯. --%>
       <div class="section-head widget__head">
         <div class="section-title">
-          <h2 id={@title_id}><%= @title %></h2>
+          <h2 id={@title_id} title={@title}><%= @title %></h2>
           <AppShell.section_info :if={@info != []} label={@info_label}>
             <:line :for={line <- @info}><%= render_slot(line) %></:line>
           </AppShell.section_info>
-          <%!-- The period tag (ADR-0062 §5): under the title in the wide
-               form, at its end in the compact one. „ohne Zeitraum“ only in
-               the edit mode, where it helps placing; on the grid the ⋯ menu
-               says it (Sprint 31 closing act, DS3; board 02 ①). --%>
+          <%!-- The period mark (ADR-0062 §5; L1): „1J“, „📌 Max“, the
+               words „folgt ·“ and „eigener:“ kept for a screen reader and
+               in the tooltip. A kind without a period draws none, in the
+               edit mode too (board 07 ②, 1: „ohne Zeitraum“ entfällt,
+               replacing the Sprint 31 closing act's DS3); its ⋯ menu
+               says it. --%>
           <span
-            :if={period_tag(@item) && (@item.period_state != :none or editing?(@item))}
+            :if={period_tag(@item) && @item.period_state != :none}
             class={["widget__period", "widget__period--#{@item.period_state}"]}
+            title={period_words(@item)}
             data-role="widget-period"
             data-period-state={@item.period_state}
-          ><span :if={@item.period_state == :pinned} aria-hidden="true">📌 </span><%= period_tag(@item) %></span>
+          ><span :if={@item.period_state == :pinned} aria-hidden="true">📌 </span><.period_mark item={@item} /></span>
+        </div>
+        <div :if={@switch != []} class="widget__switch" data-anatomy="switch">
+          <%= render_slot(@switch) %>
         </div>
         <%!-- ADR-0062 §5: the ⋯ menu holds the pin (D5); in the edit
              mode (§7, D6) it gives way to the widget's edit controls. --%>
@@ -395,11 +448,15 @@ defmodule PortfolixirWeb.Dashboard.Widget do
       <div :if={@compact != []} class="widget__compact" data-form="compact">
         <%= render_slot(@compact) %>
       </div>
+      <%!-- The footer on one line (L1; board 07 ②, 7): the scope at the
+           left, one link named for its target at the right; a warning
+           as one line above them (②, 6), never a box. --%>
       <footer
-        :if={@scope_label || @full_href || Map.get(@item, :pin_note)}
+        :if={@scope_label || @full_href || Map.get(@item, :pin_note) || @warning != []}
         class="widget__foot"
         data-role="widget-foot"
       >
+        <.warning :for={line <- @warning} href={line[:href]} link={line[:link]} role={line[:role]}><%= render_slot(line) %></.warning>
         <span data-role="widget-scope"><%= @scope_label %></span>
         <%!-- Sprint 32 T5: a pin that dangles says why the widget follows. --%>
         <span :if={Map.get(@item, :pin_note)} data-role="widget-pin-dangling"><%= @item.pin_note %></span>
@@ -630,6 +687,9 @@ defmodule PortfolixirWeb.Dashboard.Widget do
 
   attr(:href, :string, default: nil)
   attr(:role, :string, default: nil)
+  attr(:title, :string, default: nil, doc: "the full name, the label's tooltip")
+  attr(:bar_value, :any, default: nil, doc: "the row's figure as a Decimal, for the bar under it")
+  attr(:bar_largest, :any, default: nil, doc: "the largest figure listed, which fills 45 %")
   attr(:rest, :global)
   slot(:name, required: true)
   slot(:sub)
@@ -637,39 +697,186 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   slot(:figure_sub)
 
   @doc """
-  One row of a compact form (board 06): one name and one figure on the
-  line, a second line under each, the row at least 44 px tall. A link when
-  it has an `href`.
+  One list row of the anatomy (Sprint 32 L1; board
+  ux-design-2026-11-25-sprint32/07 ②, 3 and 4), as the sales review draws
+  it: the name at the left on one line — cut with an ellipsis where it
+  must, whole in its tooltip (`title`; a row without one, a sentence such
+  as a data-quality finding, wraps instead, so nothing of it is lost) —,
+  the figure at the right, never
+  cut, a muted second line under each where the kind has one; where the
+  list's figures are of one kind, the bar under the row (`bar_value`
+  against the list's `bar_largest`, `bar/1`). At least 44 px tall in the
+  compact forms (board 06). A link when it has an `href`.
   """
   def row(assigns) do
     ~H"""
     <%= if @href do %>
       <a class="widget-row" href={@href} data-role={@role} {@rest}>
-        <.row_parts name={@name} sub={@sub} figure={@figure} figure_sub={@figure_sub} />
+        <.row_parts {row_part_assigns(assigns)} />
       </a>
     <% else %>
       <div class="widget-row" data-role={@role} {@rest}>
-        <.row_parts name={@name} sub={@sub} figure={@figure} figure_sub={@figure_sub} />
+        <.row_parts {row_part_assigns(assigns)} />
       </div>
     <% end %>
     """
   end
 
+  defp row_part_assigns(assigns),
+    do: Map.take(assigns, [:name, :sub, :figure, :figure_sub, :title, :bar_value, :bar_largest])
+
   attr(:name, :list, required: true)
   attr(:sub, :list, required: true)
   attr(:figure, :list, required: true)
   attr(:figure_sub, :list, required: true)
+  attr(:title, :string, required: true)
+  attr(:bar_value, :any, required: true)
+  attr(:bar_largest, :any, required: true)
 
   defp row_parts(assigns) do
     ~H"""
     <span class="widget-row__name">
-      <%= render_slot(@name) %>
+      <span class={["widget-row__label", @title && "is-one-line"]} title={@title}><%= render_slot(@name) %></span>
       <small :if={@sub != []} class="widget-row__sub"><%= render_slot(@sub) %></small>
     </span>
     <span :if={@figure != []} class="widget-row__figure num">
       <%= render_slot(@figure) %>
       <small :if={@figure_sub != []} class="widget-row__sub"><%= render_slot(@figure_sub) %></small>
     </span>
+    <.bar :if={@bar_value} value={@bar_value} largest={@bar_largest} class="widget-row__bar" />
+    """
+  end
+
+  # The share of the track the largest figure listed fills (the
+  # contribution table's `@bar_reach`).
+  @bar_reach Decimal.new(45)
+
+  attr(:value, :any, required: true, doc: "the figure, a Decimal")
+  attr(:largest, :any, required: true, doc: "the largest absolute figure listed")
+  attr(:places, :integer, default: 2, doc: "the places the figure is displayed at")
+  attr(:class, :string, default: nil)
+
+  @doc """
+  The bar under a row of comparable figures (Sprint 32 L1; board 07 ②, 4):
+  the contribution table's — the track's centre is 0, a plus grows to the
+  right in the gain colour, a minus to the left in the loss colour, and
+  the largest figure listed fills 45 % of the track. Decorative
+  (aria-hidden): the figure beside it carries the sign and the colour
+  (UX-DR7). A figure that reads zero at its places, or a list whose
+  largest is zero, draws the track alone. Unlike `.drift-bar`, it is
+  kept in the compact forms.
+  """
+  def bar(assigns) do
+    assigns =
+      assign(assigns,
+        side: bar_side(assigns.value, assigns.places),
+        width: bar_width(assigns.value, assigns.largest)
+      )
+
+    ~H"""
+    <span class={["widget-bar", @class]} aria-hidden="true" data-anatomy="bar"><span
+        :if={@side && @width}
+        class={["widget-bar__fill", @side]}
+        style={"width: #{@width}%"}
+      ></span></span>
+    """
+  end
+
+  defp bar_side(%Decimal{} = value, places) do
+    case Format.displayed_sign(value, places) do
+      :negative -> "is-under"
+      :positive -> "is-over"
+      _zero -> nil
+    end
+  end
+
+  defp bar_side(_value, _places), do: nil
+
+  defp bar_width(%Decimal{} = value, %Decimal{} = largest) do
+    if Decimal.eq?(largest, 0) do
+      nil
+    else
+      value
+      |> Decimal.abs()
+      |> Decimal.div(Decimal.abs(largest))
+      |> Decimal.mult(@bar_reach)
+      |> Decimal.round(1)
+      |> Decimal.to_string(:normal)
+    end
+  end
+
+  defp bar_width(_value, _largest), do: nil
+
+  attr(:label, :string, default: nil)
+  attr(:size, :atom, values: [:s, :m, :secondary], default: :s)
+  attr(:sign, :any, default: nil, doc: "a Decimal, :positive or :negative: the figure's sign")
+  attr(:role, :string, default: nil)
+  attr(:rest, :global)
+  slot(:inner_block, required: true, doc: "the figure")
+  slot(:unit, doc: "its currency or unit, smaller after it")
+  slot(:sub, doc: "a short muted line under it")
+
+  @doc """
+  The headline figure of the anatomy (Sprint 32 L1; board
+  ux-design-2026-11-25-sprint32/07 ②, 2): a small label over the figure,
+  the figure in one of three sizes — `:s` 28 px, `:m` 34 px as the hero of
+  M and up, `:secondary` 24 px —, a short muted line under it. The figure
+  is coloured only by its sign (`sign`): a gain or a loss, never to set
+  it apart. It never breaks over two lines and is never cut: a tile too
+  narrow for it shows less, not a part of it.
+  """
+  def figure(assigns) do
+    assigns = assign(assigns, :sign_class, sign_class(assigns.sign))
+
+    ~H"""
+    <div class={["widget-figure", "widget-figure--#{@size}"]} data-anatomy="figure" data-role={@role} {@rest}>
+      <span :if={@label} class="widget-figure__label"><%= @label %></span>
+      <span class={["widget-figure__value", "num", @sign_class]}><%= render_slot(@inner_block) %><small
+          :if={@unit != []}
+          class="widget-figure__unit"
+        ><%= render_slot(@unit) %></small></span>
+      <span :if={@sub != []} class="widget-figure__sub"><%= render_slot(@sub) %></span>
+    </div>
+    """
+  end
+
+  defp sign_class(%Decimal{} = value) do
+    cond do
+      Decimal.gt?(value, 0) -> "is-positive"
+      Decimal.lt?(value, 0) -> "is-negative"
+      true -> nil
+    end
+  end
+
+  defp sign_class(:positive), do: "is-positive"
+  defp sign_class(:negative), do: "is-negative"
+  defp sign_class(_none), do: nil
+
+  attr(:href, :string, default: nil)
+  attr(:link, :string, default: nil, doc: "the link's words, named for its target")
+  attr(:role, :string, default: nil)
+  attr(:rest, :global)
+  slot(:inner_block, required: true)
+
+  @doc """
+  The warning line of the anatomy (Sprint 32 L1; board
+  ux-design-2026-11-25-sprint32/07 ②, 6): in a widget a warning is one
+  line — „⚠ 3 nicht in der Summe“ and a link to where it is explained —,
+  never a box; the box belongs to the data notes and the full view. The
+  glyph is aria-hidden, the words carry it. The frame draws it in its
+  footer (its `:warning` slot).
+  """
+  def warning(assigns) do
+    ~H"""
+    <%!-- Each space is its part's own, so a parser that drops
+         whitespace-only text between two elements keeps it. --%>
+    <p class="widget-warning" data-anatomy="warning" data-role={@role} {@rest}><span
+        class="widget-warning__glyph"
+        aria-hidden="true"
+      >⚠ </span><span class="widget-warning__text"><%= render_slot(@inner_block) %> </span><a
+        :if={@href}
+        href={@href}
+      ><%= @link %></a></p>
     """
   end
 end

@@ -11592,3 +11592,102 @@ adds nothing readable is not offered.** Read against it in Sprint 32:
   keeps the families its sizes read as (Datenqualität and Abseits des
   Ziels S and L, the count and the list; Wertentwicklung S, L, XL;
   Tops und Flops S, L; Snapshots S, M; Fällig S; Verkaufsrückblick L).
+
+## Amendment 2026-11-26 — The widget anatomy and the one surface *(Sprint 32 L1, FR-60, idea I62; planning boards `mockups/ux-design-2026-11-25-sprint32/07` ② and `10` D, the owner's pick „Eine Fläche“; plan D-12, D-14)*
+
+This replaces, in the amendment of 2026-11-21, the frame's card (1 px
+border, {rounded.lg}, the small shadow, padding {spacing.3}
+{spacing.4}), the wide form's head with the period tag under the title
+(DS3) and „ohne Zeitraum“ in the edit mode; in the amendment of
+2026-11-25, the tile sizes at 1200 px. The rest of both stands. Each
+kind moves onto the components below in plan L2; until then a kind
+still draws its own body with the pieces it had.
+
+### One surface, in every class *(tokens in `:root`)*
+
+| Token | Value | What it sets |
+|---|---|---|
+| `--surface-radius` | 16 px | the one frame's corner |
+| `--surface-hairline` | 1 px | the frame's border and the line between two widgets |
+| `--widget-pad-y`, `--widget-pad-x` | 16 px, 18 px | inside every widget |
+| `--widget-figure-s`, `-m`, `-secondary` | 28, 34, 24 px | the headline figure's three sizes |
+
+- **The grid is the surface** (`.dashboard-grid`): one 1 px
+  {colors.border} frame with the 16 px corner, {colors.bg-elevated}
+  behind every widget; the widgets stand one hairline apart (`gap`, and in
+  the medium class's two columns `column-gap` and each widget's foot),
+  never a gap. Separate cards with gaps stay for the native widgets (I53).
+- **A widget is no card**: no border, no corner, no shadow, no background
+  of its own; it draws the hairline round itself (a 1 px spread in
+  {colors.border}), so two neighbours share one line and a cell no widget
+  holds is the surface. The frame clips the corners of the widgets in its
+  own; while a disclosure is open (⋯, ⓘ, „+n weitere“) or in the edit
+  mode, where a step's note stands under its widget, it lets them out.
+- **At 1200 px, the sidebar open**, the tiles are S 230 × 225, M 461 ×
+  225, L 461 × 451, XL 923 × 451 px: the tracks and one hairline between
+  them.
+- **The compact class** is the same surface: two S side by side, every
+  other size the full width, a hairline between the compact forms.
+- **The edit mode** draws each widget's dashed {colors.accent} outline
+  1.5 px inside its cell (offset −3 px), and its controls inside it: the
+  handle at the cell's top, in the 16 px above the title (24 px tall with
+  a coarse pointer); × where ⋯ stood; the size switch at the foot's right
+  end. The column guides show through the widgets.
+
+### The anatomy *(`PortfolixirWeb.Dashboard.Widget`, board 07 ②)*
+
+1. **The head** (`Widget.frame/1`): the title (its tooltip holds it
+   whole), its ⓘ, the period mark, the widget's own switch (the frame's
+   `:switch` slot) and ⋯. **In the wide grid one line**: the title gives
+   way first, cut with an ellipsis where its tile is too narrow, as the
+   board draws it; the rest keeps its width. **In the compact forms**
+   (compact and medium class, 44 px targets) the title is never cut:
+   where the line does not hold it, the ⓘ, the mark and ⋯ follow under
+   it, and the switch takes the line under the head (board 07's phone);
+   an S in the compact class sets its title whole on the first line.
+2. **The period mark** (`span.widget__period`): the period alone, „1J“,
+   outlined, 12 px, padding 0 6 px; pinned „📌 Max“ in
+   {colors.accent} on {colors.accent-soft}; „→ Quartal“ after it where the
+   kind reads its nearest window. The words „folgt ·“ and „eigener:“ are
+   visually hidden, read by a screen reader and in the mark's tooltip, so
+   the mark's text is the tag's as before. **A kind without a period draws
+   no mark**, in the edit mode too (board 07 ②: „ohne Zeitraum“
+   entfällt); its ⋯ menu says it.
+3. **The headline figure** (`Widget.figure/1`): a 13 px muted label over
+   the figure; the figure 28 px at S, 34 px as the hero of M and up, 24 px
+   for a secondary figure (`size: :s | :m | :secondary`; in the compact
+   forms 28, 30 and 22 px), weight 760, tabular, one line, never cut; its
+   unit 15 px muted after it; a 13 px muted line under it. **Colour only
+   for a plus or a minus** (`sign`: a Decimal or `:positive`/`:negative`).
+   No card inside the card, no colour strip in the widget.
+4. **The list row** (`Widget.row/1`), as the sales review draws it: the
+   name at the left on one line, cut with an ellipsis and whole in its
+   tooltip (`title`; a row without one, a sentence, wraps instead); the
+   figure at the right, never cut or broken, a muted second line under
+   each; rows at least 44 px in the compact forms; in half a phone's width
+   the figure goes under the name.
+5. **The bar under comparable figures** (`Widget.bar/1`, or a row's
+   `bar_value` and `bar_largest`): the contribution table's track, 6 px,
+   centre 0 marked, a plus to the right in {colors.positive}, a minus to
+   the left in {colors.danger}, **the largest listed fills 45 %**;
+   aria-hidden, the figure carries sign and colour. **Kept in the compact
+   forms**, where `.drift-bar` gives way under 560 px.
+6. **The warning line** (`Widget.warning/1`, the frame's `:warning`
+   slot): one line in the footer, „⚠ 3 nicht in der Summe“ and a link
+   named for where it is explained, 13 px in {colors.warning}; never a
+   box. A data note a kind still draws inside its widget is drawn as a
+   line, its glyph, word and colour kept and its frame and fill gone,
+   until the kind moves it into the footer (L2).
+7. **The footer, one line**: the scope at the left, cut with an ellipsis
+   where it must; one link at the right, named for its target and whole.
+8. **The size rule** of the amendment of 2026-11-25 stands.
+
+### Measured *(test/browser/widget_anatomy_test.exs)*
+
+A dashboard of every kind in every grid size it takes, on the review
+seed, at 1200, 834 and 393 px, in Inter and in DejaVu Sans: the head as
+above, no headline or row figure cut sideways, no data note framed or
+filled as a box, the surface's frame and corner, no widget with a card
+border, corner or shadow, at 1200 px neighbours 1 px apart; in the edit
+mode each outline dashed and the handle, × and size switch inside the
+cell. The walk's attack case draws each break and sees it named.

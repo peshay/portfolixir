@@ -312,6 +312,9 @@ function measure(page, roots, targets = TAP_TARGETS) {
         grid: grid
           ? {
               ...box(grid),
+              // Since Sprint 32 L1 the grid is the one surface, framed by
+              // a 1 px border: the widgets stand inside it.
+              inner: { left: grid.getBoundingClientRect().left + grid.clientLeft, width: grid.clientWidth },
               columns: gs.gridTemplateColumns,
               gap: parseFloat(gs.columnGap) || 0,
               rowGap: parseFloat(gs.rowGap) || 0,
@@ -374,10 +377,10 @@ function inReadingOrder(widgets) {
 function compactRules(m, at) {
   const errors = pageRules(m, at);
   if (!inReadingOrder(m.widgets)) errors.push(at + ": the page draws the widgets out of reading order");
-  const full = m.grid ? m.grid.width : 0;
+  const full = m.grid ? m.grid.inner.width : 0;
   const gap = m.grid ? m.grid.gap : 0;
   const half = (full - gap) / 2;
-  const left = m.grid ? m.grid.left : 0;
+  const left = m.grid ? m.grid.inner.left : 0;
   let beside = false;
   for (let i = 0; i < m.widgets.length; i++) {
     const w = m.widgets[i];
@@ -486,7 +489,7 @@ function wideRules(m, at) {
   const gap = m.grid.gap;
   const step = col + gap;
   for (const w of m.widgets) {
-    const left = m.grid.left + (w.col - 1) * step;
+    const left = m.grid.inner.left + (w.col - 1) * step;
     const width = w.w * col + (w.w - 1) * gap;
     if (Math.abs(w.left - left) > SLACK) {
       errors.push(at + ": " + name(w) + " starts at " + Math.round(w.left - m.grid.left) + " px, its col at " + Math.round(left - m.grid.left));
@@ -496,8 +499,9 @@ function wideRules(m, at) {
     }
     if (w.wide === false) errors.push(at + ": #" + w.id + " does not show its wide form");
     if (w.compact === true) errors.push(at + ": #" + w.id + " shows its compact form");
-    // The head (DS3): the title at 15 px, its ⓘ on the title's line, the
-    // period tag under the title at its left; no „ohne Zeitraum“.
+    // The head (DS3): the title at 15 px, its ⓘ on the title's line; since
+    // Sprint 32 L1 (board ux-design-2026-11-25-sprint32/07 ②, 1) the
+    // period mark on the title's line too, after it; no „ohne Zeitraum“.
     const h = w.head;
     if (h.size !== null && Math.abs(h.size - TITLE) > 0.1) errors.push(at + ": " + name(w) + "'s title is " + h.size + " px, not " + TITLE);
     // Where the two do not fit on one line, the ⓘ follows the title onto
@@ -509,8 +513,9 @@ function wideRules(m, at) {
       if (!onLine && !follows) errors.push(at + ": " + name(w) + "'s ⓘ is neither on its title's line nor right under it");
     }
     if (h.title && h.tag) {
-      if (h.tag.top < h.title.bottom - SLACK) errors.push(at + ": " + name(w) + "'s period tag is not under its title");
-      if (Math.abs(h.tag.left - h.title.left) > SLACK) errors.push(at + ": " + name(w) + "'s period tag is not at its title's left");
+      const mid = (h.tag.top + h.tag.bottom) / 2;
+      if (mid < h.title.top - SLACK || mid > h.title.bottom + SLACK) errors.push(at + ": " + name(w) + "'s period mark is not on its title's line");
+      if (h.tag.left < h.title.right - SLACK) errors.push(at + ": " + name(w) + "'s period mark does not follow its title");
     }
     if (h.tagText === "ohne Zeitraum") errors.push(at + ": " + name(w) + " says „ohne Zeitraum“ on the grid");
     // DS1: the footer at the frame's foot, inside the tile.

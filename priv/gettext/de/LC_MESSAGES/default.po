@@ -2041,7 +2041,7 @@ msgid "Set balance"
 msgstr "Saldo setzen"
 
 #: lib/portfolixir_web/live/dashboard/movers_card.ex:473
-#: lib/portfolixir_web/live/dashboard/widget.ex:231
+#: lib/portfolixir_web/live/dashboard/widget.ex:242
 #: lib/portfolixir_web/live/portfolio_live.ex:6343
 #: lib/portfolixir_web/live/securities_live.ex:8000
 #, elixir-autogen
@@ -2049,28 +2049,28 @@ msgid "YTD"
 msgstr "YTD"
 
 #: lib/portfolixir_web/live/dashboard/movers_card.ex:474
-#: lib/portfolixir_web/live/dashboard/widget.ex:232
+#: lib/portfolixir_web/live/dashboard/widget.ex:243
 #: lib/portfolixir_web/live/portfolio_live.ex:6344
 #: lib/portfolixir_web/live/securities_live.ex:8001
 #, elixir-autogen
 msgid "1Y"
 msgstr "1J"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:233
+#: lib/portfolixir_web/live/dashboard/widget.ex:244
 #: lib/portfolixir_web/live/portfolio_live.ex:6345
 #: lib/portfolixir_web/live/securities_live.ex:8002
 #, elixir-autogen
 msgid "3Y"
 msgstr "3J"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:234
+#: lib/portfolixir_web/live/dashboard/widget.ex:245
 #: lib/portfolixir_web/live/portfolio_live.ex:6346
 #: lib/portfolixir_web/live/securities_live.ex:8003
 #, elixir-autogen
 msgid "5Y"
 msgstr "5J"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:235
+#: lib/portfolixir_web/live/dashboard/widget.ex:246
 #: lib/portfolixir_web/live/portfolio_live.ex:6347
 #: lib/portfolixir_web/live/securities_live.ex:8004
 #, elixir-autogen
@@ -10690,21 +10690,21 @@ msgstr "Der Kursanbieter braucht den Ticker des Wertpapiers."
 msgid "The security has no currency."
 msgstr "Das Wertpapier hat keine Währung."
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:228
+#: lib/portfolixir_web/live/dashboard/widget.ex:239
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:950
 #: lib/portfolixir_web/live/securities_live.ex:7997
 #, elixir-autogen, elixir-format
 msgid "1M"
 msgstr "1M"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:229
+#: lib/portfolixir_web/live/dashboard/widget.ex:240
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:951
 #: lib/portfolixir_web/live/securities_live.ex:7998
 #, elixir-autogen, elixir-format
 msgid "3M"
 msgstr "3M"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:230
+#: lib/portfolixir_web/live/dashboard/widget.ex:241
 #: lib/portfolixir_web/live/securities_live.ex:7999
 #, elixir-autogen, elixir-format
 msgid "6M"
@@ -18567,7 +18567,7 @@ msgstr "%{pp} pp"
 msgid "Couldn't copy the template."
 msgstr "Die Vorlage ließ sich nicht kopieren."
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:590
+#: lib/portfolixir_web/live/dashboard/widget.ex:647
 #: lib/portfolixir_web/live/dashboard_live.ex:2031
 #, elixir-autogen, elixir-format
 msgid "Customize"
@@ -18639,12 +18639,12 @@ msgstr "Ansicht %{view}"
 msgid "shipped, read-only"
 msgstr "mitgeliefert, nur lesend"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:226
+#: lib/portfolixir_web/live/dashboard/widget.ex:237
 #, elixir-autogen, elixir-format
 msgid "1D"
 msgstr "1T"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:227
+#: lib/portfolixir_web/live/dashboard/widget.ex:238
 #, elixir-autogen, elixir-format
 msgid "1W"
 msgstr "1W"
@@ -18654,33 +18654,33 @@ msgstr "1W"
 msgid "Couldn't store the widget's period."
 msgstr "Der Zeitraum des Widgets konnte nicht gespeichert werden."
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:580
-#: lib/portfolixir_web/live/dashboard/widget.ex:604
+#: lib/portfolixir_web/live/dashboard/widget.ex:637
+#: lib/portfolixir_web/live/dashboard/widget.ex:661
 #, elixir-autogen, elixir-format
 msgid "Follows the dashboard (%{period})"
 msgstr "Folgt dem Dashboard (%{period})"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:577
+#: lib/portfolixir_web/live/dashboard/widget.ex:634
 #, elixir-autogen, elixir-format
 msgid "This widget has no period."
 msgstr "Dieses Widget hat keinen Zeitraum."
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:284
+#: lib/portfolixir_web/live/dashboard/widget.ex:295
 #, elixir-autogen, elixir-format
 msgid "follows · %{period}"
 msgstr "folgt · %{period}"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:281
+#: lib/portfolixir_web/live/dashboard/widget.ex:292
 #, elixir-autogen, elixir-format
 msgid "no period"
 msgstr "ohne Zeitraum"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:287
+#: lib/portfolixir_web/live/dashboard/widget.ex:298
 #, elixir-autogen, elixir-format
 msgid "own: %{period}"
 msgstr "eigener: %{period}"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:593
+#: lib/portfolixir_web/live/dashboard/widget.ex:650
 #, elixir-autogen, elixir-format
 msgid "A template is read-only; only its copy takes a period of its own per widget."
 msgstr "Eine Vorlage ist nur lesend; einen eigenen Zeitraum je Widget nimmt erst ihre Kopie an."
@@ -19199,7 +19199,7 @@ msgctxt "widget kind"
 msgid "Tax allowance"
 msgstr "Freibetrag"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:154
+#: lib/portfolixir_web/live/dashboard/widget.ex:165
 #, elixir-autogen, elixir-format
 msgctxt "widget size"
 msgid "Full"
@@ -19340,20 +19340,20 @@ msgstr "Weiter bearbeiten"
 msgid "Load the stored version"
 msgstr "Gespeicherte Fassung laden"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:470
-#: lib/portfolixir_web/live/dashboard/widget.ex:472
+#: lib/portfolixir_web/live/dashboard/widget.ex:527
+#: lib/portfolixir_web/live/dashboard/widget.ex:529
 #, elixir-autogen, elixir-format
 msgid "Move %{widget}"
 msgstr "%{widget} verschieben"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:459
-#: lib/portfolixir_web/live/dashboard/widget.ex:460
+#: lib/portfolixir_web/live/dashboard/widget.ex:516
+#: lib/portfolixir_web/live/dashboard/widget.ex:517
 #, elixir-autogen, elixir-format
 msgid "Move %{widget} down"
 msgstr "%{widget} nach unten verschieben"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:448
-#: lib/portfolixir_web/live/dashboard/widget.ex:449
+#: lib/portfolixir_web/live/dashboard/widget.ex:505
+#: lib/portfolixir_web/live/dashboard/widget.ex:506
 #, elixir-autogen, elixir-format
 msgid "Move %{widget} up"
 msgstr "%{widget} nach oben verschieben"
@@ -19363,13 +19363,13 @@ msgstr "%{widget} nach oben verschieben"
 msgid "No changes to save."
 msgstr "Keine Änderungen zu speichern."
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:482
-#: lib/portfolixir_web/live/dashboard/widget.ex:483
+#: lib/portfolixir_web/live/dashboard/widget.ex:539
+#: lib/portfolixir_web/live/dashboard/widget.ex:540
 #, elixir-autogen, elixir-format
 msgid "Remove %{widget}"
 msgstr "%{widget} entfernen"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:537
+#: lib/portfolixir_web/live/dashboard/widget.ex:594
 #, elixir-autogen, elixir-format
 msgid "Size of %{widget}"
 msgstr "Größe von %{widget}"
@@ -19486,13 +19486,13 @@ msgstr "Kategorien, die ±%{pp} pp oder mehr vom Soll-Gewicht abweichen, auf jed
 msgid "Categories ±%{pp} pp or more off their target weight, at every tree level."
 msgstr "Kategorien, die ±%{pp} pp oder mehr vom Soll-Gewicht abweichen, auf jeder Baumebene."
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:346
+#: lib/portfolixir_web/live/dashboard/widget.ex:389
 #, elixir-autogen, elixir-format
 msgid "About “%{widget}”"
 msgstr "Zu „%{widget}“"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:569
-#: lib/portfolixir_web/live/dashboard/widget.ex:570
+#: lib/portfolixir_web/live/dashboard/widget.ex:626
+#: lib/portfolixir_web/live/dashboard/widget.ex:627
 #, elixir-autogen, elixir-format
 msgid "Menu for “%{widget}”"
 msgstr "Menü für „%{widget}“"
@@ -19578,7 +19578,7 @@ msgstr[1] "%{count} Widgets sind nachgerückt"
 msgid "Last step undone"
 msgstr "Letzter Schritt rückgängig gemacht"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:516
+#: lib/portfolixir_web/live/dashboard/widget.ex:573
 #, elixir-autogen, elixir-format
 msgid "Undo"
 msgstr "Rückgängig"
@@ -19593,37 +19593,37 @@ msgstr "Ein Dashboard hält höchstens 40 Widgets"
 msgid "Result · %{period}"
 msgstr "Ergebnis · %{period}"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:237
+#: lib/portfolixir_web/live/dashboard/widget.ex:248
 #, elixir-autogen, elixir-format
 msgctxt "period"
 msgid "Last month"
 msgstr "Vormonat"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:239
+#: lib/portfolixir_web/live/dashboard/widget.ex:250
 #, elixir-autogen, elixir-format
 msgctxt "period"
 msgid "Last quarter"
 msgstr "Vorquartal"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:240
+#: lib/portfolixir_web/live/dashboard/widget.ex:251
 #, elixir-autogen, elixir-format
 msgctxt "period"
 msgid "Last year"
 msgstr "Vorjahr"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:244
+#: lib/portfolixir_web/live/dashboard/widget.ex:255
 #, elixir-autogen, elixir-format
 msgctxt "period"
 msgid "Q%{quarter} %{year}"
 msgstr "Q%{quarter} %{year}"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:236
+#: lib/portfolixir_web/live/dashboard/widget.ex:247
 #, elixir-autogen, elixir-format
 msgctxt "period"
 msgid "This month"
 msgstr "lfd. Monat"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:238
+#: lib/portfolixir_web/live/dashboard/widget.ex:249
 #, elixir-autogen, elixir-format
 msgctxt "period"
 msgid "This quarter"
@@ -19635,7 +19635,7 @@ msgctxt "journal kind"
 msgid "Period"
 msgstr "Zeitraum"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:265
+#: lib/portfolixir_web/live/dashboard/widget.ex:276
 #, elixir-autogen, elixir-format
 msgctxt "period"
 msgid "Own period deleted"
@@ -19798,22 +19798,22 @@ msgstr "Jahr"
 msgid "Pin a period for “%{widget}”"
 msgstr "Zeitraum für „%{widget}“ festpinnen"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:623
+#: lib/portfolixir_web/live/dashboard/widget.ex:680
 #, elixir-autogen, elixir-format
 msgid "Pin a period …"
 msgstr "Zeitraum festpinnen …"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:622
+#: lib/portfolixir_web/live/dashboard/widget.ex:679
 #, elixir-autogen, elixir-format
 msgid "Pinned: %{period} — change …"
 msgstr "Festgepinnt: %{period} — ändern …"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:215
+#: lib/portfolixir_web/live/dashboard/widget.ex:226
 #, elixir-autogen, elixir-format
 msgid "own period deleted · follows %{period}"
 msgstr "eigener Zeitraum gelöscht · folgt %{period}"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:218
+#: lib/portfolixir_web/live/dashboard/widget.ex:229
 #, elixir-autogen, elixir-format
 msgid "pinned period not yet begun · follows %{period}"
 msgstr "festgepinnter Zeitraum noch nicht begonnen · folgt %{period}"
@@ -19828,7 +19828,7 @@ msgstr "Die eigene Ansicht dieses Dashboards gibt es nicht mehr · liest %{scope
 msgid "this dashboard's view"
 msgstr "Ansicht dieses Dashboards"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:153
+#: lib/portfolixir_web/live/dashboard/widget.ex:164
 #, elixir-autogen, elixir-format
 msgctxt "widget size"
 msgid "Row"
@@ -20095,3 +20095,15 @@ msgstr "%{window} · seit %{date}"
 msgctxt "dashboard template scope"
 msgid "Crypto"
 msgstr "Krypto"
+
+#: lib/portfolixir_web/live/dashboard/widget.ex:317
+#, elixir-autogen, elixir-format
+msgctxt "period mark"
+msgid "follows ·"
+msgstr "folgt ·"
+
+#: lib/portfolixir_web/live/dashboard/widget.ex:318
+#, elixir-autogen, elixir-format
+msgctxt "period mark"
+msgid "own:"
+msgstr "eigener:"
