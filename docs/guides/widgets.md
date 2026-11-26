@@ -538,3 +538,155 @@ leads there.
 </figure>
 
 <!-- S32 W3 end -->
+
+<!-- S32 W4 begin -->
+
+## Own rules
+
+`own_rules` · sizes Row
+
+Your own rules on the Risk tab and their findings for the widget's view:
+breached and undetermined first, each with the rule's words beside the
+measured value and its line; the counts head the widget; scheduled rules,
+and the retired ones behind a disclosure. A finding says which side of the
+line a figure is on, not what to do. Rules are made and changed in the
+Risk tab's dialog: **Edit rules →** leads there.
+
+**Source:**
+
+- `GET /api/v1/portfolios/:portfolio_id/policy_findings`
+- `GET /api/v1/portfolios/:portfolio_id/policy_rules`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/own_rules-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/own_rules-row-light.png 2x" src="/assets/widgets/own_rules-row-light.png" alt="Own rules at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>
+
+## Portfolio metrics
+
+`key_figures` · sizes M, Row
+
+The Risk tab's portfolio metrics over one year: the annualized
+volatility, the maximum drawdown with its dates, the risk-adjusted return
+and the highest correlation of the largest positions; below its minimum a
+metric says what it had and needed, never a number. **M** the first three;
+**Row** all four with the basis line.
+
+**Source:**
+
+- `GET /api/v1/portfolios/:portfolio_id/risk`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/key_figures-m-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/key_figures-m-light.png 2x" src="/assets/widgets/key_figures-m-light.png" alt="Portfolio metrics at M" loading="lazy">
+</picture>
+<figcaption>M</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/key_figures-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/key_figures-row-light.png 2x" src="/assets/widgets/key_figures-row-light.png" alt="Portfolio metrics at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>
+
+## Crashes
+
+`crash_section` · sizes Row
+
+The Risk tab's whole section "Crashes": the window (the newest until you
+pick another), the list — losers, winners or rebounders — and the
+securities, in the depot or the whole catalogue, the window line and the
+ranked list, each as the rankings read answers it. Your choice stays in
+the widget while the page is open. The crash benchmark and the windows
+are set on the Risk tab, linked. "Crashes compared" (`crashes`) stays its
+compact relative.
+
+**Source:**
+
+- `GET /api/v1/crashes`
+- `GET /api/v1/crashes/:key/rankings`
+- `GET /api/v1/views/:view_id/performance`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/crash_section-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/crash_section-row-light.png 2x" src="/assets/widgets/crash_section-row-light.png" alt="Crashes at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>
+
+## Largest single names
+
+`top_holdings` · sizes Row
+
+The lens's largest single names on the steerable basis: each with its
+asset class, value and weight, and the generic threshold it is above or
+below — generic thresholds, not your own rules.
+
+**Source:**
+
+- `GET /api/v1/portfolios/:portfolio_id/risk`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/top_holdings-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/top_holdings-row-light.png 2x" src="/assets/widgets/top_holdings-row-light.png" alt="Largest single names at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>
+
+## Concentration risk
+
+`concentration` · sizes S, Row
+
+The Herfindahl index of the single names' weights, 0 to 10,000, with its
+band (low, moderate, concentrated) on its track. **S** the figure and the
+track; **Row** with the scale line.
+
+**Source:**
+
+- `GET /api/v1/portfolios/:portfolio_id/risk`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/concentration-s-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/concentration-s-light.png 2x" src="/assets/widgets/concentration-s-light.png" alt="Concentration risk at S" loading="lazy">
+</picture>
+<figcaption>S</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/concentration-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/concentration-row-light.png 2x" src="/assets/widgets/concentration-row-light.png" alt="Concentration risk at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>
+
+## Asset-class caps
+
+`asset_class_limits` · sizes Row
+
+The asset-class caps — the screen configures none, so there is nothing
+to exceed (caps are set per request over the API) — and the correlations
+of the largest positions behind a disclosure.
+
+**Source:**
+
+- `GET /api/v1/portfolios/:portfolio_id/risk`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/asset_class_limits-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/asset_class_limits-row-light.png 2x" src="/assets/widgets/asset_class_limits-row-light.png" alt="Asset-class caps at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>
+
+<!-- S32 W4 end -->

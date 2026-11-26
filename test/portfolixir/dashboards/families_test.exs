@@ -113,7 +113,14 @@ defmodule Portfolixir.Dashboards.FamiliesTest do
              "allocation" => ~w(row),
              # Sprint 32 W3: the sections of „Snapshots“.
              "snapshot_comparison" => ~w(row),
-             "snapshot_list" => ~w(row)
+             "snapshot_list" => ~w(row),
+             # Sprint 32 W4: the sections of „Risiko“.
+             "own_rules" => ~w(row),
+             "key_figures" => ~w(M row),
+             "crash_section" => ~w(row),
+             "top_holdings" => ~w(row),
+             "concentration" => ~w(S row),
+             "asset_class_limits" => ~w(row)
            } == Map.new(Widgets.kinds(), &{&1.key, &1.sizes})
 
     area = fn size ->

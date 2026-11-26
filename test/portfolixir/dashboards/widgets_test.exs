@@ -36,7 +36,14 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     "allocation" => {~w(row), "allocation", "Allokation"},
     # Sprint 32 W3 (I57): the sections of Wealth's tab „Snapshots“.
     "snapshot_comparison" => {~w(row), "performance", "Vergleich gegen einen Snapshot"},
-    "snapshot_list" => {~w(row), "performance", "Snapshot-Liste"}
+    "snapshot_list" => {~w(row), "performance", "Snapshot-Liste"},
+    # Sprint 32 W4 (I57): the sections of Wealth's tab „Risiko“.
+    "own_rules" => {~w(row), "risk", "Eigene Regeln"},
+    "key_figures" => {~w(M row), "risk", "Kennzahlen des Portfolios"},
+    "crash_section" => {~w(row), "risk", "Crashes"},
+    "top_holdings" => {~w(row), "risk", "Größte Einzelpositionen"},
+    "concentration" => {~w(S row), "risk", "Klumpenrisiko"},
+    "asset_class_limits" => {~w(row), "risk", "Anlageklassen-Obergrenzen"}
   }
 
   # User story:
@@ -48,8 +55,8 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   # Acceptance criteria:
   # - The registry holds exactly the kinds: eleven of Sprint 31 and
   #   Sprint 32 S5's „Abstand zum Hoch“, „Crash-Chart“ and „Erholer nach
-  #   Crashes“, and Sprint 32 W2's and W3's sections of „Allokation &
-  #   Ziele“ and „Snapshots“, each with the
+  #   Crashes“, and Sprint 32 W2's to W4's sections of „Allokation &
+  #   Ziele“, „Snapshots“ and „Risiko“, each with the
   #   sizes and the group the board draws, in the catalogue's order.
   # - Every kind is registered with its compact form (ADR-0062 §1).
   # - Lookup is by string key; an unknown string, an atom or another term
@@ -58,7 +65,9 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     assert Widgets.keys() == ~w(total_value data_quality due off_target performance movers
                                 snapshots allocation_drift crashes bitcoin_cycle sale_review
                                 distance_to_high crash_chart rebounders summary_line
-                                allocation snapshot_comparison snapshot_list)
+                                allocation snapshot_comparison snapshot_list own_rules
+                                key_figures crash_section top_holdings concentration
+                                asset_class_limits)
 
     for {key, {sizes, group, _german}} <- @slice do
       assert {:ok, kind} = Widgets.fetch(key)

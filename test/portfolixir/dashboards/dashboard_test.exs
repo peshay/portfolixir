@@ -159,6 +159,7 @@ defmodule Portfolixir.Dashboards.DashboardTest do
              %{key: "overview"},
              %{key: "allocation_targets"},
              %{key: "snapshots"},
+             %{key: "risk"},
              %{key: "krypto_lover"},
              %{key: "pullbacks"}
            ] = Dashboards.templates()

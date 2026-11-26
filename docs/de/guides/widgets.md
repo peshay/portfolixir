@@ -545,3 +545,158 @@ Snapshot →** im Fuß führt dorthin.
 </figure>
 
 <!-- S32 W3 end -->
+
+<!-- S32 W4 begin -->
+
+## Eigene Regeln
+
+`own_rules` · Größen Zeile
+
+Ihre eigenen Regeln aus dem Tab Risiko und ihre Befunde für die Ansicht
+des Widgets: verletzte und unbestimmte zuerst, jede mit den Worten der
+Regel neben dem gemessenen Wert und ihrer Linie; die Zählung steht oben;
+geplante Regeln, die beendeten hinter einer Aufklappung. Ein Befund sagt,
+auf welcher Seite der Linie eine Zahl liegt, nicht was zu tun ist. Regeln
+werden im Dialog des Tabs Risiko angelegt und geändert: **Regeln bearbeiten
+→** führt dorthin.
+
+**Quelle:**
+
+- `GET /api/v1/portfolios/:portfolio_id/policy_findings`
+- `GET /api/v1/portfolios/:portfolio_id/policy_rules`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/own_rules-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/own_rules-row-light.png 2x" src="/assets/widgets/own_rules-row-light.png" alt="Eigene Regeln in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>
+
+## Kennzahlen des Portfolios
+
+`key_figures` · Größen M, Zeile
+
+Die Kennzahlen des Portfolios aus dem Tab Risiko über ein Jahr: die
+annualisierte Volatilität, der größte Rückgang mit seinen Daten, die
+risikobereinigte Rendite und die höchste Korrelation der größten
+Positionen; unter ihrem Minimum sagt eine Kennzahl, was sie hatte und
+brauchte, nie eine Zahl. **M** die ersten drei; **Zeile** alle vier mit der
+Basis-Zeile.
+
+**Quelle:**
+
+- `GET /api/v1/portfolios/:portfolio_id/risk`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/key_figures-m-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/key_figures-m-light.png 2x" src="/assets/widgets/key_figures-m-light.png" alt="Kennzahlen des Portfolios in M" loading="lazy">
+</picture>
+<figcaption>M</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/key_figures-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/key_figures-row-light.png 2x" src="/assets/widgets/key_figures-row-light.png" alt="Kennzahlen des Portfolios in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>
+
+## Crashes
+
+`crash_section` · Größen Zeile
+
+Der ganze Abschnitt „Crashes“ aus dem Tab Risiko: das Fenster (das
+neueste, bis Sie ein anderes wählen), die Liste — Verlierer, Gewinner oder
+Erholer — und die Wertpapiere, im Depot oder der ganze Katalog, die
+Fenster-Zeile und die Rangliste, jede wie die Ranglisten-Lesung sie
+liefert. Ihre Wahl bleibt im Widget, solange die Seite offen ist. Der
+Crash-Benchmark und die Fenster werden im Tab Risiko gesetzt, verlinkt.
+„Crashes im Vergleich“ (`crashes`) bleibt sein kompakter Verwandter.
+
+**Quelle:**
+
+- `GET /api/v1/crashes`
+- `GET /api/v1/crashes/:key/rankings`
+- `GET /api/v1/views/:view_id/performance`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/crash_section-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/crash_section-row-light.png 2x" src="/assets/widgets/crash_section-row-light.png" alt="Crashes in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>
+
+## Größte Einzelpositionen
+
+`top_holdings` · Größen Zeile
+
+Die größten Einzelwerte der Linse auf der steuerbaren Basis: jeder mit
+Anlageklasse, Wert und Gewicht und der allgemeinen Schwelle, über oder
+unter der er liegt — allgemeine Schwellen, nicht Ihre eigenen Regeln.
+
+**Quelle:**
+
+- `GET /api/v1/portfolios/:portfolio_id/risk`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/top_holdings-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/top_holdings-row-light.png 2x" src="/assets/widgets/top_holdings-row-light.png" alt="Größte Einzelpositionen in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>
+
+## Klumpenrisiko
+
+`concentration` · Größen S, Zeile
+
+Der Herfindahl-Index der Gewichte der Einzelwerte, 0 bis 10.000, mit
+seinem Band (tief, mäßig, konzentriert) auf seiner Skala. **S** die
+Zahl und die Skala; **Zeile** mit der Skalen-Zeile.
+
+**Quelle:**
+
+- `GET /api/v1/portfolios/:portfolio_id/risk`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/concentration-s-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/concentration-s-light.png 2x" src="/assets/widgets/concentration-s-light.png" alt="Klumpenrisiko in S" loading="lazy">
+</picture>
+<figcaption>S</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/concentration-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/concentration-row-light.png 2x" src="/assets/widgets/concentration-row-light.png" alt="Klumpenrisiko in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>
+
+## Anlageklassen-Obergrenzen
+
+`asset_class_limits` · Größen Zeile
+
+Die Obergrenzen je Anlageklasse — der Bildschirm setzt keine, also gibt
+es nichts zu überschreiten (Obergrenzen werden je Anfrage über die API
+gesetzt) — und die Korrelationen der größten Positionen hinter einer
+Aufklappung.
+
+**Quelle:**
+
+- `GET /api/v1/portfolios/:portfolio_id/risk`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/asset_class_limits-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/asset_class_limits-row-light.png 2x" src="/assets/widgets/asset_class_limits-row-light.png" alt="Anlageklassen-Obergrenzen in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
+</figure>
+
+<!-- S32 W4 end -->

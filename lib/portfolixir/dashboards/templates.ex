@@ -84,6 +84,32 @@ defmodule Portfolixir.Dashboards.Templates do
 
   # --- S32 W3 end ---
 
+  # --- S32 W4 begin ---
+  # „Risiko“ (I57; board 02 ②; Sprint 32 W4): Wealth's tab as a starter,
+  # its six sections in the tab's order, each in the size „Zeile“.
+  @risk %{
+    key: "risk",
+    title: "Risk",
+    starter: true,
+    asks_scope: false,
+    layout: [
+      %{"kind" => "own_rules", "size" => "row", "col" => 1, "row" => 1, "settings" => %{}},
+      %{"kind" => "key_figures", "size" => "row", "col" => 1, "row" => 2, "settings" => %{}},
+      %{"kind" => "crash_section", "size" => "row", "col" => 1, "row" => 3, "settings" => %{}},
+      %{"kind" => "top_holdings", "size" => "row", "col" => 1, "row" => 4, "settings" => %{}},
+      %{"kind" => "concentration", "size" => "row", "col" => 1, "row" => 5, "settings" => %{}},
+      %{
+        "kind" => "asset_class_limits",
+        "size" => "row",
+        "col" => 1,
+        "row" => 6,
+        "settings" => %{}
+      }
+    ]
+  }
+
+  # --- S32 W4 end ---
+
   # --- S32 S5 begin ---
   # The themes (I61; board 03 ①; Sprint 32 S5), offered in the gallery
   # beside the starters, never stored by the boot.
@@ -153,6 +179,9 @@ defmodule Portfolixir.Dashboards.Templates do
     # --- S32 W3 begin ---
     @snapshots,
     # --- S32 W3 end ---
+    # --- S32 W4 begin ---
+    @risk,
+    # --- S32 W4 end ---
     @krypto_lover,
     @pullbacks
   ]
@@ -216,6 +245,9 @@ defmodule Portfolixir.Dashboards.Templates do
   # --- S32 W3 begin ---
   def title("snapshots"), do: pgettext("dashboard template", "Snapshots")
   # --- S32 W3 end ---
+  # --- S32 W4 begin ---
+  def title("risk"), do: pgettext("dashboard template", "Risk")
+  # --- S32 W4 end ---
   def title(_key), do: nil
 
   @doc """
@@ -241,6 +273,11 @@ defmodule Portfolixir.Dashboards.Templates do
   def subtitle("snapshots"), do: pgettext("dashboard template", "as Wealth's tab today")
 
   # --- S32 W3 end ---
+
+  # --- S32 W4 begin ---
+  def subtitle("risk"), do: pgettext("dashboard template", "as Wealth's tab today")
+
+  # --- S32 W4 end ---
 
   def subtitle(_key), do: nil
 

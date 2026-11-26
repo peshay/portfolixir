@@ -17993,3 +17993,18 @@ a.widget-row:hover .widget-row__label {
   font-size: 13px;
 }
 /* --- S32 W2 end --- */
+
+/* --- S32 W4 begin --- */
+/* „Kennzahlen des Portfolios“ at M (Sprint 32 W4): its three figures side
+   by side on the anatomy's headline, each label over its figure. */
+.widget-risk-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.widget-risk-figures .stat-empty {
+  font-size: 14px;
+  font-weight: 600;
+}
+/* --- S32 W4 end --- */

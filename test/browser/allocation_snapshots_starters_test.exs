@@ -1,7 +1,7 @@
 defmodule PortfolixirWeb.Browser.AllocationSnapshotsStartersTest do
-  # The starters of Wealth's tabs „Allokation & Ziele“ (Sprint 32 W2) and
-  # „Snapshots“ (W3) against the tabs, in a real browser (I57; ADR-0062's
-  # amendment of 2026-11-25, points 3 and 5; plan D-7: a section widget
+  # The starters of Wealth's tabs „Allokation & Ziele“ (Sprint 32 W2),
+  # „Snapshots“ (W3) and „Risiko“ (W4) against the tabs, in a real
+  # browser (I57; ADR-0062's amendment of 2026-11-25, points 3 and 5; plan D-7: a section widget
   # moves code, never figures; board ux-design-2026-11-25-sprint32/02 ②).
   # LiveViewTest compares each widget's figures with its route's
   # (dashboard_allocation_widgets_test.exs); this walk compares what the
@@ -76,7 +76,55 @@ defmodule PortfolixirWeb.Browser.AllocationSnapshotsStartersTest do
           parts: ["all:[data-role='snapshot-row'] td:not(.row-actions)"]
         }
       ]
+    },
+    # --- S32 W4 begin ---
+    %{
+      key: "risk",
+      wealth: "/risk",
+      sections: [
+        %{
+          kind: "own_rules",
+          wealth_root: "#policy-rules",
+          parts: [
+            "[data-role='policy-rules-summary']",
+            "table.policy-findings-table tbody",
+            "[data-role='policy-rules-basis']"
+          ]
+        },
+        %{
+          kind: "key_figures",
+          wealth_root: "#risk-metrics",
+          parts: [
+            "[data-role='risk-metric-volatility']",
+            "[data-role='risk-metric-max-drawdown']",
+            "[data-role='risk-metric-risk-adjusted-return']",
+            "[data-role='risk-metric-correlations']",
+            "[data-role='risk-basis']"
+          ]
+        },
+        %{
+          kind: "crash_section",
+          wealth_root: ".crash-section",
+          parts: ["[data-role='crash-bar']", "[data-role='crash-window']"]
+        },
+        %{
+          kind: "top_holdings",
+          wealth_root: "#risk-top-holdings",
+          parts: ["table.risk-top-table tbody"]
+        },
+        %{
+          kind: "concentration",
+          wealth_root: "[data-role='risk-hhi']",
+          parts: ["[data-role='risk-hhi']"]
+        },
+        %{
+          kind: "asset_class_limits",
+          wealth_root: "[data-role='risk-caps']",
+          parts: [".empty-state", "details.perf-table-disclosure"]
+        }
+      ]
     }
+    # --- S32 W4 end ---
   ]
 
   setup %{sandbox_owner: owner} do
