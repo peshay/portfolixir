@@ -89,7 +89,8 @@ defmodule PortfolixirWeb.Browser.DashboardWidthsTest do
   #   its size's span (one row's widgets share a top, a later col stands to
   #   the right, the width is the span's), no two overlapping; no blank
   #   band between the bar and the grid, 20 px at most (Sprint 31 closing
-  #   act, DS2); each widget's title at 15 px with its ⓘ on the title's
+  #   act, DS2); each widget's title at 15 px (14 px at S since Sprint 32
+  #   L2) with its ⓘ on the title's
   #   line, its period mark on the title's line after it (Sprint 32 L1,
   #   board ux-design-2026-11-25-sprint32/07 ②, 1), and no „ohne
   #   Zeitraum“ on the grid (DS3); each footer at its frame's foot (DS1),

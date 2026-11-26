@@ -149,7 +149,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CrashChart do
     <Widget.frame
       id={"dashboard-crash-chart" <> @item.uid}
       item={@item}
-      title={title(@card)}
+      title={Widgets.title("crash_chart")}
       scope_label={gettext("Prices, no verdict")}
       full_href="/risk"
       full_label={gettext("All windows →")}
@@ -159,6 +159,12 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CrashChart do
         <%= gettext("The crash benchmark's stored closes over the period, split-adjusted, in its own currency. Red: a crash window as the rule detects it on every read — it opens when the close falls 10% or more below its last high and closes when it is back at that high; the running one stronger. A manual window is shaded from its start to its low.") %>
       </:info>
       <:shared>
+        <%!-- Sprint 32 L2 (board 07 ① 1): the head holds the kind's title
+             alone, so a long fund name never cuts it; the benchmark is the
+             line under it. --%>
+        <p :if={match?(%{state: :ok}, @card)} class="widget-subline" data-role="crash-chart-benchmark">
+          <%= @card.benchmark.name %>
+        </p>
         <p :if={is_nil(@card)} class="section-skeleton" aria-busy="true" data-role="crash-chart-skeleton"></p>
         <p :if={@card == :error} class="hint" data-role="crash-chart-failed">
           <%= gettext("Couldn't load the crash windows.") %>
@@ -189,6 +195,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CrashChart do
         <svg
           class="crash-chart__plot"
           viewBox={"0 0 #{@chart.width} #{@chart.height}"}
+          preserveAspectRatio="none"
           role="img"
           aria-label={gettext("%{benchmark} from %{from} to %{to}", benchmark: @card.benchmark.name, from: Format.date(@card.from), to: Format.date(@card.to))}
           data-role="crash-chart-svg"
@@ -236,11 +243,6 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CrashChart do
     </Widget.frame>
     """
   end
-
-  defp title(%{state: :ok, benchmark: %{name: name}}),
-    do: Widgets.title("crash_chart") <> " · " <> name
-
-  defp title(_card), do: Widgets.title("crash_chart")
 
   @doc false
   # The period's first, last, lowest and highest close (the earliest of

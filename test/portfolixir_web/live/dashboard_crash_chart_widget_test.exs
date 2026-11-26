@@ -170,7 +170,10 @@ defmodule PortfolixirWeb.DashboardCrashChartWidgetTest do
       assert text(Floki.find(doc, "[data-role='crash-chart-high']")) =~
                money(Enum.max(closes, Decimal))
 
-      assert text(Floki.find(doc, "h2")) =~ "Synthetic Crash Index"
+      # Sprint 32 L2 (board 07 ① 1): the benchmark is the line under the
+      # title, the head the kind's title alone.
+      assert text(Floki.find(doc, "[data-role='crash-chart-benchmark']")) =~
+               "Synthetic Crash Index"
 
       drawn = Floki.find(doc, "[data-role='crash-chart-window']")
       assert Enum.map(drawn, &hd(Floki.attribute(&1, "data-key"))) == expected_keys

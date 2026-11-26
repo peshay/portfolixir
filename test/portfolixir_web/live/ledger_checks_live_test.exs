@@ -201,8 +201,13 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
 
     # The stale quote (attention) stands on the line too; the problem wins.
     assert "dq-quotes" in roles(view)
-    assert has_element?(view, "#dashboard-data-quality .data-note--problem")
-    refute has_element?(view, "#dashboard-data-quality .data-note--attention")
+    # Sprint 32 L2: the finding's row at problem severity, the problems
+    # leading the head's severities (the line's highest, as before).
+    assert has_element?(view, "#dashboard-data-quality .widget-findings__row.is-problem")
+
+    assert view
+           |> element("#dashboard-data-quality [data-role='data-quality-severity']")
+           |> render() =~ ~r/>\s*\d+ [Pp]roblem/
 
     {:ok, history, _html} = live(german(conn), "/transactions?dq=cash_mismatch")
 
@@ -280,7 +285,7 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
     assert text(view, ~s(#dashboard-dq-line [data-effect-of="dq-rate-only"])) ==
              "— er bucht Menge × Preis ohne Umrechnung aufs Konto"
 
-    assert has_element?(view, "#dashboard-data-quality .data-note--problem")
+    assert has_element?(view, "#dashboard-data-quality .widget-findings__row.is-problem")
 
     {:ok, history, _html} = live(german(conn), "/transactions?dq=rate_only")
 
@@ -450,7 +455,7 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
     assert text(view, ~s(#dashboard-dq-line [data-effect-of="dq-incomplete-split"])) ==
              "— dort sind die Lots geteilt, der Bestand nicht"
 
-    assert has_element?(view, "#dashboard-data-quality .data-note--problem")
+    assert has_element?(view, "#dashboard-data-quality .widget-findings__row.is-problem")
 
     {:ok, history, _html} = live(german(conn), "/transactions?dq=incomplete_split")
 

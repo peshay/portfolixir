@@ -630,10 +630,16 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
     more = length(all) - length(lines)
     assert more > 0
 
-    assert text(Floki.find(doc, "#dashboard-data-quality [data-role='widget-scope']")) ==
+    # Sprint 32 L2: the count of the rest is the list's last line, not
+    # the footer's scope.
+    assert text(Floki.find(doc, "#dashboard-data-quality [data-role='data-quality-more']")) ==
              "+#{more} more"
 
-    assert text(Floki.find(doc, "#dashboard-data-quality .widget__foot a")) == "Check →"
+    assert text(Floki.find(doc, "#dashboard-data-quality [data-role='widget-scope']")) == ""
+
+    assert text(Floki.find(doc, "#dashboard-data-quality .widget__foot a")) ==
+             "Check securities →"
+
     assert text(Floki.find(doc, "#dashboard-data-quality-2 [data-role='widget-scope']")) == ""
   end
 
@@ -654,10 +660,13 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
 
     assert Floki.find(small, "[data-role='data-quality-line']") == []
 
-    assert text(Floki.find(doc, "#dashboard-data-quality .widget__foot a")) == "Check →"
+    assert text(Floki.find(doc, "#dashboard-data-quality .widget__foot a")) ==
+             "Check securities →"
 
+    # Sprint 32 L2 (board 07 ① 7): one link, named for its target, at
+    # every size.
     assert text(Floki.find(doc, "#dashboard-data-quality-2 .widget__foot a")) ==
-             "To the securities →"
+             "Check securities →"
   end
 
   # User story (Sprint 31 D4, the orchestrator's follow-up 3):

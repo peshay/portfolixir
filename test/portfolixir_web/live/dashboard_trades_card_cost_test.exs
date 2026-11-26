@@ -120,7 +120,13 @@ defmodule PortfolixirWeb.DashboardTradesCardCostTest do
 
     %{
       head: text(Floki.find(card, ".section-head h2, .widget__foot > a")),
-      tip: text(Floki.find(card, ".section-head [data-role='section-info'] p")),
+      # Since Sprint 32 L2 the basis line follows the p. a. clause in the
+      # ⓘ; the tip is the clause's own line.
+      tip:
+        card
+        |> Floki.find(".section-head [data-role='section-info'] p")
+        |> Floki.filter_out("[data-role='trades-card-basis']")
+        |> text(),
       notes: card |> Floki.find(".data-note") |> Enum.map(&text/1),
       basis: text(Floki.find(card, "[data-role='trades-card-basis']")),
       rows:

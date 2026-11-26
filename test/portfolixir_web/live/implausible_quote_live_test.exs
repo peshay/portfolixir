@@ -177,8 +177,13 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
              "2 gehaltene Wertpapiere, deren Kurse nicht zu ihren Buchungen passen"
            )
 
-    assert has_element?(view, "#dashboard-data-quality .data-note--problem")
-    refute has_element?(view, "#dashboard-data-quality .data-note--attention")
+    # Sprint 32 L2: the finding's row at problem severity, the problems
+    # leading the head's severities (the line's highest, as before).
+    assert has_element?(view, "#dashboard-data-quality .widget-findings__row.is-problem")
+
+    assert view
+           |> element("#dashboard-data-quality [data-role='data-quality-severity']")
+           |> render() =~ ~r/>\s*\d+ [Pp]roblem/
 
     assert view |> roles("#dashboard-dq-line") |> Enum.take(-2) ==
              ["dq-two-scales", "dq-implausible-quote"]
@@ -211,7 +216,7 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
     assert text(view, ~s(#dashboard-dq-line a[data-role="dq-implausible-quote"])) ==
              "ein gehaltenes Wertpapier, dessen Kurse nicht zu seinen Buchungen passen"
 
-    assert has_element?(view, "#dashboard-data-quality .data-note--problem")
+    assert has_element?(view, "#dashboard-data-quality .widget-findings__row.is-problem")
 
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
@@ -367,7 +372,7 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
 
     # The clause is the note's body text, never inside the link.
     refute has_element?(view, ~s(#dashboard-dq-line a [data-effect-of]))
-    assert has_element?(view, "#dashboard-data-quality .data-note--problem")
+    assert has_element?(view, "#dashboard-data-quality .widget-findings__row.is-problem")
     refute has_element?(view, "#dashboard-wealth .data-note", "Skalen")
     refute has_element?(view, "#dashboard-wealth .data-note", "Buchungen")
 

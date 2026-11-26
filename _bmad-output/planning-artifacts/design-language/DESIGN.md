@@ -11691,3 +11691,55 @@ filled as a box, the surface's frame and corner, no widget with a card
 border, corner or shadow, at 1200 px neighbours 1 px apart; in the edit
 mode each outline dashed and the handle, × and size switch inside the
 cell. The walk's attack case draws each break and sees it named.
+
+## Amendment 2026-11-26 — Every kind on the anatomy, each filling its tiles *(Sprint 32 L2 and L3, FR-60, idea I62; planning boards `mockups/ux-design-2026-11-25-sprint32/07` ① findings 1 to 10 and ③, `09` ② ③; plan D-12, D-13)*
+
+The amendment before this one drew the anatomy; this one sets every
+registered kind on it. In the amendment of 2026-11-21 it replaces the
+footer's link wordings and the wide head's title rule; the rest stands.
+
+### The frame's two new slots *(`PortfolixirWeb.Dashboard.Widget.frame/1`)*
+
+- **`:foot`**: a line the kind draws itself at the footer's top — what a
+  figure leaves out, its status region with it. A data note there is one
+  line: its glyph and colour, its severity word for a screen reader only,
+  the text cut with an ellipsis and „mehr“ unfolding it, the link at its
+  end. A `:foot` with nothing in it takes no room.
+- **`:scope`**: the footer's scope drawn by the kind (a plan line, a
+  short basis), in place of `scope_label`. The scope grows into the line's
+  room and is cut with an ellipsis; the link stays whole (in the edit
+  mode, beside the size switch, the link is cut too, never wrapped).
+
+### Kind by kind *(board 07 ①: the finding fixed)*
+
+| Kind | What changed |
+|---|---|
+| **Gesamtwert** | S and L the anatomy's figure (28 px; the 34 px hero), no value card inside the widget (4, 5); what the total leaves out is the footer's first line at every size, the full note at L cut to one line, „mehr“ unfolding it (3); one footer, „In Vermögen →“ at every size (7). |
+| **Datenqualität** | L the list of S: a row a finding with its severity dot (its word for a screen reader), its counted sentence the link, what it does to the total on a muted line under it; no red paragraph (3); the severities in words at the head's end, „3 Probleme · 1 Achtung“, the most severe first, notes said by their rows alone. S's „+2 weitere“ is the list's last line. „Wertpapiere prüfen →“ at every size (7). |
+| **Fällig** | S's short basis is the footer's scope, so its two dated rows fit the tile. |
+| **Abseits des Ziels** | the rule („±5 pp oder mehr …“) behind ⓘ, the body's one line the view and the plan (2); S's count the anatomy's figure, the line under it at the body's gap (5). |
+| **Wertentwicklung** | S titled „Rendite“, the figure it draws, so its title stays whole on an S head; S and L the anatomy's figure (5); XL's legend beside the stack, within the tile (09 ②). |
+| **Tops und Flops** | the basis behind ⓘ (2); the switch „Kursrendite · Beitrag“ in the head, small (9); the bar under every row of both rankings and both halves, scaled to its ranking's largest (10); S one list of four — the two highest and the two lowest price returns, each with its bar, no switch (6, L3). |
+| **Snapshots** | the date the anatomy's figure, 28 px at S, the hero at M (5). |
+| **Allokation und Drift** | „≈ zum Soll“ a fifth column of the table, the deeper levels' amounts on the line under it with „nur Anzeige, kein Auftrag“ (ADR-0023; 8); the plan the footer's scope (2). |
+| **Crashes im Vergleich** | the switch „Im Depot · Katalog“ in the head (9); a row a window, its dates on one line, the lowest security cut to one line. |
+| **Bitcoin-Zyklus** | „… keine Prognose“ behind ⓘ only (2); XL draws the security's chart on the range „Zyklus“, the whole tile wide, its bands labelled; the compact forms keep the card (L3). |
+| **Verkaufsrückblick** | the basis behind ⓘ (2); what it leaves out the footer's first line (3). |
+| **Crash-Chart** | the title the kind's alone, the benchmark a line under it (1); the plot fills the tile (L3). |
+| **Erholer nach Crashes** | the switch in the head (9); a bar under every row, scaled to its list's largest; XL three lists side by side (L3). |
+
+### The period mark on the wide head
+
+Where a kind reads another window than the dashboard's period („1W →
+Woche“), the arrow and the window yield on the wide grid's head, so the
+title keeps its room; they stay for a screen reader, in the mark's
+tooltip, and the ⓘ names the window. The compact forms draw them.
+
+### A fixed tile shows what fits *(L3; test/browser/widget_anatomy_test.exs)*
+
+The walk adds two rules at 1200 px: **no title cut** — each kind's title
+fits its smallest tile on the head's line (14 px on an S tile, its mark
+4 px inside) — and **no row cut**: a row of a widget's body or footer is
+drawn whole or not at all, never sliced by the tile's edge. Each has its
+attack case. A body's parts stand at its top at their own height (a table
+never stretches its rows to the tile).
