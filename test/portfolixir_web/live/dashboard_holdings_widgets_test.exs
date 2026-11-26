@@ -139,7 +139,7 @@ defmodule PortfolixirWeb.DashboardHoldingsWidgetsTest do
       valuation = api("/api/v1/valuation")
       perf = api("/api/v1/performance?period=1y")
       doc = rendered(conn, "/")
-      widget = Floki.find(doc, "#dashboard-key-figures [data-form='wide']")
+      widget = Floki.find(doc, "#dashboard-wealth-key-figures [data-form='wide']")
       at = fn role -> widget |> Floki.find("[data-role='#{role}']") |> text() end
 
       assert at.("kf-total") =~ money(valuation["total_with_cash"])
