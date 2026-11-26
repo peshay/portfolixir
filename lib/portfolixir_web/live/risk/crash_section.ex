@@ -570,9 +570,14 @@ defmodule PortfolixirWeb.Risk.CrashSection do
         <.unanswered :if={@ranking} ranking={@ranking} show={@show_unanswered} myself={@myself} />
       <% end %>
 
+      <%!-- The S32 closing act's UAT, finding 5: embedded, the windows'
+           disclosure is drawn too, read-only (no form, no button that
+           writes), „Fenster bearbeiten →“ leading to the tab. --%>
       <.windows
-        :if={not @embedded and (@windows != [] or @listing.unmatched_names != [] or @form != nil)}
+        :if={@windows != [] or @listing.unmatched_names != [] or @form != nil}
         myself={@myself}
+        embedded={@embedded}
+        prefix={dom(assigns, "")}
         listing={@listing}
         windows={@windows}
         benchmark={@benchmark}
@@ -1019,7 +1024,12 @@ defmodule PortfolixirWeb.Risk.CrashSection do
       )
 
     ~H"""
-    <details class="perf-table-disclosure crash-windows" id="crash-windows" phx-hook="DisclosureState" open={@open?}>
+    <details
+      class="perf-table-disclosure crash-windows"
+      id={@prefix <> "crash-windows"}
+      phx-hook="DisclosureState"
+      open={@open?}
+    >
       <summary class="disclosure-summary">
         <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
         <%= summary_text(@detected_count, @manual_count, length(@unmatched)) %>
@@ -1032,6 +1042,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
               <b><%= @benchmark.name %></b> (<%= @benchmark.currency_code %>)
             </span>
             <button
+              :if={not @embedded}
               type="button"
               class="link-button"
               data-role="crash-change-benchmark"
@@ -1043,6 +1054,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           <% else %>
             <span><%= gettext("No crash benchmark chosen.") %></span>
             <button
+              :if={not @embedded}
               type="button"
               class="link-button"
               phx-click="crash_choose_benchmark"
@@ -1051,7 +1063,11 @@ defmodule PortfolixirWeb.Risk.CrashSection do
               <%= gettext("Choose crash benchmark") %>
             </button>
           <% end %>
+          <.link :if={@embedded} navigate="/risk" class="link-button" data-role="crash-windows-edit">
+            <%= gettext("Edit windows →") %>
+          </.link>
           <button
+            :if={not @embedded}
             type="button"
             class="button-secondary crash-rule__add"
             data-role="crash-add-window"
@@ -1062,9 +1078,9 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           </button>
         </p>
 
-        <.benchmark_form :if={@form == :benchmark} myself={@myself} benchmark={@benchmark} errors={@errors} />
+        <.benchmark_form :if={not @embedded and @form == :benchmark} myself={@myself} benchmark={@benchmark} errors={@errors} />
         <.window_form
-          :if={match?({:name, _}, @form) or match?({:manual, _}, @form) or @form == :manual_new}
+          :if={not @embedded and (match?({:name, _}, @form) or match?({:manual, _}, @form) or @form == :manual_new)}
           myself={@myself}
           form={@form}
           windows={@windows}
@@ -1072,8 +1088,8 @@ defmodule PortfolixirWeb.Risk.CrashSection do
           posted={@posted}
         />
 
-        <div :if={@windows != []} class="data-table-wrapper" id="crash-windows-table-wrapper">
-          <table class="data-table crash-windows-table" id="crash-windows-table">
+        <div :if={@windows != []} class="data-table-wrapper" id={@prefix <> "crash-windows-table-wrapper"}>
+          <table class="data-table crash-windows-table" id={@prefix <> "crash-windows-table"}>
             <thead>
               <tr>
                 <th><%= gettext("Name") %></th>
@@ -1083,7 +1099,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
                 <th><%= gettext("Recovered") %></th>
                 <th class="num"><%= gettext("Gap, days") %></th>
                 <th><%= gettext("Kind") %></th>
-                <th><span class="sr-only"><%= gettext("Actions") %></span></th>
+                <th :if={not @embedded}><span class="sr-only"><%= gettext("Actions") %></span></th>
               </tr>
             </thead>
             <tbody>
@@ -1112,7 +1128,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
                   <td class="num muted">—</td>
                 <% end %>
                 <td><.kind_badge kind={window.kind} /></td>
-                <td class="crash-actions">
+                <td :if={not @embedded} class="crash-actions">
                   <.window_actions window={window} myself={@myself} />
                 </td>
               </tr>
@@ -1126,7 +1142,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
              decline over the recovery on the right. --%>
         <ul
           :if={@windows != []}
-          id="crash-windows-phone-rows"
+          id={@prefix <> "crash-windows-phone-rows"}
           class="phone-rows"
           aria-label={gettext("Crash windows")}
         >
@@ -1149,7 +1165,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
                 <span :if={window.kind == "detected"} class="muted">
                   <%= gettext("Gap, days") %>: <%= window.max_gap_days %>
                 </span>
-                <.window_actions window={window} myself={@myself} />
+                <.window_actions :if={not @embedded} window={window} myself={@myself} />
               </span>
             </span>
             <span class="phone-row__figures">
@@ -1174,7 +1190,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
              crash benchmark's), or another crash benchmark is chosen (or
              none is); the actions may wrap in their cell, so each table
              keeps to its wrapper at 1200 px. --%>
-        <div :if={@unmatched != []} class="crash-unmatched" id="crash-unmatched">
+        <div :if={@unmatched != []} class="crash-unmatched" id={@prefix <> "crash-unmatched"}>
           <h3><%= ngettext(
             "Name without a window (%{count})",
             "Names without a window (%{count})",
@@ -1193,7 +1209,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
                     <th><%= gettext("Name") %></th>
                     <th><%= gettext("Given for") %></th>
                     <th><%= pgettext("crash", "High") %></th>
-                    <th><span class="sr-only"><%= gettext("Actions") %></span></th>
+                    <th :if={not @embedded}><span class="sr-only"><%= gettext("Actions") %></span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1201,7 +1217,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
                     <td><%= name.name %></td>
                     <td><%= name.benchmark_name || gettext("a removed security") %></td>
                     <td><%= Format.date(name.start) %></td>
-                    <td class="crash-actions">
+                    <td :if={not @embedded} class="crash-actions">
                       <button
                         type="button"
                         class="link-button"
@@ -1230,7 +1246,7 @@ defmodule PortfolixirWeb.Risk.CrashSection do
             </div>
           </div>
           <.from_name_form
-            :if={match?({:from_name, _}, @form)}
+            :if={not @embedded and match?({:from_name, _}, @form)}
             myself={@myself}
             name={Enum.find(@unmatched, &({:from_name, &1.key} == @form))}
             errors={@errors}

@@ -10626,6 +10626,12 @@ dialog.filter-sheet::backdrop {
     display: none;
   }
 
+  /* The crash windows' table in a dashboard widget, its id under the
+     widget's (the S32 closing act's UAT, finding 5), gives way the same. */
+  [id$="-crash-windows-table-wrapper"] {
+    display: none;
+  }
+
   /* The chip rows give way to the Filter control on BOTH list surfaces
      (issue 800 for the securities toolbar, issue 816 for the history): at
      390 px the history's account, type and changed-since families plus the
@@ -13777,7 +13783,8 @@ dialog.merge-dialog {
    wrapper): the name over its high and low, the kind, the longest gap and
    the actions on a third line; the decline over the recovery on the
    right. */
-#crash-windows-phone-rows .phone-row {
+#crash-windows-phone-rows .phone-row,
+[id$="-crash-windows-phone-rows"] .phone-row {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 .crash-window-row__actions {
@@ -13791,11 +13798,13 @@ dialog.merge-dialog {
 .crash-window-row__actions .link-button {
   font-size: 12.5px;
 }
-#crash-windows-phone-rows .phone-row__name.crash-unnamed {
+#crash-windows-phone-rows .phone-row__name.crash-unnamed,
+[id$="-crash-windows-phone-rows"] .phone-row__name.crash-unnamed {
   font-style: italic;
   color: var(--color-text-muted);
 }
-#crash-windows-phone-rows .phone-row.is-ongoing {
+#crash-windows-phone-rows .phone-row.is-ongoing,
+[id$="-crash-windows-phone-rows"] .phone-row.is-ongoing {
   background: var(--color-warning-soft);
 }
 /* The forms in the disclosure: name, draw, edit, make a name manual (F1). */
@@ -18109,7 +18118,8 @@ a.widget-row:hover .widget-row__label {
 
   /* Line 6: a tinted window row (an ongoing window's) keeps its text off
      the tint's edges. */
-  #crash-windows-phone-rows .phone-row.is-ongoing {
+  #crash-windows-phone-rows .phone-row.is-ongoing,
+  [id$="-crash-windows-phone-rows"] .phone-row.is-ongoing {
     padding-inline: var(--space-2);
   }
 }
