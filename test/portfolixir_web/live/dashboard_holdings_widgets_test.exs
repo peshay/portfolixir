@@ -106,6 +106,95 @@ defmodule PortfolixirWeb.DashboardHoldingsWidgetsTest do
       wealth_rows = Floki.find(wealth, "#portfolio-cash [data-role='cash-account']")
       assert Enum.map(wealth_rows, &text/1) == Enum.map(rows, &text/1)
     end
+
+    # €1,000 free and a €5,000 reserve beside €4,000 in securities, and a
+    # dollar account no rate converts: the cash all valued accounts sum is
+    # 6,000, the deployable cash the cash quote counts 1,000.
+    defp reserve_seed do
+      today = Clock.today()
+      home = base_world(name: "Home", cash_name: "Free Cash", depot_name: "Home Depot")
+      deposit!(home, "5000", Date.add(today, -20))
+      security = create_security!(name: "Alpha Werke")
+      put_quotes!(security, [{Date.add(today, -10), "100"}])
+      buy!(home, security, quantity: "40", price: "100", date: Date.add(today, -10))
+
+      reserve =
+        add_depot(home.portfolio,
+          cash_name: "Reserve Cash",
+          depot_name: "Reserve Depot",
+          liquidity_role: "reserve"
+        )
+
+      deposit!(%{portfolio: home.portfolio, cash: reserve.cash}, "5000", Date.add(today, -20))
+
+      dollars =
+        add_depot(home.portfolio,
+          cash_currency: "USD",
+          cash_name: "Dollar Cash",
+          depot_name: "Dollar Depot"
+        )
+
+      deposit!(%{portfolio: home.portfolio, cash: dollars.cash}, "250", Date.add(today, -20),
+        currency: "USD"
+      )
+
+      %{dollars: dollars.cash}
+    end
+
+    # User story (Sprint 32 closing act, PR 2, the correctness lens):
+    # As the operator who reads „Cash“ at S beside a reserve,
+    # I want its ⓘ to name the basis the figure really has, and its count
+    # to count the accounts the figure sums,
+    # so that a reserve inside the figure is not read as deployable cash.
+    #
+    # Acceptance criteria:
+    # - The figure is GET /api/v1/valuation's total_cash, 6,000.00: every
+    #   valued account, the reserve included, the dollar account without a
+    #   rate left out; its line counts the two accounts it sums, not three.
+    # - Its ⓘ says so: all valued cash accounts, reserves and credit lines
+    #   included, and that the cash quote counts only the deployable share;
+    #   it never calls the figure deployable cash.
+    test "at S the cash figure states its true basis and counts the accounts it sums",
+         %{conn: conn} do
+      reserve_seed()
+      dashboard!([{"cash_accounts", "S"}])
+      valuation = api("/api/v1/valuation")
+      assert Decimal.equal?(Decimal.new(valuation["total_cash"]), 6000)
+      assert Decimal.equal?(Decimal.new(valuation["counting_cash"]), 1000)
+      summed = Enum.count(valuation["cash_balances"], & &1["valued"])
+      assert summed == 2 and length(valuation["cash_balances"]) == 3
+
+      widget = Floki.find(rendered(conn, "/"), "#dashboard-cash-accounts")
+      small = text(Floki.find(widget, "[data-role='cash-total']"))
+      assert small =~ money(valuation["total_cash"])
+      assert small =~ "2 accounts"
+
+      info = text(Floki.find(widget, "[data-role='section-info']"))
+      assert info =~ "reserves and credit lines included"
+      assert info =~ "The cash quote counts only the deployable share"
+      refute info =~ "deployable cash in the base currency"
+    end
+
+    # User story (Sprint 32 closing act, PR 2, the edge-case lens):
+    # As the operator who reads the cash accounts on a phone,
+    # I want an account no rate converts marked there as on the wide form,
+    # so that its balance is not read as part of the totals.
+    #
+    # Acceptance criteria:
+    # - The compact row of the dollar account without a rate says
+    #   „⚠ no exchange rate“; the rows of valued accounts do not.
+    test "the compact form marks an account without an exchange rate", %{conn: conn} do
+      %{dollars: dollars} = reserve_seed()
+      dashboard!([{"cash_accounts", "row"}])
+      widget = Floki.find(rendered(conn, "/"), "#dashboard-cash-accounts [data-form='compact']")
+      rows = Floki.find(widget, "[data-compact-role='cash-account']")
+      assert length(rows) == 3
+
+      for row <- rows do
+        marked = text(row) =~ "⚠ no exchange rate"
+        assert marked == (Floki.attribute(row, "data-cash-account-id") == ["#{dollars.id}"])
+      end
+    end
   end
 
   describe "Kennzahlen (wealth_key_figures)" do
@@ -183,6 +272,35 @@ defmodule PortfolixirWeb.DashboardHoldingsWidgetsTest do
       wealth = rendered(conn, "/portfolio")
       assert text(Floki.find(wealth, "#kpi-ttwror strong")) == at.("kf-ttwror-value")
       assert text(Floki.find(wealth, "[data-role='period-gain'] b")) == at.("kf-result-value")
+    end
+
+    # User story (Sprint 32 closing act, PR 2, the correctness lens):
+    # As the operator who reads the total's split beside a reserve,
+    # I want the percentage after the cash named as the cash quote,
+    # so that 20 % of deployable cash is not read as the share of the
+    # 6,000 the legend names.
+    #
+    # Acceptance criteria:
+    # - The legend's cash reads „Cash <total_cash> · Cash quote <cash_quote>
+    #   %“, both GET /api/v1/valuation's: the amount every valued account
+    #   sums, the quote the deployable share (1,000 of 5,000).
+    test "the split names its percentage the cash quote, apart from the cash it sums",
+         %{conn: conn} do
+      reserve_seed()
+      dashboard!([{"wealth_key_figures", "S"}])
+      valuation = api("/api/v1/valuation")
+      assert Decimal.equal?(Decimal.new(valuation["cash_quote"]), Decimal.new("0.2"))
+
+      cash =
+        conn
+        |> rendered("/")
+        |> Floki.find("#dashboard-wealth-key-figures [data-form='wide'] [data-role='kf-cash']")
+        |> text()
+
+      assert cash ==
+               "Cash " <>
+                 money(valuation["total_cash"]) <>
+                 " · Cash quote " <> Format.percent(Decimal.new(valuation["cash_quote"])) <> " %"
     end
 
     # User story (Sprint 32 closing act, PR 2, the correctness lens):

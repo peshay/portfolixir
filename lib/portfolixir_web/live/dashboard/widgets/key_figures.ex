@@ -194,7 +194,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.KeyFigures do
       full_role="key-figures-full-view"
     >
       <:info>
-        <%= gettext("The total incl. cash, the securities, the cash and the cash quote: the view valuation, GET /api/v1/valuation and GET /api/v1/views/:id/valuation. The cash quote is deployable cash ÷ (securities + deployable cash); a reserve or a credit line is left out.") %>
+        <%= gettext("The total incl. cash, the securities, the cash and the cash quote: the view valuation, GET /api/v1/valuation and GET /api/v1/views/:id/valuation. The cash is every valued cash account's, reserves and credit lines included (total_cash); the cash quote is deployable cash ÷ (securities + deployable cash), a reserve or a credit line left out of it.") %>
       </:info>
       <:info>
         <%= gettext("Result, TTWROR and IRR: the performance read over the widget's period, GET /api/v1/performance with the period's parameters. Result: end value − start value − net external flows. TTWROR time-weighted, not annualized; IRR money-weighted and annualized, under a year the period MWR, not annualized.") %>
@@ -277,8 +277,10 @@ defmodule PortfolixirWeb.Dashboard.Widgets.KeyFigures do
 
   attr(:valuation, :map, required: true)
 
-  # The total's split into securities and deployable cash: the bar draws
-  # the cash quote, the legend names both amounts and the quote.
+  # The total's split into securities and cash: the legend names both
+  # amounts, the cash every valued account's (total_cash), and then the
+  # cash quote, named, since it counts the deployable share only; the bar
+  # draws that quote.
   defp split(assigns) do
     {securities, cash} = share(assigns.valuation.cash_quote)
     assigns = assign(assigns, securities_share: securities, cash_share: cash)
@@ -293,7 +295,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.KeyFigures do
       </span>
       <p class="key-figures__legend">
         <span data-role="kf-securities"><span class="key-figures__swatch key-figures__swatch--securities" aria-hidden="true"></span><%= gettext("Securities") %> <b class="num"><%= Format.money(@valuation.total_value) %></b></span>
-        <span data-role="kf-cash"><span class="key-figures__swatch" style={"background: #{CategoryColors.cash()}"} aria-hidden="true"></span><%= gettext("Cash") %> <b class="num"><%= Format.money(@valuation.total_cash) %></b> · <%= Format.percent(@valuation.cash_quote) %> %</span>
+        <span data-role="kf-cash"><span class="key-figures__swatch" style={"background: #{CategoryColors.cash()}"} aria-hidden="true"></span><%= gettext("Cash") %> <b class="num"><%= Format.money(@valuation.total_cash) %></b> · <%= gettext("Cash quote") %> <%= Format.percent(@valuation.cash_quote) %> %</span>
       </p>
     </div>
     """

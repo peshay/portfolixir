@@ -10,15 +10,19 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CashAccounts do
   Its figures are the view valuation's (ADR-0024), `Portfolixir.Portfolios.Valuation.for_view/2`,
   the read `GET /api/v1/valuation` and `GET /api/v1/views/:view_id/valuation`
   answer: `cash_balances`, each account's balance in its own currency,
-  and at S `total_cash`, the deployable cash the cash quote counts. Both
-  are read in the first portfolio's base currency, as Wealth reads them.
+  and at S `total_cash`, the cash of every valued account, reserves and
+  credit lines included (the cash quote counts only the deployable share,
+  `counting_cash`). Both are read in the first portfolio's base currency,
+  as Wealth reads them.
   Setting a balance stays on „Konten & Depots“, linked (ADR-0022's
   amendment of 2026-11-21, point 3).
 
     * **Zeile** — the section as Wealth draws it: the table of accounts
       and balances, an account outside the cash quote muted with its role;
-    * **S** — the scope's cash and how many accounts it lists;
-    * **compact** — one row per account, the balance at the right.
+    * **S** — the scope's cash and how many accounts it sums: the valued
+      ones, an account without a rate path left out of both;
+    * **compact** — one row per account, the balance at the right, an
+      account without a rate path marked as on the wide form.
   """
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
@@ -147,7 +151,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CashAccounts do
         <%= gettext("Each cash account of the view with its balance in its own currency, as Wealth lists them: the view valuation, GET /api/v1/valuation and GET /api/v1/views/:id/valuation, its cash_balances. A reserve or a credit line is muted: the cash quote leaves it out.") %>
       </:info>
       <:info :if={@item.size == "S"}>
-        <%= gettext("The figure is the view's deployable cash in the base currency, the valuation's total_cash, which the cash quote counts.") %>
+        <%= gettext("The figure is the cash of all valued cash accounts of the view in the base currency, reserves and credit lines included: the valuation's total_cash; an account without an exchange rate is left out. The cash quote counts only the deployable share, the valuation's counting_cash.") %>
       </:info>
       <:shared>
         <p :if={is_nil(@card)} class="section-skeleton" aria-busy="true" data-role="cash-skeleton"></p>
@@ -163,7 +167,7 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CashAccounts do
             <%= Format.money(@valuation.total_cash) %>
             <:unit><%= @valuation.base_currency %></:unit>
             <:sub>
-              <%= ngettext("%{count} account", "%{count} accounts", length(@valuation.cash_balances)) %>
+              <%= ngettext("%{count} account", "%{count} accounts", summed_count(@valuation.cash_balances)) %>
             </:sub>
           </Widget.figure>
         <% else %>
@@ -180,13 +184,22 @@ defmodule PortfolixirWeb.Dashboard.Widgets.CashAccounts do
           >
             <:name><%= cash.name %></:name>
             <:sub :if={not cash.deployable}><%= liquidity_role_hint(cash.liquidity_role) %></:sub>
-            <:figure><%= Format.money(cash.balance) %> <%= cash.currency %></:figure>
+            <:figure>
+              <%= Format.money(cash.balance) %> <%= cash.currency %>
+              <span :if={not cash.valued} class="cash-unvalued" data-role="cash-unvalued">
+                ⚠ <%= gettext("no exchange rate") %>
+              </span>
+            </:figure>
           </Widget.row>
         <% end %>
       </:compact>
     </Widget.frame>
     """
   end
+
+  # The accounts total_cash sums: the valued ones (`Valuation`'s cash
+  # summary leaves an account without a rate path out of the total).
+  defp summed_count(balances), do: Enum.count(balances, & &1.valued)
 
   defp valuation(%{valuation: %{} = valuation}), do: valuation
   defp valuation(_card), do: nil
