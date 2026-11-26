@@ -23,7 +23,9 @@ defmodule PortfolixirWeb.Browser.DashboardPeriodMenuTest do
   import Portfolixir.WorldFixtures,
     only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3, put_quotes!: 2]
 
+  alias Portfolixir.Actor
   alias Portfolixir.Clock
+  alias Portfolixir.Dashboards
 
   @moduletag :browser
   @moduletag timeout: 180_000
@@ -53,7 +55,16 @@ defmodule PortfolixirWeb.Browser.DashboardPeriodMenuTest do
     buy!(world, security, quantity: "8", price: "100", date: start)
     put_quotes!(security, [{start, "100"}, {Date.add(today, -100), "110"}, {today, "121"}])
 
-    %{base_url: "http://localhost:#{port}", path: "/"}
+    # A stored dashboard with „Kennzahlen“ at Zeile, on which the own
+    # period is made (the S32 closing act's UAT, finding 7: the bar of a
+    # stored dashboard holds „Bearbeiten“, and Kennzahlen' result its EUR).
+    {:ok, own} =
+      Dashboards.create_dashboard(Actor.owner_ui(), %{
+        "name" => "Eigene",
+        "layout" => [%{"kind" => "wealth_key_figures", "size" => "row", "col" => 1, "row" => 1}]
+      })
+
+    %{base_url: "http://localhost:#{port}", path: "/", own: "/dashboards/#{own.id}"}
   end
 
   # User story (T4):
@@ -77,12 +88,18 @@ defmodule PortfolixirWeb.Browser.DashboardPeriodMenuTest do
   # - A star puts Vorquartal into the bar; „Eigenen Zeitraum anlegen …“
   #   opens the native dialog; „Speichern und anwenden“ stores the period
   #   and applies it, the button naming it and its dates beside it.
+  # - The S32 closing act's UAT, finding 7: with the own period applied on a
+  #   stored dashboard at 1200 px, the bar keeps „Bearbeiten“ on the period
+  #   button's line (the status sentence stands out of it), and
+  #   Kennzahlen' result keeps its „EUR“ on its figure's line.
+  # - Finding 9: the dialog takes its dates as German dates (01.03.2025).
   test "the menu is walked by keyboard, at a wide and a phone width, and its dialog stores", %{
     base_url: base_url,
-    path: path
+    path: path,
+    own: own
   } do
     {output, status} =
-      System.cmd("node", [@script, Jason.encode!(%{base_url: base_url, path: path})],
+      System.cmd("node", [@script, Jason.encode!(%{base_url: base_url, path: path, own: own})],
         stderr_to_stdout: true
       )
 

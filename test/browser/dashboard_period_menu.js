@@ -196,11 +196,11 @@ async function lastYearByTap(browser) {
 // the native dialog, whose save stores the period and applies it, its
 // dates beside its name.
 async function starAndDialog(browser) {
-  const ctx = await browser.newContext({ viewport: WIDE });
+  const ctx = await browser.newContext({ viewport: { width: 1200, height: 900 } });
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(String(error && error.message)));
-  await open(page, board);
+  await open(page, args.own || board);
 
   await page.click("#dashboard-period-menu-toggle");
   await until(page, "the click did not open the menu", () => document.getElementById("dashboard-period-menu") !== null);
@@ -227,7 +227,13 @@ async function starAndDialog(browser) {
   check(footer.right >= 16 && footer.bottom >= 16, "the dialog's buttons touch its edges: " + JSON.stringify(footer));
 
   await page.fill("#period-form input[name='period[name]']", "Seit Umschichtung");
-  await page.fill("#period-form input[name='period[from]']", "2025-03-01");
+  // Under a year ago, so the money-weighted return is the period's MWR,
+  // whose labels are the longest (the UAT's „Seit Juni“).
+  const from = new Date(Date.now() - 170 * 86400000);
+  const pad = (n) => String(n).padStart(2, "0");
+  const fromIso = from.getUTCFullYear() + "-" + pad(from.getUTCMonth() + 1) + "-" + pad(from.getUTCDate());
+  const fromDe = pad(from.getUTCDate()) + "." + pad(from.getUTCMonth() + 1) + "." + from.getUTCFullYear();
+  await page.fill("#period-form input[name='period[from]']", fromIso);
   await page.click("#period-form [data-role='period-save']");
   await until(page, "the saved period was not applied", () =>
     (new URLSearchParams(location.search).get("period") || "").startsWith("saved:")
@@ -239,7 +245,40 @@ async function starAndDialog(browser) {
   }));
   console.error("own period: " + JSON.stringify(named));
   check(named.label === "Seit Umschichtung", "the button reads „" + named.label + "“");
-  check(named.dates.startsWith("01.03.2025 – "), "the dates beside it read „" + named.dates + "“");
+
+  // The S32 closing act's UAT, finding 7: the bar stays one line with the
+  // own period, its dates and its status, and the result keeps its EUR.
+  await settle(page);
+  // The result as the UAT read it on the review seed (+3.947,56), whatever
+  // this walk's small world books: the tile holds a figure that long.
+  await page.evaluate(() => {
+    const value = document.querySelector("[data-role='kf-result-value']");
+    if (value) value.textContent = "+3.947,56";
+  });
+  const bar = await page.evaluate(() => {
+    const top = (sel) => {
+      const el = document.querySelector(sel);
+      return el ? el.getBoundingClientRect().top : null;
+    };
+    const unit = document.querySelector("[data-role='kf-result'] .widget-figure__unit");
+    const value = document.querySelector("[data-role='kf-result-value']");
+    return {
+      toggle: top("#dashboard-period-menu-toggle"),
+      scope: top(".dashboard-bar__row > .dashboard-scope, .dashboard-bar__row > .dashboard-scope--own"),
+      edit: top("[data-role='edit-start']"),
+      say: (document.getElementById("dashboard-period-status") || { textContent: "" }).textContent.trim(),
+      unit: unit ? unit.getBoundingClientRect().bottom : null,
+      value: value ? value.getBoundingClientRect().bottom : null
+    };
+  });
+  console.error("bar with the own period: " + JSON.stringify(bar));
+  check(bar.say !== "", "the status sentence is gone: " + JSON.stringify(bar));
+  check(
+    bar.edit !== null && bar.scope !== null && Math.abs(bar.edit - bar.toggle) < 12 && Math.abs(bar.toggle - bar.scope) < 12,
+    "the bar is not one line (the scope, the period button and „Bearbeiten“): " + JSON.stringify(bar)
+  );
+  check(bar.unit !== null && Math.abs(bar.unit - bar.value) < 12, "the result's EUR is not on its figure's line: " + JSON.stringify(bar));
+  check(named.dates.startsWith(fromDe + " – "), "the dates beside it read „" + named.dates + "“");
 
   check(errors.length === 0, "the page raised a script error: " + errors.join(" | "));
   await leave(ctx);
