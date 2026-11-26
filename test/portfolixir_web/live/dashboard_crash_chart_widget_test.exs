@@ -127,7 +127,9 @@ defmodule PortfolixirWeb.DashboardCrashChartWidgetTest do
   #   labelled with its name and decline, the running one marked running
   #   and drawn stronger.
   # - At 1M only the running window overlaps, and the line starts a month
-  #   back.
+  #   back. A window that began before the period has no label in the
+  #   chart; the line under it says „−X % vom Hoch am <Datum> · läuft“
+  #   (board 11 ②; the S32 closing act).
   # - The compact form lists the same windows, newest first, with their
   #   declines.
   test "„Crash-Chart“ draws the benchmark's closes and the crash windows of the period" do
@@ -176,14 +178,31 @@ defmodule PortfolixirWeb.DashboardCrashChartWidgetTest do
       for node <- drawn do
         key = hd(Floki.attribute(node, "data-key"))
         window = Enum.find(listed, &(&1["key"] == key))
-        label = text(Floki.find(node, "[data-role='crash-chart-label']"))
-        assert label =~ percent(window["decline"])
+        label = text(Floki.find(doc, "[data-role='crash-chart-label'][data-key='#{key}']"))
+        before = text(Floki.find(doc, "[data-role='crash-chart-before'][data-key='#{key}']"))
+
+        if Date.compare(Date.from_iso8601!(window["start"]), read.from) == :lt do
+          # The S32 closing act (board 11 ②): a window that began before
+          # the period gets no label pinned to the chart's left edge; the
+          # line under the chart names it, the running one as the board
+          # words it.
+          assert label == ""
+          assert before =~ percent(window["decline"])
+          assert before =~ de(fn -> Format.date(Date.from_iso8601!(window["start"])) end)
+          if window["provisional"], do: assert(before =~ "vom Hoch am")
+          if window["provisional"], do: assert(before =~ "· läuft")
+        else
+          assert before == ""
+          assert label =~ percent(window["decline"])
+
+          if window["provisional"],
+            do: assert(label =~ "läuft"),
+            else: assert(label =~ window["name"])
+        end
 
         if window["provisional"] do
-          assert label =~ "läuft"
           assert Floki.find(node, "rect.is-running") != []
         else
-          assert label =~ window["name"]
           assert Floki.find(node, "rect.is-running") == []
         end
       end
@@ -205,7 +224,8 @@ defmodule PortfolixirWeb.DashboardCrashChartWidgetTest do
   # dates.
   #
   # Acceptance criteria:
-  # - The running window is the first row; „erholt nach“ is „—“ for it and,
+  # - The running window is the first row, its dates ending „läuft“ as
+  #   the crash chart says it; „erholt nach“ is „—“ for it and,
   #   for each recovered window, the calendar days from its trough to its
   #   recovered_on as GET /api/v1/crashes answers them, „nach N Tagen“.
   test "„Crashes im Vergleich“ shows the running fall first and „erholt nach“" do
@@ -225,6 +245,11 @@ defmodule PortfolixirWeb.DashboardCrashChartWidgetTest do
     running = Enum.find(windows["detected"], & &1["provisional"])
     assert hd(Floki.attribute(first, "data-key")) == running["key"]
     assert text(Floki.find(first, "[data-role='crash-recovered']")) == "—"
+
+    # The running fall „läuft“, as the crash chart and board 11 ③ say it,
+    # not „andauernd“ (the S32 closing act).
+    assert text(first) =~ "läuft"
+    refute text(doc) =~ "andauernd"
 
     for row <- rest do
       key = hd(Floki.attribute(row, "data-key"))
