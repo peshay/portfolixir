@@ -518,8 +518,11 @@ defmodule PortfolixirWeb.DashboardRiskWidgetsTest do
     #   rank, security and return.
     # - „Gewinner“ answers the winners' list in the widget; nothing is
     #   stored and the address does not change.
-    # - The windows' disclosure and its forms stay on the tab: none is
-    #   drawn; a write pushed by hand changes nothing.
+    # - The windows' forms stay on the tab: the widget draws the windows'
+    #   disclosure read-only (the S32 closing act's UAT, finding 5), each
+    #   window of GET /api/v1/crashes a row, no form, no button, and
+    #   „Fenster bearbeiten →“ to the tab; a write pushed by hand changes
+    #   nothing.
     # - The S32 closing act (PR 2's design critic): the section's inner
     #   part stands on the widget's surface, without the tab's
     #   `section.workspace-section`; „Liste“ and „Wertpapiere“ stand in the
@@ -597,8 +600,38 @@ defmodule PortfolixirWeb.DashboardRiskWidgetsTest do
       assert has_element?(view, head <> " [data-universe='catalogue'].is-active")
       assert has_element?(view, head <> " [data-list='winners'].is-active")
 
+      # The S32 closing act's UAT, finding 5: the tab's windows list
+      # („Crash-Fenster · … manuell“) is the widget's too, read-only — a row
+      # per window of GET /api/v1/crashes, no form and no button that
+      # writes — and „Fenster bearbeiten →“ leads to the tab. Its ids are
+      # the widget's own, never the tab's.
       refute has_element?(view, "#dashboard-crash-section #crash-windows")
-      refute has_element?(view, "#dashboard-crash-section details.crash-windows")
+      assert has_element?(view, "#dashboard-crash-section details.crash-windows")
+
+      listing = api("/api/v1/crashes")
+
+      keys =
+        Enum.map(listing["detected"] ++ listing["manual"], & &1["key"]) |> Enum.sort()
+
+      shown =
+        view
+        |> doc()
+        |> Floki.find(
+          "#dashboard-crash-section details.crash-windows table.crash-windows-table tbody tr"
+        )
+        |> Enum.map(&hd(Floki.attribute(&1, "data-key")))
+        |> Enum.sort()
+
+      assert shown == keys
+
+      refute has_element?(view, "#dashboard-crash-section details.crash-windows form")
+      refute has_element?(view, "#dashboard-crash-section details.crash-windows button")
+
+      assert has_element?(
+               view,
+               "#dashboard-crash-section details.crash-windows a[href='/risk'][data-role='crash-windows-edit']"
+             )
+
       assert has_element?(view, "#dashboard-crash-section a[href='/risk']")
 
       assert Repo.get!(Dashboard, dashboard.id).lock_version == dashboard.lock_version

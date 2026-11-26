@@ -249,10 +249,10 @@ msgstr "Violett"
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:119
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:338
 #: lib/portfolixir_web/live/risk/crash_section.ex:438
-#: lib/portfolixir_web/live/risk/crash_section.ex:1079
-#: lib/portfolixir_web/live/risk/crash_section.ex:1193
-#: lib/portfolixir_web/live/risk/crash_section.ex:1403
-#: lib/portfolixir_web/live/risk/crash_section.ex:1456
+#: lib/portfolixir_web/live/risk/crash_section.ex:1095
+#: lib/portfolixir_web/live/risk/crash_section.ex:1209
+#: lib/portfolixir_web/live/risk/crash_section.ex:1419
+#: lib/portfolixir_web/live/risk/crash_section.ex:1472
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:225
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1069
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:417
@@ -344,7 +344,7 @@ msgstr "Aktuelle Bestände prüfen"
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:207
 #: lib/portfolixir_web/live/portfolio_live.ex:1736
 #: lib/portfolixir_web/live/portfolio_live.ex:1830
-#: lib/portfolixir_web/live/risk/crash_section.ex:658
+#: lib/portfolixir_web/live/risk/crash_section.ex:663
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:572
 #: lib/portfolixir_web/live/securities_live.ex:536
 #: lib/portfolixir_web/live/securities_live.ex:920
@@ -368,7 +368,7 @@ msgstr "Wertpapiere"
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:355
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:490
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:392
-#: lib/portfolixir_web/live/risk/crash_section.ex:821
+#: lib/portfolixir_web/live/risk/crash_section.ex:826
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:437
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:959
 #: lib/portfolixir_web/live/transaction_management_live.ex:1876
@@ -675,8 +675,8 @@ msgstr "Filter entfernen"
 #: lib/portfolixir_web/live/buckets_live.ex:153
 #: lib/portfolixir_web/live/buckets_live.ex:272
 #: lib/portfolixir_web/live/classifications_live.ex:1239
-#: lib/portfolixir_web/live/risk/crash_section.ex:1367
-#: lib/portfolixir_web/live/risk/crash_section.ex:1432
+#: lib/portfolixir_web/live/risk/crash_section.ex:1383
+#: lib/portfolixir_web/live/risk/crash_section.ex:1448
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:554
 #: lib/portfolixir_web/live/securities_live.ex:2152
 #, elixir-autogen, elixir-format
@@ -1069,9 +1069,9 @@ msgstr "Kurse"
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:158
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:697
 #: lib/portfolixir_web/live/portfolio_live.ex:2186
-#: lib/portfolixir_web/live/risk/crash_section.ex:1369
-#: lib/portfolixir_web/live/risk/crash_section.ex:1434
-#: lib/portfolixir_web/live/risk/crash_section.ex:1478
+#: lib/portfolixir_web/live/risk/crash_section.ex:1385
+#: lib/portfolixir_web/live/risk/crash_section.ex:1450
+#: lib/portfolixir_web/live/risk/crash_section.ex:1494
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:443
 #: lib/portfolixir_web/live/securities/merge_dialog.ex:255
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:237
@@ -1125,8 +1125,8 @@ msgstr "Status konnte nicht geändert werden."
 #: lib/portfolixir_web/live/classifications_live.ex:781
 #: lib/portfolixir_web/live/dashboard/period_menu.ex:443
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:658
-#: lib/portfolixir_web/live/risk/crash_section.ex:1224
-#: lib/portfolixir_web/live/risk/crash_section.ex:1293
+#: lib/portfolixir_web/live/risk/crash_section.ex:1240
+#: lib/portfolixir_web/live/risk/crash_section.ex:1309
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:191
 #: lib/portfolixir_web/live/snapshots_live.ex:388
 #: lib/portfolixir_web/live/tax_live.ex:1083
@@ -1141,7 +1141,7 @@ msgid "Deleted %{name}"
 msgstr "%{name} gelöscht"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:2520
-#: lib/portfolixir_web/live/risk/crash_section.ex:1282
+#: lib/portfolixir_web/live/risk/crash_section.ex:1298
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:44
 #: lib/portfolixir_web/live/securities_live.ex:1160
 #: lib/portfolixir_web/live/securities_live.ex:2124
@@ -3894,7 +3894,7 @@ msgstr "Echte Rendite"
 #: lib/portfolixir_web/live/classifications_live.ex:1353
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:161
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:620
-#: lib/portfolixir_web/live/risk/crash_section.ex:1259
+#: lib/portfolixir_web/live/risk/crash_section.ex:1275
 #, elixir-autogen, elixir-format
 msgid "Rename"
 msgstr "Umbenennen"
@@ -5655,7 +5655,7 @@ msgstr "Invalidierungsbedingung"
 #: lib/portfolixir_web/live/journal_live.ex:299
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:489
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:268
-#: lib/portfolixir_web/live/risk/crash_section.ex:1085
+#: lib/portfolixir_web/live/risk/crash_section.ex:1101
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:293
 #: lib/portfolixir_web/live/securities/merge_preview.ex:712
 #: lib/portfolixir_web/live/securities/merge_preview.ex:961
@@ -6210,7 +6210,7 @@ msgstr[1] "%{count} gehaltene Positionen haben einen Preis, aber keinen gespeich
 
 #: lib/portfolixir_web/live/dashboard/widgets/cash_accounts.ex:106
 #: lib/portfolixir_web/live/dashboard/widgets/cash_accounts.ex:190
-#: lib/portfolixir_web/live/risk/crash_section.ex:1005
+#: lib/portfolixir_web/live/risk/crash_section.ex:1010
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:929
 #: lib/portfolixir_web/prediction_label.ex:75
 #, elixir-autogen, elixir-format
@@ -6356,8 +6356,8 @@ msgstr "Zu den Snapshots"
 
 #: lib/portfolixir_web/live/dashboard/widgets/snapshot_list.ex:84
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:136
-#: lib/portfolixir_web/live/risk/crash_section.ex:1086
-#: lib/portfolixir_web/live/risk/crash_section.ex:1196
+#: lib/portfolixir_web/live/risk/crash_section.ex:1102
+#: lib/portfolixir_web/live/risk/crash_section.ex:1212
 #: lib/portfolixir_web/live/transaction_management_live.ex:401
 #, elixir-autogen, elixir-format
 msgid "Actions"
@@ -11410,7 +11410,7 @@ msgstr "Einstand %{amount}"
 
 #: lib/portfolixir_web/live/classifications_live.ex:506
 #: lib/portfolixir_web/live/dashboard/widgets/snapshot_comparison.ex:236
-#: lib/portfolixir_web/live/risk/crash_section.ex:720
+#: lib/portfolixir_web/live/risk/crash_section.ex:725
 #, elixir-autogen, elixir-format
 msgid "in %{currency}"
 msgstr "in %{currency}"
@@ -14879,7 +14879,7 @@ msgstr[0] "Das Ziel wird von %{count} Prognose genannt, und eine Prognose wird n
 msgstr[1] "Das Ziel wird von %{count} Prognosen genannt, und eine Prognose wird nie verschoben oder gelöscht."
 
 #: lib/portfolixir_web/live/predictions_live.ex:677
-#: lib/portfolixir_web/live/risk/crash_section.ex:860
+#: lib/portfolixir_web/live/risk/crash_section.ex:865
 #: lib/portfolixir_web/prediction_label.ex:181
 #, elixir-autogen, elixir-format
 msgid "%{value} pp"
@@ -16831,42 +16831,42 @@ msgctxt "benchmark picker"
 msgid "Other"
 msgstr "Weitere"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1334
+#: lib/portfolixir_web/live/risk/crash_section.ex:1350
 #, elixir-autogen, elixir-format
 msgid "%{count} detected"
 msgid_plural "%{count} detected"
 msgstr[0] "%{count} erkannt"
 msgstr[1] "%{count} erkannt"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1335
+#: lib/portfolixir_web/live/risk/crash_section.ex:1351
 #, elixir-autogen, elixir-format
 msgid "%{count} manual"
 msgid_plural "%{count} manual"
 msgstr[0] "%{count} manuell"
 msgstr[1] "%{count} manuell"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1337
+#: lib/portfolixir_web/live/risk/crash_section.ex:1353
 #, elixir-autogen, elixir-format
 msgid "%{count} name without a window"
 msgid_plural "%{count} names without a window"
 msgstr[0] "%{count} Name ohne Fenster"
 msgstr[1] "%{count} Namen ohne Fenster"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:994
+#: lib/portfolixir_web/live/risk/crash_section.ex:999
 #, elixir-autogen, elixir-format
 msgid "%{count} without a close at its end"
 msgid_plural "%{count} without a close at its end"
 msgstr[0] "%{count} ohne Kurs am Fensterende"
 msgstr[1] "%{count} ohne Kurs am Fensterende"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:986
+#: lib/portfolixir_web/live/risk/crash_section.ex:991
 #, elixir-autogen, elixir-format
 msgid "%{count} without a close at the window's start"
 msgid_plural "%{count} without a close at the window's start"
 msgstr[0] "%{count} ohne Kurs am Fensterbeginn"
 msgstr[1] "%{count} ohne Kurs am Fensterbeginn"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:965
+#: lib/portfolixir_web/live/risk/crash_section.ex:970
 #, elixir-autogen, elixir-format
 msgid "%{count} without an answer: %{reasons}"
 msgid_plural "%{count} without an answer: %{reasons}"
@@ -16874,36 +16874,36 @@ msgstr[0] "%{count} ohne Antwort: %{reasons}"
 msgstr[1] "%{count} ohne Antwort: %{reasons}"
 
 #: lib/portfolixir_web/live/dashboard/movers_card.ex:612
-#: lib/portfolixir_web/live/risk/crash_section.ex:1001
+#: lib/portfolixir_web/live/risk/crash_section.ex:1006
 #, elixir-autogen, elixir-format
 msgid "%{count} without an exchange rate"
 msgid_plural "%{count} without an exchange rate"
 msgstr[0] "%{count} ohne Wechselkurs"
 msgstr[1] "%{count} ohne Wechselkurs"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:682
+#: lib/portfolixir_web/live/risk/crash_section.ex:687
 #, elixir-autogen, elixir-format
 msgid "%{name} · since %{date} · ongoing"
 msgstr "%{name} · seit %{date} · läuft"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:960
+#: lib/portfolixir_web/live/risk/crash_section.ex:965
 #, elixir-autogen, elixir-format
 msgid "%{shown} of %{count} security with an answer shown"
 msgid_plural "%{shown} of %{count} securities with an answer shown"
 msgstr[0] "%{shown} von %{count} Wertpapier mit Antwort gezeigt"
 msgstr[1] "%{shown} von %{count} Wertpapieren mit Antwort gezeigt"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:735
+#: lib/portfolixir_web/live/risk/crash_section.ex:740
 #, elixir-autogen, elixir-format
 msgid "(low + 3 months)"
 msgstr "(Tief + 3 Monate)"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1440
+#: lib/portfolixir_web/live/risk/crash_section.ex:1456
 #, elixir-autogen, elixir-format
 msgid "A manual window's dates are chosen by hand, and it reads „manual“ wherever it is read."
 msgstr "Die Daten eines manuellen Fensters sind von Hand gewählt; es heißt überall „manuell“."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1484
+#: lib/portfolixir_web/live/risk/crash_section.ex:1500
 #, elixir-autogen, elixir-format
 msgid "A name keeps only the day of its high: the low is entered here. The window is then „manual“, and the name without a window goes."
 msgstr "Zum Namen gehört nur der Tag des Hochs: das Tief wird hier eingetragen. Das Fenster ist danach „manuell“, der Name ohne Fenster entfällt."
@@ -16915,35 +16915,35 @@ msgstr "Ein Fenster öffnet, sobald der Crash-Benchmark 10 % oder mehr unter sei
 
 #: lib/portfolixir_web/live/risk/crash_section.ex:515
 #: lib/portfolixir_web/live/risk/crash_section.ex:525
-#: lib/portfolixir_web/live/risk/crash_section.ex:1061
+#: lib/portfolixir_web/live/risk/crash_section.ex:1077
 #, elixir-autogen, elixir-format
 msgid "Add window"
 msgstr "Fenster anlegen"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1376
+#: lib/portfolixir_web/live/risk/crash_section.ex:1392
 #, elixir-autogen, elixir-format
 msgid "Applies to this page and every agent: all read the same windows. The change is in the audit journal."
 msgstr "Gilt für diese Seite und jeden Agenten: alle lesen dieselben Fenster. Die Änderung steht im Audit-Journal."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:903
+#: lib/portfolixir_web/live/risk/crash_section.ex:908
 #, elixir-autogen, elixir-format
 msgid "Basis: EUR price return from the window's high to its low"
 msgstr "Grundlage: Kursrendite in EUR, Hoch bis Tief des Fensters"
 
 #: lib/portfolixir_web/live/risk/crash_section.ex:497
 #: lib/portfolixir_web/live/risk/crash_section.ex:507
-#: lib/portfolixir_web/live/risk/crash_section.ex:1051
+#: lib/portfolixir_web/live/risk/crash_section.ex:1063
 #, elixir-autogen, elixir-format
 msgid "Choose crash benchmark"
 msgstr "Crash-Benchmark wählen"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1353
+#: lib/portfolixir_web/live/risk/crash_section.ex:1369
 #, elixir-autogen, elixir-format
 msgid "Crash benchmark"
 msgstr "Crash-Benchmark"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1131
-#: lib/portfolixir_web/live/risk/crash_section.ex:1341
+#: lib/portfolixir_web/live/risk/crash_section.ex:1147
+#: lib/portfolixir_web/live/risk/crash_section.ex:1357
 #, elixir-autogen, elixir-format
 msgid "Crash windows"
 msgstr "Crash-Fenster"
@@ -16954,34 +16954,34 @@ msgid "Crashes"
 msgstr "Crashes"
 
 #: lib/portfolixir_web/live/new_dashboard_live.ex:332
-#: lib/portfolixir_web/live/risk/crash_section.ex:1476
+#: lib/portfolixir_web/live/risk/crash_section.ex:1492
 #, elixir-autogen, elixir-format
 msgid "Create"
 msgstr "Anlegen"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:831
-#: lib/portfolixir_web/live/risk/crash_section.ex:863
+#: lib/portfolixir_web/live/risk/crash_section.ex:836
+#: lib/portfolixir_web/live/risk/crash_section.ex:868
 #, elixir-autogen, elixir-format
 msgid "Days to pre-crash close"
 msgstr "Tage bis Vorkrisenkurs"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1082
+#: lib/portfolixir_web/live/risk/crash_section.ex:1098
 #, elixir-autogen, elixir-format
 msgid "Decline"
 msgstr "Rückgang"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1271
+#: lib/portfolixir_web/live/risk/crash_section.ex:1287
 #, elixir-autogen, elixir-format
 msgid "Delete name"
 msgstr "Name löschen"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1291
+#: lib/portfolixir_web/live/risk/crash_section.ex:1307
 #, elixir-autogen, elixir-format
 msgid "Delete the manual window „%{name}“?"
 msgstr "Das manuelle Fenster „%{name}“ löschen?"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1222
-#: lib/portfolixir_web/live/risk/crash_section.ex:1269
+#: lib/portfolixir_web/live/risk/crash_section.ex:1238
+#: lib/portfolixir_web/live/risk/crash_section.ex:1285
 #, elixir-autogen, elixir-format
 msgid "Delete the name „%{name}“?"
 msgstr "Den Namen „%{name}“ löschen?"
@@ -16991,38 +16991,38 @@ msgstr "Den Namen „%{name}“ löschen?"
 msgid "Detected in the benchmark's currency, listed in EUR at each close's exchange rate; splits adjusted."
 msgstr "Erkannt in der Währung des Benchmarks, gelistet in EUR zum Wechselkurs jedes Schlusstags; Splits bereinigt."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1084
-#: lib/portfolixir_web/live/risk/crash_section.ex:1150
+#: lib/portfolixir_web/live/risk/crash_section.ex:1100
+#: lib/portfolixir_web/live/risk/crash_section.ex:1166
 #, elixir-autogen, elixir-format
 msgid "Gap, days"
 msgstr "Lücke, Tage"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1194
+#: lib/portfolixir_web/live/risk/crash_section.ex:1210
 #, elixir-autogen, elixir-format
 msgid "Given for"
 msgstr "Gegeben für"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1213
+#: lib/portfolixir_web/live/risk/crash_section.ex:1229
 #, elixir-autogen, elixir-format
 msgid "Make a manual window …"
 msgstr "Als manuelles Fenster anlegen …"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1379
+#: lib/portfolixir_web/live/risk/crash_section.ex:1395
 #, elixir-autogen, elixir-format
 msgid "Names stay with the former benchmark and return when it is chosen again."
 msgstr "Namen bleiben beim bisherigen Benchmark und kehren zurück, wenn er wieder gewählt wird."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1044
+#: lib/portfolixir_web/live/risk/crash_section.ex:1055
 #, elixir-autogen, elixir-format
 msgid "No crash benchmark chosen."
 msgstr "Kein Crash-Benchmark gewählt."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:589
+#: lib/portfolixir_web/live/risk/crash_section.ex:594
 #, elixir-autogen, elixir-format
 msgid "No crash benchmark chosen: the rule detects no windows, manual ones still apply."
 msgstr "Kein Crash-Benchmark gewählt: die Regel erkennt keine Fenster, manuelle gelten weiter."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:814
+#: lib/portfolixir_web/live/risk/crash_section.ex:819
 #, elixir-autogen, elixir-format
 msgid "No security with an answer."
 msgstr "Kein Wertpapier mit Antwort."
@@ -17037,7 +17037,7 @@ msgstr "Kein Urteil: die Listen vergleichen Kurse, sie sagen nicht, was zu kaufe
 msgid "No window yet."
 msgstr "Noch kein Fenster."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:825
+#: lib/portfolixir_web/live/risk/crash_section.ex:830
 #, elixir-autogen, elixir-format
 msgid "Price return high → low, EUR"
 msgstr "Kursrendite Hoch → Tief, EUR"
@@ -17048,27 +17048,27 @@ msgid "Rebounders: from the own low between high and low to three calendar month
 msgstr "Erholer: vom eigenen Tief zwischen Hoch und Tief bis drei Kalendermonate nach dem Tief; Tage bis Vorkrisenkurs in Kalendertagen."
 
 #: lib/portfolixir_web/live/dashboard/widgets/crashes.ex:206
-#: lib/portfolixir_web/live/risk/crash_section.ex:1083
+#: lib/portfolixir_web/live/risk/crash_section.ex:1099
 #, elixir-autogen, elixir-format
 msgid "Recovered"
 msgstr "Erholt"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:728
+#: lib/portfolixir_web/live/risk/crash_section.ex:733
 #, elixir-autogen, elixir-format
 msgid "Recovery measured to"
 msgstr "Erholung gemessen bis"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:824
+#: lib/portfolixir_web/live/risk/crash_section.ex:829
 #, elixir-autogen, elixir-format
 msgid "Rise from own low, EUR"
 msgstr "Anstieg vom eigenen Tief, EUR"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1031
+#: lib/portfolixir_web/live/risk/crash_section.ex:1041
 #, elixir-autogen, elixir-format
 msgid "Rule: high → low from 10 % in the crash benchmark's close · crash benchmark"
 msgstr "Regel: Hoch → Tief ab 10 % im Schlusskurs des Crash-Benchmarks · Crash-Benchmark"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:593
+#: lib/portfolixir_web/live/risk/crash_section.ex:598
 #, elixir-autogen, elixir-format
 msgid "The crash benchmark is no longer available: the rule detects no windows, manual ones still apply."
 msgstr "Der Crash-Benchmark ist nicht mehr verfügbar: die Regel erkennt keine Fenster, manuelle gelten weiter."
@@ -17078,12 +17078,12 @@ msgstr "Der Crash-Benchmark ist nicht mehr verfügbar: die Regel erkennt keine F
 msgid "The price on a day: the last close on or before it, at most 7 days old. Without a price or an exchange rate no answer, never a zero."
 msgstr "Kurs an einem Tag: der letzte Schluss am oder vor ihm, höchstens 7 Tage alt. Ohne Kurs oder Wechselkurs keine Antwort, nie eine Null."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:753
+#: lib/portfolixir_web/live/risk/crash_section.ex:758
 #, elixir-autogen, elixir-format
 msgid "The view begins on %{date}: there was no depot in this window."
 msgstr "Die Ansicht beginnt am %{date}: in diesem Fenster gab es kein Depot."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:749
+#: lib/portfolixir_web/live/risk/crash_section.ex:754
 #, elixir-autogen, elixir-format
 msgid "The view has no booking yet."
 msgstr "Die Ansicht hat noch keine Buchung."
@@ -17118,59 +17118,59 @@ msgstr "Dieses Fenster gibt es nicht mehr: der Abschnitt wurde neu gelesen."
 msgid "Ties by figure, then name, then ISIN. Benchmarks are in no list."
 msgstr "Gleichstand nach Wert, dann Name, dann ISIN. Benchmarks stehen in keiner Liste."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:678
-#: lib/portfolixir_web/live/risk/crash_section.ex:708
+#: lib/portfolixir_web/live/risk/crash_section.ex:683
+#: lib/portfolixir_web/live/risk/crash_section.ex:713
 #, elixir-autogen, elixir-format
 msgid "Unnamed"
 msgstr "Ohne Namen"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:745
+#: lib/portfolixir_web/live/risk/crash_section.ex:750
 #, elixir-autogen, elixir-format
 msgid "View in holdings →"
 msgstr "Im Depot ansehen →"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1202
+#: lib/portfolixir_web/live/risk/crash_section.ex:1218
 #, elixir-autogen, elixir-format
 msgid "a removed security"
 msgstr "ein entferntes Wertpapier"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:732
+#: lib/portfolixir_web/live/risk/crash_section.ex:737
 #, elixir-autogen, elixir-format
 msgid "complete on %{date}"
 msgstr "vollständig am %{date}"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:972
+#: lib/portfolixir_web/live/risk/crash_section.ex:977
 #, elixir-autogen, elixir-format
 msgid "hide"
 msgstr "ausblenden"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1004
+#: lib/portfolixir_web/live/risk/crash_section.ex:1009
 #, elixir-autogen, elixir-format
 msgid "no close at its end"
 msgstr "kein Kurs am Fensterende"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1003
+#: lib/portfolixir_web/live/risk/crash_section.ex:1008
 #, elixir-autogen, elixir-format
 msgid "no close at the window's start"
 msgstr "kein Kurs am Fensterbeginn"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:928
+#: lib/portfolixir_web/live/risk/crash_section.ex:933
 #, elixir-autogen, elixir-format
 msgid "no comparison: no crash benchmark chosen"
 msgstr "kein Vergleich: kein Crash-Benchmark gewählt"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:864
+#: lib/portfolixir_web/live/risk/crash_section.ex:869
 #, elixir-autogen, elixir-format
 msgid "not yet"
 msgstr "noch nicht"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:725
-#: lib/portfolixir_web/live/risk/crash_section.ex:1163
+#: lib/portfolixir_web/live/risk/crash_section.ex:730
+#: lib/portfolixir_web/live/risk/crash_section.ex:1179
 #, elixir-autogen, elixir-format
 msgid "recovered on %{date}"
 msgstr "erholt am %{date}"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:972
+#: lib/portfolixir_web/live/risk/crash_section.ex:977
 #, elixir-autogen, elixir-format
 msgid "show"
 msgstr "anzeigen"
@@ -17182,125 +17182,125 @@ msgstr "anzeigen"
 #: lib/portfolixir_web/live/dashboard/widgets/crashes.ex:235
 #: lib/portfolixir_web/live/dashboard/widgets/rebounders.ex:192
 #: lib/portfolixir_web/live/dashboard/widgets/rebounders.ex:214
-#: lib/portfolixir_web/live/risk/crash_section.ex:1095
-#: lib/portfolixir_web/live/risk/crash_section.ex:1140
+#: lib/portfolixir_web/live/risk/crash_section.ex:1111
+#: lib/portfolixir_web/live/risk/crash_section.ex:1156
 #, elixir-autogen, elixir-format
 msgid "unnamed"
 msgstr "ohne Namen"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:829
+#: lib/portfolixir_web/live/risk/crash_section.ex:834
 #, elixir-autogen, elixir-format
 msgid "vs. %{benchmark}"
 msgstr "ggü. %{benchmark}"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1041
+#: lib/portfolixir_web/live/risk/crash_section.ex:1052
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "Change"
 msgstr "Ändern"
 
 #: lib/portfolixir_web/live/risk/crash_section.ex:439
-#: lib/portfolixir_web/live/risk/crash_section.ex:711
-#: lib/portfolixir_web/live/risk/crash_section.ex:1080
-#: lib/portfolixir_web/live/risk/crash_section.ex:1143
-#: lib/portfolixir_web/live/risk/crash_section.ex:1195
-#: lib/portfolixir_web/live/risk/crash_section.ex:1408
-#: lib/portfolixir_web/live/risk/crash_section.ex:1460
+#: lib/portfolixir_web/live/risk/crash_section.ex:716
+#: lib/portfolixir_web/live/risk/crash_section.ex:1096
+#: lib/portfolixir_web/live/risk/crash_section.ex:1159
+#: lib/portfolixir_web/live/risk/crash_section.ex:1211
+#: lib/portfolixir_web/live/risk/crash_section.ex:1424
+#: lib/portfolixir_web/live/risk/crash_section.ex:1476
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "High"
 msgstr "Hoch"
 
 #: lib/portfolixir_web/live/dashboard/widgets/crash_windows.ex:87
-#: lib/portfolixir_web/live/risk/crash_section.ex:643
+#: lib/portfolixir_web/live/risk/crash_section.ex:648
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "List"
 msgstr "Liste"
 
 #: lib/portfolixir_web/live/risk/crash_section.ex:440
-#: lib/portfolixir_web/live/risk/crash_section.ex:1081
-#: lib/portfolixir_web/live/risk/crash_section.ex:1420
-#: lib/portfolixir_web/live/risk/crash_section.ex:1464
+#: lib/portfolixir_web/live/risk/crash_section.ex:1097
+#: lib/portfolixir_web/live/risk/crash_section.ex:1436
+#: lib/portfolixir_web/live/risk/crash_section.ex:1480
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "Low"
 msgstr "Tief"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:630
+#: lib/portfolixir_web/live/risk/crash_section.ex:635
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "Window"
 msgstr "Fenster"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:847
+#: lib/portfolixir_web/live/risk/crash_section.ex:852
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "in depot"
 msgstr "im Depot"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:713
+#: lib/portfolixir_web/live/risk/crash_section.ex:718
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "low so far"
 msgstr "Tief bisher"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:724
-#: lib/portfolixir_web/live/risk/crash_section.ex:1105
-#: lib/portfolixir_web/live/risk/crash_section.ex:1162
+#: lib/portfolixir_web/live/risk/crash_section.ex:729
+#: lib/portfolixir_web/live/risk/crash_section.ex:1121
+#: lib/portfolixir_web/live/risk/crash_section.ex:1178
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "ongoing"
 msgstr "läuft"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:715
-#: lib/portfolixir_web/live/risk/crash_section.ex:730
-#: lib/portfolixir_web/live/risk/crash_section.ex:1099
-#: lib/portfolixir_web/live/risk/crash_section.ex:1145
+#: lib/portfolixir_web/live/risk/crash_section.ex:720
+#: lib/portfolixir_web/live/risk/crash_section.ex:735
+#: lib/portfolixir_web/live/risk/crash_section.ex:1115
+#: lib/portfolixir_web/live/risk/crash_section.ex:1161
 #, elixir-autogen, elixir-format
 msgctxt "crash"
 msgid "provisional"
 msgstr "vorläufig"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1259
+#: lib/portfolixir_web/live/risk/crash_section.ex:1275
 #, elixir-autogen, elixir-format
 msgctxt "crash action"
 msgid "Name"
 msgstr "Benennen"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:790
+#: lib/portfolixir_web/live/risk/crash_section.ex:795
 #, elixir-autogen, elixir-format
 msgctxt "crash kind"
 msgid "detected"
 msgstr "erkannt"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:688
-#: lib/portfolixir_web/live/risk/crash_section.ex:789
+#: lib/portfolixir_web/live/risk/crash_section.ex:693
+#: lib/portfolixir_web/live/risk/crash_section.ex:794
 #, elixir-autogen, elixir-format
 msgctxt "crash kind"
 msgid "manual"
 msgstr "manuell"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:713
-#: lib/portfolixir_web/live/risk/crash_section.ex:1143
+#: lib/portfolixir_web/live/risk/crash_section.ex:718
+#: lib/portfolixir_web/live/risk/crash_section.ex:1159
 #, elixir-autogen, elixir-format
 msgctxt "crash line"
 msgid "low"
 msgstr "Tief"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:601
+#: lib/portfolixir_web/live/risk/crash_section.ex:606
 #, elixir-autogen, elixir-format
 msgctxt "crash list"
 msgid "Losers"
 msgstr "Verlierer"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:603
+#: lib/portfolixir_web/live/risk/crash_section.ex:608
 #, elixir-autogen, elixir-format
 msgctxt "crash list"
 msgid "Rebounders"
 msgstr "Erholer"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:602
+#: lib/portfolixir_web/live/risk/crash_section.ex:607
 #, elixir-autogen, elixir-format
 msgctxt "crash list"
 msgid "Winners"
@@ -17308,14 +17308,14 @@ msgstr "Gewinner"
 
 #: lib/portfolixir_web/live/dashboard/widgets/crashes.ex:259
 #: lib/portfolixir_web/live/dashboard/widgets/rebounders.ex:234
-#: lib/portfolixir_web/live/risk/crash_section.ex:610
+#: lib/portfolixir_web/live/risk/crash_section.ex:615
 #, elixir-autogen, elixir-format
 msgctxt "crash universe"
 msgid "In depot"
 msgstr "Im Depot"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:611
-#: lib/portfolixir_web/live/risk/crash_section.ex:741
+#: lib/portfolixir_web/live/risk/crash_section.ex:616
+#: lib/portfolixir_web/live/risk/crash_section.ex:746
 #, elixir-autogen, elixir-format
 msgctxt "crash universe"
 msgid "Whole catalogue"
@@ -17333,14 +17333,14 @@ msgctxt "journal kind"
 msgid "Manual crash window"
 msgstr "Manuelles Crash-Fenster"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1178
+#: lib/portfolixir_web/live/risk/crash_section.ex:1194
 #, elixir-autogen, elixir-format
 msgid "Name without a window (%{count})"
 msgid_plural "Names without a window (%{count})"
 msgstr[0] "Name ohne Fenster (%{count})"
 msgstr[1] "Namen ohne Fenster (%{count})"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1355
+#: lib/portfolixir_web/live/risk/crash_section.ex:1371
 #, elixir-autogen, elixir-format
 msgid "— choose —"
 msgstr "— wählen —"
@@ -18379,21 +18379,21 @@ msgctxt "weekday"
 msgid "Wed"
 msgstr "Mi"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1325
+#: lib/portfolixir_web/live/risk/crash_section.ex:1341
 #, elixir-autogen, elixir-format
 msgid "%{count} name: hidden because another crash benchmark is chosen; it returns once its benchmark is the crash benchmark again."
 msgid_plural "%{count} names: hidden because another crash benchmark is chosen; they return once their benchmark is the crash benchmark again."
 msgstr[0] "%{count} Name: ausgeblendet, weil ein anderer Crash-Benchmark gewählt ist; er kehrt zurück, sobald sein Benchmark wieder Crash-Benchmark ist."
 msgstr[1] "%{count} Namen: ausgeblendet, weil ein anderer Crash-Benchmark gewählt ist; sie kehren zurück, sobald ihr Benchmark wieder Crash-Benchmark ist."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1317
+#: lib/portfolixir_web/live/risk/crash_section.ex:1333
 #, elixir-autogen, elixir-format
 msgid "%{count} name: hidden because no crash benchmark is chosen; it returns once its benchmark is the crash benchmark again."
 msgid_plural "%{count} names: hidden because no crash benchmark is chosen; they return once their benchmark is the crash benchmark again."
 msgstr[0] "%{count} Name: ausgeblendet, weil kein Crash-Benchmark gewählt ist; er kehrt zurück, sobald sein Benchmark wieder Crash-Benchmark ist."
 msgstr[1] "%{count} Namen: ausgeblendet, weil kein Crash-Benchmark gewählt ist; sie kehren zurück, sobald ihr Benchmark wieder Crash-Benchmark ist."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:1309
+#: lib/portfolixir_web/live/risk/crash_section.ex:1325
 #, elixir-autogen, elixir-format
 msgid "%{count} name: the closes have changed, no detected window starts on this day any more. A name is never attached to another window by a guess."
 msgid_plural "%{count} names: the closes have changed, no detected window starts on these days any more. A name is never attached to another window by a guess."
@@ -18424,12 +18424,12 @@ msgstr[1] "%{count} Positionen ohne Beitrag an ihrem Tag"
 msgid "No close before the period, none in it, or no exchange rate: no price return. A day without a price counts zero in the contribution, as in Wealth; a position valued on no day, or whose contribution is exactly zero, is counted, not ranked."
 msgstr "Ohne Schlusskurs vor dem Zeitraum, ohne Kurs darin oder ohne Wechselkurs: keine Kursrendite. Ein Tag ohne Kurs zählt beim Beitrag null, wie in Vermögen; eine an keinem Tag bewertete Position oder eine mit einem Beitrag von genau null wird gezählt, nicht gerankt."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:906
+#: lib/portfolixir_web/live/risk/crash_section.ex:911
 #, elixir-autogen, elixir-format
 msgid "Basis: EUR rise from own low to the last close (%{date}), span open"
 msgstr "Grundlage: Anstieg in EUR vom eigenen Tief bis zum letzten Schluss (%{date}), Spanne offen"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:911
+#: lib/portfolixir_web/live/risk/crash_section.ex:916
 #, elixir-autogen, elixir-format
 msgid "Basis: EUR rise from own low to the recovery span's end"
 msgstr "Grundlage: Anstieg in EUR vom eigenen Tief bis zum Ende der Erholungsspanne"
@@ -18439,32 +18439,32 @@ msgstr "Grundlage: Anstieg in EUR vom eigenen Tief bis zum Ende der Erholungsspa
 msgid "Dashed: the crash benchmark over the same days; without its price or exchange rate on those days, no comparison."
 msgstr "Gestrichelt: der Crash-Benchmark über dieselben Tage; ohne seinen Kurs oder Wechselkurs an diesen Tagen kein Vergleich."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:917
+#: lib/portfolixir_web/live/risk/crash_section.ex:922
 #, elixir-autogen, elixir-format
 msgid "dashed: crash benchmark (%{return} %)"
 msgstr "gestrichelt: Crash-Benchmark (%{return} %)"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:920
+#: lib/portfolixir_web/live/risk/crash_section.ex:925
 #, elixir-autogen, elixir-format
 msgid "dashed: crash benchmark, same days (%{return} %)"
 msgstr "gestrichelt: Crash-Benchmark, dieselben Tage (%{return} %)"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:925
+#: lib/portfolixir_web/live/risk/crash_section.ex:930
 #, elixir-autogen, elixir-format
 msgid "no comparison: crash benchmark unpriced"
 msgstr "kein Vergleich: Crash-Benchmark ohne Kurs"
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:934
+#: lib/portfolixir_web/live/risk/crash_section.ex:939
 #, elixir-autogen, elixir-format
 msgid "only securities in the catalogue."
 msgstr "nur Wertpapiere im Katalog."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:935
+#: lib/portfolixir_web/live/risk/crash_section.ex:940
 #, elixir-autogen, elixir-format
 msgid "only securities held today."
 msgstr "nur heute gehaltene Wertpapiere."
 
-#: lib/portfolixir_web/live/risk/crash_section.ex:936
+#: lib/portfolixir_web/live/risk/crash_section.ex:941
 #, elixir-autogen, elixir-format
 msgid "only securities the view holds today."
 msgstr "nur heute gehaltene Wertpapiere der Ansicht."
@@ -20474,3 +20474,8 @@ msgid "open point"
 msgid_plural "open points"
 msgstr[0] "offener Punkt"
 msgstr[1] "offene Punkte"
+
+#: lib/portfolixir_web/live/risk/crash_section.ex:1067
+#, elixir-autogen, elixir-format
+msgid "Edit windows →"
+msgstr "Fenster bearbeiten →"
