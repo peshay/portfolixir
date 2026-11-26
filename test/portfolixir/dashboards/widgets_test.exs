@@ -20,7 +20,7 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     "due" => {~w(S), "overview", "Fällig"},
     # The list since the closing act (DS1), S the count.
     "off_target" => {~w(S L), "overview", "Abseits des Ziels"},
-    "performance" => {~w(S L XL full), "performance", "Wertentwicklung"},
+    "performance" => {~w(S L XL row full), "performance", "Wertentwicklung"},
     "movers" => {~w(S L), "performance", "Tops und Flops"},
     "snapshots" => {~w(S M), "performance", "Snapshots"},
     "allocation_drift" => {~w(L), "allocation", "Allokation und Drift"},

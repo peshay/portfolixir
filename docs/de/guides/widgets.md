@@ -151,17 +151,23 @@ mit ihrer Drift als Balken und in Geld.
 
 ## Wertentwicklung
 
-`performance` · Größen S, L, XL
+`performance` · Größen S, L, XL, Zeile
 
 Die zeitgewichtete Rendite der Ansicht im Zeitraum. **S** („Rendite“) die
 TTWROR und eine Linie des Tageswerts; **L** die TTWROR und den Verlauf des
 Werts mit niedrigstem und höchstem Wert; **XL** das gestapelte Chart von
-Vermögen nach Kategorien mit seiner Legende.
+Vermögen nach Kategorien mit seiner Legende; **Zeile** der Abschnitt von
+Vermögen (Sprint 32 W1): die Reihe % oder Wert, die Ebene (Gesamt,
+Kategorien, Wertpapiere), die Benchmark-Auswahl, das Zeitraum-Abzeichen,
+das Chart und „Daten als Tabelle“. Reihe und Ebene gehören der Seite und
+werden nie gespeichert; die Benchmarks sind die auf Vermögen gewählten.
 
 **Quelle:**
 
 - `GET /api/v1/performance`
 - `GET /api/v1/views/:view_id/performance`
+- `GET /api/v1/performance/bands`
+- `GET /api/v1/performance/benchmark`
 
 <figure class="widget-gallery">
 <picture>
@@ -185,6 +191,14 @@ Vermögen nach Kategorien mit seiner Legende.
 <img srcset="/assets/widgets/performance-xl-light.png 2x" src="/assets/widgets/performance-xl-light.png" alt="Wertentwicklung in XL" loading="lazy">
 </picture>
 <figcaption>XL</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/performance-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/performance-row-light.png 2x" src="/assets/widgets/performance-row-light.png" alt="Wertentwicklung in Zeile" loading="lazy">
+</picture>
+<figcaption>Zeile</figcaption>
 </figure>
 
 ## Tops und Flops

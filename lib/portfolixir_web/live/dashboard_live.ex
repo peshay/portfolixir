@@ -99,6 +99,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.Dashboard.Widgets.Line
   alias PortfolixirWeb.Dashboard.Widgets.OwnRules, as: OwnRulesWidget
   alias PortfolixirWeb.Dashboard.Widgets.Performance, as: PerformanceWidget
+  alias PortfolixirWeb.Dashboard.Widgets.PerformanceSection
   alias PortfolixirWeb.Dashboard.Widgets.Positions, as: PositionsWidget
   alias PortfolixirWeb.Dashboard.Widgets.Rebounders, as: ReboundersWidget
   alias PortfolixirWeb.Dashboard.Widgets.RiskLens, as: RiskLensWidget
@@ -425,16 +426,25 @@ defmodule PortfolixirWeb.DashboardLive do
     |> update(:summary_lines, &Map.filter(&1, other_period))
     # --- S32 W2 end ---
     # Sprint 32 W1: the section widgets' reads under the period.
-    |> update(:sections, &Map.reject(&1, fn {{_kind, _scope, period}, _} -> period == key end))
+    |> update(
+      :sections,
+      &Map.reject(&1, fn {{_kind, _scope, period}, _} -> read_under?(period, key) end)
+    )
     |> update(:asked, fn asked ->
       Map.reject(asked, fn {_name, asked_key} ->
         asked_key == key or match?({_scope, ^key}, asked_key) or
-          match?({_kind, _scope, ^key}, asked_key)
+          match?({_kind, _scope, ^key}, asked_key) or
+          match?({_kind, _scope, {^key, _mode, _level}}, asked_key)
       end)
     end)
   end
 
   # --- S32 T4 end ---
+
+  # Sprint 32 W1: a section's read under the period key, „Performance“'s
+  # with its series and level.
+  defp read_under?({period, _mode, _level}, key), do: period == key
+  defp read_under?(period, key), do: period == key
 
   # A key of the period vocabulary that resolves today (Sprint 32 T1): a
   # quarter or a year not yet begun is no period to show.
@@ -863,7 +873,10 @@ defmodule PortfolixirWeb.DashboardLive do
         # „Positionen“'s columns, restored by the browser under Wealth's key,
         # and its picker.
         holdings_columns: PositionsWidget.default_columns(),
-        column_picker_open?: false
+        column_picker_open?: false,
+        # „Performance“ at „Zeile“: each widget's series and level, by its
+        # id suffix, the page's state, never stored (`PerformanceSection`).
+        performance_sections: %{}
         # --- S32 W1 end ---
       )
 
@@ -1091,19 +1104,54 @@ defmodule PortfolixirWeb.DashboardLive do
     "cash_accounts" => CashAccountsWidget
   }
 
-  defp start_sections(socket, items, period) do
-    subjects =
-      for item <- items, Map.has_key?(@section_kinds, item.kind), uniq: true do
-        item = Widget.with_period(item, period, false)
-        {{:section, item.kind, item.scope, read_slot(item)}, {item.kind, item.scope, item.period}}
-      end
+  defp performance_section(socket, uid, field, value) do
+    if Enum.any?(socket.assigns.items, &(&1.kind == "performance" and &1.uid == uid)) do
+      state = socket.assigns |> performance_state(uid) |> Map.put(field, value)
 
-    start_each(socket, subjects, :sections, &read_section/1)
+      socket
+      |> update(:performance_sections, &Map.put(&1, uid, state))
+      |> start_widget_reads()
+    else
+      socket
+    end
   end
 
-  defp read_section({kind, scope, nil}), do: Map.fetch!(@section_kinds, kind).read(scope)
+  defp start_sections(socket, items, period) do
+    selectors = socket.assigns[:active_benchmark_selectors] || []
 
-  defp read_section({kind, scope, period}),
+    subjects =
+      for item <- items, section?(item), uniq: true do
+        item = Widget.with_period(item, period, false)
+        key = section_key(item, socket.assigns)
+        {{:section, item.kind, item.scope, {read_slot(item), elem(key, 2)}}, key}
+      end
+
+    start_each(socket, subjects, :sections, &read_section(&1, selectors))
+  end
+
+  # „Performance“ at „Zeile“ is the section; its other sizes are Lane L's.
+  defp section?(%{kind: "performance", size: "row"}), do: true
+  defp section?(%{kind: kind}), do: Map.has_key?(@section_kinds, kind)
+
+  # A section's read key: its kind, scope and period; „Performance“ at
+  # „Zeile“ also its series and level.
+  defp section_key(%{kind: "performance"} = item, assigns) do
+    state = performance_state(assigns, item.uid)
+    {item.kind, item.scope, {item.period, state.mode, state.level}}
+  end
+
+  defp section_key(item, _assigns), do: {item.kind, item.scope, item.period}
+
+  defp performance_state(assigns, uid),
+    do: Map.get(assigns[:performance_sections] || %{}, uid, %{mode: "ttwror", level: "total"})
+
+  defp read_section({"performance", scope, {period, mode, level}}, selectors),
+    do: PerformanceSection.read({scope, period, level, mode}, selectors)
+
+  defp read_section({kind, scope, nil}, _selectors),
+    do: Map.fetch!(@section_kinds, kind).read(scope)
+
+  defp read_section({kind, scope, period}, _selectors),
     do: Map.fetch!(@section_kinds, kind).read(scope, period)
 
   # --- S32 W1 end ---
@@ -1913,6 +1961,19 @@ defmodule PortfolixirWeb.DashboardLive do
     else
       {:noreply, socket}
     end
+  end
+
+  # „Performance“ at „Zeile“: its series and its level, for the widget named
+  # by its id suffix; the page's state, read again, never stored.
+  def handle_event("set_chart_mode", %{"mode" => mode, "item" => uid}, socket)
+      when mode in ["ttwror", "value"] and is_binary(uid),
+      do: {:noreply, performance_section(socket, uid, :mode, mode)}
+
+  def handle_event("performance_level", %{"level" => level, "item" => uid}, socket)
+      when is_binary(level) and is_binary(uid) do
+    if level in PerformanceSection.levels(),
+      do: {:noreply, performance_section(socket, uid, :level, level)},
+      else: {:noreply, socket}
   end
 
   # „Positionen“'s column picker, as on Wealth: the pick, or the browser's
@@ -2743,7 +2804,8 @@ defmodule PortfolixirWeb.DashboardLive do
       :sections,
       :contribution_open,
       :holdings_columns,
-      :column_picker_open?
+      :column_picker_open?,
+      :performance_sections
     ])
   end
 
@@ -3212,6 +3274,36 @@ defmodule PortfolixirWeb.DashboardLive do
   # --- S31 D4 begin ---
   # The four kinds Sprint 31's D4 draws (ADR-0062 §12), each in its own
   # module under `PortfolixirWeb.Dashboard.Widgets`.
+  # --- S32 W1 begin ---
+  # „Performance“ at „Zeile“: Wealth's section (Sprint 32 W1).
+  defp widget(%{item: %{kind: "performance", size: "row"} = item} = assigns) do
+    state = performance_state(assigns, item.uid)
+
+    assigns =
+      assign(assigns,
+        state: state,
+        card:
+          Map.get(
+            assigns.sections,
+            {item.kind, item.scope, {assigns.period, state.mode, state.level}}
+          ),
+        action: (assigns.board && assigns.board[:path]) || "/"
+      )
+
+    ~H"""
+    <PerformanceSection.widget
+      item={@item}
+      period={@period}
+      card={@card}
+      state={@state}
+      action={@action}
+      scope_label={scope_label(@item, @views)}
+    />
+    """
+  end
+
+  # --- S32 W1 end ---
+
   defp widget(%{item: %{kind: "performance"} = item} = assigns) do
     assigns =
       assign(assigns,

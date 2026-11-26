@@ -241,12 +241,21 @@ defmodule Portfolixir.Dashboards.Widgets do
       title: "Performance",
       group: "performance",
       # S the return and its spark, L the return and its course, XL the
-      # course by category (Sprint 31's S, M and L).
-      sizes: ~w(S L XL full),
+      # course by category (Sprint 31's S, M and L); „Zeile“ Wealth's
+      # section „Performance“ (Sprint 32 W1, `PerformanceSection`).
+      sizes: ~w(S L XL row full),
       source: %{
-        routes: ["GET /api/v1/performance", "GET /api/v1/views/:view_id/performance"],
+        routes: [
+          "GET /api/v1/performance",
+          "GET /api/v1/views/:view_id/performance",
+          "GET /api/v1/performance/bands",
+          "GET /api/v1/performance/benchmark"
+        ],
         function: {Portfolixir.Portfolios.Performance, :for_view, 2},
-        note: nil
+        note:
+          "At XL and at „Zeile“'s levels the bands read, GET /api/v1/performance/bands; " <>
+            "at „Zeile“ the benchmark comparison, GET /api/v1/performance/benchmark, with " <>
+            "the benchmarks the operator picked."
       },
       period: @performance_period,
       scope: :view,

@@ -436,4 +436,89 @@ defmodule PortfolixirWeb.DashboardHoldingsWidgetsTest do
       assert has_element?(view, "#dashboard-data-notes [data-role='data-notes-none']")
     end
   end
+
+  describe "Performance (performance at Zeile)" do
+    # User story:
+    # As the operator who keeps Wealth's performance chart on a dashboard,
+    # I want the section „Performance“ as a Zeile with its series, its
+    # level, its benchmark picker and „Daten als Tabelle“,
+    # so that the chart reads on the dashboard's period as on Wealth.
+    #
+    # Acceptance criteria:
+    # - The badge's TTWROR and result equal GET /api/v1/performance?period=1y
+    #   and Wealth's badge on the same period; „Daten als Tabelle“ lists
+    #   Wealth's rows.
+    # - „Wert“ switches the widget's series, „Kategorien“ its level: the
+    #   bands of GET /api/v1/performance/bands?level=category&period=1y are
+    #   drawn; nothing is stored.
+    # - The benchmark picker sends its GET form to the dashboard's own
+    #   address, so the remembered selection is Wealth's.
+    test "draws Wealth's chart, badge and table, and switches series and level",
+         %{conn: conn} do
+      seed()
+      dashboard = dashboard!([{"performance", "row"}])
+      perf = api("/api/v1/performance?period=1y")
+      bands = api("/api/v1/performance/bands?period=1y&level=category")
+
+      {:ok, view, _html} = live(conn, "/dashboards/#{dashboard.id}")
+      render_async(view)
+      doc = view |> render() |> Floki.parse_document!()
+      widget = "#dashboard-performance-section [data-form='wide']"
+      badge = text(Floki.find(doc, widget <> " [data-role='period-badge']"))
+
+      assert badge =~ Format.signed_percent(Decimal.new(perf["ttwror"])) <> "%"
+
+      result =
+        perf["end_value"]
+        |> Decimal.new()
+        |> Decimal.sub(Decimal.new(perf["start_value"]))
+        |> Decimal.sub(Decimal.new(perf["net_external_flows"]))
+
+      assert badge =~ Format.signed_decimal(result, 2)
+
+      wealth = rendered(conn, "/portfolio")
+      assert text(Floki.find(wealth, "[data-role='period-badge']")) == badge
+
+      rows = fn doc, scope ->
+        doc
+        |> Floki.find(scope <> " [data-role='perf-summary-table'] tbody tr")
+        |> Enum.map(&text/1)
+      end
+
+      assert rows.(doc, widget) != []
+      assert rows.(doc, widget) == rows.(wealth, "#portfolio-performance")
+
+      assert [action] =
+               doc
+               |> Floki.find("#dashboard-performance-section [data-role='benchmark-form']")
+               |> Floki.attribute("action")
+
+      assert action == "/dashboards/#{dashboard.id}"
+
+      view
+      |> element(
+        "#dashboard-performance-section [data-role='chart-series'] button[phx-value-mode='value']"
+      )
+      |> render_click()
+
+      render_async(view)
+      assert has_element?(view, widget <> " figure[data-chart-mode='value']")
+
+      view
+      |> element(
+        "#dashboard-performance-section [data-role='performance-level'] button[phx-value-level='category']"
+      )
+      |> render_click()
+
+      render_async(view)
+      html = view |> element(widget) |> render()
+
+      # One drawn band per band the route answers, the stack of its level.
+      assert html =~ ~s(data-level="category")
+      assert length(Regex.scan(~r/class="stack-band /, html)) == length(bands["bands"])
+
+      # Nothing stored: the series and the level are the page's.
+      assert Portfolixir.Repo.reload!(dashboard).lock_version == dashboard.lock_version
+    end
+  end
 end

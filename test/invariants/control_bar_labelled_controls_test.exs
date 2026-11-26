@@ -84,8 +84,10 @@ defmodule Portfolixir.Invariants.ControlBarLabelledControlsTest do
       labelled: false,
       reason: @no_visible_label
     },
+    # Sprint 32 W1: the series toggle moved with Wealth's section
+    # „Performance“ to its section widget, which Wealth draws it with.
     %{
-      file: "live/portfolio_live.ex",
+      file: "live/dashboard/widgets/performance_section.ex",
       match: ~s(data-role="chart-series"),
       labelled: false,
       reason: @no_visible_label

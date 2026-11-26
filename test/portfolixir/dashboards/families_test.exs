@@ -98,7 +98,7 @@ defmodule Portfolixir.Dashboards.FamiliesTest do
              "data_quality" => ~w(S L),
              "due" => ~w(S),
              "off_target" => ~w(S L),
-             "performance" => ~w(S L XL full),
+             "performance" => ~w(S L XL row full),
              "movers" => ~w(S L),
              "snapshots" => ~w(S M),
              "allocation_drift" => ~w(L),

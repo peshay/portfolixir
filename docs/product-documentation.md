@@ -2324,7 +2324,10 @@ loss, a warning as one line rather than a box, and a footer of one line.
   start + net flows + result = today with the multiple; the bridge's
   figures are the performance read's own, and where their rounded cents do
   not add up the gap is shown, never moved into a figure (also S and M).
-  **Data notes** stands only while a note exists; syncing exchange rates
+  **Performance** as a Row is Wealth's section: the % or value series and
+  the level switch on the widget, for this page only; the benchmark picker
+  sets the same benchmarks Wealth uses. **Data notes** stands only while a
+  note exists; syncing exchange rates
   stays on Wealth, linked. **Contribution by position** is Wealth's table
   (also L and XL, the largest contributions with their bar). **Positions**
   keeps its column picker, the columns picked once for Wealth and every

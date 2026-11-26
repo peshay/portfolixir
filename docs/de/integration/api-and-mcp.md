@@ -5766,7 +5766,7 @@ zusammenstellen lässt, ohne den Code zu lesen: `{"data": {"widgets",
   `allocation`, Snapshots, `snapshot_comparison` und `snapshot_list`,
   Risiko, `own_rules`, `key_figures`, `crash_section`, `top_holdings`,
   `concentration` und `asset_class_limits`, und Bestände,
-  `wealth_key_figures`, `data_notes`, `contribution`, `positions` und
+  `performance` in `row`, `wealth_key_figures`, `data_notes`, `contribution`, `positions` und
   `cash_accounts`), `title`
   (englisch) und `title_key` (`{context, msgid}`, die Meldung, die der
   Bildschirm übersetzt), `group`, `sizes` (eine Teilmenge von `S`, `M`, `L`,

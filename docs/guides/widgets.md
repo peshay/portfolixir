@@ -149,17 +149,22 @@ bar and in money.
 
 ## Performance
 
-`performance` · sizes S, L, XL
+`performance` · sizes S, L, XL, Row
 
 The view's time-weighted return over the period. **S** („Return“) the TTWROR
 and a line of the daily value; **L** the TTWROR and the value's course with
 its lowest and highest value; **XL** Wealth's stacked chart by category with
-its legend.
+its legend; **Row** Wealth's section (Sprint 32 W1): the % or value series,
+the level (total, categories, securities), the benchmark picker, the
+period's badge, the chart and "Data as table". The series and the level
+are the page's, never stored; the benchmarks are the ones picked on Wealth.
 
 **Source:**
 
 - `GET /api/v1/performance`
 - `GET /api/v1/views/:view_id/performance`
+- `GET /api/v1/performance/bands`
+- `GET /api/v1/performance/benchmark`
 
 <figure class="widget-gallery">
 <picture>
@@ -183,6 +188,14 @@ its legend.
 <img srcset="/assets/widgets/performance-xl-light.png 2x" src="/assets/widgets/performance-xl-light.png" alt="Performance at XL" loading="lazy">
 </picture>
 <figcaption>XL</figcaption>
+</figure>
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/performance-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/performance-row-light.png 2x" src="/assets/widgets/performance-row-light.png" alt="Performance at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
 </figure>
 
 ## Tops and flops
