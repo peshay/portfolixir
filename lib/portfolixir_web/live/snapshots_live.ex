@@ -166,6 +166,11 @@ defmodule PortfolixirWeb.SnapshotsLive do
     {:noreply, assign(socket, :row_menu_id, nil)}
   end
 
+  # The result note's × (#1366, R-157; Sprint 32 W5): the slot empties
+  # until the next action, as on every other page that draws one.
+  def handle_event("dismiss_result", _params, socket),
+    do: {:noreply, assign(socket, :page_error, nil)}
+
   # An event this page does not know, or a payload it cannot read, changes
   # nothing (E25 S4, F17).
   def handle_event(_event, _params, socket), do: {:noreply, socket}

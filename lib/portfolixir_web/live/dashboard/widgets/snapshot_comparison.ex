@@ -263,10 +263,10 @@ defmodule PortfolixirWeb.Dashboard.Widgets.SnapshotComparison do
                   <td><%= Format.date(row.date) %></td>
                   <td class="num"><%= Format.money(row.snapshot_value) %></td>
                   <td class="num">
-                    <%= if row.snapshot_indexed, do: percent_label(to_float(row.snapshot_indexed)), else: "—" %>
+                    <%= if row.snapshot_indexed, do: signed_fraction(row.snapshot_indexed), else: "—" %>
                   </td>
                   <td class="num">
-                    <%= if row.real_indexed, do: percent_label(to_float(row.real_indexed)), else: "—" %>
+                    <%= if row.real_indexed, do: signed_fraction(row.real_indexed), else: "—" %>
                   </td>
                 </tr>
               <% end %>
@@ -422,14 +422,10 @@ defmodule PortfolixirWeb.Dashboard.Widgets.SnapshotComparison do
     "#{frozen}#{real} · #{Format.money(point.snapshot_value)} #{currency}"
   end
 
+  # An indexed point's return, printed by Format as every other figure is
+  # (#1366, R-047: the table printed it through a float, „0.0%“ on a German
+  # page, no sign); the chart's label and the table's cells alike.
   defp signed_fraction(indexed), do: signed_percent(Decimal.sub(indexed, 1)) <> "%"
-
-  defp percent_label(factor) do
-    "#{Float.round((factor - 1.0) * 100, 1)}%"
-  end
-
-  defp to_float(nil), do: nil
-  defp to_float(%Decimal{} = value), do: Decimal.to_float(value)
 
   # The table samples the daily series to weekly rows (plus the last day) so
   # the chart-as-table stays readable; the full daily data is the chart's.

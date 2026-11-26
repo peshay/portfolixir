@@ -235,6 +235,122 @@ defmodule PortfolixirWeb.DashboardSnapshotWidgetsTest do
     end
   end
 
+  # --- S32 W5 begin ---
+  describe "the comparison's table (#1366, R-047)" do
+    # User story (Wealth's polish list #1366, line R-047):
+    # As the operator reading the comparison's table on a German page,
+    # I want its two return columns printed by the rule every other figure
+    # uses,
+    # so that „+1,2 %“ reads as the card beside it reads, never „1.2%“.
+    #
+    # Acceptance criteria:
+    # - On /snapshots in German, each row's frozen and real return is
+    #   `Format.signed_percent(indexed − 1) <> "%"` of the API's series for
+    #   that date (a comma, a sign, no „-0.0%“); a point without a value
+    #   reads „—“.
+    # - The dashboard's widget draws the same cells.
+    test "prints both returns by Format, as the API's series gives them", %{conn: conn} do
+      w = world()
+      dashboard!([{"snapshot_comparison", "row"}])
+
+      series =
+        api("/api/v1/portfolios/#{w.portfolio.id}/snapshots/#{w.later.id}/comparison")["series"]
+
+      by_date = Map.new(series, &{&1["date"], &1})
+
+      cell = fn
+        nil -> "—"
+        indexed -> Format.signed_percent(Decimal.sub(Decimal.new(indexed), 1), "de") <> "%"
+      end
+
+      for path <- ["/snapshots?locale=de", "/?locale=de"] do
+        rows =
+          conn
+          |> open(path)
+          |> doc()
+          |> Floki.find("[data-role='comparison-table'] tbody tr")
+
+        assert rows != [], path
+
+        for row <- rows do
+          [date, _value, frozen, real] = row |> Floki.find("td") |> Enum.map(&text/1)
+          point = Enum.find(series, &(Format.date(Date.from_iso8601!(&1["date"]), "de") == date))
+          assert point, "#{path}: no point for #{date} in #{map_size(by_date)}"
+
+          assert frozen == cell.(point["snapshot_indexed"]),
+                 "#{path} #{date}: #{frozen} drawn, #{cell.(point["snapshot_indexed"])} the rule"
+
+          assert real == cell.(point["real_indexed"]),
+                 "#{path} #{date}: #{real} drawn, #{cell.(point["real_indexed"])} the rule"
+        end
+      end
+    end
+  end
+
+  describe "the result note's × on Snapshots (#1366, R-157)" do
+    # User story (Wealth's polish list #1366, line R-157):
+    # As the operator who read a problem note on Snapshots,
+    # I want its × to close it,
+    # so that the page does not keep a note I dismissed.
+    #
+    # Acceptance criteria:
+    # - A comparison that cannot be read (an address naming no snapshot)
+    #   shows its problem note; its × removes it, and the page stays.
+    test "the × closes the problem note", %{conn: conn} do
+      w = world()
+      view = open(conn, "/snapshots?snapshot=#{w.later.id + 1_000}")
+
+      note = "#snapshots-action-result-alert [data-role='result-dismiss']"
+      assert has_element?(view, note)
+      view |> element(note) |> render_click()
+      refute has_element?(view, note)
+      assert has_element?(view, "[data-role='snapshot-list']")
+    end
+  end
+
+  describe "the comparison's „Nicht enthalten“ names (Sprint 32 W5)" do
+    # User story (Sprint 32 W4's finding; the gallery's unstable picture):
+    # As the operator reading which positions the comparison leaves out,
+    # I want them named in one order every time,
+    # so that the note reads the same on every visit, as Wealth's unvalued
+    # note does.
+    #
+    # Acceptance criteria:
+    # - With 40 positions without a quote at the as-of date (more than a
+    #   small map keeps in order), GET …/comparison answers
+    #   gaps.unvalued_securities by security id, the rule Wealth's
+    #   valuation lists its positions by; the note names them in that
+    #   order.
+    test "names the left-out positions by security id", %{conn: conn} do
+      today = Clock.today()
+      world = base_world(name: "Lücken")
+      deposit!(world, "100000", Date.add(today, -100))
+
+      for n <- 1..40 do
+        security = create_security!(name: "Unquoted #{String.pad_leading("#{41 - n}", 2, "0")}")
+        buy!(world, security, quantity: "1", price: "10", date: Date.add(today, -90))
+      end
+
+      {:ok, snapshot} =
+        Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Viele", as_of: Date.add(today, -60)})
+
+      gaps =
+        api("/api/v1/portfolios/#{world.portfolio.id}/snapshots/#{snapshot.id}/comparison")[
+          "gaps"
+        ]["unvalued_securities"]
+
+      assert length(gaps) == 40
+      ids = Enum.map(gaps, & &1["security_id"])
+      assert ids == Enum.sort(ids)
+
+      note = conn |> open("/snapshots") |> doc() |> Floki.find("[data-role='comparison-gaps']")
+      names = Enum.map(gaps, & &1["security_name"])
+      assert text(note) =~ Enum.join(Enum.take(names, 3), ", ")
+    end
+  end
+
+  # --- S32 W5 end ---
+
   describe "the starter „Snapshots“" do
     # User story:
     # As the operator after the update,
