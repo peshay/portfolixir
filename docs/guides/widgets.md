@@ -34,7 +34,8 @@ The total of the widget's view with its currency. **S** the total, its
 change over the period (the period's TTWROR) and a value line; **M** the
 total with the period's TTWROR and its result side by side; **L** the total,
 its change and the value's course over the period. What the total leaves out
-stands as one line in the footer.
+stands as one line in the footer. On a phone each size shows the total and
+its change.
 
 **Source:**
 
@@ -75,7 +76,8 @@ The data findings over the held securities and the ledger's checks. **S**
 the three most severe as short counted lines and how many more; **L** every
 finding as a row with its full sentence, what it does to the total under it,
 and the severities in words in the head. Each count is the length of the
-list its link opens.
+list its link opens. On a phone, S shows how many findings there are and
+the most severe one's line.
 
 **Source:**
 
@@ -106,6 +108,7 @@ list its link opens.
 
 The dated facts about any security in the catalogue, held or not, falling in
 the next 30 days: the next two on a line each, the rest behind „+n more“.
+On a phone the next date and its security, the rest behind „+n more“.
 
 **Source:**
 
@@ -124,8 +127,8 @@ the next 30 days: the next two on a line each, the rest behind „+n more“.
 `off_target` · sizes S, L
 
 The categories ±5 pp or more off their target weight, at every level of the
-steering tree. **S** their count; **L** the list, each with its drift as a
-bar and in money.
+steering tree. **S** their count, on a phone too; **L** the list, each with
+its drift as a bar and in money.
 
 **Source:**
 
@@ -615,8 +618,9 @@ metric says what it had and needed, never a number. **M** the first three;
 The Risk tab's whole section "Crashes": the window (the newest until you
 pick another), the list — losers, winners or rebounders — and the
 securities, in the depot or the whole catalogue, the window line and the
-ranked list, each as the rankings read answers it. Your choice stays in
-the widget while the page is open. The crash benchmark and the windows
+ranked list, each as the rankings read answers it. The list and the
+securities are the switches in the widget's head, the window's choice is
+in its body. Your choice stays in the widget while the page is open. The crash benchmark and the windows
 are set on the Risk tab, linked. "Crashes compared" (`crashes`) stays its
 compact relative.
 

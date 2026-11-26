@@ -11,7 +11,10 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
   # against GET /api/v1/movers), the cycle card in
   # security_cycle_range_test.exs (the bands against
   # GET /api/v1/securities/:id/cycles). Synthetic data only.
-  use PortfolixirWeb.ConnCase, async: true
+  #
+  # group: :dashboards -- a create takes the count lock (LockTable row 30):
+  # the compact forms of the larger sizes are read on a stored dashboard.
+  use PortfolixirWeb.ConnCase, async: true, group: :dashboards
 
   import Phoenix.LiveViewTest
   import Portfolixir.WorldFixtures
@@ -19,6 +22,8 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
   alias Portfolixir.Actor
   alias Portfolixir.Classifications
   alias Portfolixir.Clock
+  alias Portfolixir.Dashboards
+  alias Portfolixir.Dashboards.Widgets
   alias Portfolixir.Knowledge.Events
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Targets
@@ -40,6 +45,25 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
     view |> render() |> Floki.parse_document!()
+  end
+
+  # A stored dashboard of `items` ({kind, size}), one under the other, which
+  # „/“ then opens: the compact forms of the larger sizes, whose rows the
+  # S's figure and line do not draw (the S32 closing act).
+  defp loaded_at(conn, items) do
+    {layout, _row} =
+      Enum.map_reduce(items, 1, fn {kind, size}, row ->
+        {:ok, {_w, h}} = Widgets.dimensions(size)
+        {%{"kind" => kind, "size" => size, "col" => 1, "row" => row}, row + h}
+      end)
+
+    {:ok, _dashboard} =
+      Dashboards.create_dashboard(Actor.owner_ui(), %{
+        "name" => "Größer",
+        "layout" => layout
+      })
+
+    loaded(conn)
   end
 
   defp compact(doc, widget), do: Floki.find(doc, "##{widget} [data-form='compact']")
@@ -74,14 +98,14 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
   # - Wide at S (the template's, Sprint 31 D4): the total and its currency
   #   equal GET /api/v1/valuation; its change is the dashboard period's
   #   (1J) TTWROR of GET /api/v1/performance?period=1y.
-  # - Compact: the total, the year-to-date TTWROR of ?period=ytd, the 1Y
-  #   TTWROR, the cash quote and the quote date as the routes answer them.
+  # - Compact: the total and its change over the item's period (1J), the
+  #   1Y TTWROR of ?period=1y; since the S32 closing act no strip of four
+  #   rows under them (the compact forms at S, below).
   # - The strip at M: dashboard_d4_widgets_test.exs.
   test "„Gesamtwert“ draws GET /api/v1/valuation and the performance read", %{conn: conn} do
     seed()
     doc = loaded(conn)
     valuation = api("/api/v1/valuation?include_positions=false")
-    ytd = api("/api/v1/performance?period=ytd")
     one_year = api("/api/v1/performance?period=1y")
 
     total = money(valuation["total_with_cash"])
@@ -97,17 +121,98 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
 
     compact = compact(doc, "dashboard-wealth")
     assert text(Floki.find(compact, ".widget-total__figure")) =~ total
-    assert text(Floki.find(compact, ".widget-total__sub")) =~ percent(ytd["ttwror"])
 
-    assert text(Floki.find(compact, "[data-compact-role='kpi-ttwror'] .widget-row__figure")) ==
-             percent(one_year["ttwror"])
+    assert text(Floki.find(compact, ".widget-total__sub")) ==
+             percent(one_year["ttwror"]) <> " TTWROR · 1Y"
 
-    assert text(Floki.find(compact, "[data-compact-role='kpi-cash-quote'] .widget-row__figure")) ==
-             Format.percent(Decimal.new(valuation["cash_quote"])) <> "%"
-
-    assert text(Floki.find(compact, "[data-compact-role='kpi-freshness'] .widget-row__figure")) ==
-             Format.date(Date.from_iso8601!(valuation["newest_quote_date"]))
+    assert Floki.find(compact, ".widget-row") == []
   end
+
+  # User story (the S32 closing act, PR 2's design critic; board 06, board
+  # 07 ② 2 and 7; crop u393):
+  # As the operator reading „Überblick“ on a phone, where two S stand side
+  # by side,
+  # I want each S in its compact form as the anatomy draws it — its
+  # figure and one line under it —,
+  # so that the two tiles are not 700 px tall and nothing in them is cut.
+  #
+  # Acceptance criteria:
+  # - „Gesamtwert“: the total of GET /api/v1/valuation and one line, the
+  #   item's period's TTWROR (1J) of GET /api/v1/performance?period=1y;
+  #   Sprint 31's strip of four rows (TTWROR, Cashquote, Letzte Buchung,
+  #   Kurse) is gone, as Sprint 32 E4 removed it from the wide form.
+  # - „Datenqualität“ at S: how many findings there are as the figure,
+  #   the most severe one's short line under it (its link the list's).
+  # - „Fällig“ (S only): the next date of GET /api/v1/events/upcoming as
+  #   the figure, its security and kind as the line, the rest behind
+  #   „+n more“.
+  # - No list row (`.widget-row`) in any of the three.
+  test "the compact forms at S are a figure and one line", %{conn: conn} do
+    world = seed()
+
+    for {security, days} <- [{world.fresh, 3}, {world.stale, 12}, {world.fresh, 20}] do
+      {:ok, _event} =
+        Events.create_event(Actor.owner_ui(), %{
+          security_id: security.id,
+          kind: "earnings",
+          timing: "exact",
+          source_quality: "primary",
+          date: Date.add(world.today, days)
+        })
+    end
+
+    doc = loaded(conn)
+    valuation = api("/api/v1/valuation?include_positions=false")
+    one_year = api("/api/v1/performance?period=1y")
+    [next | rest] = api("/api/v1/events/upcoming?days=30")["events"]
+
+    total = compact(doc, "dashboard-wealth")
+    assert text(Floki.find(total, ".widget-total__figure")) =~ money(valuation["total_with_cash"])
+
+    assert text(Floki.find(total, ".widget-total__sub")) ==
+             percent(one_year["ttwror"]) <> " TTWROR · 1Y"
+
+    for role <- ~w(kpi-ttwror kpi-cash-quote kpi-last-booking kpi-freshness) do
+      assert Floki.find(total, "[data-compact-role='#{role}']") == []
+    end
+
+    quality = compact(doc, "dashboard-data-quality")
+    shown = doc |> wide("dashboard-data-quality") |> Floki.find(".widget-findings__item")
+    more = doc |> wide("dashboard-data-quality") |> Floki.find("[data-role='data-quality-more']")
+
+    more =
+      if more == [],
+        do: 0,
+        else: more |> text() |> String.replace(~r/\D/, "") |> String.to_integer()
+
+    count = length(shown) + more
+
+    assert quality
+           |> Floki.find("[data-compact-role='data-quality-count'] .widget-figure__value")
+           |> text() ==
+             ngettext_open_points(count)
+
+    assert text(Floki.find(quality, "[data-compact-role='data-quality-first']")) ==
+             text(hd(shown))
+
+    due = compact(doc, "dashboard-upcoming")
+
+    assert text(Floki.find(due, "[data-compact-role='upcoming-next'] .widget-figure__value")) ==
+             Format.date(Date.from_iso8601!(next["date"]))
+
+    assert text(Floki.find(due, "[data-compact-role='upcoming-next'] .widget-figure__sub")) =~
+             "Fresh Co"
+
+    assert text(Floki.find(due, "[data-compact-role='upcoming-more'] summary")) ==
+             "+#{length(rest)} more"
+
+    for widget <- ~w(dashboard-wealth dashboard-data-quality dashboard-upcoming) do
+      assert Floki.find(compact(doc, widget), ".widget-row") == [], widget
+    end
+  end
+
+  defp ngettext_open_points(1), do: "1 open point"
+  defp ngettext_open_points(count), do: "#{count} open points"
 
   # User story:
   # As the operator reading „Datenqualität“,
@@ -117,9 +222,10 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
   #
   # Acceptance criteria:
   # - Wide at S (the template's, Sprint 31 D4: one short counted line per
-  #   finding) and compact: the stale-quote and the missing-logo counts
-  #   equal the lengths of GET /api/v1/securities?data_quality=<set> over
-  #   the held securities.
+  #   finding) and compact at L (a row per finding; the S's compact form
+  #   is its figure and one line since the S32 closing act): the
+  #   stale-quote and the missing-logo counts equal the lengths of GET
+  #   /api/v1/securities?data_quality=<set> over the held securities.
   test "„Datenqualität“ counts what GET /api/v1/securities lists", %{conn: conn} do
     seed()
     doc = loaded(conn)
@@ -130,7 +236,7 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
     assert logo == 2
 
     wide = wide(doc, "dashboard-data-quality")
-    compact = compact(doc, "dashboard-data-quality")
+    compact = conn |> loaded_at([{"data_quality", "L"}]) |> compact("dashboard-data-quality")
 
     assert text(Floki.find(wide, "[data-role='dq-quotes']")) == "#{stale} quote older than 7 days"
 
@@ -149,7 +255,9 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
   #
   # Acceptance criteria:
   # - Wide and compact: the rows are the route's events, in its order, each
-  #   with its date and its security.
+  #   with its date and its security; the compact form (an S, since the
+  #   S32 closing act) the next one as its figure, the rest behind „+n
+  #   more“.
   test "„Fällig“ lists GET /api/v1/events/upcoming", %{conn: conn} do
     world = seed()
 
@@ -183,8 +291,13 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
     compact =
       doc
       |> compact("dashboard-upcoming")
-      |> Floki.find("[data-compact-role='upcoming-event']")
-      |> Enum.map(&{hd(Floki.attribute(&1, "href")), text(Floki.find(&1, ".widget-row__figure"))})
+      |> Floki.find("[data-role='upcoming-next-link'], [data-role='upcoming-event']")
+      |> Enum.map(fn link ->
+        date =
+          if Floki.find(link, ".num") == [], do: text(link), else: text(Floki.find(link, ".num"))
+
+        {hd(Floki.attribute(link, "href")), date}
+      end)
 
     assert wide == expected
     assert compact == expected
@@ -240,7 +353,8 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
   # so that the widget shows the figure the agent reads.
   #
   # Acceptance criteria:
-  # - Wide and compact: each listed category is one the allocation route
+  # - Wide and compact at L (the S's compact form is its count since the
+  #   S32 closing act): each listed category is one the allocation route
   #   answers beyond ±5 pp, its drift in points and in money equal to the
   #   route's drift_weight and drift_value.
   # - At S the wide form leads with how many categories that is.
@@ -284,7 +398,8 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
     assert text(Floki.find(row, ".num")) =~ money(category["drift_value"])
 
     [compact] =
-      doc
+      conn
+      |> loaded_at([{"off_target", "L"}])
       |> compact("dashboard-attention")
       |> Floki.find("[data-compact-role='drift-alert']")
       |> Enum.filter(&(text(Floki.find(&1, ".widget-row__name")) =~ "Core"))
@@ -310,6 +425,15 @@ defmodule PortfolixirWeb.DashboardWidgetFiguresTest do
 
     count = doc |> wide("dashboard-attention") |> Floki.find("[data-role='off-target-count']")
     assert count |> Floki.find(".widget-figure__value") |> text() =~ ~r/^#{beyond} categor/
+
+    # And the compact form at S: the same count as its figure.
+    compact_count =
+      doc
+      |> compact("dashboard-attention")
+      |> Floki.find("[data-compact-role='off-target-count']")
+
+    assert compact_count |> Floki.find(".widget-figure__value") |> text() =~
+             ~r/^#{beyond} categor/
 
     assert text(Floki.find(doc, "#dashboard-attention [data-role='off-target-beyond']")) =~
              "beyond ±5 pp"

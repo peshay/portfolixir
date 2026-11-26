@@ -626,7 +626,9 @@ defmodule PortfolixirWeb.DashboardD4WidgetsTest do
     rank = %{"is-problem" => 0, "is-attention" => 1, "is-note" => 2}
     assert severities == Enum.sort_by(severities, &rank[&1])
 
-    all = doc |> compact("dashboard-data-quality") |> Floki.find("[data-compact-role^='dq-']")
+    # Every finding is a row of the L's compact form (the S's is its
+    # figure and one line since the S32 closing act).
+    all = doc |> compact("dashboard-data-quality-2") |> Floki.find("[data-compact-role^='dq-']")
     more = length(all) - length(lines)
     assert more > 0
 
