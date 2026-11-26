@@ -140,6 +140,72 @@ defmodule Portfolixir.Periods.SavedPeriodsTest do
   end
 
   # User story:
+  # As the operator, or the agent I run, changing a stored period,
+  # I want a change that cannot be a period refused with its reason, as a
+  # create is, and the period left as stored,
+  # so that an edit never leaves a nameless period or one before 1970.
+  #
+  # Acceptance criteria (each seen refused first):
+  # - A replace with no name (null), an empty one, `from` after `to`, or a
+  #   `from` before 1970-01-01 answers a changeset naming the field; a
+  #   create with a `from` before 1970-01-01 too.
+  # - A lock_version that is no whole number from 1 (a string, zero) is
+  #   refused naming lock_version.
+  # - Nothing is written or journaled; the period reads as stored.
+  test "a replace that cannot be a period is refused with its field, the period left as stored" do
+    period = create!("Seit Umschichtung")
+
+    replace = fn attrs ->
+      Periods.replace_saved(
+        agent(),
+        period.id,
+        Map.merge(
+          %{
+            "name" => "Seit Umschichtung",
+            "from" => "2025-03-01",
+            "to" => nil,
+            "lock_version" => 1
+          },
+          attrs
+        )
+      )
+    end
+
+    for {attrs, field} <- [
+          {%{"name" => nil}, :name},
+          {%{"name" => "  "}, :name},
+          {%{"from" => "2025-05-02", "to" => "2025-05-01"}, :to},
+          {%{"from" => "1969-12-31"}, :from},
+          {%{"lock_version" => "1"}, :lock_version},
+          {%{"lock_version" => 0}, :lock_version}
+        ] do
+      assert {:error, %Ecto.Changeset{} = changeset} = replace.(attrs), inspect(attrs)
+      assert field in errors(changeset), inspect(attrs)
+    end
+
+    assert {:error, changeset} =
+             Periods.create_saved(agent(), %{"name" => "Vorzeit", "from" => "1969-12-31"})
+
+    assert :from in errors(changeset)
+
+    assert Periods.get_saved(period.id) == period
+    assert length(entries()) == 1
+  end
+
+  # Attack: the keys a write takes are read by name, from code as atoms
+  # too; a key that is neither is refused by its printed form, never made
+  # an atom.
+  test "atom keys write as their names; a key that is no name is refused" do
+    assert {:ok, %SavedPeriod{name: "Atomar"}} =
+             Periods.create_saved(agent(), %{name: "Atomar", from: "2025-01-01"})
+
+    assert {:error, {:unknown_fields, %{"1" => [_]}}} =
+             Periods.create_saved(agent(), %{"name" => "X", "from" => "2025-01-01", 1 => "y"})
+
+    assert length(entries()) == 1
+  end
+
+  # User story:
   # As the operator,
   # I want at most 50 periods stored,
   # so that a runaway agent cannot fill the menu without end.
@@ -256,5 +322,12 @@ defmodule Portfolixir.Periods.SavedPeriodsTest do
     end
 
     assert Periods.resolve("saved:9223372036854775807", ~D[2026-11-25]) == {:error, :not_found}
+
+    # An id no row can carry reads nothing and writes nothing, never a
+    # database error: past the bigint range, zero, a string.
+    for id <- [9_223_372_036_854_775_808, 0, "1"] do
+      assert Periods.get_saved(id) == nil, inspect(id)
+      assert Periods.delete_saved(agent(), id) == {:error, :not_found}, inspect(id)
+    end
   end
 end

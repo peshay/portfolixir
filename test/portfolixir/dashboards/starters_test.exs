@@ -8,9 +8,16 @@ defmodule Portfolixir.Dashboards.StartersTest do
   # as seeded. A read still never writes
   # (test/portfolixir/dashboards/dashboard_test.exs keeps Sprint 31's).
   #
-  # group: :dashboards -- a seed creates dashboards under the count lock
-  # (LockTable row 30) and takes the starters' lock (row 32).
-  use Portfolixir.DataCase, async: true, group: :dashboards
+  # async: false -- the refusals below are a trigger installed on
+  # `dashboards` or `dashboard_seeds` inside the test's own sandbox
+  # transaction, and creating a trigger locks its table against every
+  # concurrent writer until the test ends; the boot step's test also sets
+  # the application's configuration, which every process reads.
+  use Portfolixir.DataCase, async: false
+
+  import ExUnit.CaptureLog
+
+  require Logger
 
   alias Portfolixir.Actor
   alias Portfolixir.Dashboards
@@ -21,6 +28,39 @@ defmodule Portfolixir.Dashboards.StartersTest do
   alias Portfolixir.Journal
 
   defp seeds, do: Seed |> Repo.all() |> Enum.map(& &1.template_key) |> Enum.sort()
+
+  defp journaled(type), do: Journal.list_entries(resource_type: type)
+
+  # The database refuses every insert into `table` for the rest of the
+  # test's transaction: as a check constraint the write's changeset names
+  # (`constraint`, answered as a changeset error), or, without one, as an
+  # error no changeset knows (raised). Rolled back with the test.
+  defp refuse_inserts_into!(table, constraint \\ nil) do
+    raise_clause =
+      if constraint,
+        do: "USING ERRCODE = 'check_violation', CONSTRAINT = '#{constraint}'",
+        else: ""
+
+    Repo.query!("""
+    CREATE FUNCTION synthetic_refused_#{table}() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      RAISE EXCEPTION 'synthetic refusal of an insert into #{table}' #{raise_clause};
+    END
+    $$
+    """)
+
+    Repo.query!("""
+    CREATE TRIGGER synthetic_refused_#{table} BEFORE INSERT ON #{table}
+    FOR EACH ROW EXECUTE FUNCTION synthetic_refused_#{table}()
+    """)
+
+    :ok
+  end
+
+  defp allow_inserts_into!(table) do
+    Repo.query!("DROP TRIGGER synthetic_refused_#{table} ON #{table}")
+    :ok
+  end
 
   # User story:
   # As the operator updating to a release that brings starter dashboards,
@@ -113,5 +153,105 @@ defmodule Portfolixir.Dashboards.StartersTest do
     source = File.read!("lib/portfolixir/application.ex")
     assert source =~ "alias Portfolixir.Dashboards.Starters"
     assert source =~ "Starters.seed_on_boot()"
+  end
+
+  # User story:
+  # As the operator reading the instance's log after an update,
+  # I want the start to say which starters it stored or counted, and to
+  # say nothing on a start that had nothing to do,
+  # so that the log shows what the update did without repeating it on
+  # every restart.
+  #
+  # Acceptance criteria:
+  # - The first boot step logs the starters stored („overview“) and
+  #   counted (none) at info.
+  # - The next one stores nothing and logs nothing about the starters.
+  test "the boot step logs what it stored, and nothing on a start with nothing to do" do
+    original = Application.get_env(:portfolixir, :seed_starters_on_boot)
+    on_exit(fn -> Application.put_env(:portfolixir, :seed_starters_on_boot, original) end)
+    Application.put_env(:portfolixir, :seed_starters_on_boot, true)
+    # The test environment logs from warning up; the run's info is read.
+    Logger.put_module_level(Starters, :info)
+    on_exit(fn -> Logger.delete_module_level(Starters) end)
+
+    first = capture_log([level: :info], fn -> assert Starters.seed_on_boot() == :ok end)
+    assert first =~ ~s(starter dashboards: stored ["overview"], counted [])
+
+    again = capture_log([level: :info], fn -> assert Starters.seed_on_boot() == :ok end)
+    refute again =~ "starter dashboards"
+    assert length(Dashboards.list_dashboards()) == 1
+  end
+
+  # User story:
+  # As the operator whose database refuses a starter's write,
+  # I want the run to store nothing at all and the start to go on,
+  # so that no half-seeded state is left and the next start tries again.
+  #
+  # Acceptance criteria:
+  # - The dashboard's insert refused: `seed/1` answers {:error, changeset}
+  #   naming the refused field; no dashboard, no seed record, no journal
+  #   entry.
+  # - The boot step answers :ok and logs a warning „not seeded“.
+  # - The record's insert refused after the dashboard was stored: the
+  #   dashboard is taken back with it — nothing stored, nothing recorded,
+  #   nothing journaled —, so the next start cannot store it twice.
+  # - Once the database takes the writes again, the next run stores
+  #   „Überblick“ once.
+  test "a refused write stores and records nothing, and the next start tries again" do
+    original = Application.get_env(:portfolixir, :seed_starters_on_boot)
+    on_exit(fn -> Application.put_env(:portfolixir, :seed_starters_on_boot, original) end)
+    Application.put_env(:portfolixir, :seed_starters_on_boot, true)
+
+    refuse_inserts_into!("dashboards", "dashboards_template_key_check")
+
+    assert {:error, %Ecto.Changeset{} = refused} = Starters.seed()
+    assert Keyword.has_key?(refused.errors, :template_key)
+    assert Dashboards.list_dashboards() == []
+    assert seeds() == []
+    assert journaled("dashboard") == []
+
+    log = capture_log(fn -> assert Starters.seed_on_boot() == :ok end)
+    assert log =~ "starter dashboards not seeded"
+    assert seeds() == []
+
+    allow_inserts_into!("dashboards")
+    refuse_inserts_into!("dashboard_seeds", "dashboard_seeds_template_key_check")
+
+    assert {:error, %Ecto.Changeset{} = unrecorded} = Starters.seed()
+    assert Keyword.has_key?(unrecorded.errors, :template_key)
+    assert Dashboards.list_dashboards() == []
+    assert seeds() == []
+    assert journaled("dashboard") == []
+    assert journaled("dashboard_seed") == []
+
+    allow_inserts_into!("dashboard_seeds")
+
+    assert {:ok, %{stored: ["overview"], counted: []}} = Starters.seed()
+    assert [%Dashboard{template_key: "overview"}] = Dashboards.list_dashboards()
+    assert seeds() == ["overview"]
+  end
+
+  # User story:
+  # As the operator whose instance starts while its database fails in a
+  # way no write expects,
+  # I want the start to go on and the failure logged,
+  # so that a starter never stops the instance.
+  #
+  # Acceptance criteria:
+  # - An error the run does not answer as a refusal (raised by the
+  #   database) is logged as a warning „not seeded“ with its message; the
+  #   boot step answers :ok, and nothing is stored.
+  test "an error the run does not expect is logged, never raised" do
+    original = Application.get_env(:portfolixir, :seed_starters_on_boot)
+    on_exit(fn -> Application.put_env(:portfolixir, :seed_starters_on_boot, original) end)
+    Application.put_env(:portfolixir, :seed_starters_on_boot, true)
+
+    refuse_inserts_into!("dashboards")
+
+    log = capture_log(fn -> assert Starters.seed_on_boot() == :ok end)
+    assert log =~ "starter dashboards not seeded"
+    assert log =~ "synthetic refusal of an insert into dashboards"
+    assert Dashboards.list_dashboards() == []
+    assert seeds() == []
   end
 end

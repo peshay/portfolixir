@@ -112,4 +112,65 @@ defmodule Portfolixir.LockRace.PeriodsRaceTest do
 
     assert [%{actor_type: :owner_ui}] = updates
   end
+
+  # User story:
+  # As the operator deleting a period my agent deletes at that moment,
+  # I want the delete that comes second to answer that the period is gone,
+  # so that neither fails with an error and the journal records one
+  # delete.
+  #
+  # Acceptance criteria:
+  # - The second delete waits for the first's row lock, then answers
+  #   {:error, :not_found}; one delete is journaled, the first's.
+  # - A replace that waited for a delete answers {:error, :not_found} too.
+  test "a delete or a replace that waited for a delete answers not found", %{db: db} do
+    delete = fn id, actor -> fn -> Periods.delete_saved(actor, id) end end
+
+    {:ok, period} =
+      Periods.create_saved(Actor.owner_ui(), %{"name" => "Raced", "from" => "2025-01-01"})
+
+    {first, second} =
+      LockRace.race!(
+        db,
+        {delete.(period.id, Actor.owner_ui()), LockRace.query?("FOR UPDATE")},
+        delete.(period.id, Actor.api_token_rw("mcp"))
+      )
+
+    assert {:ok, %SavedPeriod{name: "Raced"}} = first
+    assert second == {:error, :not_found}
+    assert Periods.get_saved(period.id) == nil
+
+    assert [%{actor_type: :owner_ui}] =
+             Journal.list_entries(
+               resource_type: "period",
+               resource_id: to_string(period.id),
+               operation: :delete
+             )
+
+    {:ok, other} =
+      Periods.create_saved(Actor.owner_ui(), %{"name" => "Replaced", "from" => "2025-01-01"})
+
+    {deleted, replaced} =
+      LockRace.race!(
+        db,
+        {delete.(other.id, Actor.owner_ui()), LockRace.query?("FOR UPDATE")},
+        fn ->
+          Periods.replace_saved(Actor.api_token_rw("mcp"), other.id, %{
+            "name" => "Replaced",
+            "from" => "2025-02-01",
+            "to" => nil,
+            "lock_version" => 1
+          })
+        end
+      )
+
+    assert {:ok, %SavedPeriod{}} = deleted
+    assert replaced == {:error, :not_found}
+
+    assert Journal.list_entries(
+             resource_type: "period",
+             resource_id: to_string(other.id),
+             operation: :update
+           ) == []
+  end
 end

@@ -110,7 +110,27 @@ defmodule Portfolixir.Dashboards.OwnScopeTest do
   #   `{:own, id}`; a dashboard without one `:none`.
   # - The next replace (the edit's save) drops the stale id and is journaled;
   #   a rename sending the stale id is refused, as a create's is.
+  # - While the view exists, a replace keeps it: lock_version rises by one
+  #   for the layout alone.
   test "a deleted view leaves the dashboard's view dangling until its next save" do
+    kept = view!("Bleibt")
+
+    {:ok, holding} =
+      Dashboards.create_dashboard(Actor.owner_ui(), %{
+        "name" => "Hält",
+        "layout" => [],
+        "view_id" => kept.id
+      })
+
+    assert {:ok, %{view_id: kept_id, lock_version: 2}} =
+             Dashboards.replace_dashboard(Actor.owner_ui(), holding.id, %{
+               "name" => "Hält",
+               "layout" => [%{"kind" => "due", "size" => "S", "col" => 1, "row" => 1}],
+               "lock_version" => 1
+             })
+
+    assert kept_id == kept.id
+
     gone = view!("Weg")
 
     {:ok, dashboard} =
@@ -141,7 +161,12 @@ defmodule Portfolixir.Dashboards.OwnScopeTest do
     assert saved.view_id == nil
     assert Dashboards.own_view(saved) == :none
 
-    [_create, replace] = Journal.list_entries(resource_type: "dashboard", order: :asc)
+    replace =
+      Journal.list_entries(resource_type: "dashboard", order: :asc)
+      |> Enum.filter(&(&1.resource_id == to_string(dashboard.id)))
+      |> List.last()
+
+    assert replace.operation == :update
     assert {replace.before["view_id"], replace.after["view_id"]} == {gone.id, nil}
   end
 end
