@@ -844,7 +844,12 @@ defmodule PortfolixirWeb.Dashboard.Widgets.PerformanceSection do
           <% @bands == :error -> %>
             <p class="hint" data-role="stack-failed"><%= gettext("Computation failed. Reload retries.") %></p>
           <% @state.mode == "ttwror" -> %>
-            <StackedChart.lines result={@bands} colors={band_colors(@bands)} drill_paths={%{}} />
+            <StackedChart.lines
+              result={@bands}
+              colors={band_colors(@bands)}
+              drill_paths={%{}}
+              id_suffix={"-section" <> @uid}
+            />
           <% true -> %>
             <StackedChart.figure
               result={@bands}
