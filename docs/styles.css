@@ -325,6 +325,19 @@ pre code {
   border-radius: var(--radius-md);
 }
 
+/* The widget catalogue (docs/guides/widgets.md, Sprint 32 L4): each
+   widget's picture at its tile's size (the files are 2x), its size under
+   it. */
+.widget-gallery {
+  margin: 12px 0 20px;
+}
+
+.widget-gallery figcaption {
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
 .docs-footer {
   width: min(100% - 40px, var(--content-width));
   margin: 0 auto;
