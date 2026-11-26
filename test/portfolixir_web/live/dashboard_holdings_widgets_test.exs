@@ -13,6 +13,7 @@ defmodule PortfolixirWeb.DashboardHoldingsWidgetsTest do
   import Portfolixir.WorldFixtures
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Clock
   alias Portfolixir.Dashboards
   alias PortfolixirWeb.Format
@@ -272,6 +273,75 @@ defmodule PortfolixirWeb.DashboardHoldingsWidgetsTest do
       wealth = rendered(conn, "/portfolio")
       assert text(Floki.find(wealth, "#kpi-ttwror strong")) == at.("kf-ttwror-value")
       assert text(Floki.find(wealth, "[data-role='period-gain'] b")) == at.("kf-result-value")
+    end
+
+    # User story (Sprint 32 closing act, PR 2, coverage):
+    # As the operator who changes the own period my dashboard reads,
+    # I want „Kennzahlen“ and „Performance“ to read the changed period at
+    # once,
+    # so that no figure of the old period stays under the new name.
+    #
+    # Acceptance criteria:
+    # - On the own period „Seit Umbau“ (from 200 days back), the widget's
+    #   TTWROR is GET /api/v1/performance?period=saved:<id>'s.
+    # - After the dialog moves its start to 60 days back, the widget's
+    #   TTWROR and the performance Zeile's badge are the route's for the
+    #   changed period, which differs from the first.
+    test "an own period changed in the dialog is read again", %{conn: conn} do
+      %{security: security} = seed()
+      today = Clock.today()
+      put_quotes!(security, [{Date.add(today, -100), "105"}])
+      dashboard!([{"wealth_key_figures", "row"}, {"performance", "row"}])
+
+      {:ok, own} =
+        Portfolixir.Periods.create_saved(Actor.owner_ui(), %{
+          "name" => "Seit Umbau",
+          "from" => Date.to_iso8601(Date.add(today, -200))
+        })
+
+      key = "saved:#{own.id}"
+      path = "/api/v1/performance?period=" <> URI.encode_www_form(key)
+      before = api(path)["ttwror"]
+      {:ok, view, _html} = live(conn, "/?" <> URI.encode_query(%{"period" => key}))
+      render_async(view)
+
+      ttwror = fn ->
+        view
+        |> render()
+        |> Floki.parse_document!()
+        |> Floki.find(
+          "#dashboard-wealth-key-figures [data-form='wide'] [data-role='kf-ttwror-value']"
+        )
+        |> text()
+      end
+
+      assert ttwror.() == pct(before)
+
+      view |> element("[data-role='period-menu-toggle']") |> render_click()
+      view |> element("[data-role='period-edit'][data-period='#{key}']") |> render_click()
+
+      view
+      |> form("#period-form",
+        period: %{
+          name: "Seit Umbau",
+          from: Date.to_iso8601(Date.add(today, -60)),
+          to_mode: "today"
+        }
+      )
+      |> render_submit()
+
+      render_async(view)
+      changed = api(path)
+      refute changed["ttwror"] == before
+      assert ttwror.() == pct(changed["ttwror"])
+
+      assert view
+             |> render()
+             |> Floki.parse_document!()
+             |> Floki.find(
+               "#dashboard-performance-section [data-form='wide'] [data-role='period-badge']"
+             )
+             |> text() =~ pct(changed["ttwror"])
     end
 
     # User story (Sprint 32 closing act, PR 2, the correctness lens):
@@ -548,6 +618,152 @@ defmodule PortfolixirWeb.DashboardHoldingsWidgetsTest do
     end
   end
 
+  describe "Positionen (positions), the optional columns and the signs" do
+    # User story (Sprint 32 closing act, PR 2, coverage):
+    # As the operator who picks WKN, currency and the P&L columns,
+    # I want each cell as the holdings read gives it, a loss in the loss
+    # colour and a position at its cost unsigned,
+    # so that the widget's table reads as Wealth's in every column.
+    #
+    # Acceptance criteria:
+    # - With the columns security, WKN, currency, P&L and P&L % chosen,
+    #   each row's WKN and currency are GET /api/v1/portfolios/:id/holdings'
+    #   wkn and currency_code for that security.
+    # - A position quoted below its cost reads its P&L and P&L % as a loss
+    #   (`is-negative`); one quoted at its cost reads them flat
+    #   (`is-flat`), as the read's zero.
+    test "draws WKN, currency and the P&L columns with their signs", %{conn: conn} do
+      today = Clock.today()
+      world = base_world(name: "Spalten")
+      deposit!(world, "5000", Date.add(today, -30))
+
+      make = fn name, wkn ->
+        {:ok, security} =
+          Portfolixir.Catalog.create_security(Actor.owner_ui(), %{
+            name: name,
+            currency_code: "EUR",
+            asset_class: "equity",
+            wkn: wkn
+          })
+
+        security
+      end
+
+      loser = make.("Falling Test Works", "FTW001")
+      flat = make.("Level Test Works", "LTW002")
+      buy!(world, loser, quantity: "10", price: "100", date: Date.add(today, -20))
+      buy!(world, flat, quantity: "10", price: "50", date: Date.add(today, -20))
+      put_quotes!(loser, [{Date.add(today, -20), "100"}, {today, "80"}])
+      put_quotes!(flat, [{Date.add(today, -20), "50"}, {today, "50"}])
+
+      dashboard!([{"positions", "row"}])
+      holdings = api("/api/v1/portfolios/#{world.portfolio.id}/holdings")
+      {:ok, view, _html} = live(conn, "/")
+      render_async(view)
+      view |> element("#dashboard-positions-column-toggle") |> render_click()
+
+      view
+      |> form("#dashboard-positions-column-form", %{
+        "columns" => ~w(security wkn currency unrealized_pnl_abs unrealized_pnl_pct)
+      })
+      |> render_change()
+
+      doc = view |> render() |> Floki.parse_document!()
+
+      cell = fn security, column ->
+        doc
+        |> Floki.find(
+          "#dashboard-positions table [data-role='holdings-position'][data-security-id='#{security.id}'] [data-column='#{column}']"
+        )
+      end
+
+      for security <- [loser, flat] do
+        holding = Enum.find(holdings, &(&1["security_id"] == security.id))
+        assert text(cell.(security, "wkn")) == holding["wkn"]
+        assert text(cell.(security, "currency")) == holding["currency_code"]
+      end
+
+      for column <- ~w(unrealized_pnl_abs unrealized_pnl_pct) do
+        assert ["num is-negative"] == Floki.attribute(cell.(loser, column), "class"), column
+        assert ["num is-flat"] == Floki.attribute(cell.(flat, column), "class"), column
+      end
+    end
+  end
+
+  describe "Beitrag je Position (contribution) at L, on a view and over an empty period" do
+    # User story (Sprint 32 closing act, PR 2, coverage):
+    # As the operator who reads the contributions of one view,
+    # I want the short list to show a loss as a loss, the table to name
+    # the view, and a period nothing was held in to say so,
+    # so that an empty list is never read as a failed one.
+    #
+    # Acceptance criteria:
+    # - On a dashboard scoped to a view, at L each row's figure is GET
+    #   /api/v1/performance/contribution?period=1y&view_id='s for that
+    #   security, a loss signed and coloured as one; at „Zeile“ the table
+    #   names the view.
+    # - Over year:1999, before the first booking, the read lists no
+    #   position, and the L list says „No position contributed in this
+    #   period.“
+    test "lists the view's contributions, a loss as one, and an empty period as empty",
+         %{conn: conn} do
+      %{home: home} = seed()
+      today = Clock.today()
+      loser = create_security!(name: "Sinking Test Linien")
+      put_quotes!(loser, [{Date.add(today, -380), "50"}, {today, "40"}])
+      buy!(home, loser, quantity: "5", price: "50", date: Date.add(today, -380))
+
+      {:ok, scope} =
+        Buckets.create_view(Actor.owner_ui(), %{name: "Alles drin", include_all: true})
+
+      {:ok, _} =
+        Dashboards.create_dashboard(Actor.owner_ui(), %{
+          "name" => "Beitrag",
+          "view_id" => scope.id,
+          "layout" => [
+            %{"kind" => "contribution", "size" => "L", "col" => 1, "row" => 1},
+            %{"kind" => "contribution", "size" => "row", "col" => 1, "row" => 5}
+          ]
+        })
+
+      read = api("/api/v1/performance/contribution?period=1y&view_id=#{scope.id}")
+      doc = rendered(conn, "/")
+
+      items =
+        Floki.find(
+          doc,
+          "#dashboard-contribution [data-form='wide'] [data-role='contribution-item']"
+        )
+
+      assert length(items) == length(read["positions"])
+
+      for item <- items do
+        id = hd(Floki.attribute(item, "data-security-id"))
+        position = Enum.find(read["positions"], &(to_string(&1["security_id"]) == id))
+        figure = Floki.find(item, ".widget-row__figure span")
+        assert text(figure) == Format.signed_decimal(Decimal.new(position["contribution"]), 2)
+
+        if Decimal.negative?(Decimal.new(position["contribution"])),
+          do: assert(Floki.attribute(figure, "class") == ["is-negative"])
+      end
+
+      assert Enum.any?(read["positions"], &Decimal.negative?(Decimal.new(&1["contribution"])))
+      assert text(Floki.find(doc, "#dashboard-contribution-2")) =~ "Alles drin"
+
+      assert api("/api/v1/performance/contribution?period=year:1999")["positions"] == []
+
+      empty = rendered(conn, "/?period=year:1999")
+
+      assert text(
+               Floki.find(
+                 empty,
+                 "#dashboard-contribution [data-role='contribution-widget-empty']"
+               )
+             ) ==
+               "No position contributed in this period."
+    end
+  end
+
   describe "Datenhinweise (data_notes)" do
     # User story:
     # As the operator who wants to know why a total may be off,
@@ -683,6 +899,95 @@ defmodule PortfolixirWeb.DashboardHoldingsWidgetsTest do
       assert length(Regex.scan(~r/class="stack-band /, html)) == length(bands["bands"])
 
       # Nothing stored: the series and the level are the page's.
+      assert Portfolixir.Repo.reload!(dashboard).lock_version == dashboard.lock_version
+    end
+  end
+
+  describe "Performance (performance at Zeile), its lines, its securities and its benchmarks" do
+    # User story (Sprint 32 closing act, PR 2, coverage):
+    # As the operator who compares the parts of my book on a dashboard,
+    # I want „Kategorien“ and „Wertpapiere“ in the % series to draw one
+    # line per band the route answers, and a benchmark in the address to be
+    # drawn and named in the widget,
+    # so that the dashboard's chart reads as Wealth's at every level.
+    #
+    # Acceptance criteria:
+    # - In the % series, „Kategorien“ draws the view's line and one line
+    #   per band of GET
+    #   /api/v1/performance/bands?period=1y&level=category&scale=ttwror,
+    #   „Wertpapiere“ those of level=security, each under its band's key.
+    # - A security benchmark and a fixed rate in the dashboard's address
+    #   are named as the picker's active chips and drawn as two overlays
+    #   on the TTWROR chart, whose accessible name names both.
+    # - Nothing is stored.
+    test "draws a line per band at each level and the benchmarks of the address",
+         %{conn: conn} do
+      %{security: security} = seed()
+      today = Clock.today()
+      owner = Actor.owner_ui()
+      {:ok, tree} = Portfolixir.Classifications.create_classification(owner, %{name: "Strategy"})
+
+      {:ok, growth} =
+        Portfolixir.Classifications.create_category(owner, %{
+          classification_id: tree.id,
+          name: "Growth"
+        })
+
+      {:ok, _} =
+        Portfolixir.Classifications.assign_security(owner, security.id, tree.id, growth.id)
+
+      bench = create_security!(name: "Bench Test Index", ticker: "BTI")
+      put_quotes!(bench, [{Date.add(today, -390), "50"}, {today, "60"}])
+      dashboard = dashboard!([{"performance", "row"}])
+      widget = "#dashboard-performance-section [data-form='wide']"
+
+      address =
+        "/dashboards/#{dashboard.id}?benchmark[]=security:#{bench.id}&benchmark_rate=2"
+
+      {:ok, view, _html} = live(conn, address)
+      render_async(view)
+
+      active = view |> render() |> Floki.parse_document!()
+
+      assert active
+             |> Floki.find("#dashboard-performance-section [data-role='benchmark-chip']")
+             |> Enum.map(&text/1) == ["Bench Test Index", "2.00 % p.a."]
+
+      chart = view |> element(widget <> " figure") |> render()
+      assert chart =~ ~s(class="chart-benchmark-1")
+      assert chart =~ ~s(class="chart-benchmark-2")
+
+      assert [label] =
+               active
+               |> Floki.find(widget <> " figure svg[aria-label]")
+               |> Floki.attribute("aria-label")
+               |> Enum.filter(&(&1 =~ "benchmarks"))
+
+      assert label =~ "Bench Test Index"
+      assert label =~ "2.00 % p.a."
+
+      for level <- ~w(category security) do
+        view
+        |> element(
+          "#dashboard-performance-section [data-role='performance-level'] button[phx-value-level='#{level}']"
+        )
+        |> render_click()
+
+        render_async(view)
+        read = api("/api/v1/performance/bands?period=1y&level=#{level}&scale=ttwror")
+        assert read["bands"] != [], level
+
+        drawn =
+          view
+          |> render()
+          |> Floki.parse_document!()
+          |> Floki.find(widget <> " figure[data-level='#{level}'] g.stack-line")
+          |> Enum.map(&hd(Floki.attribute(&1, "data-band")))
+
+        expected = [read["parent"]["key"] | Enum.map(read["bands"], & &1["key"])]
+        assert Enum.sort(drawn) == Enum.sort(Enum.map(expected, &to_string/1)), level
+      end
+
       assert Portfolixir.Repo.reload!(dashboard).lock_version == dashboard.lock_version
     end
   end

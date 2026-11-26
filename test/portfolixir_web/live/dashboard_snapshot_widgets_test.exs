@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.DashboardSnapshotWidgetsTest do
   import Portfolixir.WorldFixtures
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Clock
   alias Portfolixir.Dashboards
   alias Portfolixir.Dashboards.Dashboard
@@ -216,6 +217,40 @@ defmodule PortfolixirWeb.DashboardSnapshotWidgetsTest do
 
       assert Repo.get!(Dashboard, dashboard.id).lock_version == dashboard.lock_version
       assert length(Snapshots.list_snapshots()) == 2
+    end
+
+    # User story (Sprint 32 closing act, PR 2, coverage):
+    # As the operator who froze one view,
+    # I want the comparison to name that view beside the snapshot,
+    # so that I read whose holdings were frozen.
+    #
+    # Acceptance criteria:
+    # - The newest snapshot is frozen on the view „Alles drin“: the
+    #   comparison's scope line names it and the snapshot, and its real
+    #   TTWROR is GET /api/v1/portfolios/:id/snapshots/:id/comparison's.
+    test "a snapshot of a view names the view beside the snapshot", %{conn: conn} do
+      w = world()
+
+      {:ok, scope} =
+        Buckets.create_view(Actor.owner_ui(), %{name: "Alles drin", include_all: true})
+
+      {:ok, frozen} =
+        Snapshots.create_snapshot(Actor.owner_ui(), %{
+          name: "Ansicht eingefroren",
+          as_of: Date.add(Clock.today(), -30),
+          view_id: scope.id
+        })
+
+      dashboard!([{"snapshot_comparison", "row"}])
+      comparison = api("/api/v1/portfolios/#{w.portfolio.id}/snapshots/#{frozen.id}/comparison")
+      widget = conn |> open("/") |> doc() |> Floki.find("#dashboard-snapshot-comparison")
+      scope_line = text(Floki.find(widget, "[data-role='comparison-scope']"))
+
+      assert scope_line =~ "Ansicht eingefroren"
+      assert scope_line =~ "Alles drin"
+
+      assert text(Floki.find(widget, "[data-role='kpi-real'] strong")) ==
+               Format.signed_percent(Decimal.new(comparison["real_ttwror"])) <> "%"
     end
 
     # User story:

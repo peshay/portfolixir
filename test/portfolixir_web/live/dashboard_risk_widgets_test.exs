@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.DashboardRiskWidgetsTest do
   import Portfolixir.WorldFixtures
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Clock
   alias Portfolixir.Crashes
   alias Portfolixir.Dashboards
@@ -25,6 +26,8 @@ defmodule PortfolixirWeb.DashboardRiskWidgetsTest do
   alias Portfolixir.Dashboards.Widgets
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Repo
+  alias PortfolixirWeb.Dashboard.Widgets.OwnRules, as: OwnRulesWidget
+  alias PortfolixirWeb.Dashboard.Widgets.RiskLens, as: RiskLensWidget
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.WidgetsLive
 
@@ -307,6 +310,157 @@ defmodule PortfolixirWeb.DashboardRiskWidgetsTest do
     end
   end
 
+  describe "the lens' sections on a spread, young book (Sprint 32 closing act, coverage)" do
+    # Seven names bought five days ago at 100, quoted flat: two ETFs at 35
+    # and 25 units, five equities at 9, 9, 8, 8 and 6. The HHI lands
+    # between the bands' lines and the history is too short for any
+    # metric.
+    defp spread_world do
+      today = Clock.today()
+      world = base_world(name: "Streuung")
+      deposit!(world, "20000", Date.add(today, -6))
+
+      names = [
+        {"Alder Index ETF", "35", "etf"},
+        {"Birch Index ETF", "25", "etf"},
+        {"Cedar Mills AG", "9", "equity"},
+        {"Dogwood Rail SA", "9", "equity"},
+        {"Elm Shipping NV", "8", "equity"},
+        {"Fir Optics AB", "8", "equity"},
+        {"Ginkgo Labs Ltd", "6", "equity"}
+      ]
+
+      for {{name, quantity, asset_class}, index} <- Enum.with_index(names) do
+        security =
+          create_security!(name: name, ticker: "SP#{index}", asset_class: asset_class)
+
+        buy!(world, security, quantity: quantity, price: "100", date: Date.add(today, -5))
+        put_quotes!(security, [{Date.add(today, -5), "100"}, {today, "100"}])
+      end
+
+      world
+    end
+
+    # User story:
+    # As the operator whose book is spread and young,
+    # I want the lens' widgets to name the band, the threshold each name
+    # is above or below, and every metric the history cannot carry yet,
+    # so that a figure is never shown where the read refuses one.
+    #
+    # Acceptance criteria:
+    # - „Klumpenrisiko“ names GET /api/v1/portfolios/:id/risk's band
+    #   „moderate“ and its HHI.
+    # - „Größte Einzelpositionen“ marks each name with the read's severity:
+    #   an equity at 9 % is „above 7 %“ (the warn line).
+    # - „Kennzahlen des Portfolios“ at M says „not computable“ for the
+    #   volatility and the risk-adjusted return, with the observations the
+    #   read had and needed, and shows the drawdown the read computes.
+    test "name the moderate band, the warn line and the refused metrics",
+         %{conn: conn} do
+      w = spread_world()
+
+      dashboard!([
+        {"concentration", "row"},
+        {"top_holdings", "row"},
+        {"key_figures", "M"}
+      ])
+
+      risk = api("/api/v1/portfolios/#{w.portfolio.id}/risk")
+      assert risk["hhi"]["band"] == "moderate"
+      page = conn |> open("/") |> doc()
+
+      hhi = Floki.find(page, "#dashboard-concentration [data-role='risk-hhi'] strong")
+      assert Floki.attribute(hhi, "data-band") == ["moderate"]
+      assert text(hhi) =~ Format.plain_decimal(Decimal.new(risk["hhi"]["value"]), 0)
+      assert text(hhi) =~ "moderate"
+
+      rows = Floki.find(page, "#dashboard-top-holdings table tbody tr")
+
+      for {row, holding} <- Enum.zip(rows, risk["top_holdings"]) do
+        badge = Floki.find(row, "[data-severity]")
+        assert Floki.attribute(badge, "data-severity") == [holding["severity"]]
+      end
+
+      cedar = Enum.find(rows, &(text(&1) =~ "Cedar Mills AG"))
+      cedar_holding = Enum.find(risk["top_holdings"], &(&1["security_name"] == "Cedar Mills AG"))
+      assert cedar_holding["severity"] == "warn"
+      assert text(Floki.find(cedar, "[data-severity]")) == "above 7 %"
+
+      metrics = risk["metrics"]
+
+      m = fn role ->
+        text(Floki.find(page, "#dashboard-key-figures [data-role='risk-m-#{role}']"))
+      end
+
+      for {role, metric} <- [
+            {"volatility", metrics["volatility"]["365d"]},
+            {"risk-adjusted-return", metrics["risk_adjusted_return"]["365d"]}
+          ] do
+        assert metric["insufficient_data"], role
+        assert m.(role) =~ "not computable", role
+        assert m.(role) =~ "#{metric["observations"]} of #{metric["required"]} observations", role
+      end
+
+      # The drawdown needs two observations, which five flat days give: no
+      # fall, read as the read's 0, unsigned.
+      drawdown = metrics["max_drawdown"]["365d"]
+      refute drawdown["insufficient_data"]
+
+      assert m.("max-drawdown") =~
+               Format.plain_signed_decimal(Decimal.mult(Decimal.new(drawdown["value"]), 100), 1) <>
+                 " %"
+    end
+  end
+
+  describe "the lens on a view and on a vanished view (Sprint 32 closing act, coverage)" do
+    # User story:
+    # As the operator whose dashboard reads one view,
+    # I want the risk widgets' way to the tab to keep that view, and a
+    # view deleted meanwhile to read Everything,
+    # so that the tab opens on what the widget showed and a deleted view
+    # never leaves a widget without figures.
+    #
+    # Acceptance criteria:
+    # - On a dashboard scoped to a view, „Ganze Ansicht“ of a lens widget
+    #   and of „Eigene Regeln“ opens /risk?view=<id>.
+    # - The lens' and the rules' read for a view that no longer exists
+    #   answer what they answer for Everything.
+    test "the way to the tab keeps the view, and a deleted view reads Everything",
+         %{conn: conn} do
+      w = world()
+
+      {:ok, scope} =
+        Buckets.create_view(Actor.owner_ui(), %{name: "Alles drin", include_all: true})
+
+      {:ok, _} =
+        Dashboards.create_dashboard(Actor.owner_ui(), %{
+          "name" => "Ansicht",
+          "view_id" => scope.id,
+          "layout" => [
+            %{"kind" => "concentration", "size" => "row", "col" => 1, "row" => 1},
+            %{"kind" => "own_rules", "size" => "row", "col" => 1, "row" => 5}
+          ]
+        })
+
+      page = conn |> open("/") |> doc()
+      href = "/risk?view=#{scope.id}"
+      assert [_] = Floki.find(page, "#dashboard-concentration a[href='#{href}']")
+      assert [_] = Floki.find(page, "#dashboard-own-rules a[href='#{href}']")
+
+      {:ok, gone} = Buckets.create_view(Actor.owner_ui(), %{name: "Weg", include_all: true})
+      {:ok, _} = Buckets.delete_view(Actor.owner_ui(), gone)
+
+      lens = RiskLensWidget.load(w.portfolio.id, gone.id)
+      everything = RiskLensWidget.load(w.portfolio.id, nil)
+      assert lens.hhi == everything.hhi
+      assert lens.top_holdings == everything.top_holdings
+
+      rules = OwnRulesWidget.load(w.portfolio.id, gone.id)
+      assert rules.findings == OwnRulesWidget.load(w.portfolio.id, nil).findings
+      assert [%{name: "Nordic cap"}] = Enum.map(rules.rules, &%{name: &1.name})
+    end
+  end
+
   describe "Eigene Regeln (own_rules)" do
     # User story:
     # As the operator who checks my own rules on a dashboard,
@@ -410,6 +564,85 @@ defmodule PortfolixirWeb.DashboardRiskWidgetsTest do
       assert has_element?(view, "#dashboard-crash-section a[href='/risk']")
 
       assert Repo.get!(Dashboard, dashboard.id).lock_version == dashboard.lock_version
+    end
+  end
+
+  describe "Crashes (crash_section), its window and a write pushed by hand" do
+    # User story (Sprint 32 closing act, PR 2, coverage):
+    # As the operator who reads two falls from a dashboard,
+    # I want the widget's window choice to answer in the widget, and a
+    # write sent to it by hand to change nothing,
+    # so that the dashboard reads every window while the windows are kept
+    # on the tab alone.
+    #
+    # Acceptance criteria:
+    # - With a second, later manual window the widget opens on it; choosing
+    #   the earlier one lists GET
+    #   /api/v1/crashes/:key/rankings?universe=held&list=losers' securities
+    #   for that window.
+    # - „crash_manual_delete“ pushed to the widget leaves the window
+    #   stored; „crash_pick“ pushed to the tab's section, which takes its
+    #   choices by address, changes nothing.
+    test "a window chosen answers in the widget, and a write pushed by hand changes nothing",
+         %{conn: conn} do
+      w = world()
+      today = Clock.today()
+
+      {:ok, _later} =
+        Crashes.create_manual_window(Actor.owner_ui(), %{
+          "name" => "Synthetic Late Dip",
+          "start" => Date.to_iso8601(Date.add(today, -60)),
+          "trough" => Date.to_iso8601(Date.add(today, -30))
+        })
+
+      dashboard!([{"crash_section", "row"}])
+      view = open(conn, "/")
+      section = "#dashboard-crash-section"
+
+      [form_id] =
+        view
+        |> doc()
+        |> Floki.find("#{section} form[id$='crash-window-form']")
+        |> Floki.attribute("id")
+
+      # The later window opens; the earlier is chosen.
+      assert text(Floki.find(doc(view), section)) =~ "No security with an answer."
+      view |> form("#" <> form_id, %{"crash" => w.window}) |> render_change()
+
+      ids =
+        view
+        |> doc()
+        |> Floki.find("#{section} table.crash-table tbody tr")
+        |> Enum.map(&hd(Floki.attribute(&1, "data-security-id")))
+
+      ranking =
+        api("/api/v1/crashes/#{URI.encode_www_form(w.window)}/rankings?universe=held&list=losers")
+
+      assert ids == Enum.map(ranking["entries"], &to_string(&1["security"]["id"]))
+      assert ids != []
+
+      [component] = view |> doc() |> Floki.find("#{section} [data-phx-component]") |> Enum.take(1)
+      target = "[data-phx-component='#{hd(Floki.attribute(component, "data-phx-component"))}']"
+
+      view
+      |> with_target(target)
+      |> render_click("crash_manual_delete", %{"key" => w.window})
+
+      # Still stored: its rankings still answer.
+      assert api(
+               "/api/v1/crashes/#{URI.encode_www_form(w.window)}/rankings?universe=held&list=losers"
+             ) ==
+               ranking
+
+      {:ok, tab, _html} = live(conn, "/risk")
+      render_async(tab)
+      before = render(tab)
+
+      tab
+      |> with_target("#risk-crashes")
+      |> render_click("crash_pick", %{"key" => "crash_list", "choice" => "winners"})
+
+      assert render(tab) == before
     end
   end
 

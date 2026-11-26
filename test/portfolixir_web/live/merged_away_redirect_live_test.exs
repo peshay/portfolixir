@@ -176,6 +176,41 @@ defmodule PortfolixirWeb.MergedAwayRedirectLiveTest do
     refute {"benchmark[]", "security:#{source.id}"} in query
   end
 
+  # User story (Sprint 32 closing act, PR 2, coverage):
+  # As the operator whose Wealth link compares a merged-away security and a
+  # fixed rate,
+  # I want the redirect to name the survivor and keep the rate,
+  # so that only the merged benchmark changes.
+  #
+  # Acceptance criteria:
+  # - /portfolio?benchmark[]=security:<merged-away id>&benchmark_rate=2
+  #   redirects with the survivor's selector and the rate's selector as the
+  #   link gave it; the page then names both benchmarks.
+  test "the survivor redirect keeps a fixed rate beside the survivor", %{conn: conn} do
+    world = seed_world()
+    source = benchmark!("Bench ETF", world)
+    target = benchmark!("Bench ETF", world)
+    merge!(source, target)
+
+    path = "/portfolio?benchmark[]=security:#{source.id}&benchmark_rate=2"
+    conn = get(conn, path)
+    assert {:error, {:redirect, %{to: to}}} = live(conn, path)
+
+    query = to |> URI.parse() |> Map.fetch!(:query) |> URI.query_decoder() |> Enum.to_list()
+    selectors = for {"benchmark[]", selector} <- query, do: selector
+
+    assert "security:#{target.id}" in selectors
+    refute "security:#{source.id}" in selectors
+    assert Enum.any?(selectors, &String.starts_with?(&1, "rate:"))
+
+    conn = get(conn, to)
+    {:ok, view, _html} = live(conn, to)
+    render_async(view)
+
+    assert has_element?(view, "[data-role='benchmark-chip']", "Bench ETF")
+    assert has_element?(view, "[data-role='benchmark-chip']", "2.00 % p.a.")
+  end
+
   defp seed_world do
     Classifications.ensure_builtins()
     world = WorldFixtures.base_world(name: "Mein Depot", cash_name: "Giro", depot_name: "Depot")
