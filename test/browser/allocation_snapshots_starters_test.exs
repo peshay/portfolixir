@@ -54,6 +54,28 @@ defmodule PortfolixirWeb.Browser.AllocationSnapshotsStartersTest do
           ]
         }
       ]
+    },
+    %{
+      key: "snapshots",
+      wealth: "/snapshots",
+      sections: [
+        %{
+          kind: "snapshot_comparison",
+          wealth_root: "[data-role='snapshot-comparison']",
+          parts: [
+            "[data-role='kpi-real']",
+            "[data-role='kpi-frozen']",
+            "[data-role='comparison-legend']",
+            "[data-role='comparison-basis']",
+            "[data-role='comparison-table']"
+          ]
+        },
+        %{
+          kind: "snapshot_list",
+          wealth_root: "[data-role='snapshot-list']",
+          parts: ["all:[data-role='snapshot-row'] td:not(.row-actions)"]
+        }
+      ]
     }
   ]
 

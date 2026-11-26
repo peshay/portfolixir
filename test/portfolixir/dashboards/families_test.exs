@@ -110,7 +110,10 @@ defmodule Portfolixir.Dashboards.FamiliesTest do
              "rebounders" => ~w(L XL),
              # Sprint 32 W2: the sections of „Allokation & Ziele“.
              "summary_line" => ~w(row),
-             "allocation" => ~w(row)
+             "allocation" => ~w(row),
+             # Sprint 32 W3: the sections of „Snapshots“.
+             "snapshot_comparison" => ~w(row),
+             "snapshot_list" => ~w(row)
            } == Map.new(Widgets.kinds(), &{&1.key, &1.sizes})
 
     area = fn size ->

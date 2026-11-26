@@ -94,6 +94,8 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.Dashboard.Widgets.Line
   alias PortfolixirWeb.Dashboard.Widgets.Performance, as: PerformanceWidget
   alias PortfolixirWeb.Dashboard.Widgets.Rebounders, as: ReboundersWidget
+  alias PortfolixirWeb.Dashboard.Widgets.SnapshotComparison, as: SnapshotComparisonWidget
+  alias PortfolixirWeb.Dashboard.Widgets.SnapshotList, as: SnapshotListWidget
   alias PortfolixirWeb.Dashboard.Widgets.Snapshots, as: SnapshotsWidget
   alias PortfolixirWeb.Dashboard.Widgets.SummaryLine, as: SummaryLineWidget
   alias PortfolixirWeb.ExcludedSales
@@ -826,8 +828,15 @@ defmodule PortfolixirWeb.DashboardLive do
         # widget's controls by its id suffix, for the page's life.
         summary_lines: %{},
         allocations: %{},
-        allocation_ui: %{}
+        allocation_ui: %{},
         # --- S32 W2 end ---
+        # --- S32 W3 begin ---
+        # The comparisons by the snapshot picked (nil: the newest), the list
+        # read once, and the snapshot the list picked, for the page's life.
+        snapshot_comparisons: %{},
+        snapshot_lists: %{},
+        snapshot_selected: nil
+        # --- S32 W3 end ---
       )
 
   defp start_widget_reads(%{assigns: %{transactions_count: 0}} = socket), do: socket
@@ -936,7 +945,34 @@ defmodule PortfolixirWeb.DashboardLive do
     |> start_allocation_sections(items, period)
 
     # --- S32 W2 end ---
+    # --- S32 W3 begin ---
+    |> start_snapshot_sections(items)
+
+    # --- S32 W3 end ---
   end
+
+  # --- S32 W3 begin ---
+  # Sprint 32 W3 (I57; board 02 ②): the section widgets of Wealth's tab
+  # „Snapshots“. The comparison reads the snapshot the list picked (nil:
+  # the newest), the list once; each lands in its own map.
+  defp start_snapshot_sections(socket, items) do
+    kinds = MapSet.new(items, & &1.kind)
+    selected = socket.assigns.snapshot_selected
+
+    comparisons =
+      if MapSet.member?(kinds, "snapshot_comparison"),
+        do: [{{:snapshot_comparison, selected}, selected}],
+        else: []
+
+    lists =
+      if MapSet.member?(kinds, "snapshot_list"), do: [{{:snapshot_list, :once}, :once}], else: []
+
+    socket
+    |> start_each(comparisons, :snapshot_comparisons, &SnapshotComparisonWidget.read/1)
+    |> start_each(lists, :snapshot_lists, fn :once -> SnapshotListWidget.read() end)
+  end
+
+  # --- S32 W3 end ---
 
   # --- S32 W2 begin ---
   # Sprint 32 W2 (I57; board 02 ②): the section widgets of Wealth's tab
@@ -1194,6 +1230,19 @@ defmodule PortfolixirWeb.DashboardLive do
   defp land({:allocation_section, _key}, key, result, socket),
     do: update(socket, :allocations, &Map.put(&1, key, section_answer(result)))
 
+  # --- S32 W2 end ---
+
+  # --- S32 W3 begin ---
+  defp land({:snapshot_comparison, _selected}, key, result, socket),
+    do: update(socket, :snapshot_comparisons, &Map.put(&1, key, section_answer(result)))
+
+  defp land({:snapshot_list, _once}, key, result, socket),
+    do: update(socket, :snapshot_lists, &Map.put(&1, key, section_answer(result)))
+
+  # --- S32 W3 end ---
+
+  # --- S32 W2 begin ---
+  # A section widget's answer as it lands: the read's, or :error.
   defp section_answer({:ok, answer}), do: answer
   defp section_answer({:exit, _reason}), do: :error
 
@@ -1710,6 +1759,22 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   # --- S32 W2 end ---
+
+  # --- S32 W3 begin ---
+  # A name in „Snapshot-Liste“ picks the snapshot the dashboard's
+  # „Vergleich gegen einen Snapshot“ compares (Sprint 32 W3), for the
+  # page's life; nothing is stored. An id that names none reads the newest.
+  def handle_event("select_snapshot", %{"id" => raw}, socket) do
+    case LiveParam.id(raw) do
+      id when is_integer(id) ->
+        {:noreply, socket |> assign(:snapshot_selected, id) |> start_widget_reads()}
+
+      _none ->
+        {:noreply, socket}
+    end
+  end
+
+  # --- S32 W3 end ---
 
   # The overview handles no other events; one pushed to it changes nothing
   # (E25 S4, F17).
@@ -2502,8 +2567,13 @@ defmodule PortfolixirWeb.DashboardLive do
       # --- S32 W2 begin ---
       :summary_lines,
       :allocations,
-      :allocation_ui
+      :allocation_ui,
       # --- S32 W2 end ---
+      # --- S32 W3 begin ---
+      :snapshot_comparisons,
+      :snapshot_lists,
+      :snapshot_selected
+      # --- S32 W3 end ---
     ])
   end
 
@@ -3078,6 +3148,47 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   # --- S32 W2 end ---
+
+  # --- S32 W3 begin ---
+  # The section widgets of Wealth's tab „Snapshots“ (Sprint 32 W3), each
+  # drawn by the module the tab draws its section with.
+  defp widget(%{item: %{kind: "snapshot_comparison"}} = assigns) do
+    assigns =
+      assign(assigns, :card, Map.get(assigns.snapshot_comparisons, assigns.snapshot_selected))
+
+    ~H"""
+    <SnapshotComparisonWidget.widget item={@item} card={@card} />
+    """
+  end
+
+  defp widget(%{item: %{kind: "snapshot_list"}} = assigns) do
+    card = Map.get(assigns.snapshot_lists, :once)
+
+    assigns =
+      assign(assigns,
+        card: card,
+        selected_id: compared_snapshot(assigns, card)
+      )
+
+    ~H"""
+    <SnapshotListWidget.widget item={@item} card={@card} selected_id={@selected_id} />
+    """
+  end
+
+  # The snapshot marked „Im Vergleich“: the one picked, else the newest,
+  # which the comparison reads until one is picked.
+  defp compared_snapshot(%{snapshot_selected: id}, %{snapshots: snapshots})
+       when is_integer(id) do
+    if Enum.any?(snapshots, &(&1.id == id)), do: id, else: newest_id(snapshots)
+  end
+
+  defp compared_snapshot(_assigns, %{snapshots: snapshots}), do: newest_id(snapshots)
+  defp compared_snapshot(_assigns, _card), do: nil
+
+  defp newest_id([newest | _older]), do: newest.id
+  defp newest_id([]), do: nil
+
+  # --- S32 W3 end ---
 
   attr(:row, :map, required: true)
 

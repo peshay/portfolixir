@@ -40,6 +40,11 @@ async function shoot(browser, theme) {
     // The theme forced on the page as well, whatever the machine's own
     // colour scheme: a dark shot drawn light would pass unnoticed.
     await page.evaluate((th) => document.documentElement.setAttribute("data-theme", th), theme);
+    // Sprint 32 W3: the top bar stays where it stands instead of sticking
+    // over a widget taller than the window (a „Zeile“ section, such as
+    // the snapshot comparison), whose head it covered in the picture. A
+    // sticky bar takes the same room in the flow, so nothing else moves.
+    await page.addStyleTag({ content: ".topbar { position: static !important; }" });
     const widgets = page.locator("#dashboard-grid > .dashboard-widget");
     const count = await widgets.count();
     for (let i = 0; i < count; i++) {

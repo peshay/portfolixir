@@ -33,7 +33,10 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     "rebounders" => {~w(L XL), "risk", "Erholer nach Crashes"},
     # Sprint 32 W2 (I57): the sections of Wealth's tab „Allokation & Ziele“.
     "summary_line" => {~w(row), "allocation", "Kennzahlen-Zeile"},
-    "allocation" => {~w(row), "allocation", "Allokation"}
+    "allocation" => {~w(row), "allocation", "Allokation"},
+    # Sprint 32 W3 (I57): the sections of Wealth's tab „Snapshots“.
+    "snapshot_comparison" => {~w(row), "performance", "Vergleich gegen einen Snapshot"},
+    "snapshot_list" => {~w(row), "performance", "Snapshot-Liste"}
   }
 
   # User story:
@@ -45,8 +48,8 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
   # Acceptance criteria:
   # - The registry holds exactly the kinds: eleven of Sprint 31 and
   #   Sprint 32 S5's „Abstand zum Hoch“, „Crash-Chart“ and „Erholer nach
-  #   Crashes“, and Sprint 32 W2's sections of „Allokation & Ziele“, each
-  #   with the
+  #   Crashes“, and Sprint 32 W2's and W3's sections of „Allokation &
+  #   Ziele“ and „Snapshots“, each with the
   #   sizes and the group the board draws, in the catalogue's order.
   # - Every kind is registered with its compact form (ADR-0062 §1).
   # - Lookup is by string key; an unknown string, an atom or another term
@@ -55,7 +58,7 @@ defmodule Portfolixir.Dashboards.WidgetsTest do
     assert Widgets.keys() == ~w(total_value data_quality due off_target performance movers
                                 snapshots allocation_drift crashes bitcoin_cycle sale_review
                                 distance_to_high crash_chart rebounders summary_line
-                                allocation)
+                                allocation snapshot_comparison snapshot_list)
 
     for {key, {sizes, group, _german}} <- @slice do
       assert {:ok, kind} = Widgets.fetch(key)

@@ -200,6 +200,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
 
     assert Enum.map(others, &{&1["key"], &1["group"], &1["in_menu"]}) == [
              {"allocation_targets", "starter", false},
+             {"snapshots", "starter", false},
              {"krypto_lover", "theme", false},
              {"pullbacks", "theme", false}
            ]
@@ -330,7 +331,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
                %{
                  "errors" => %{
                    "detail" =>
-                     "not found: names no template; offered: overview, allocation_targets, krypto_lover, pullbacks"
+                     "not found: names no template; offered: overview, allocation_targets, snapshots, krypto_lover, pullbacks"
                  }
                },
              path
@@ -515,7 +516,7 @@ defmodule PortfolixirWeb.Api.V1.DashboardControllerTest do
              %{
                "errors" => %{
                  "template" => [
-                   "names no template; offered: overview, allocation_targets, krypto_lover, pullbacks"
+                   "names no template; offered: overview, allocation_targets, snapshots, krypto_lover, pullbacks"
                  ]
                }
              }

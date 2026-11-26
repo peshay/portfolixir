@@ -12,7 +12,8 @@
 //   - the kinds of the dashboard's widgets in the grid's order;
 //   - whether the tab's section roots stand in the same order;
 //   - each part's text, in the widget and in the tab's section, its
-//     whitespace collapsed (a part found in neither is reported missing).
+//     whitespace collapsed (a part found in neither is reported missing);
+//     a part "all:<selector>" reads every match, in order.
 //
 // With `tamper` set it changes the first part's text on the tab before
 // reading it, so the test sees its comparison name a difference.
@@ -37,13 +38,20 @@ async function read(page, rootSelector, parts, change) {
       const root = document.querySelector(rootSel);
       if (!root) return { root: false, texts: partSels.map(() => null) };
       const within = (sel) => (root.matches(sel) ? root : root.querySelector(sel));
+      // "all:<selector>": every match inside the root, in order.
+      const every = (sel) => Array.from(root.querySelectorAll(sel));
+      const clean = (node) => node.textContent.replace(/\s+/g, " ").trim();
       if (changeFirst) {
-        const first = within(partSels[0]);
+        const first = partSels[0].startsWith("all:") ? every(partSels[0].slice(4))[0] : within(partSels[0]);
         if (first) first.textContent = "0" + first.textContent;
       }
       const texts = partSels.map((sel) => {
+        if (sel.startsWith("all:")) {
+          const nodes = every(sel.slice(4));
+          return nodes.length ? nodes.map(clean).join(" | ") : null;
+        }
         const node = within(sel);
-        return node ? node.textContent.replace(/\s+/g, " ").trim() : null;
+        return node ? clean(node) : null;
       });
       return { root: true, texts };
     },

@@ -474,8 +474,49 @@ defmodule Portfolixir.Dashboards.Widgets do
       period: :none,
       scope: :view,
       compact: true
-    }
+    },
     # --- S32 W2 end ---
+    # --- S32 W3 begin ---
+    %{
+      key: "snapshot_comparison",
+      title: "Comparison against a snapshot",
+      group: "performance",
+      # Sprint 32 W3 (I57; board 02 ②): the comparison that heads Wealth's
+      # tab „Snapshots“ (ADR-0027), a section widget in the size „Zeile“;
+      # a snapshot carries its own scope, so it takes no view.
+      sizes: ~w(row),
+      source: %{
+        routes: [
+          "GET /api/v1/snapshots",
+          "GET /api/v1/portfolios/:portfolio_id/snapshots/:id/comparison"
+        ],
+        function: {Portfolixir.Portfolios.SnapshotComparison, :for_snapshot, 2},
+        note:
+          "The snapshot compared is the newest of GET /api/v1/snapshots until the list " <>
+            "picks another; its comparison in the first portfolio, as the Snapshots page " <>
+            "reads it."
+      },
+      period: :none,
+      scope: :none,
+      compact: true
+    },
+    %{
+      key: "snapshot_list",
+      title: "Snapshot list",
+      group: "performance",
+      # Sprint 32 W3 (I57; board 02 ②): the tab's list of snapshots; a
+      # snapshot is made and deleted on the tab, linked („Neuer Snapshot →“).
+      sizes: ~w(row),
+      source: %{
+        routes: ["GET /api/v1/snapshots"],
+        function: {Portfolixir.Portfolios.Snapshots, :list_snapshots, 1},
+        note: nil
+      },
+      period: :none,
+      scope: :none,
+      compact: true
+    }
+    # --- S32 W3 end ---
   ]
 
   @by_key Map.new(@kinds, &{&1.key, &1})
@@ -715,6 +756,10 @@ defmodule Portfolixir.Dashboards.Widgets do
   def title("summary_line"), do: pgettext("widget kind", "Key figures line")
   def title("allocation"), do: pgettext("widget kind", "Allocation")
   # --- S32 W2 end ---
+  # --- S32 W3 begin ---
+  def title("snapshot_comparison"), do: pgettext("widget kind", "Comparison against a snapshot")
+  def title("snapshot_list"), do: pgettext("widget kind", "Snapshot list")
+  # --- S32 W3 end ---
   def title(_key), do: nil
 
   @doc "The group's title in the current locale; `nil` for an unknown group."

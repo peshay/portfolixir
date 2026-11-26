@@ -486,3 +486,55 @@ layout.
 </figure>
 
 <!-- S32 W2 end -->
+
+<!-- S32 W3 begin -->
+
+## Comparison against a snapshot
+
+`snapshot_comparison` · sizes Row
+
+Wealth's comparison on the tab "Snapshots" (ADR-0027): the real TTWROR
+since the as-of date against the frozen holdings' buy-and-hold return,
+the transaction costs since and whether they were earned back (only when
+trades cost something), the positions left out, and both series as a
+chart with its table. It compares the newest snapshot until a name in
+"Snapshot list" picks another; the footer names the snapshot, its scope
+and its date. **Row** draws the section across the full width; on a phone
+it takes the section's own narrow layout.
+
+**Source:**
+
+- `GET /api/v1/snapshots`
+- `GET /api/v1/portfolios/:portfolio_id/snapshots/:id/comparison`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/snapshot_comparison-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/snapshot_comparison-row-light.png 2x" src="/assets/widgets/snapshot_comparison-row-light.png" alt="Comparison against a snapshot at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>
+
+## Snapshot list
+
+`snapshot_list` · sizes Row
+
+Every snapshot, newest as-of date first, with its scope and as-of date;
+the one compared is marked "In comparison", and a name picks the one the
+dashboard compares, while the page is open, nothing stored. A snapshot is
+made and deleted on the Snapshots page: **New snapshot →** in the footer
+leads there.
+
+**Source:**
+
+- `GET /api/v1/snapshots`
+
+<figure class="widget-gallery">
+<picture>
+<source srcset="/assets/widgets/snapshot_list-row-dark.png 2x" media="(prefers-color-scheme: dark)">
+<img srcset="/assets/widgets/snapshot_list-row-light.png 2x" src="/assets/widgets/snapshot_list-row-light.png" alt="Snapshot list at Row" loading="lazy">
+</picture>
+<figcaption>Row</figcaption>
+</figure>
+
+<!-- S32 W3 end -->
