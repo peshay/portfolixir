@@ -26,6 +26,9 @@ const { settle, visit, leave } = require("./settle");
 const args = JSON.parse(process.argv[2]);
 const base = args.base_url;
 const board = args.path;
+// "walk" (the default) or "tiles": the S32 closing act's check that the
+// edit controls lie over a tile, never in its flow (board 01 ③).
+const mode = args.mode || "walk";
 const shots = process.env.DASHBOARD_EDIT_SHOTS;
 const DESKTOP = { width: 1200, height: 900 };
 const PHONE = { width: 393, height: 852 };
@@ -84,8 +87,113 @@ async function startEditing(page) {
   });
 }
 
+// Where a widget's content stands in its tile: the title's top below the
+// frame's top, the footer's bottom above the frame's bottom, and the edit
+// controls' boxes, each relative to the frame.
+function tiles(page) {
+  return page.evaluate(() => {
+    const rel = (el, f) => {
+      if (!el || el.getBoundingClientRect().height === 0) return null;
+      const r = el.getBoundingClientRect();
+      return { left: r.left - f.left, right: r.right - f.left, top: r.top - f.top, bottom: r.bottom - f.top };
+    };
+    return [...document.querySelectorAll("[data-role='dashboard-grid'] > .dashboard-widget")].map((w) => {
+      const f = w.getBoundingClientRect();
+      const foot = w.querySelector(":scope > .widget__foot");
+      return {
+        kind: w.dataset.widgetKind,
+        size: w.dataset.size,
+        width: f.width,
+        height: f.height,
+        title: rel(w.querySelector(".widget__head h2"), f),
+        info: rel(w.querySelector(".widget__head [data-role='section-info']"), f),
+        foot: rel(foot, f),
+        footParts: foot ? [...foot.children].filter((c) => c.textContent.trim() !== "").map((c) => rel(c, f)).filter(Boolean) : [],
+        handle: rel(w.querySelector("[data-role='edit-handle']"), f),
+        remove: rel(w.querySelector("[data-role='edit-remove']"), f),
+        sizes: rel(w.querySelector(".widget__sizes"), f)
+      };
+    });
+  });
+}
+
+const meets = (a, b) => a && b && a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+
+// Board 01 ③ (the S32 closing act): in the edit mode the handle, × and
+// the size switch lie over the tile — the handle on its top edge, × where
+// the ⋯ stood, the switch at the foot's right end — so every widget keeps
+// its content where it stood: the title no lower, the footer at the same
+// depth, the switch inside the frame and clear of the footer's
+// words. Then „Gesamtwert“ is sized to M and its figure is in view.
+async function tileWalk(browser) {
+  const ctx = await browser.newContext({ viewport: DESKTOP });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(String(error && error.message)));
+  await open(page, board + (board.includes("?") ? "&" : "?") + "locale=de");
+  const before = await tiles(page);
+  await startEditing(page);
+  const after = await tiles(page);
+  console.error("tiles: " + JSON.stringify(after));
+
+  const broken = [];
+  for (const a of after) {
+    const b = before.find((x) => x.kind === a.kind && x.size === a.size);
+    if (!b) continue;
+    // Up is no loss: the edit mode's „ohne Zeitraum“ tag can make the
+    // head taller, which centres the title higher.
+    if (a.title && b.title && a.title.top - b.title.top > 1.5) {
+      broken.push(a.kind + ": the title moved down by " + Math.round(a.title.top - b.title.top) + " px");
+    }
+    if (a.foot && b.foot && Math.abs(a.foot.bottom - b.foot.bottom) > 1.5) {
+      broken.push(a.kind + ": the footer moved by " + Math.round(a.foot.bottom - b.foot.bottom) + " px");
+    }
+    if (a.sizes && (a.sizes.left < -0.5 || a.sizes.top < -0.5 || a.sizes.right > a.width + 0.5 || a.sizes.bottom > a.height + 0.5)) {
+      broken.push(a.kind + ": the size switch overhangs the tile " + JSON.stringify(a.sizes));
+    }
+    for (const part of a.footParts) {
+      if (meets(a.sizes, part)) broken.push(a.kind + ": the size switch lies over the footer's words");
+    }
+    for (const control of [a.handle, a.remove]) {
+      if (meets(control, a.title) || meets(control, a.info)) broken.push(a.kind + ": an edit control lies over the title");
+    }
+  }
+  check(broken.length === 0, "the edit controls take the tiles' room: " + broken.join("; "));
+
+  await page.click("[data-widget-kind='total_value'] [data-role='edit-size'][data-size='M']");
+  await page.waitForSelector("[data-widget-kind='total_value'][data-size='M'] .widget-total-figures");
+  const figure = await page.evaluate(() => {
+    const w = document.querySelector("[data-widget-kind='total_value']");
+    const wide = w.querySelector(".widget__wide").getBoundingClientRect();
+    const dd = w.querySelector(".widget-total-figures dd").getBoundingClientRect();
+    return { wideTop: wide.top, wideBottom: wide.bottom, top: dd.top, bottom: dd.bottom, height: dd.height };
+  });
+  console.error("total value at M: " + JSON.stringify(figure));
+  if (shots) {
+    await page.screenshot({ path: path.join(shots, "edit-tiles-1200.png") });
+  }
+  check(
+    figure.height > 0 && figure.top >= figure.wideTop - 0.5 && figure.bottom <= figure.wideBottom + 0.5,
+    "after the resize to M the total's figure is cut out of its tile: " + JSON.stringify(figure)
+  );
+
+  check(errors.length === 0, "the page raised a script error: " + errors.join(" | "));
+  await leave(ctx);
+}
+
 (async () => {
   const browser = await launchChromium();
+  if (mode === "tiles") {
+    try {
+      await tileWalk(browser);
+      process.stdout.write(JSON.stringify({ ok: true }) + "\n");
+    } catch (error) {
+      process.stdout.write(JSON.stringify({ ok: false, error: String(error && error.message) }) + "\n");
+    } finally {
+      await leave(browser);
+    }
+    return;
+  }
   try {
     const errors = [];
 
@@ -160,7 +268,7 @@ async function startEditing(page) {
     // window, with „Undo“; Ctrl+Z takes the step back.
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await page.click("[data-widget-kind='movers'] [data-role='edit-size'][data-size='S']");
-    await said(page, "Tops and flops set to size S, column 7, row " + (drop.rows + 1), "movers");
+    await said(page, "Tops and flops is now S · column 7, row " + (drop.rows + 1), "movers");
     const foot = await page.evaluate(() => {
       const note = document.querySelector("[data-widget-kind='movers'] .widget__note");
       const r = note.getBoundingClientRect();

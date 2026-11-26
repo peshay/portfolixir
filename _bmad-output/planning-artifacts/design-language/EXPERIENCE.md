@@ -1261,6 +1261,13 @@ where they differ.
 - **Each widget** shows a handle to move it, a size switch with exactly
   the sizes its kind supports (the current one pressed), and × to remove
   it. The widgets keep their content, so the operator sees what moves.
+  *S32 closing act (board `ux-design-2026-11-25-sprint32/01` ③):* outside
+  the compact class the three lie over the tile, never in its flow — the
+  handle on its top edge, × where the ⋯ stood, the switch at the
+  footer's right end, the footer keeping room for it — so a tile of fixed
+  height keeps its figure. A resize's note reads as the board words it
+  („Gesamtwert ist jetzt M · 7 Widgets sind nachgerückt“); its column
+  and row are said to a screen reader only.
 - **The catalogue opens beside the grid**: the kinds by group, each with
   its sizes; adding one places it at the first free place.
 - **„Zurücksetzen“** discards the unsaved edit and shows the stored layout

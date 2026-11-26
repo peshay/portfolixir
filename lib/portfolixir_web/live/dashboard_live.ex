@@ -1658,7 +1658,7 @@ defmodule PortfolixirWeb.DashboardLive do
   defp note(socket, at, say, undo) do
     say =
       case socket.assigns.edit_note do
-        %{at: ^at, say: ^say} -> say <> "\u00A0"
+        %{at: ^at, say: ^say} -> Edit.append_say(say, "\u00A0")
         _other -> say
       end
 

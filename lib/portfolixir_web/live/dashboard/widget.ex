@@ -361,7 +361,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
       data-size={@item.size}
       data-col={@item.col}
       data-row={@item.row}
-      style={"--widget-col: #{@item.col}; --widget-row: #{@item.row}; --widget-w: #{@item.w}; --widget-h: #{@item.h};"}
+      style={"--widget-col: #{@item.col}; --widget-row: #{@item.row}; --widget-w: #{@item.w}; --widget-h: #{@item.h};" <> edit_sizes_style(@item)}
       aria-labelledby={@title_id}
       {@rest}
     >
@@ -412,6 +412,15 @@ defmodule PortfolixirWeb.Dashboard.Widget do
   end
 
   defp editing?(item), do: Map.get(item, :editing, false)
+
+  # In the edit mode, how many sizes the switch over the footer shows, so
+  # the footer keeps room for it (the S32 closing act; board 01 ③).
+  defp edit_sizes_style(item) do
+    case editing?(item) && Map.get(item, :edit_sizes, []) do
+      [_one, _two | _more] = sizes -> " --edit-sizes: #{length(sizes)};"
+      _none -> ""
+    end
+  end
 
   attr(:item, :map, required: true)
   attr(:title, :string, required: true)
@@ -497,7 +506,7 @@ defmodule PortfolixirWeb.Dashboard.Widget do
         role="status"
         aria-live="polite"
         data-role="edit-note"
-      ><%= @note && @note.say %></p>
+      ><%= for part <- say_parts(@note) do %><%= if is_tuple(part) do %><span class="visually-hidden"><%= elem(part, 1) %></span><% else %><%= part %><% end %><% end %></p>
       <button
         :if={@note && @note.undo}
         type="button"
@@ -508,6 +517,11 @@ defmodule PortfolixirWeb.Dashboard.Widget do
     </div>
     """
   end
+
+  # The note's sentence in its parts (`PortfolixirWeb.Dashboard.Edit`'s
+  # `t:say/0`): `{:hidden, text}` for a screen reader only.
+  defp say_parts(nil), do: []
+  defp say_parts(%{say: say}), do: List.wrap(say)
 
   attr(:item, :map, required: true)
   attr(:title, :string, required: true)

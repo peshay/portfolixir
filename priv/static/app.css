@@ -16065,6 +16065,93 @@ a.widget-row:hover .widget-row__name {
   color: var(--color-on-accent);
 }
 
+/* The edit controls lie over the tile, never in its flow (board 01 ③;
+   the S32 closing act; EXPERIENCE.md's edit mode: "the widgets keep their
+   content"): the handle on the tile's top edge, half in the grid's gap; ×
+   where the ⋯ stood, the head keeping that room; the size switch at the
+   foot's right end, the footer keeping room for it by the count of sizes
+   the frame names (`--edit-sizes`). A tile of fixed height lost its
+   figure to a handle row and a switch row, and an S tile's switch hung
+   over the next tile. The compact class keeps them in the flow, where
+   its ↑ and ↓ stand and no tile has a fixed height. */
+@media (width >= 600px) {
+  .dashboard-widget.is-editing > .widget__edit {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 2;
+    display: block;
+    height: 0;
+    margin: 0;
+  }
+
+  .dashboard-widget.is-editing .widget__handle {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .dashboard-widget.is-editing .widget__remove {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-4);
+  }
+
+  /* The head keeps the ⋯'s room and height, so the title stands where
+     it stood. */
+  .dashboard-widget.is-editing > .widget__head {
+    min-height: 30px;
+    padding-right: 34px;
+  }
+
+  .dashboard-widget.is-editing > .widget__sizes {
+    position: absolute;
+    right: var(--space-2);
+    bottom: var(--space-2);
+    z-index: 2;
+  }
+
+  /* As small as the board draws it, its type at the 12 px floor, so an S
+     tile's footer keeps its link beside it. */
+  .dashboard-widget.is-editing > .widget__sizes .widget__size {
+    min-width: 22px;
+    min-height: 22px;
+    padding: 0 5px;
+  }
+
+  .dashboard-widget.is-editing > .widget__foot {
+    padding-right: calc(var(--edit-sizes, 0) * 24px + var(--space-3));
+  }
+
+  /* A footer kept to one line wraps here rather than run under the
+     switch. */
+  .dashboard-widget.is-editing > .widget__foot,
+  .dashboard-widget.is-editing > .widget__foot > a {
+    flex-shrink: 1;
+    white-space: normal;
+  }
+}
+
+@media (width >= 600px) and (pointer: coarse) {
+  .dashboard-widget.is-editing .widget__handle {
+    top: -22px;
+  }
+
+  .dashboard-widget.is-editing > .widget__head {
+    min-height: 44px;
+    padding-right: 48px;
+  }
+
+  .dashboard-widget.is-editing > .widget__sizes .widget__size {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .dashboard-widget.is-editing > .widget__foot {
+    padding-right: calc(var(--edit-sizes, 0) * 46px + var(--space-3));
+  }
+}
+
 /* The catalogue: under the grid in the medium class, beside it in the
    wide class (below). */
 .dashboard-catalogue {
