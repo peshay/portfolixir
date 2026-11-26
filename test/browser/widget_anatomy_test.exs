@@ -74,6 +74,13 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
   #   the period mark, the widget's switch and ⋯ on the title's line; at
   #   834 and 393 px (the compact forms) the title never cut; no
   #   headline or row figure cut sideways; no boxed data note in a widget.
+  # - The S32 closing act (PR 2's design critic): no figure cell of a
+  #   table (`td.num`, a figure in a cell) cut sideways either; no card
+  #   inside a widget (a shadow, a colour strip, a frame filled or
+  #   rounded), and a `.stat` figure the tabs share set in the anatomy's
+  #   sizes; at 834 and 393 px the footer whole or wrapped, never cut;
+  #   the cycle chart of „Bitcoin-Zyklus“ XL draws no text under 12 CSS
+  #   px.
   # - Sprint 32 L2 and L3: at 1200 px no title cut either (each kind's
   #   title fits its smallest tile), and no tile cuts a row of its body
   #   or its footer: a fixed tile shows what fits.
@@ -117,6 +124,11 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
   # - A row's figure drawn wider than its box: named as clipped.
   # - A boxed data note in a widget: named as a warning box.
   # - A card border on a widget: named.
+  # - The S32 closing act: a figure cell cut by its fixed column, in
+  #   Inter and in DejaVu Sans: named as clipped; a card with a shadow
+  #   inside a widget: named, and its 31 px figure named as off the
+  #   anatomy's sizes; at 393 px a footer cut with an ellipsis: named; a
+  #   widget's chart label drawn at 9 CSS px: named.
   # - A 12 px gap in the wide grid: named as not the hairline.
   # - The handle drawn above its cell in the edit mode: named.
   test "the walk names a wrapped head, a cut figure, a warning box, a card border, a gap and a handle outside its cell",
@@ -135,7 +147,21 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
       assert Enum.any?(caught, &(&1 =~ "clips a figure")), inspect(caught)
       assert Enum.any?(caught, &(&1 =~ "carries a warning box")), inspect(caught)
       assert Enum.any?(caught, &(&1 =~ "draws a card border")), inspect(caught)
+      assert Enum.any?(caught, &(&1 =~ "carries a card: stat with a shadow")), inspect(caught)
+
+      assert Enum.any?(caught, &(&1 =~ "off the anatomy's sizes: +1,0 % at 31 px")),
+             inspect(caught)
+
+      assert Enum.any?(caught, &(&1 =~ "chart text under 12 px: Top-Band 4.500 USD at 9.0 px")),
+             inspect(caught)
+
+      for font <- ["Inter", "DejaVu Sans"] do
+        assert Enum.any?(caught, &(&1 =~ font <> ": " and &1 =~ "clips a figure: Zelle")),
+               inspect(caught)
+      end
     end
+
+    assert Enum.any?(narrow, &(&1 =~ "footer is cut: Ansicht Alles")), inspect(narrow)
 
     assert Enum.any?(wide, &(&1 =~ "not the hairline")), inspect(wide)
     assert Enum.any?(wide, &(&1 =~ "title is cut")), inspect(wide)
