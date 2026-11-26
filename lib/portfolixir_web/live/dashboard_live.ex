@@ -1845,7 +1845,10 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   defp board_title(nil), do: gettext("Overview")
-  defp board_title(%{dashboard: %{name: name}}), do: name
+
+  defp board_title(%{dashboard: %Dashboards.Dashboard{} = dashboard}),
+    do: Dashboards.display_name(dashboard)
+
   defp board_title(%{template: template}), do: Templates.title(template.key)
 
   # The workflow path stays a first-run card on the template until the

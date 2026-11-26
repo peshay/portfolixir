@@ -147,16 +147,41 @@ defmodule Portfolixir.Dashboards do
   end
 
   @doc """
+  The name a screen shows for `dashboard` (the S32 closing act; the
+  orchestrator's decision, flippable by the owner): while it is unrenamed
+  — its `template_key` set and its stored name that template's
+  untranslated source title, as the boot stores a starter („Overview“) —
+  the template's title in the current locale („Überblick“); else its
+  stored name. The stored name and the API, which is locale-free, never
+  change by it.
+  """
+  @spec display_name(Dashboard.t()) :: String.t() | nil
+  def display_name(%{name: name, template_key: key}) when is_binary(key) do
+    case Templates.fetch(key) do
+      {:ok, %{title: ^name}} -> Templates.title(key)
+      _renamed -> name
+    end
+  end
+
+  def display_name(%{name: name}), do: name
+
+  @doc """
   The name the gallery's dialog suggests for a new dashboard called `name`
   (ADR-0062's amendment of 2026-11-25, point 5; board 03 ②): `name` when
-  no stored dashboard holds it (trimmed, compared as stored), else
+  no stored dashboard holds it (trimmed, compared as stored) and none is
+  shown under it (`display_name/1`, in the current locale), else
   `"name (n)"` with the first free `n` from 2, the name cut so the whole
   stays within `name_max/0`. Reads the names; writes nothing.
   """
   @spec suggested_name(String.t()) :: String.t()
   def suggested_name(name) when is_binary(name) do
     name = String.trim(name)
-    taken = MapSet.new(Repo.all(from(d in Dashboard, select: d.name)))
+
+    taken =
+      from(d in Dashboard, select: struct(d, [:name, :template_key]))
+      |> Repo.all()
+      |> Enum.flat_map(&[&1.name, display_name(&1)])
+      |> MapSet.new()
 
     if MapSet.member?(taken, name) do
       Enum.find_value(Stream.iterate(2, &(&1 + 1)), fn n ->
