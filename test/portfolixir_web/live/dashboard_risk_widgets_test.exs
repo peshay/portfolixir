@@ -474,6 +474,9 @@ defmodule PortfolixirWeb.DashboardRiskWidgetsTest do
     #   the same rows with the same module.
     # - On the dashboard a rule's name opens no dialog (no edit event);
     #   „Regeln bearbeiten →“ leads to the tab.
+    # - The S32 closing act (PR 2's design critic): the counts' line starts
+    #   with its first count, not with the „·“ that follows the title on
+    #   the tab's head, since the widget's title stands in its frame.
     test "draws the findings as the API and the tab do, the dialog left on the tab",
          %{conn: conn} do
       w = world()
@@ -488,6 +491,7 @@ defmodule PortfolixirWeb.DashboardRiskWidgetsTest do
 
       assert text(Floki.find(widget, "[data-role='policy-rule-name']")) == "Nordic cap"
       assert text(Floki.find(widget, "[data-role='policy-rules-summary']")) =~ "1 breached"
+      assert text(Floki.find(widget, "[data-role='policy-rules-summary']")) =~ ~r/^1 breached · /
       assert Floki.find(widget, "[phx-click='edit_rule'], [phx-click='new_rule']") == []
       assert [_] = Floki.find(widget, "a[href='/risk'][data-role='own-rules-edit']")
 
@@ -516,6 +520,10 @@ defmodule PortfolixirWeb.DashboardRiskWidgetsTest do
     #   stored and the address does not change.
     # - The windows' disclosure and its forms stay on the tab: none is
     #   drawn; a write pushed by hand changes nothing.
+    # - The S32 closing act (PR 2's design critic): the section's inner
+    #   part stands on the widget's surface, without the tab's
+    #   `section.workspace-section`; „Liste“ and „Wertpapiere“ stand in the
+    #   frame's head as its switch, the window's select alone in the body.
     test "answers the window, the list and the universe as the API does", %{conn: conn} do
       w = world()
       dashboard = dashboard!([{"crash_section", "row"}])
@@ -552,12 +560,42 @@ defmodule PortfolixirWeb.DashboardRiskWidgetsTest do
       assert losers["entries"] != []
       assert normalize.(rows.(view)) == expected.(losers)
 
+      head = "#dashboard-crash-section > .widget__head [data-anatomy='switch']"
+      assert has_element?(view, head <> " [data-list='losers'].is-active")
+      assert has_element?(view, head <> " [data-universe='depot'].is-active")
+      refute has_element?(view, "#dashboard-crash-section .workspace-section")
+
+      assert has_element?(
+               view,
+               "#dashboard-crash-section [data-role='crash-bar'] select[name='crash']"
+             )
+
+      refute has_element?(view, "#dashboard-crash-section [data-role='crash-bar'] [data-list]")
+
+      refute has_element?(
+               view,
+               "#dashboard-crash-section [data-role='crash-bar'] [data-universe]"
+             )
+
       view
       |> element("#dashboard-crash-section [data-list='winners']")
       |> render_click()
 
       assert normalize.(rows.(view)) == expected.(ranking.("winners"))
       assert has_element?(view, "#dashboard-crash-section [data-list='winners'].is-active")
+
+      view
+      |> element(head <> " [data-universe='catalogue']")
+      |> render_click()
+
+      catalogue =
+        api(
+          "/api/v1/crashes/#{URI.encode_www_form(w.window)}/rankings?universe=catalogue&list=winners"
+        )
+
+      assert normalize.(rows.(view)) == expected.(catalogue)
+      assert has_element?(view, head <> " [data-universe='catalogue'].is-active")
+      assert has_element?(view, head <> " [data-list='winners'].is-active")
 
       refute has_element?(view, "#dashboard-crash-section #crash-windows")
       refute has_element?(view, "#dashboard-crash-section details.crash-windows")

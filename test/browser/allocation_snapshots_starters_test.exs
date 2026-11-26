@@ -86,7 +86,9 @@ defmodule PortfolixirWeb.Browser.AllocationSnapshotsStartersTest do
           kind: "own_rules",
           wealth_root: "#policy-rules",
           parts: [
-            "[data-role='policy-rules-summary']",
+            # The counts without the „·“ that follows the tab's title (the
+            # S32 closing act: the widget's line starts with its count).
+            "[data-role='policy-rules-counts']",
             "table.policy-findings-table tbody",
             "[data-role='policy-rules-basis']"
           ]
@@ -105,7 +107,15 @@ defmodule PortfolixirWeb.Browser.AllocationSnapshotsStartersTest do
         %{
           kind: "crash_section",
           wealth_root: ".crash-section",
-          parts: ["[data-role='crash-bar']", "[data-role='crash-window']"]
+          # The S32 closing act: on the dashboard the list and the
+          # universe stand in the widget's head, the window's select in
+          # its body; each is compared, wherever it stands.
+          parts: [
+            "all:select[name='crash'] option",
+            "all:[data-list]",
+            "all:[data-universe]",
+            "[data-role='crash-window']"
+          ]
         },
         %{
           kind: "top_holdings",
