@@ -74,6 +74,43 @@ defmodule PortfolixirWeb.Browser.DashboardEditTest do
     %{base_url: "http://localhost:#{port}", dashboard: dashboard}
   end
 
+  defp run(base_url, args) do
+    {output, status} =
+      System.cmd("node", [@script, Jason.encode!(Map.put(args, :base_url, base_url))],
+        stderr_to_stdout: true
+      )
+
+    assert status == 0, "the browser run failed:\n" <> output
+
+    result =
+      output
+      |> String.split("\n", trim: true)
+      |> List.last()
+      |> Jason.decode!()
+
+    assert result == %{"ok" => true}, output
+  end
+
+  # User story (S32 closing act; board ux-design-2026-11-25-sprint32/01 ③;
+  # EXPERIENCE.md's edit mode: "the widgets keep their content"):
+  # As the operator arranging „Überblick“,
+  # I want the edit controls to lie over each tile, not to push its
+  # content out,
+  # so that I see what I move, also in the small tiles.
+  #
+  # Acceptance criteria:
+  # - At 1200 px, in the edit mode, every widget's title stands no lower
+  #   and its footer as deep in its tile as outside the mode; the size switch
+  #   lies inside the tile, clear of the footer's words; the handle and ×
+  #   lie clear of the title and its ⓘ.
+  # - „Gesamtwert“ sized to M shows its figure inside its tile.
+  test "the edit controls lie over the tiles, and „Gesamtwert“ at M keeps its figure", %{
+    base_url: base_url
+  } do
+    {:ok, overview} = Dashboards.copy_template(Actor.owner_ui(), "overview", %{})
+    run(base_url, %{path: "/dashboards/#{overview.id}", mode: "tiles"})
+  end
+
   # User story (ADR-0062 §7, board 03):
   # As the operator rearranging a dashboard by keyboard or by pointer,
   # I want each step said aloud and the save to store what I see,

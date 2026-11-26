@@ -94,11 +94,18 @@ defmodule PortfolixirWeb.Dashboard.Edit do
   refused, with the key of the widget it was asked of (`nil` for an add,
   which has none yet); or `:error` for an item or a value the edit does
   not hold.
+
+  A sentence is a string, or its parts in order (`t:say/0`): a part
+  `{:hidden, text}` is drawn for a screen reader only (a resize's column
+  and row, the S32 closing act; board 01 ③).
   """
   @type step ::
-          {:ok, t(), String.t(), pos_integer() | nil}
+          {:ok, t(), say(), pos_integer() | nil}
           | {:refused, String.t(), pos_integer() | nil}
           | :error
+
+  @typedoc "A step's sentence: a string, or its parts, `{:hidden, text}` for a screen reader only."
+  @type say :: String.t() | [String.t() | {:hidden, String.t()}]
 
   @doc "Begins an edit of the stored `dashboard`."
   @spec start(Dashboard.t()) :: t()
@@ -288,14 +295,15 @@ defmodule PortfolixirWeb.Dashboard.Edit do
 
       case arranged(edit, key, {:resize, index, size}) do
         {:ok, next} ->
+          # Board 01 ③'s words are seen („Gesamtwert ist jetzt M“); the
+          # column and the row are said to a screen reader only.
           {:ok, next,
            with_moved(
-             gettext("%{widget} set to size %{size}, column %{col}, row %{row}",
-               widget: title,
-               size: size,
-               col: col,
-               row: item["row"]
-             ),
+             [
+               gettext("%{widget} is now %{size}", widget: title, size: size),
+               {:hidden,
+                " · " <> gettext("column %{col}, row %{row}", col: col, row: item["row"])}
+             ],
              next
            ), key}
 
@@ -516,10 +524,16 @@ defmodule PortfolixirWeb.Dashboard.Edit do
   defp with_moved(say, %__MODULE__{moved: []}), do: say
 
   defp with_moved(say, %__MODULE__{moved: moved}) do
-    say <>
-      " · " <>
-      ngettext("1 widget made room", "%{count} widgets made room", length(moved))
+    append_say(
+      say,
+      " · " <> ngettext("1 widget made room", "%{count} widgets made room", length(moved))
+    )
   end
+
+  @doc "`say` with `text` after it, a string kept a string, parts kept parts (`t:say/0`)."
+  @spec append_say(say(), String.t()) :: say()
+  def append_say(say, text) when is_binary(say), do: say <> text
+  def append_say(parts, text) when is_list(parts), do: parts ++ [text]
 
   defp validate(edit, layout),
     do: Dashboards.validate_layout(layout, stored: edit.dashboard.layout)

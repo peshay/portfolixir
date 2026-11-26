@@ -18567,8 +18567,8 @@ msgstr "%{pp} pp"
 msgid "Couldn't copy the template."
 msgstr "Die Vorlage ließ sich nicht kopieren."
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:576
 #: lib/portfolixir_web/live/dashboard_live.ex:2028
+#: lib/portfolixir_web/live/dashboard/widget.ex:590
 #, elixir-autogen, elixir-format
 msgid "Customize"
 msgstr "Anpassen"
@@ -18654,13 +18654,13 @@ msgstr "1W"
 msgid "Couldn't store the widget's period."
 msgstr "Der Zeitraum des Widgets konnte nicht gespeichert werden."
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:566
-#: lib/portfolixir_web/live/dashboard/widget.ex:590
+#: lib/portfolixir_web/live/dashboard/widget.ex:580
+#: lib/portfolixir_web/live/dashboard/widget.ex:604
 #, elixir-autogen, elixir-format
 msgid "Follows the dashboard (%{period})"
 msgstr "Folgt dem Dashboard (%{period})"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:563
+#: lib/portfolixir_web/live/dashboard/widget.ex:577
 #, elixir-autogen, elixir-format
 msgid "This widget has no period."
 msgstr "Dieses Widget hat keinen Zeitraum."
@@ -18680,7 +18680,7 @@ msgstr "ohne Zeitraum"
 msgid "own: %{period}"
 msgstr "eigener: %{period}"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:579
+#: lib/portfolixir_web/live/dashboard/widget.ex:593
 #, elixir-autogen, elixir-format
 msgid "A template is read-only; only its copy takes a period of its own per widget."
 msgstr "Eine Vorlage ist nur lesend; einen eigenen Zeitraum je Widget nimmt erst ihre Kopie an."
@@ -19243,71 +19243,66 @@ msgstr "Bereiche"
 msgid "%{size} · column %{col}, row %{row}"
 msgstr "%{size} · Spalte %{col}, Zeile %{row}"
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:422
+#: lib/portfolixir_web/live/dashboard/edit.ex:430
 #, elixir-autogen, elixir-format
 msgid "%{widget} added at column %{col}, row %{row}, size %{size}"
 msgstr "%{widget} hinzugefügt, Spalte %{col}, Zeile %{row}, Größe %{size}"
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:351
+#: lib/portfolixir_web/live/dashboard/edit.ex:359
 #, elixir-autogen, elixir-format
 msgid "%{widget} can't be added: a dashboard holds at most 40 widgets."
 msgstr "%{widget} kann nicht hinzugefügt werden: Ein Dashboard hält höchstens 40 Widgets."
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:357
+#: lib/portfolixir_web/live/dashboard/edit.ex:365
 #, elixir-autogen, elixir-format
 msgid "%{widget} can't be added: the grid has no free place."
 msgstr "%{widget} kann nicht hinzugefügt werden: Das Raster hat keinen freien Platz."
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:264
+#: lib/portfolixir_web/live/dashboard/edit.ex:271
 #, elixir-autogen, elixir-format
 msgid "%{widget} can't go to column %{col}, row %{row}: %{reason}."
 msgstr "%{widget} kann nicht an Spalte %{col}, Zeile %{row}: %{reason}."
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:235
-#: lib/portfolixir_web/live/dashboard/edit.ex:403
+#: lib/portfolixir_web/live/dashboard/edit.ex:242
+#: lib/portfolixir_web/live/dashboard/edit.ex:411
 #, elixir-autogen, elixir-format
 msgid "%{widget} can't move %{direction}: %{reason}."
 msgstr "%{widget} kann nicht %{direction}: %{reason}."
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:304
+#: lib/portfolixir_web/live/dashboard/edit.ex:312
 #, elixir-autogen, elixir-format
 msgid "%{widget} can't take size %{size}: %{reason}."
 msgstr "%{widget} kann nicht Größe %{size} annehmen: %{reason}."
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:380
+#: lib/portfolixir_web/live/dashboard/edit.ex:388
 #, elixir-autogen, elixir-format
 msgid "%{widget} is already first."
 msgstr "%{widget} steht schon an erster Stelle."
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:383
+#: lib/portfolixir_web/live/dashboard/edit.ex:391
 #, elixir-autogen, elixir-format
 msgid "%{widget} is already last."
 msgstr "%{widget} steht schon an letzter Stelle."
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:224
+#: lib/portfolixir_web/live/dashboard/edit.ex:231
 #, elixir-autogen, elixir-format
 msgid "%{widget} moved %{direction}, column %{col}, row %{row}"
 msgstr "%{widget} %{direction} verschoben, Spalte %{col}, Zeile %{row}"
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:394
+#: lib/portfolixir_web/live/dashboard/edit.ex:402
 #, elixir-autogen, elixir-format
 msgid "%{widget} moved %{direction}, position %{position} of %{total}"
 msgstr "%{widget} %{direction} verschoben, Position %{position} von %{total}"
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:254
+#: lib/portfolixir_web/live/dashboard/edit.ex:261
 #, elixir-autogen, elixir-format
 msgid "%{widget} placed at column %{col}, row %{row}"
 msgstr "%{widget} an Spalte %{col}, Zeile %{row} gesetzt"
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:333
+#: lib/portfolixir_web/live/dashboard/edit.ex:341
 #, elixir-autogen, elixir-format
 msgid "%{widget} removed"
 msgstr "%{widget} entfernt"
-
-#: lib/portfolixir_web/live/dashboard/edit.ex:293
-#, elixir-autogen, elixir-format
-msgid "%{widget} set to size %{size}, column %{col}, row %{row}"
-msgstr "%{widget} auf Größe %{size} gestellt, Spalte %{col}, Zeile %{row}"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:2178
 #, elixir-autogen, elixir-format
@@ -19345,20 +19340,20 @@ msgstr "Weiter bearbeiten"
 msgid "Load the stored version"
 msgstr "Gespeicherte Fassung laden"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:461
-#: lib/portfolixir_web/live/dashboard/widget.ex:463
+#: lib/portfolixir_web/live/dashboard/widget.ex:470
+#: lib/portfolixir_web/live/dashboard/widget.ex:472
 #, elixir-autogen, elixir-format
 msgid "Move %{widget}"
 msgstr "%{widget} verschieben"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:450
-#: lib/portfolixir_web/live/dashboard/widget.ex:451
+#: lib/portfolixir_web/live/dashboard/widget.ex:459
+#: lib/portfolixir_web/live/dashboard/widget.ex:460
 #, elixir-autogen, elixir-format
 msgid "Move %{widget} down"
 msgstr "%{widget} nach unten verschieben"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:439
-#: lib/portfolixir_web/live/dashboard/widget.ex:440
+#: lib/portfolixir_web/live/dashboard/widget.ex:448
+#: lib/portfolixir_web/live/dashboard/widget.ex:449
 #, elixir-autogen, elixir-format
 msgid "Move %{widget} up"
 msgstr "%{widget} nach oben verschieben"
@@ -19368,13 +19363,13 @@ msgstr "%{widget} nach oben verschieben"
 msgid "No changes to save."
 msgstr "Keine Änderungen zu speichern."
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:473
-#: lib/portfolixir_web/live/dashboard/widget.ex:474
+#: lib/portfolixir_web/live/dashboard/widget.ex:482
+#: lib/portfolixir_web/live/dashboard/widget.ex:483
 #, elixir-autogen, elixir-format
 msgid "Remove %{widget}"
 msgstr "%{widget} entfernen"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:523
+#: lib/portfolixir_web/live/dashboard/widget.ex:537
 #, elixir-autogen, elixir-format
 msgid "Size of %{widget}"
 msgstr "Größe von %{widget}"
@@ -19404,41 +19399,41 @@ msgstr "Dieses Dashboard wurde anderswo geändert, seit die Bearbeitung begann. 
 msgid "Unsaved changes discarded."
 msgstr "Ungespeicherte Änderungen verworfen."
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:527
+#: lib/portfolixir_web/live/dashboard/edit.ex:541
 #, elixir-autogen, elixir-format
 msgid "it would leave the grid"
 msgstr "Es verließe das Raster"
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:406
-#: lib/portfolixir_web/live/dashboard/edit.ex:528
+#: lib/portfolixir_web/live/dashboard/edit.ex:414
+#: lib/portfolixir_web/live/dashboard/edit.ex:542
 #, elixir-autogen, elixir-format
 msgid "the grid has no free place"
 msgstr "Das Raster hat keinen freien Platz"
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:531
+#: lib/portfolixir_web/live/dashboard/edit.ex:545
 #, elixir-autogen, elixir-format
 msgid "the layout does not allow it"
 msgstr "Das Layout lässt es nicht zu"
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:476
+#: lib/portfolixir_web/live/dashboard/edit.ex:484
 #, elixir-autogen, elixir-format
 msgctxt "move direction"
 msgid "down"
 msgstr "nach unten"
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:473
+#: lib/portfolixir_web/live/dashboard/edit.ex:481
 #, elixir-autogen, elixir-format
 msgctxt "move direction"
 msgid "left"
 msgstr "nach links"
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:474
+#: lib/portfolixir_web/live/dashboard/edit.ex:482
 #, elixir-autogen, elixir-format
 msgctxt "move direction"
 msgid "right"
 msgstr "nach rechts"
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:475
+#: lib/portfolixir_web/live/dashboard/edit.ex:483
 #, elixir-autogen, elixir-format
 msgctxt "move direction"
 msgid "up"
@@ -19496,8 +19491,8 @@ msgstr "Kategorien, die ±%{pp} pp oder mehr vom Soll-Gewicht abweichen, auf jed
 msgid "About “%{widget}”"
 msgstr "Zu „%{widget}“"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:555
-#: lib/portfolixir_web/live/dashboard/widget.ex:556
+#: lib/portfolixir_web/live/dashboard/widget.ex:569
+#: lib/portfolixir_web/live/dashboard/widget.ex:570
 #, elixir-autogen, elixir-format
 msgid "Menu for “%{widget}”"
 msgstr "Menü für „%{widget}“"
@@ -19571,24 +19566,24 @@ msgctxt "dashboard edit bar"
 msgid "Editing"
 msgstr "Bearbeitungsmodus"
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:521
+#: lib/portfolixir_web/live/dashboard/edit.ex:529
 #, elixir-autogen, elixir-format
 msgid "1 widget made room"
 msgid_plural "%{count} widgets made room"
 msgstr[0] "1 Widget ist nachgerückt"
 msgstr[1] "%{count} Widgets sind nachgerückt"
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:164
+#: lib/portfolixir_web/live/dashboard/edit.ex:171
 #, elixir-autogen, elixir-format
 msgid "Last step undone"
 msgstr "Letzter Schritt rückgängig gemacht"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:507
+#: lib/portfolixir_web/live/dashboard/widget.ex:516
 #, elixir-autogen, elixir-format
 msgid "Undo"
 msgstr "Rückgängig"
 
-#: lib/portfolixir_web/live/dashboard/edit.ex:530
+#: lib/portfolixir_web/live/dashboard/edit.ex:544
 #, elixir-autogen, elixir-format
 msgid "a dashboard holds at most 40 widgets"
 msgstr "Ein Dashboard hält höchstens 40 Widgets"
@@ -19803,12 +19798,12 @@ msgstr "Jahr"
 msgid "Pin a period for “%{widget}”"
 msgstr "Zeitraum für „%{widget}“ festpinnen"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:609
+#: lib/portfolixir_web/live/dashboard/widget.ex:623
 #, elixir-autogen, elixir-format
 msgid "Pin a period …"
 msgstr "Zeitraum festpinnen …"
 
-#: lib/portfolixir_web/live/dashboard/widget.ex:608
+#: lib/portfolixir_web/live/dashboard/widget.ex:622
 #, elixir-autogen, elixir-format
 msgid "Pinned: %{period} — change …"
 msgstr "Festgepinnt: %{period} — ändern …"
@@ -20074,3 +20069,13 @@ msgstr "Crashes im Vergleich, kurze Tops und Flops, Erholer"
 #, elixir-autogen, elixir-format
 msgid "★ = in the bar as a quick choice; a click on the star puts a period in or takes it out. A quarter not yet begun is drawn dashed and cannot be chosen. “%{current}” and “%{quarter}” are the same quarter today; both stand here because the one moves on and the other stays."
 msgstr "★ = in der Leiste als Schnellwahl; ein Klick auf den Stern nimmt einen Zeitraum hinein oder heraus. Ein Quartal, das noch nicht begonnen hat, erscheint gestrichelt und ist nicht wählbar. „%{current}“ und „%{quarter}“ sind heute dasselbe Quartal; beide stehen da, weil das eine weiterläuft und das andere stehen bleibt."
+
+#: lib/portfolixir_web/live/dashboard/edit.ex:303
+#, elixir-autogen, elixir-format
+msgid "%{widget} is now %{size}"
+msgstr "%{widget} ist jetzt %{size}"
+
+#: lib/portfolixir_web/live/dashboard/edit.ex:305
+#, elixir-autogen, elixir-format
+msgid "column %{col}, row %{row}"
+msgstr "Spalte %{col}, Zeile %{row}"

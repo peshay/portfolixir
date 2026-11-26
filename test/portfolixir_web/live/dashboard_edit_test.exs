@@ -268,7 +268,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert place(view, "crashes") == {7, 3, "L"}
 
     assert announced(view) ==
-             "Tops und Flops auf Größe S gestellt, Spalte 7, Zeile 1 · 1 Widget ist nachgerückt"
+             "Tops und Flops ist jetzt S · Spalte 7, Zeile 1 · 1 Widget ist nachgerückt"
 
     assert has_element?(
              view,
@@ -283,7 +283,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert place(view, "crashes") == {1, 5, "L"}
 
     assert announced(view) ==
-             "Tops und Flops auf Größe L gestellt, Spalte 7, Zeile 1 · 1 Widget ist nachgerückt"
+             "Tops und Flops ist jetzt L · Spalte 7, Zeile 1 · 1 Widget ist nachgerückt"
 
     # Wertentwicklung to XL covers Tops und Flops, which moves on under it,
     # and Crashes im Vergleich, whose place that is, beside it.
@@ -296,7 +296,7 @@ defmodule PortfolixirWeb.DashboardEditTest do
     assert place(view, "crashes") == {7, 5, "L"}
 
     assert announced(view) ==
-             "Wertentwicklung auf Größe XL gestellt, Spalte 1, Zeile 1 · 2 Widgets sind nachgerückt"
+             "Wertentwicklung ist jetzt XL · Spalte 1, Zeile 1 · 2 Widgets sind nachgerückt"
 
     assert Dashboards.get_dashboard(dashboard.id).lock_version == dashboard.lock_version
     assert journal_count() == 1

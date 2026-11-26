@@ -135,8 +135,9 @@ defmodule PortfolixirWeb.DashboardEditArrangeTest do
   #   place that is, moves on beside it; both are marked as moved; nothing
   #   is refused.
   # - The note stands at „Wertentwicklung“, in a polite live region, with
-  #   the step and how many made room: „… auf Größe XL gestellt, Spalte 1,
-  #   Zeile 1 · 1 Widget ist nachgerückt“, „Rückgängig“ beside it; no
+  #   the step and how many made room, as board 01 ③ words it: „… ist
+  #   jetzt XL · 2 Widgets sind nachgerückt“, the column and the row in a
+  #   visually hidden span („· Spalte 1, Zeile 1“), „Rückgängig“ beside it; no
   #   other widget says anything, and the bar's status line says nothing.
   # - „Rückgängig“ takes back that one step: the layout as before, said at
   #   the same widget, and no second „Rückgängig“. Ctrl+Z (the hook's
@@ -156,8 +157,18 @@ defmodule PortfolixirWeb.DashboardEditArrangeTest do
     assert moved(view) == ["crashes", "movers"]
 
     assert note(view, "performance") ==
-             {"Wertentwicklung auf Größe XL gestellt, Spalte 1, Zeile 1 · 2 Widgets sind nachgerückt",
+             {"Wertentwicklung ist jetzt XL · Spalte 1, Zeile 1 · 2 Widgets sind nachgerückt",
               true}
+
+    # Board 01 ③'s words are what is seen; the column and the row stand in
+    # a visually hidden span, for a screen reader (the S32 closing act).
+    [said] =
+      view |> document() |> Floki.find("[data-widget-kind='performance'] [data-role='edit-note']")
+
+    assert said |> Floki.filter_out(".visually-hidden") |> text() ==
+             "Wertentwicklung ist jetzt XL · 2 Widgets sind nachgerückt"
+
+    assert said |> Floki.find(".visually-hidden") |> text() == "· Spalte 1, Zeile 1"
 
     assert [{"performance", _}] = notes(view)
     assert bar(view) == ""
