@@ -80,7 +80,7 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
   #   rounded), and a `.stat` figure the tabs share set in the anatomy's
   #   sizes; at 834 and 393 px the footer whole or wrapped, never cut;
   #   the cycle chart of „Bitcoin-Zyklus“ XL draws no text under 12 CSS
-  #   px.
+  #   px; no table's head cell cut (the coverage pass: „BENCH…“).
   # - Sprint 32 L2 and L3: at 1200 px no title cut either (each kind's
   #   title fits its smallest tile), and no tile cuts a row of its body
   #   or its footer: a fixed tile shows what fits.
@@ -128,7 +128,8 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
   #   Inter and in DejaVu Sans: named as clipped; a card with a shadow
   #   inside a widget: named, and its 31 px figure named as off the
   #   anatomy's sizes; at 393 px a footer cut with an ellipsis: named; a
-  #   widget's chart label drawn at 9 CSS px: named.
+  #   widget's chart label drawn at 9 CSS px: named; a table's head cell
+  #   cut with an ellipsis: named.
   # - A 12 px gap in the wide grid: named as not the hairline.
   # - The handle drawn above its cell in the edit mode: named.
   test "the walk names a wrapped head, a cut figure, a warning box, a card border, a gap and a handle outside its cell",
@@ -153,6 +154,9 @@ defmodule PortfolixirWeb.Browser.WidgetAnatomyTest do
              inspect(caught)
 
       assert Enum.any?(caught, &(&1 =~ "chart text under 12 px: Top-Band 4.500 USD at 9.0 px")),
+             inspect(caught)
+
+      assert Enum.any?(caught, &(&1 =~ "cuts a table head: Benchmark und noch mehr")),
              inspect(caught)
 
       for font <- ["Inter", "DejaVu Sans"] do

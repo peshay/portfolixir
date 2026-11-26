@@ -220,6 +220,17 @@ function measure(page) {
           }
         }
 
+        // A table's head whole (the S32 closing act's coverage pass:
+        // „BENCH…“ and „RECO…“ over „Crashes im Vergleich“ L; board 09
+        // draws them whole): a head cell's words wider than the cell are
+        // named, whether the cell cuts them with an ellipsis or not.
+        const headCut = [];
+        for (const th of w.querySelectorAll("thead th")) {
+          if (shown(th) && th.textContent.trim() && th.scrollWidth > th.clientWidth + 1) {
+            headCut.push(th.textContent.replace(/\s+/g, " ").trim().slice(0, 30));
+          }
+        }
+
         // The footer whole or wrapped, never cut, in the compact forms
         // (the S32 closing act: „Ans…“ and „Nicht i…“ at 393 px).
         const footCut = [];
@@ -282,6 +293,7 @@ function measure(page) {
           offSizes,
           footCut,
           smallText,
+          headCut,
           border: ws.borderTopWidth,
           radius: ws.borderTopLeftRadius,
           shadow: ws.boxShadow,
@@ -313,6 +325,7 @@ function check(tag, viewport, m, errors) {
     for (const c of w.cards) errors.push(tag + ": " + w.name + " carries a card: " + c);
     for (const s of w.offSizes) errors.push(tag + ": " + w.name + " sets a figure off the anatomy's sizes: " + s);
     for (const f of w.footCut) errors.push(tag + ": " + w.name + "'s footer is cut: " + f);
+    for (const h of w.headCut) errors.push(tag + ": " + w.name + " cuts a table head: " + h);
     for (const t of w.smallText) errors.push(tag + ": " + w.name + " draws chart text under 12 px: " + t);
     if (w.border !== "0px") errors.push(tag + ": " + w.name + " draws a card border of " + w.border);
     if (w.radius !== "0px") errors.push(tag + ": " + w.name + " rounds its own corner, " + w.radius);
@@ -386,6 +399,7 @@ function breakEach(page, viewport) {
     table.style.tableLayout = "fixed";
     table.style.width = "60px";
     table.innerHTML =
+      "<thead><tr><th style='width: 40px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis'>Benchmark und noch mehr</th></tr></thead>" +
       "<tbody><tr><td style='width: 40px; overflow: hidden; white-space: nowrap'><span class='num'>Zelle −98,76 % · 1.234.567.890.123.456.789,01 EUR · 9.876.543.210,98 EUR</span></td></tr></tbody>";
     second.appendChild(table);
     // A card inside the widget, its figure off the anatomy's sizes.
