@@ -17870,21 +17870,27 @@ a.widget-row:hover .widget-row__label {
   table-layout: fixed;
 }
 
+/* The window's column gives way to the benchmark's, whose head
+   „Benchmark“ stands whole (the S32 closing act's coverage pass; board
+   09); the window's name and dates wrap. */
 .dashboard-widget .widget-crash-table th:nth-child(1) {
-  width: 42%;
+  width: 34%;
 }
 
 .dashboard-widget .widget-crash-table th:nth-child(2) {
-  width: 18%;
+  width: 24%;
 }
 
 .dashboard-widget .widget-crash-table th:nth-child(4) {
   width: 16%;
 }
 
+/* A head is never cut (board 09 draws it whole): it wraps between its
+   words, and only a word wider than its column breaks. */
 .dashboard-widget .widget-crash-table thead th {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  hyphens: auto;
+  overflow-wrap: anywhere;
 }
 
 /* „Bitcoin-Zyklus“ at XL (board 09 ③): in the wide grid the chart the
