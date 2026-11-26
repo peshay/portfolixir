@@ -495,8 +495,48 @@ defmodule PortfolixirWeb.AppShell do
   # reuses the sidebar Wealth glyph (same destination /portfolio), History the
   # sidebar Transactions glyph (same destination /transactions); the rest are
   # otherwise-unused glyphs so no glyph carries a second meaning (UX-DR16).
-  @doc "The Wealth area's tabs (ADR-0022); `current` marks the active one."
+  @doc """
+  The Wealth area's tabs (ADR-0022); `current` marks the active one. A tab
+  that became a starter dashboard (Sprint 32 W5; ADR-0062's amendment of
+  2026-11-25, point 7) leads to that dashboard where one is stored — the
+  first in the menu's order that the boot copied from its template — and
+  to its page otherwise; the tabs not yet passed lead to their pages.
+  """
   def wealth_tabs(current) do
+    current
+    |> page_tabs()
+    |> Enum.map(&starter_tab(&1, starter_dashboards()))
+  end
+
+  # The tabs that became starters, by their page, and their template.
+  @starter_tabs %{
+    "/portfolio" => "holdings",
+    "/portfolio?tab=allocation" => "allocation_targets",
+    "/snapshots" => "snapshots",
+    "/risk" => "risk"
+  }
+
+  defp starter_tab(%{href: href} = tab, dashboards) do
+    with {:ok, key} <- Map.fetch(@starter_tabs, href),
+         {:ok, id} <- Map.fetch(dashboards, key) do
+      %{tab | href: "/dashboards/#{id}"}
+    else
+      :error -> tab
+    end
+  end
+
+  # The stored dashboards copied from a starter, the first of each in the
+  # menu's order, from the entries this process read once
+  # (`PortfolixirWeb.LiveMenu`), so a render reads nothing.
+  defp starter_dashboards do
+    for %{type: :dashboard, dashboard: %{template_key: key, id: id}} <-
+          Enum.reverse(PortfolixirWeb.LiveMenu.entries()),
+        is_binary(key),
+        into: %{},
+        do: {key, id}
+  end
+
+  defp page_tabs(current) do
     [
       %{
         label: gettext("Holdings"),
