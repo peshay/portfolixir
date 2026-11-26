@@ -36,7 +36,12 @@ defmodule Portfolixir.Dashboards.Starters do
 
   Names: a starter is stored under its template's title in the locale the
   run reads, the release's default (English); the operator renames it like
-  any dashboard.
+  any dashboard. While it is unrenamed — its `template_key` set and its
+  stored name that template's untranslated source title — every screen
+  shows the template's title in the page's language instead
+  (`Portfolixir.Dashboards.display_name/1`: „Überblick“ on a German
+  page; the S32 closing act). The stored name and the API, which is
+  locale-free, stay as stored („Overview“).
   """
 
   import Ecto.Query, only: [from: 2]

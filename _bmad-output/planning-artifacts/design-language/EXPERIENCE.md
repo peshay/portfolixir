@@ -1351,3 +1351,21 @@ per browser, the address, the pin, the translation, „ohne Zeitraum“).
   of the dashboard lets the pin go, as it lets a deleted view go. A pin on
   a quarter or a year that has not begun reads the same way, said as
   „festgepinnter Zeitraum noch nicht begonnen“.
+
+## Amendment 2026-11-26 — An unrenamed starter speaks the page's language *(Sprint 32 closing act; ADR-0062's amendment of 2026-11-25, point 5; the orchestrator's decision, flippable by the owner)*
+
+The boot stores the starter „Überblick“ once, under the title of the
+release's default locale, „Overview“; the German sidebar and title then
+said „Overview“ while the gallery said „Überblick“.
+
+- **While a dashboard is unrenamed** — it was copied from a template
+  (`template_key` set) and its stored name is still that template's
+  untranslated title — every screen that shows its name shows the
+  template's title in the page's language: the sidebar and the
+  dashboard switcher, the page title, „Alle Widgets“' picker and its
+  notes, and the gallery's check for a taken name, which suggests
+  „Überblick (2)“ beside it.
+- **A rename ends it**: from then on the name stands as written, in every
+  language.
+- **The stored name and the API stay as stored** („Overview“): the API is
+  locale-free, and an agent reads what is stored.

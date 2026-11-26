@@ -680,7 +680,8 @@ defmodule PortfolixirWeb.AppShell do
     do: %{
       id: "nav-dashboard-#{dashboard.id}",
       href: "/dashboards/#{dashboard.id}",
-      label: dashboard.name,
+      # An unrenamed starter in the page's language (the S32 closing act).
+      label: Portfolixir.Dashboards.display_name(dashboard),
       stored: true,
       section: :dashboard,
       icon: :dashboard

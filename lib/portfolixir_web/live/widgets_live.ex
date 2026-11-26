@@ -125,17 +125,20 @@ defmodule PortfolixirWeb.WidgetsLive do
            }) do
       assign(socket,
         adding: nil,
-        added: %{kind: adding.kind.key, id: stored.id, name: stored.name}
+        added: %{kind: adding.kind.key, id: stored.id, name: Dashboards.display_name(stored)}
       )
     else
       {:error, :stale, _stored} ->
-        assign(socket, :adding, reread(adding, {:stale, dashboard.name}))
+        assign(socket, :adding, reread(adding, {:stale, Dashboards.display_name(dashboard)}))
 
       {:error, :not_found} ->
-        assign(socket, :adding, reread(adding, {:gone, dashboard.name}))
+        assign(socket, :adding, reread(adding, {:gone, Dashboards.display_name(dashboard)}))
 
       {:error, reason} ->
-        assign(socket, :adding, %{adding | note: {:refused, reason, dashboard.name}})
+        assign(socket, :adding, %{
+          adding
+          | note: {:refused, reason, Dashboards.display_name(dashboard)}
+        })
     end
   end
 
@@ -296,7 +299,7 @@ defmodule PortfolixirWeb.WidgetsLive do
                 data-role="add-to"
                 phx-click="add"
                 phx-value-id={dashboard.id}
-              ><bdi><%= dashboard.name %></bdi></button>
+              ><bdi><%= Dashboards.display_name(dashboard) %></bdi></button>
             </li>
           </ul>
         <% end %>
